@@ -1,0 +1,302 @@
+{
+  "jobId": "VID01_Currency_Market",
+  "fps": 30,
+  "totalDurationMs": 53492,
+  "scenes": [
+    {
+      "id": "s01",
+      "chapter": "The Shadow Market",
+      "startMs": 0,
+      "endMs": 23982,
+      "voLine": "There is a shadow market out there that is bigger than the stock market bigger than the bond market and makes the entire crypto market look like loose change found under a couch cushion Overnight, this single market can spike the price of oil, vaporize billions of dollars from corporate profits, ruin your summer holiday budget, and make entire nations either filthy rich or dangerously vulnerable.",
+      "intent": "Deliver dramatic hook on invisible global currency flows",
+      "visualMetaphor": "Cinematic title card with prologue badge",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "TitleCard",
+            "props": {
+              "chapterBadge": "PROLOGUE",
+              "title": "The Invisible River of Global Liquidity",
+              "subtitle": "Every single day across London, New York, and Tokyo, money moves in secret.",
+              "accentColor": "#F5B83D"
+            }
+          }
+        ]
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "chapter": "Overnight Global Impact",
+      "startMs": 23982,
+      "endMs": 28582,
+      "voLine": "It's called the foreign exchange market or FX.",
+      "intent": "Explain the shadow architecture shaping global wealth disparity",
+      "visualMetaphor": "Definition card with rough-notation underline",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent2",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "TermCard",
+            "props": {
+              "category": "MARKET ARCHITECTURE",
+              "term": "The Shadow Currency Engine",
+              "definition": "The private interbank settlement network that invisibly dictates global liquidity and asset prices.",
+              "highlightWord": "invisibly dictates",
+              "accentColor": "#F5B83D"
+            }
+          }
+        ]
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "chapter": "The $7 Trillion Daily Arena",
+      "startMs": 28582,
+      "endMs": 36892,
+      "voLine": "The arena where money itself is bought and sold to the tune of more than $7 trillion every single day.",
+      "intent": "Visceral magnitude of daily FX volume",
+      "visualMetaphor": "Massive animated numeral counting up to $9.6 Trillion",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "BigNumber",
+            "props": {
+              "value": 9.6,
+              "prefix": "$",
+              "suffix": "TRILLION",
+              "decimals": 1,
+              "label": "Traded across currency markets every single day",
+              "sublabel": "Global foreign exchange daily turnover",
+              "accentColor": "#F5B83D"
+            },
+            "anchors": [
+              {
+                "word": "trillion",
+                "occurrence": 1,
+                "action": "countUp.end",
+                "offsetFrames": -8
+              }
+            ]
+          }
+        ]
+      },
+      "sourceTag": {
+        "text": "Bank for International Settlements (BIS) Triennial Survey 2025",
+        "dataRef": "brief.must_show[0]"
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "chapter": "The Secret Scoreboard",
+      "startMs": 36892,
+      "endMs": 40362,
+      "voLine": "Most people have zero clue it even exists.",
+      "intent": "Explain the shadow architecture shaping global wealth disparity",
+      "visualMetaphor": "Definition card with rough-notation underline",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent2",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "TermCard",
+            "props": {
+              "category": "MARKET ARCHITECTURE",
+              "term": "The Shadow Currency Engine",
+              "definition": "The private interbank settlement network that invisibly dictates global liquidity and asset prices.",
+              "highlightWord": "invisibly dictates",
+              "accentColor": "#F5B83D"
+            }
+          }
+        ]
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "chapter": "Scene 05",
+      "startMs": 40362,
+      "endMs": 46422,
+      "voLine": "Let alone how a secret scoreboard behind it dictates the price of everything you own.",
+      "intent": "Explain the shadow architecture shaping global wealth disparity",
+      "visualMetaphor": "Definition card with rough-notation underline",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "TermCard",
+            "props": {
+              "category": "MARKET ARCHITECTURE",
+              "term": "The Shadow Currency Engine",
+              "definition": "The private interbank settlement network that invisibly dictates global liquidity and asset prices.",
+              "highlightWord": "invisibly dictates",
+              "accentColor": "#F5B83D"
+            }
+          }
+        ]
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "chapter": "Scene 06",
+      "startMs": 46422,
+      "endMs": 53492,
+      "voLine": "And how one single trap inside it destroys nearly every beginner who tries to play the game.",
+      "intent": "Explain the shadow architecture shaping global wealth disparity",
+      "visualMetaphor": "Definition card with rough-notation underline",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "accent2",
+            "intensity": 0.22
+          }
+        },
+        "foreground": [
+          {
+            "component": "TermCard",
+            "props": {
+              "category": "MARKET ARCHITECTURE",
+              "term": "The Shadow Currency Engine",
+              "definition": "The private interbank settlement network that invisibly dictates global liquidity and asset prices.",
+              "highlightWord": "invisibly dictates",
+              "accentColor": "#F5B83D"
+            }
+          }
+        ]
+      },
+      "transitionOut": {
+        "type": "none",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        }
+      ]
+    }
+  ]
+}

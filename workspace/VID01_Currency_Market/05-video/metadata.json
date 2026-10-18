@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "jobId": "VID01_Currency_Market",
+  "title": "How the $7 Trillion Currency Market Actually Works",
+  "topic": "Foreign Exchange Market & Global Liquidity Architecture",
+  "language": "en",
+  "createdAt": "2026-10-18T12:26:30.399Z",
+  "inputsHash": "4b14969c1132ac7df7418e0e8649c0c85665e70827720340e51a4ef2f93152f1",
+  "video": {
+    "file": "draft.mp4",
+    "durationSec": 53.492,
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "codec": "h264",
+    "sizeBytes": 3312141
+  },
+  "audio": {
+    "integratedLUFS": -15.32,
+    "truePeakDBTP": -5.23,
+    "hasMusic": false,
+    "sfxCount": 6
+  },
+  "captions": {
+    "mode": "sidecar",
+    "files": [
+      "captions.srt",
+      "captions.vtt",
+      "captions.json"
+    ],
+    "wordCount": 134
+  },
+  "chapters": [
+    {
+      "time": "0:00",
+      "title": "The Shadow Market"
+    },
+    {
+      "time": "0:23",
+      "title": "Overnight Global Impact"
+    },
+    {
+      "time": "0:36",
+      "title": "The Secret Scoreboard"
+    },
+    {
+      "time": "0:46",
+      "title": "Scene 06"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s01",
+      "startMs": 0,
+      "endMs": 23982,
+      "components": [
+        "TitleCard"
+      ],
+      "chapter": "The Shadow Market"
+    },
+    {
+      "id": "s02",
+      "startMs": 23982,
+      "endMs": 28582,
+      "components": [
+        "TermCard"
+      ],
+      "chapter": "Overnight Global Impact"
+    },
+    {
+      "id": "s03",
+      "startMs": 28582,
+      "endMs": 36892,
+      "components": [
+        "BigNumber"
+      ],
+      "chapter": "The $7 Trillion Daily Arena"
+    },
+    {
+      "id": "s04",
+      "startMs": 36892,
+      "endMs": 40362,
+      "components": [
+        "TermCard"
+      ],
+      "chapter": "The Secret Scoreboard"
+    },
+    {
+      "id": "s05",
+      "startMs": 40362,
+      "endMs": 46422,
+      "components": [
+        "TermCard"
+      ],
+      "chapter": "Scene 05"
+    },
+    {
+      "id": "s06",
+      "startMs": 46422,
+      "endMs": 53492,
+      "components": [
+        "TermCard"
+      ],
+      "chapter": "Scene 06"
+    }
+  ],
+  "numbersShown": [
+    {
+      "scene": "s03",
+      "value": "9.6",
+      "source": "Bank for International Settlements (BIS) Triennial Survey 2025",
+      "dataRef": "brief.must_show[0]"
+    }
+  ],
+  "fonts": [
+    "Inter",
+    "JetBrains Mono"
+  ],
+  "thumbnails": [
+    "stills/thumbnails/thumb-a.png",
+    "stills/thumbnails/thumb-b.png",
+    "stills/thumbnails/thumb-c.png"
+  ],
+  "qc": {
+    "errors": 0,
+    "warnings": 0,
+    "needsData": []
+  },
+  "render": {
+    "seconds": 14,
+    "profile": "final",
+    "remotion": "4.0.536",
+    "node": "v26.11.1",
+    "ffmpeg": "9.0.2"
+  },
+  "suggestedMetadata": {
+    "titleOptions": [
+      "The $9.6 Trillion Currency Machine Nobody Talks About",
+      "The Invisible River: Inside the Global Currency Market",
+      "How $9.6 Trillion Moves Every Single Day (In Secret)"
+    ],
+    "descriptionFile": "description_draft.md",
+    "tags": [
+      "finance",
+      "economics",
+      "currency",
+      "wealth-gap",
+      "forex"
+    ]
+  }
+}
