@@ -1,6 +1,6 @@
 {
   "jobId": "VID01_Currency_Market",
-  "createdAt": "2026-10-18T12:24:00.150Z",
+  "createdAt": "2026-10-18T18:42:38.375Z",
   "audio": {
     "file": "full_voiceover.wav",
     "durationSec": 52.432813,
@@ -52,8 +52,8 @@
     ]
   },
   "stats": {
-    "wordCount": 134,
-    "durationMs": 52292,
+    "wordCount": 268,
+    "durationMs": 101500,
     "gapCount": 0
   },
   "config": {
@@ -103,5 +103,7 @@
       "failOnWarnings": false
     }
   },
-  "warnings": []
+  "warnings": [
+    "WARN: Last transcript word ends at 101.50s, which is 49.07s past audio duration (52.43s)"
+  ]
 }

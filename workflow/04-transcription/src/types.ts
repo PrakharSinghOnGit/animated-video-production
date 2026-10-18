@@ -1,8 +1,8 @@
 export interface WordTimestamp {
   word: string;
-  start: number; // in seconds
-  end: number;   // in seconds
-  probability: number;
+  start: number; // in seconds (2 decimals)
+  end: number;   // in seconds (2 decimals)
+  probability?: number;
 }
 
 export interface SegmentTimestamp {
@@ -10,17 +10,16 @@ export interface SegmentTimestamp {
   start: number;
   end: number;
   text: string;
-  words: WordTimestamp[];
 }
 
 export interface ClipTranscript {
-  file: string;
+  file?: string;
   part: number;
   sectionId: string;
   duration: number;
   text: string;
   words: WordTimestamp[];
-  segments: SegmentTimestamp[];
+  segments?: SegmentTimestamp[];
 }
 
 export interface FullTranscript {

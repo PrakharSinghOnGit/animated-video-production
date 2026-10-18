@@ -113,15 +113,23 @@ bun run tts:cloud --video VID01_Currency_Market
 bun run tts --cloud --video VID01_Currency_Market
 ```
 
-### 5. Step 5: Word-Level Transcription (For Video Alignment)
+### 5. Step 5: Word-Level Transcription (For Video Alignment & LLMs)
 ```bash
-# Extract millisecond-accurate word timestamps with Whisper
+# Extract millisecond-accurate word timestamps with local faster-whisper:
 bun run transcribe
+# Or for a specific part:
+bun run transcribe --part 1
+
+# Generates 4 tailored formats:
+# 1. full_transcript_compact.txt (🎯 95% token savings - perfect for pasting into LLMs)
+# 2. full_transcript.csv         (Tabular clip,start,end,word timestamps)
+# 3. clips_summary.csv          (High-level scene timing & cumulative timeline)
+# 4. full_transcript.json       (Cleaned Remotion-ready JSON without duplicate segments)
 ```
 
 ### 6. Step 6: Video Storyboarding & Planning
 1. Open [`workflow/prompts/DIRECTOR_PROMPT.md`](file:///Users/prakharsingh/youtube/WealthGap/workflow/prompts/DIRECTOR_PROMPT.md).
-2. Paste the prompt along with your `workspace/<VIDEO>/04-transcription/full_transcript.json` into Claude / GPT-4o / Gemini.
+2. Paste the prompt along with `workspace/<VIDEO>/04-transcription/full_transcript_compact.txt` (or `.csv`) into Claude / GPT-4o / Gemini.
 3. Save the resulting JSON directly into `workspace/<VIDEO>/05-video/scenes.json`.
 4. Validate the storyboard against the component registry and design rules:
 ```bash

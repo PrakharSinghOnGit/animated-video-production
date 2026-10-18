@@ -44,32 +44,28 @@ def main():
     full_text_parts = []
 
     for seg in segments:
-        seg_words = []
         if seg.words:
             for w in seg.words:
-                word_item = {
-                    "word": w.word.strip(),
-                    "start": round(w.start, 3),
-                    "end": round(w.end, 3),
-                    "probability": round(w.probability, 3)
-                }
-                seg_words.append(word_item)
-                all_words.append(word_item)
+                clean_word = w.word.strip()
+                if clean_word:
+                    all_words.append({
+                        "word": clean_word,
+                        "start": round(w.start, 2),
+                        "end": round(w.end, 2)
+                    })
 
         all_segments.append({
             "id": seg.id,
-            "start": round(seg.start, 3),
-            "end": round(seg.end, 3),
-            "text": seg.text.strip(),
-            "words": seg_words
+            "start": round(seg.start, 2),
+            "end": round(seg.end, 2),
+            "text": seg.text.strip()
         })
         full_text_parts.append(seg.text.strip())
 
     result = {
         "audio_file": os.path.basename(args.audio),
-        "duration": round(info.duration, 3),
+        "duration": round(info.duration, 2),
         "language": info.language,
-        "language_probability": round(info.language_probability, 3),
         "model": args.model,
         "text": " ".join(full_text_parts),
         "words": all_words,
