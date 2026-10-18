@@ -39,7 +39,6 @@ async function main() {
   });
 
   const cols = 3;
-  const rows = Math.ceil(imageFiles.length / cols);
   const vList = imageFiles.map((_, i) => `[v${i}]`).join("");
   const filterComplex = `${filterInputs.join(";")};${vList}xstack=inputs=${imageFiles.length}:layout=${generateLayout(
     imageFiles.length,

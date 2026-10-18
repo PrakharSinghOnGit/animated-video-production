@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
-import { BeatsFileSchema, ScenesFileSchema, type Scene, type ScenesFile } from "../src/lib/schema";
+import { BeatsFileSchema, type Scene, type ScenesFile } from "../src/lib/schema";
 import { parseBrief } from "../src/lib/frontMatter";
 import { validateScenes } from "./validate-plan";
 

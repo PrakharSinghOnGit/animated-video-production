@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
-import { ScenesFileSchema, CaptionsListSchema, type Scene } from "../src/lib/schema";
+import { ScenesFileSchema, CaptionsListSchema } from "../src/lib/schema";
 import { COMPONENT_REGISTRY, validateComponentProps } from "../src/lib/registry";
 import { cleanWord } from "../src/lib/timing";
 
@@ -195,7 +195,7 @@ async function main() {
     captionsRaw = JSON.parse(fs.readFileSync(captionsPath, "utf-8"));
   }
 
-  const { isValid, issues } = validateScenes(scenesRaw, captionsRaw);
+  const { issues } = validateScenes(scenesRaw, captionsRaw);
 
   const errors = issues.filter((i) => i.type === "ERROR");
   const warnings = issues.filter((i) => i.type === "WARN");
