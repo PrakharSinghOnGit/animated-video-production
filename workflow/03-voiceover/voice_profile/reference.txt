@@ -1,0 +1,1 @@
+Generate the script section-by-section. This ensures consistent tone, avoids memory drift, and gives you individual audio files ready to sync with your Remotion compositions.

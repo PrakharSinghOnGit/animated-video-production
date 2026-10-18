@@ -44,10 +44,19 @@ function parseArgs(): GenerationOptions {
       options.codec = args[++i] as "wav" | "mp3";
     } else if (arg === "--api-key") {
       options.apiKey = args[++i];
+    } else if (arg === "--cloud" || arg === "--sarvam" || arg === "--api") {
+      options.engine = "cloud";
+    } else if (arg === "--local" || arg === "--f5") {
+      options.engine = "local";
     } else if (arg === "--out") {
       options.outputDir = args[++i];
+    } else if (!arg.startsWith("-") && !options.video) {
+      options.video = arg;
     }
   }
+
+  // Default to local F5-TTS voice cloning unless explicitly flagged
+  options.engine = options.engine || "local";
 
   return options;
 }

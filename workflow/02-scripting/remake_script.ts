@@ -27,6 +27,7 @@ async function generateWithOllama(
       options: {
         temperature: 0.7,
         top_p: 0.9,
+        num_predict: 8192,
       },
     }),
   });
@@ -225,18 +226,26 @@ Topic / Reference Context:
 
 Reference Raw Transcript:
 """
-${rawTranscript.slice(0, 12000)}
+${rawTranscript.slice(0, 14000)}
 """
 
-Task:
-Write a complete, gripping, 100% ORIGINAL YouTube video script for "The Wealth Gap" based on the facts and economic mechanisms in this transcript.
-Strictly enforce:
+CRITICAL LENGTH & DURATION MANDATE:
+- This MUST be an 8 TO 10 MINUTE long-form documentary script (minimum 1,300 to 1,600 spoken words).
+- DO NOT summarize or write brief outlines. Write complete, detailed, cinematic narration across all 7 comprehensive chapters:
+  ### PART 1: THE HOOK & THE SYSTEMIC PARADOX (0:00–1:00)
+  ### PART 2: THE HIDDEN INFRASTRUCTURE (1:00–2:15)
+  ### PART 3: THE RELATABLE ANALOGY & FRICTION (2:15–3:30)
+  ### PART 4: THE SCALE & THE SCOREBOARD (3:30–5:00)
+  ### PART 5: THE INSTITUTIONAL BENEFICIARIES (5:00–6:30)
+  ### PART 6: THE ASYMMETRIC WEALTH TRANSFER (6:30–8:00)
+  ### PART 7: THE BEDROCK CONCLUSION (8:00–9:30+)
+
+Rules:
 1. DO NOT copy phrases or sentences from the transcript. Re-architect the narrative completely from our investigative macroeconomic perspective.
-2. Group into distinct parts (### PART 1: THE HOOK, ### PART 2: THE HIDDEN MECHANISM, ### PART 3: THE SCALE & THE SCOREBOARD, etc.).
-3. Every beat MUST follow:
-**[CLIP X - M:SS–M:SS]:** [Visual description]
-**VO:** \`[VO: Tone instruction]\` Spoken script narration.
-4. Output clean markdown starting with "# ${metadata?.title ? metadata.title.replace(/[^a-zA-Z0-9 ]/g, "") : videoId} Raw Script".
+2. Every single beat MUST strictly follow:
+**[CLIP X - M:SS–M:SS]:** [Cinematic visual direction for motion graphics / 3D camera]
+**VO:** \`[VO: Tone instruction]\` Spoken script narration written in full, natural, compelling paragraphs.
+3. Output clean markdown starting with "# ${metadata?.title ? metadata.title.replace(/[^a-zA-Z0-9 ]/g, "") : videoId} Raw Script".
 `;
 
   try {
@@ -244,14 +253,27 @@ Strictly enforce:
 
     fs.writeFileSync(scriptRawPath, generatedScript, "utf-8");
 
+    const words = generatedScript.split(/\s+/).filter(Boolean).length;
+    const estMinutes = (words / 150).toFixed(1);
+    const partCount = (generatedScript.match(/^###\s+PART\s+\d+/gim) || []).length;
+    const clipCount = (generatedScript.match(/\*\*\[CLIP\s+/gi) || []).length;
+
     console.log(`======================================================`);
     console.log(`✅ Original Script Generated & Saved!`);
-    console.log(`   ${path.relative(process.cwd(), scriptRawPath)}`);
+    console.log(`   File: ${path.relative(process.cwd(), scriptRawPath)}`);
+    console.log(`   Word Count:         ${words.toLocaleString()} words`);
+    console.log(`   Estimated Runtime:  ~${estMinutes} minutes (@ 150 WPM)`);
+    console.log(`   Chapters:           ${partCount} parts | ${clipCount} visual beats`);
     console.log(`======================================================\n`);
+
+    if (words < 1100) {
+      console.warn(`⚠️ Warning: Script word count (${words}) is below the 8-minute target (1,300+ words).`);
+      console.warn(`You can expand sections in script_raw.md or run 'bun run script:remake ${videoId}' to re-generate.\n`);
+    }
 
     console.log(`Next Steps:`);
     console.log(`  1. Review and tweak script in: ${path.relative(process.cwd(), scriptRawPath)}`);
-    console.log(`  2. Format into VO sections with Sarvam prosody:`);
+    console.log(`  2. Format into VO sections with local F5-TTS prosody:`);
     console.log(`     bun run tts:format ${videoId}`);
     console.log(``);
   } catch (err: any) {

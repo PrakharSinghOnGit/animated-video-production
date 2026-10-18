@@ -8,6 +8,7 @@ export interface VOSection {
   pace: number;          // 0.5 - 2.0 (Bulbul v4 Flash default: 1.0)
   pitch: number;         // -0.5 - 0.5 (Bulbul v4 Flash default: 0.0)
   loudness: number;      // 0.1 - 2.5 (Bulbul v4 Flash default: 1.0)
+  speed?: number;        // Local F5-TTS speed multiplier (default: 1.0, range 0.7 - 1.5)
   speaker?: string;      // Persona ID, e.g., 'varun_en_suspense'
   speech_sample_rate?: 8000 | 16000 | 22050 | 24000 | 32000 | 44100 | 48000;
   output_audio_codec?: "wav" | "mp3" | "flac" | "aac";
@@ -48,6 +49,9 @@ export interface GenerationOptions {
   apiKey?: string;
   sampleRate?: number;
   codec?: "wav" | "mp3";
+  engine?: "local" | "cloud"; // Default: "local" (F5-TTS), "cloud" for Sarvam API
+  voiceDir?: string;
+  remakeVoice?: boolean;
   expressionScale?: number; // Master multiplier: 0.0 = neutral, 1.0 = full set, 0.3 = 30%
   paceScale?: number;
   pitchScale?: number;

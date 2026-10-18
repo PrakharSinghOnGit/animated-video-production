@@ -68,13 +68,13 @@ bun run new-video VID02_Stock_Market_Bubble "https://www.youtube.com/watch?v=...
 
 ### 2. Step 2: Transcribing Reference & Remaking Original Script
 ```bash
-# 2A. Transcribe reference audio using Hugging Face Space (openai/whisper via @gradio/client)
-# (Auto-falls back to local faster-whisper if HF ZeroGPU queue is full)
+# 2A. Transcribe reference audio using local faster-whisper (DEFAULT, 100% offline)
 bun run script:transcribe VID02_Stock_Market_Bubble
-# Or force fast local execution:
-bun run script:transcribe VID02_Stock_Market_Bubble --local
 
-# 2B. Remake into original, retention-optimized Wealth Gap script (anti-plagiarism)
+# Optional: Run on Hugging Face ZeroGPU Space (@gradio/client)
+bun run script:transcribe VID02_Stock_Market_Bubble --cloud
+
+# 2B. Remake into original, retention-optimized Wealth Gap script (FORCED 8–10 Min, ~1,300–1,600 words)
 # Option 1: AI generation via local Ollama Gemma 3 (12b):
 bun run script:remake VID02_Stock_Market_Bubble
 
@@ -84,20 +84,33 @@ bun run script:remake VID02_Stock_Market_Bubble --manual
 
 ### 3. Step 3: Format Voiceover Sections & Prosody
 ```bash
-# Convert script_raw.md into structured VO sections with calibrated Sarvam prosody tags:
+# Convert script_raw.md into structured VO sections with calibrated F5-TTS speeds & Sarvam tags:
 bun run tts:format VID02_Stock_Market_Bubble
 ```
 
-### 4. Step 4: Voiceover Audio Generation (TTS)
+### 4. Step 4: Voiceover Audio Generation (TTS & Voice Cloning)
 ```bash
-# Check character count and estimated API cost (₹1 per 1,000 chars)
-bun run tts:cost
+# 4A. One-Time Setup: Initialize persistent cloned voice profile from reference audio
+bun run voice:setup
 
-# Dry-run voice settings & prosody multipliers without calling API
-bun run tts:dry-run
+# Remake or update cloned voice after changing voice_to_clone.wav & prompt.txt:
+bun run voice:remake
 
-# Generate audio for active video in .env
-bun run tts
+# 4B. Check character count and cost estimate (₹0.00 Local F5-TTS, ₹1/1k chars Cloud)
+bun run tts:cost --video VID01_Currency_Market
+
+# 4C. Dry-run voice settings & speeds without generating audio
+bun run tts:dry-run --video VID01_Currency_Market
+
+# 4D. Generate audio with Local Cloned Voice (DEFAULT, 100% Offline, ₹0.00):
+bun run tts --video VID01_Currency_Market
+# Or generate part 1 only:
+bun run tts --video VID01_Currency_Market --part 1
+
+# 4E. Fallback: Generate via Sarvam Bulbul v4 Flash Cloud API:
+bun run tts:cloud --video VID01_Currency_Market
+# Or with flag:
+bun run tts --cloud --video VID01_Currency_Market
 ```
 
 ### 5. Step 5: Word-Level Transcription (For Video Alignment)

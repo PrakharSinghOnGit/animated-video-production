@@ -16,46 +16,47 @@ interface ParsedPart {
   beats: ParsedBeat[];
 }
 
-// Calibrated rule-based mapping from VO tone tags to Sarvam prosody
+// Calibrated rule-based mapping from VO tone tags to Sarvam prosody and F5-TTS speed
 function deriveProsodyFromInstruction(instruction: string): {
   pace: number;
   pitch: number;
   loudness: number;
+  speed: number;
 } {
   const lower = instruction.toLowerCase();
 
   // Fast / Urgent / Accelerating
   if (lower.includes("urgency") || lower.includes("speed") || lower.includes("accelerat") || lower.includes("rapid")) {
-    return { pace: 1.16, pitch: 0.04, loudness: 1.15 };
+    return { pace: 1.16, pitch: 0.04, loudness: 1.15, speed: 1.15 };
   }
 
   // Intense / Movie-trailer / Hushed / Dramatic Hook
   if (lower.includes("trailer") || lower.includes("hushed") || lower.includes("dramatic") || lower.includes("intense")) {
-    return { pace: 0.88, pitch: -0.12, loudness: 0.92 };
+    return { pace: 0.88, pitch: -0.12, loudness: 0.92, speed: 0.90 };
   }
 
   // Heavy landing on number / Staggering stat
   if (lower.includes("number") || lower.includes("emphasis") || lower.includes("staggering") || lower.includes("shock")) {
-    return { pace: 0.92, pitch: 0.00, loudness: 1.25 };
+    return { pace: 0.92, pitch: 0.00, loudness: 1.25, speed: 0.92 };
   }
 
   // Intrigue / Conspiratorial / Secret
   if (lower.includes("conspiratorial") || lower.includes("intrigue") || lower.includes("secret") || lower.includes("whisper")) {
-    return { pace: 0.92, pitch: -0.10, loudness: 0.90 };
+    return { pace: 0.92, pitch: -0.10, loudness: 0.90, speed: 0.92 };
   }
 
   // Cold / Cynical reality / Winner vs Loser
   if (lower.includes("cynical") || lower.includes("reality") || lower.includes("cold") || lower.includes("verdict")) {
-    return { pace: 0.95, pitch: -0.06, loudness: 1.05 };
+    return { pace: 0.95, pitch: -0.06, loudness: 1.05, speed: 0.95 };
   }
 
   // Building tension
   if (lower.includes("tension") || lower.includes("mounting")) {
-    return { pace: 1.08, pitch: 0.02, loudness: 1.10 };
+    return { pace: 1.08, pitch: 0.02, loudness: 1.10, speed: 1.08 };
   }
 
   // Default natural conversational narration
-  return { pace: 1.00, pitch: 0.00, loudness: 1.00 };
+  return { pace: 1.00, pitch: 0.00, loudness: 1.00, speed: 1.00 };
 }
 
 function parseScriptRaw(content: string): ParsedPart[] {
@@ -186,7 +187,7 @@ Example:
 
     const sectionsCode = part.beats.map((b, idx) => {
       const id = `part${part.partNum}_${String(idx + 1).padStart(2, "0")}_beat`;
-      const { pace, pitch, loudness } = deriveProsodyFromInstruction(b.rawInstruction);
+      const { pace, pitch, loudness, speed } = deriveProsodyFromInstruction(b.rawInstruction);
       const cleanText = b.text.replace(/"/g, '\\"');
 
       return `  {
@@ -195,6 +196,7 @@ Example:
     partTitle: "${part.partTitle}",
     clips: "${b.clips}",
     rawInstruction: "${b.rawInstruction.replace(/"/g, '\\"')}",
+    speed: ${speed.toFixed(2)},
     pace: ${pace.toFixed(2)},
     pitch: ${pitch.toFixed(2)},
     loudness: ${loudness.toFixed(2)},
@@ -260,12 +262,14 @@ ${exportList}
   console.log(`======================================================\n`);
 
   console.log(`Next Steps:`);
-  console.log(`  1. Check character count & cost estimate:`);
-  console.log(`     bun run tts:cost --video ${videoId}`);
-  console.log(`  2. Dry-run prosody values without calling API:`);
-  console.log(`     bun run tts:dry-run --video ${videoId}`);
-  console.log(`  3. Generate 48kHz audio clips via Sarvam AI:`);
+  console.log(`  1. Generate Local Cloned Voiceover (Default, Offline, F5-TTS, ₹0.00):`);
   console.log(`     bun run tts --video ${videoId}`);
+  console.log(`  2. Generate via Cloud (Sarvam Bulbul v4 Flash API):`);
+  console.log(`     bun run tts --cloud --video ${videoId}`);
+  console.log(`  3. Check character count & cost estimate:`);
+  console.log(`     bun run tts:cost --video ${videoId}`);
+  console.log(`  4. Remake or update cloned voice sample:`);
+  console.log(`     bun run voice:remake`);
   console.log(``);
 }
 

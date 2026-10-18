@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import { CONFIG } from "./config";
 import { SarvamClient } from "./sarvam_client";
 import { resolveWorkspace, loadSections, listAvailableVideos } from "./workspace";
+import { setupVoiceProfile, findPython } from "./voice_profile";
 import type { GenerationOptions, VOSection } from "./types";
 
 const COST_PER_1K_CHARS_INR = 1.0;
@@ -32,44 +33,57 @@ export function scaleProsody(
 
 export function printHelp() {
   console.log(`
-🎙️  03-Voiceover: Sarvam Bulbul v4 Flash Audio Generator
+🎙️  03-Voiceover: Dual-Engine Audio Generator
+   • Default: Local F5-TTS Cloned Voice (100% Offline, Apple Silicon GPU, ₹0.00)
+   • Cloud:   Sarvam Bulbul v4 Flash API (--cloud / --sarvam)
 
 Usage:
-  bun run 03-voiceover/run.ts [options]
+  bun run workflow/03-voiceover/run.ts [options]
   bun run tts [options]
 
-Options:
-  --help, -h               Show this help message
+Engine Options:
+  --local, --f5            Use local F5-TTS voice cloning (DEFAULT)
+  --cloud, --sarvam        Use Sarvam Bulbul v4 Flash Cloud API
+
+Voice Profile Options:
+  bun run voice:setup      Initialize cloned voice profile (workflow/03-voiceover/voice_profile)
+  bun run voice:remake     Re-clone voice from voice_to_clone.wav & prompt
+
+Target Options:
   --video <id>             Target video workspace (e.g. --video VID01_Currency_Market)
-  --scale, -m <0.0-1.0>    Master expression scaling (0.0 = neutral, 1.0 = full set, default: 0.3)
-  --pitch-scale <0.0-1.0>  Pitch variation scaling (e.g. 0.0 to disable pitch modulation)
-  --pace-scale <0.0-1.0>   Pace variation scaling
-  --loudness-scale <0.0-1.0> Loudness variation scaling
-  --cost, -e               Estimate character count and cost (₹1 / 1,000 chars)
-  --list, -l               List all script sections, expressions, and prosody
-  --dry-run, -d            Preview voice settings and character counts without calling API
   --part, -p <number>      Generate audio for a specific part only (e.g. --part 1)
-  --section, -s <id>       Generate audio for a specific section ID (e.g. --section part1_01_shadow_market)
-  --speaker <persona>      Override speaker persona (e.g. --speaker varun_en_suspense)
-  --rate <hz>              Override sample rate (8000, 16000, 22050, 24000, 44100, 48000)
-  --codec <wav|mp3>        Set output audio codec (default: wav)
+  --section, -s <id>       Generate audio for a specific section ID (e.g. --section part1_01_beat)
+  --cost, -e               Estimate character count and cost
+  --list, -l               List all script sections, expressions, and prosody
+  --dry-run, -d            Preview voice settings and paths without generating audio
   --force, -f              Overwrite existing audio files
-  --combine, -c            Combine generated clips into single tracks per part and full script (requires ffmpeg)
-  --api-key <key>          Override SARVAM_API_KEY from command line
+  --combine, -c            Combine generated clips into single tracks per part and full script (ffmpeg)
+
+Prosody / Cloud Tuning:
+  --scale, -m <0.0-1.0>    Master expression scaling (default: 0.3 for cloud, 1.0 for local)
+  --speaker <persona>      Override Sarvam speaker persona (e.g. --speaker varun_en_suspense)
+  --rate <hz>              Override sample rate (8000, 16000, 24000, 48000)
+  --codec <wav|mp3>        Set output audio codec (default: wav)
 
 Examples:
-  bun run tts --cost
-  bun run tts --video VID01_Currency_Market --dry-run
-  bun run tts --part 1 --scale 0.3
-  bun run tts --section part1_01_shadow_market --force
-  bun run tts --combine
+  bun run tts                              # Generate entire video using local F5-TTS
+  bun run tts --part 1                     # Generate part 1 only
+  bun run tts --dry-run                    # Preview settings offline
+  bun run tts --cloud                      # Fall back to Sarvam Cloud API
+  bun run tts --combine                    # Synthesize and combine parts
 `);
 }
 
-export function printCostEstimate(targets: VOSection[], videoId: string) {
+export function printCostEstimate(targets: VOSection[], videoId: string, engine: "local" | "cloud" = "local") {
   console.log("\n=======================================================");
-  console.log(`💰 SARVAM BULBUL v4 FLASH - COST ESTIMATE [${videoId}]`);
-  console.log("   Rate: ₹1.00 per 1,000 characters (₹0.001 / char)");
+  if (engine === "local") {
+    console.log(`🎙️  LOCAL F5-TTS ENGINE - ZERO COST PIPELINE [${videoId}]`);
+    console.log("   Hardware: Apple Silicon GPU (MPS) | 100% Offline");
+    console.log("   Rate:     ₹0.00 (Zero API Charges)");
+  } else {
+    console.log(`💰 SARVAM BULBUL v4 FLASH - CLOUD COST ESTIMATE [${videoId}]`);
+    console.log("   Rate: ₹1.00 per 1,000 characters (₹0.001 / char)");
+  }
   console.log("=======================================================");
 
   const partsMap: Map<number, VOSection[]> = new Map();
@@ -90,13 +104,15 @@ export function printCostEstimate(targets: VOSection[], videoId: string) {
 
     sections.forEach((sec, idx) => {
       const charCount = sec.text.length;
-      const cost = formatCost(charCount);
+      const cloudCost = formatCost(charCount);
+      const costStr = engine === "local" ? "₹0.00 (Local)" : cloudCost;
       const paddedId = sec.id.padEnd(35, " ");
-      console.log(`  [${String(idx + 1).padStart(2, "0")}] ${paddedId} ${String(charCount).padStart(4, " ")} chars  ->  ${cost}`);
+      console.log(`  [${String(idx + 1).padStart(2, "0")}] ${paddedId} ${String(charCount).padStart(4, " ")} chars  ->  ${costStr}`);
     });
 
     console.log("--------------------------------------------------------------------------------");
-    console.log(`  Subtotal Part ${partNum}:                        ${String(partChars).padStart(4, " ")} chars  ->  ${formatCost(partChars)}`);
+    const subCostStr = engine === "local" ? "₹0.00 (Local)" : formatCost(partChars);
+    console.log(`  Subtotal Part ${partNum}:                        ${String(partChars).padStart(4, " ")} chars  ->  ${subCostStr}`);
   }
 
   const grandTotalCost = formatCost(totalChars);
@@ -107,7 +123,14 @@ export function printCostEstimate(targets: VOSection[], videoId: string) {
   console.log(`  Video Workspace:       ${videoId}`);
   console.log(`  Total Sections:        ${targets.length}`);
   console.log(`  Total Characters:      ${totalChars.toLocaleString()} chars`);
-  console.log(`  Estimated Total Cost:  ${grandTotalCost} INR`);
+  if (engine === "local") {
+    console.log(`  Active Engine:         Local F5-TTS (Cloned Voice, Offline)`);
+    console.log(`  Estimated Actual Cost: ₹0.00 INR (100% Free)`);
+    console.log(`  Cloud Fallback Cost:   ${grandTotalCost} INR (if run with --cloud)`);
+  } else {
+    console.log(`  Active Engine:         Sarvam Bulbul v4 Flash (Cloud API)`);
+    console.log(`  Estimated Total Cost:  ${grandTotalCost} INR`);
+  }
   console.log("=======================================================\n");
 }
 
@@ -200,13 +223,169 @@ export async function runGenerate(options: GenerationOptions) {
     targets = allSections;
   }
 
+  const engine = options.engine || "local";
+
   if (options.costOnly) {
-    printCostEstimate(targets, ws.videoId);
+    printCostEstimate(targets, ws.videoId, engine);
     return;
   }
 
   const baseAudioDir = options.outputDir || ws.audioDir;
-  const codec = options.codec || CONFIG.defaultCodec;
+  const codec = options.codec || (engine === "local" ? "wav" : CONFIG.defaultCodec);
+
+  // -------------------------------------------------------------
+  // ENGINE 1: LOCAL F5-TTS VOICE CLONING (DEFAULT, 100% OFFLINE)
+  // -------------------------------------------------------------
+  if (engine === "local") {
+    const profile = setupVoiceProfile(options.remakeVoice || false);
+
+    console.log("\n=======================================================");
+    console.log("🎙️  LOCAL F5-TTS - CLONED VOICEOVER GENERATOR");
+    console.log("=======================================================");
+    console.log(`  Video Project:  ${ws.videoId}`);
+    console.log(`  Engine:         F5-TTS (Offline, Apple Silicon Metal MPS)`);
+    console.log(`  Voice Profile:  ${path.relative(process.cwd(), profile.profileDir)}`);
+    console.log(`  Target Count:   ${targets.length} VO section(s)`);
+    console.log(`  Output Dir:     ${path.relative(process.cwd(), baseAudioDir)}`);
+    console.log(`  Cost:           ₹0.00 (Zero API Charges)`);
+    if (options.dryRun) {
+      console.log(`  Mode:           DRY RUN (Previewing manifest)`);
+    }
+    console.log("=======================================================\n");
+
+    const manifestItems: Array<{
+      id: string;
+      text: string;
+      speed: number;
+      outputPath: string;
+      part: number;
+    }> = [];
+
+    let skippedCount = 0;
+    const generatedFilesByPart: Map<number, string[]> = new Map();
+    const allGeneratedFiles: string[] = [];
+    const effectiveScale = options.expressionScale !== undefined ? options.expressionScale : 1.0;
+
+    for (let i = 0; i < targets.length; i++) {
+      const sec = targets[i];
+      const partFolder = path.join(baseAudioDir, `part-${sec.part}`);
+      if (!fs.existsSync(partFolder) && !options.dryRun) {
+        fs.mkdirSync(partFolder, { recursive: true });
+      }
+
+      const fileName = `${String(i + 1).padStart(2, "0")}_${sec.id}.wav`;
+      const filePath = path.join(partFolder, fileName);
+      const baseSpeed = sec.speed || 1.0;
+      const speed = Number((1.0 + (baseSpeed - 1.0) * effectiveScale).toFixed(2));
+
+      if (!generatedFilesByPart.has(sec.part)) {
+        generatedFilesByPart.set(sec.part, []);
+      }
+
+      if (options.dryRun) {
+        console.log(`[${i + 1}/${targets.length}] Part ${sec.part}: ${sec.id}`);
+        console.log(`    Clips:       ${sec.clips}`);
+        console.log(`    Instruction: "${sec.rawInstruction}"`);
+        console.log(`    Settings:    Speed: ${speed} (scaled ${(effectiveScale * 100).toFixed(0)}%) | Rate: 24kHz Mono PCM`);
+        console.log(`    Text:        "${sec.text.slice(0, 80)}..."`);
+        console.log(`    Output:      ${path.relative(process.cwd(), filePath)}`);
+        console.log(`    [DRY RUN] Would synthesize ${sec.text.length} chars (₹0.00).\n`);
+        continue;
+      }
+
+      if (fs.existsSync(filePath) && !options.forceOverwrite) {
+        console.log(`[${i + 1}/${targets.length}] ⏩ Cached: ${sec.id} (${path.basename(filePath)})`);
+        skippedCount++;
+        generatedFilesByPart.get(sec.part)!.push(filePath);
+        allGeneratedFiles.push(filePath);
+        continue;
+      }
+
+      manifestItems.push({
+        id: sec.id,
+        text: sec.text,
+        speed,
+        outputPath: filePath,
+        part: sec.part,
+      });
+      generatedFilesByPart.get(sec.part)!.push(filePath);
+      allGeneratedFiles.push(filePath);
+    }
+
+    if (options.dryRun) {
+      console.log("=======================================================");
+      console.log("                    DRY RUN COMPLETE");
+      console.log("=======================================================");
+      console.log(`  Total Sections:   ${targets.length}`);
+      console.log(`  Estimated Cost:   ₹0.00 (Local F5-TTS)`);
+      console.log("=======================================================\n");
+      return;
+    }
+
+    if (manifestItems.length > 0) {
+      console.log(`\n⏳ Synthesizing ${manifestItems.length} section(s) with local F5-TTS...`);
+      const manifestPath = path.join(baseAudioDir, ".f5_manifest.json");
+      fs.writeFileSync(manifestPath, JSON.stringify(manifestItems, null, 2), "utf-8");
+
+      const pythonBin = findPython();
+      const engineScript = path.resolve(__dirname, "f5_tts_engine.py");
+      const cmdArgs = [
+        engineScript,
+        "--voice-dir",
+        profile.profileDir,
+        "--manifest",
+        manifestPath,
+      ];
+      if (options.forceOverwrite) {
+        cmdArgs.push("--force");
+      }
+
+      try {
+        execFileSync(pythonBin, cmdArgs, { stdio: "inherit" });
+      } finally {
+        if (fs.existsSync(manifestPath)) {
+          fs.unlinkSync(manifestPath);
+        }
+      }
+    } else {
+      console.log(`\n✨ All ${targets.length} audio sections already exist on disk. Use --force to regenerate.`);
+    }
+
+    // Concatenation
+    if (options.combinePart) {
+      console.log("\n🔗 Combining audio tracks...");
+      const combinedDir = path.join(baseAudioDir, "combined");
+      if (!fs.existsSync(combinedDir)) fs.mkdirSync(combinedDir, { recursive: true });
+
+      for (const [partNum, files] of generatedFilesByPart.entries()) {
+        if (files.length > 0) {
+          const partOutputFile = path.join(combinedDir, `part_${partNum}_combined.wav`);
+          await combineAudioFiles(files, partOutputFile);
+        }
+      }
+
+      if (options.combineAll && allGeneratedFiles.length > 0) {
+        const fullOutputFile = path.join(combinedDir, `full_voiceover.wav`);
+        await combineAudioFiles(allGeneratedFiles, fullOutputFile);
+      }
+    }
+
+    console.log("\n=======================================================");
+    console.log("                    SUMMARY");
+    console.log("=======================================================");
+    console.log(`  Video Workspace:       ${ws.videoId}`);
+    console.log(`  Engine:                Local F5-TTS (Cloned Voice)`);
+    console.log(`  Total Sections:        ${targets.length}`);
+    console.log(`  Newly Generated:       ${manifestItems.length}`);
+    console.log(`  Skipped (Cached):      ${skippedCount}`);
+    console.log(`  Total Incurred Cost:   ₹0.00 (Offline, Free)`);
+    console.log("=======================================================\n");
+    return;
+  }
+
+  // -------------------------------------------------------------
+  // ENGINE 2: CLOUD SARVAM BULBUL v4 FLASH (OPTIONAL --cloud)
+  // -------------------------------------------------------------
   const sampleRate = options.sampleRate || CONFIG.defaultSampleRate;
   const globalSpeaker = options.speakerOverride || CONFIG.defaultSpeaker;
 
@@ -216,7 +395,7 @@ export async function runGenerate(options: GenerationOptions) {
   const effectiveLoudnessScale = options.loudnessScale !== undefined ? options.loudnessScale : (CONFIG.loudnessScale !== undefined ? CONFIG.loudnessScale : effectiveScale);
 
   console.log("\n=======================================================");
-  console.log("🎙️  SARVAM BULBUL v4 FLASH - TTS AUDIO GENERATOR");
+  console.log("🎙️  SARVAM BULBUL v4 FLASH - CLOUD TTS GENERATOR");
   console.log("=======================================================");
   console.log(`  Video Project: ${ws.videoId}`);
   console.log(`  Model:         ${CONFIG.model}`);

@@ -72,7 +72,6 @@ print("__RESULT_START__" + text + "__RESULT_END__")
 async function main() {
   const args = process.argv.slice(2);
   const targetId = args.find((a) => !a.startsWith("-"));
-  const forceLocal = args.includes("--local");
 
   const workspaceRoot = path.resolve(process.cwd(), "workspace");
   if (!fs.existsSync(workspaceRoot)) {
@@ -91,8 +90,12 @@ async function main() {
     if (candidates.length === 0) {
       console.log(`
 Usage:
-  bun run script:transcribe <VIDEO_ID> [--local]
-  bun run workflow/02-scripting/transcribe_ref.ts <VIDEO_ID> [--local]
+  bun run script:transcribe <VIDEO_ID> [--cloud]
+  bun run workflow/02-scripting/transcribe_ref.ts <VIDEO_ID> [--cloud]
+
+Options:
+  [default]   Ultra-fast local faster-whisper (CTranslate2 int8)
+  --cloud     Use Hugging Face Space (openai/whisper via @gradio/client)
 
 Example:
   bun run script:transcribe VID02_Stock_Market_Bubble
@@ -129,14 +132,13 @@ Example:
 
   let transcript = "";
   const localPython = findLocalWhisperPython();
+  const useCloud = args.includes("--cloud") || args.includes("--hf");
 
-  if (forceLocal) {
-    if (!localPython) {
-      console.error(`❌ Local Whisper python environment not found.`);
-      process.exit(1);
-    }
+  if (!useCloud && localPython) {
+    // Default mode: ultra-fast local faster-whisper
     transcript = transcribeViaLocal(audioPath, localPython);
   } else {
+    // Cloud mode (or fallback if local python missing)
     try {
       transcript = await transcribeViaHF(audioPath);
       console.log(`✅ Transcription received from Hugging Face Space!`);
