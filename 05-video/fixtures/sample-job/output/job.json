@@ -1,0 +1,107 @@
+{
+  "jobId": "sample-job",
+  "createdAt": "2026-10-18T11:35:14.437Z",
+  "audio": {
+    "file": "audio.mp3",
+    "durationSec": 30,
+    "durationMs": 30000,
+    "sampleRate": 44100,
+    "channels": 1,
+    "codec": "mp3",
+    "sizeBytes": 721649,
+    "bitRate": 192439
+  },
+  "brief": {
+    "title": "The FX Shadow Engine",
+    "topic": "Foreign exchange market daily turnover and architecture",
+    "language": "en",
+    "audience": "Finance and wealth curious viewers",
+    "tone": "calm, authoritative, a little dramatic",
+    "aspect": "16:9",
+    "accent": "#F5B83D",
+    "must_show": [
+      {
+        "value": "$9.6T",
+        "label": "traded every day",
+        "source": "BIS Triennial Survey (Simulated)",
+        "year": 2025
+      },
+      {
+        "value": "10x",
+        "label": "stock market daily turnover",
+        "source": "WFE / BIS Analysis (Simulated)",
+        "year": 2025
+      }
+    ],
+    "avoid": [
+      "real company logos",
+      "financial advice or predictions"
+    ],
+    "chapters": [
+      "The Invisible River",
+      "The $9.6 Trillion Scale",
+      "The 10x Multiple",
+      "Interbank Transfers",
+      "The Wealth Architecture"
+    ],
+    "outputs": [
+      "video",
+      "captions",
+      "chapters",
+      "thumbnails",
+      "metadata"
+    ]
+  },
+  "stats": {
+    "wordCount": 67,
+    "durationMs": 29900,
+    "gapCount": 0
+  },
+  "config": {
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "aspects": [
+      "16:9"
+    ],
+    "audioOffsetMs": 0,
+    "tailPaddingMs": 1200,
+    "captions": {
+      "mode": "sidecar",
+      "style": "clean-bottom",
+      "wordsPerPage": 5
+    },
+    "music": {
+      "file": null,
+      "volume": 0.08,
+      "duckTo": 0.03
+    },
+    "sfx": {
+      "enabled": true,
+      "volume": 0.25,
+      "set": [
+        "whoosh",
+        "whip",
+        "switch",
+        "ding",
+        "mouse-click",
+        "page-turn"
+      ]
+    },
+    "render": {
+      "draft": {
+        "scale": 0.5,
+        "crf": 28,
+        "codec": "h264"
+      },
+      "final": {
+        "crf": 16,
+        "codec": "h264"
+      }
+    },
+    "qc": {
+      "failOnWarnings": false
+    }
+  },
+  "warnings": []
+}

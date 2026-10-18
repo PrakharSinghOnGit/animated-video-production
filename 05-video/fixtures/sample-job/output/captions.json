@@ -1,0 +1,471 @@
+[
+  {
+    "text": "Every",
+    "startMs": 400,
+    "endMs": 720,
+    "timestampMs": 560,
+    "confidence": null
+  },
+  {
+    "text": " single",
+    "startMs": 740,
+    "endMs": 1100,
+    "timestampMs": 920,
+    "confidence": null
+  },
+  {
+    "text": " day,",
+    "startMs": 1120,
+    "endMs": 1480,
+    "timestampMs": 1300,
+    "confidence": null
+  },
+  {
+    "text": " across",
+    "startMs": 1700,
+    "endMs": 2050,
+    "timestampMs": 1875,
+    "confidence": null
+  },
+  {
+    "text": " London,",
+    "startMs": 2080,
+    "endMs": 2520,
+    "timestampMs": 2300,
+    "confidence": null
+  },
+  {
+    "text": " New",
+    "startMs": 2650,
+    "endMs": 2880,
+    "timestampMs": 2765,
+    "confidence": null
+  },
+  {
+    "text": " York,",
+    "startMs": 2900,
+    "endMs": 3280,
+    "timestampMs": 3090,
+    "confidence": null
+  },
+  {
+    "text": " and",
+    "startMs": 3400,
+    "endMs": 3600,
+    "timestampMs": 3500,
+    "confidence": null
+  },
+  {
+    "text": " Tokyo,",
+    "startMs": 3620,
+    "endMs": 4100,
+    "timestampMs": 3860,
+    "confidence": null
+  },
+  {
+    "text": " an",
+    "startMs": 4400,
+    "endMs": 4580,
+    "timestampMs": 4490,
+    "confidence": null
+  },
+  {
+    "text": " invisible",
+    "startMs": 4600,
+    "endMs": 5120,
+    "timestampMs": 4860,
+    "confidence": null
+  },
+  {
+    "text": " river",
+    "startMs": 5150,
+    "endMs": 5480,
+    "timestampMs": 5315,
+    "confidence": null
+  },
+  {
+    "text": " of",
+    "startMs": 5500,
+    "endMs": 5650,
+    "timestampMs": 5575,
+    "confidence": null
+  },
+  {
+    "text": " money",
+    "startMs": 5680,
+    "endMs": 6050,
+    "timestampMs": 5865,
+    "confidence": null
+  },
+  {
+    "text": " surges",
+    "startMs": 6100,
+    "endMs": 6550,
+    "timestampMs": 6325,
+    "confidence": null
+  },
+  {
+    "text": " through",
+    "startMs": 6580,
+    "endMs": 6850,
+    "timestampMs": 6715,
+    "confidence": null
+  },
+  {
+    "text": " the",
+    "startMs": 6880,
+    "endMs": 7020,
+    "timestampMs": 6950,
+    "confidence": null
+  },
+  {
+    "text": " global",
+    "startMs": 7050,
+    "endMs": 7420,
+    "timestampMs": 7235,
+    "confidence": null
+  },
+  {
+    "text": " currency",
+    "startMs": 7450,
+    "endMs": 7920,
+    "timestampMs": 7685,
+    "confidence": null
+  },
+  {
+    "text": " market.",
+    "startMs": 7950,
+    "endMs": 8450,
+    "timestampMs": 8200,
+    "confidence": null
+  },
+  {
+    "text": " It",
+    "startMs": 9100,
+    "endMs": 9250,
+    "timestampMs": 9175,
+    "confidence": null
+  },
+  {
+    "text": " trades",
+    "startMs": 9280,
+    "endMs": 9650,
+    "timestampMs": 9465,
+    "confidence": null
+  },
+  {
+    "text": " an",
+    "startMs": 9680,
+    "endMs": 9820,
+    "timestampMs": 9750,
+    "confidence": null
+  },
+  {
+    "text": " astounding",
+    "startMs": 9850,
+    "endMs": 10450,
+    "timestampMs": 10150,
+    "confidence": null
+  },
+  {
+    "text": " nine",
+    "startMs": 10600,
+    "endMs": 10920,
+    "timestampMs": 10760,
+    "confidence": null
+  },
+  {
+    "text": " point",
+    "startMs": 10950,
+    "endMs": 11250,
+    "timestampMs": 11100,
+    "confidence": null
+  },
+  {
+    "text": " six",
+    "startMs": 11280,
+    "endMs": 11620,
+    "timestampMs": 11450,
+    "confidence": null
+  },
+  {
+    "text": " trillion",
+    "startMs": 11650,
+    "endMs": 12180,
+    "timestampMs": 11915,
+    "confidence": null
+  },
+  {
+    "text": " dollars",
+    "startMs": 12220,
+    "endMs": 12700,
+    "timestampMs": 12460,
+    "confidence": null
+  },
+  {
+    "text": " each",
+    "startMs": 12900,
+    "endMs": 13150,
+    "timestampMs": 13025,
+    "confidence": null
+  },
+  {
+    "text": " and",
+    "startMs": 13180,
+    "endMs": 13350,
+    "timestampMs": 13265,
+    "confidence": null
+  },
+  {
+    "text": " every",
+    "startMs": 13380,
+    "endMs": 13680,
+    "timestampMs": 13530,
+    "confidence": null
+  },
+  {
+    "text": " single",
+    "startMs": 13700,
+    "endMs": 14050,
+    "timestampMs": 13875,
+    "confidence": null
+  },
+  {
+    "text": " day.",
+    "startMs": 14080,
+    "endMs": 14500,
+    "timestampMs": 14290,
+    "confidence": null
+  },
+  {
+    "text": " That",
+    "startMs": 15200,
+    "endMs": 15450,
+    "timestampMs": 15325,
+    "confidence": null
+  },
+  {
+    "text": " is",
+    "startMs": 15480,
+    "endMs": 15650,
+    "timestampMs": 15565,
+    "confidence": null
+  },
+  {
+    "text": " ten",
+    "startMs": 15700,
+    "endMs": 15980,
+    "timestampMs": 15840,
+    "confidence": null
+  },
+  {
+    "text": " times",
+    "startMs": 16000,
+    "endMs": 16350,
+    "timestampMs": 16175,
+    "confidence": null
+  },
+  {
+    "text": " bigger",
+    "startMs": 16380,
+    "endMs": 16780,
+    "timestampMs": 16580,
+    "confidence": null
+  },
+  {
+    "text": " than",
+    "startMs": 16800,
+    "endMs": 17020,
+    "timestampMs": 16910,
+    "confidence": null
+  },
+  {
+    "text": " the",
+    "startMs": 17050,
+    "endMs": 17180,
+    "timestampMs": 17115,
+    "confidence": null
+  },
+  {
+    "text": " entire",
+    "startMs": 17200,
+    "endMs": 17650,
+    "timestampMs": 17425,
+    "confidence": null
+  },
+  {
+    "text": " global",
+    "startMs": 17680,
+    "endMs": 18080,
+    "timestampMs": 17880,
+    "confidence": null
+  },
+  {
+    "text": " stock",
+    "startMs": 18100,
+    "endMs": 18450,
+    "timestampMs": 18275,
+    "confidence": null
+  },
+  {
+    "text": " market",
+    "startMs": 18480,
+    "endMs": 18850,
+    "timestampMs": 18665,
+    "confidence": null
+  },
+  {
+    "text": " combined.",
+    "startMs": 18880,
+    "endMs": 19500,
+    "timestampMs": 19190,
+    "confidence": null
+  },
+  {
+    "text": " When",
+    "startMs": 20200,
+    "endMs": 20450,
+    "timestampMs": 20325,
+    "confidence": null
+  },
+  {
+    "text": " commercial",
+    "startMs": 20480,
+    "endMs": 21050,
+    "timestampMs": 20765,
+    "confidence": null
+  },
+  {
+    "text": " banks",
+    "startMs": 21080,
+    "endMs": 21480,
+    "timestampMs": 21280,
+    "confidence": null
+  },
+  {
+    "text": " transfer",
+    "startMs": 21520,
+    "endMs": 22020,
+    "timestampMs": 21770,
+    "confidence": null
+  },
+  {
+    "text": " reserves,",
+    "startMs": 22050,
+    "endMs": 22650,
+    "timestampMs": 22350,
+    "confidence": null
+  },
+  {
+    "text": " trillions",
+    "startMs": 22950,
+    "endMs": 23480,
+    "timestampMs": 23215,
+    "confidence": null
+  },
+  {
+    "text": " move",
+    "startMs": 23500,
+    "endMs": 23780,
+    "timestampMs": 23640,
+    "confidence": null
+  },
+  {
+    "text": " across",
+    "startMs": 23800,
+    "endMs": 24180,
+    "timestampMs": 23990,
+    "confidence": null
+  },
+  {
+    "text": " borders",
+    "startMs": 24200,
+    "endMs": 24680,
+    "timestampMs": 24440,
+    "confidence": null
+  },
+  {
+    "text": " in",
+    "startMs": 24700,
+    "endMs": 24880,
+    "timestampMs": 24790,
+    "confidence": null
+  },
+  {
+    "text": " seconds.",
+    "startMs": 24900,
+    "endMs": 25450,
+    "timestampMs": 25175,
+    "confidence": null
+  },
+  {
+    "text": " This",
+    "startMs": 26100,
+    "endMs": 26350,
+    "timestampMs": 26225,
+    "confidence": null
+  },
+  {
+    "text": " is",
+    "startMs": 26380,
+    "endMs": 26550,
+    "timestampMs": 26465,
+    "confidence": null
+  },
+  {
+    "text": " the",
+    "startMs": 26580,
+    "endMs": 26720,
+    "timestampMs": 26650,
+    "confidence": null
+  },
+  {
+    "text": " financial",
+    "startMs": 26750,
+    "endMs": 27280,
+    "timestampMs": 27015,
+    "confidence": null
+  },
+  {
+    "text": " shadow",
+    "startMs": 27300,
+    "endMs": 27720,
+    "timestampMs": 27510,
+    "confidence": null
+  },
+  {
+    "text": " architecture",
+    "startMs": 27750,
+    "endMs": 28450,
+    "timestampMs": 28100,
+    "confidence": null
+  },
+  {
+    "text": " that",
+    "startMs": 28480,
+    "endMs": 28680,
+    "timestampMs": 28580,
+    "confidence": null
+  },
+  {
+    "text": " silently",
+    "startMs": 28700,
+    "endMs": 29150,
+    "timestampMs": 28925,
+    "confidence": null
+  },
+  {
+    "text": " shapes",
+    "startMs": 29180,
+    "endMs": 29500,
+    "timestampMs": 29340,
+    "confidence": null
+  },
+  {
+    "text": " wealth.",
+    "startMs": 29520,
+    "endMs": 29900,
+    "timestampMs": 29710,
+    "confidence": null
+  }
+]

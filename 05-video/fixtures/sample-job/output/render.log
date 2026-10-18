@@ -1,0 +1,20 @@
+[2026-10-18T11:31:38.066Z] [INGEST] Resolved base job: sample-job (isWorkspace: false)
+[2026-10-18T11:31:38.067Z] [INGEST] Audio file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/audio.mp3
+[2026-10-18T11:31:38.102Z] [INGEST] Audio probed: 30.00s (30000ms), mp3, 44100Hz, 1ch
+[2026-10-18T11:31:38.102Z] [INGEST] Brief file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/brief.md
+[2026-10-18T11:31:38.107Z] [INGEST] Brief validated: "The FX Shadow Engine" (Foreign exchange market daily turnover and architecture)
+[2026-10-18T11:31:38.107Z] [INGEST] Transcript file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/transcript.json
+[2026-10-18T11:31:38.108Z] [INGEST] Transcript normalized: 67 words, format "whisper-words", duration 29900ms
+[2026-10-18T11:31:38.109Z] [INGEST] Saved normalized captions to /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/output/captions.json
+[2026-10-18T11:31:38.109Z] [INGEST] Saved ingest report to /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/plan/ingest-report.md
+[2026-10-18T11:31:38.110Z] [INGEST] Mirrored audio & captions to public/jobs/sample-job/ for Remotion bundler
+[2026-10-18T11:35:14.394Z] [INGEST] Resolved base job: sample-job (isWorkspace: false)
+[2026-10-18T11:35:14.395Z] [INGEST] Audio file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/audio.mp3
+[2026-10-18T11:35:14.429Z] [INGEST] Audio probed: 30.00s (30000ms), mp3, 44100Hz, 1ch
+[2026-10-18T11:35:14.429Z] [INGEST] Brief file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/brief.md
+[2026-10-18T11:35:14.435Z] [INGEST] Brief validated: "The FX Shadow Engine" (Foreign exchange market daily turnover and architecture)
+[2026-10-18T11:35:14.435Z] [INGEST] Transcript file: /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/input/transcript.json
+[2026-10-18T11:35:14.435Z] [INGEST] Transcript normalized: 67 words, format "whisper-words", duration 29900ms
+[2026-10-18T11:35:14.436Z] [INGEST] Saved normalized captions to /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/output/captions.json
+[2026-10-18T11:35:14.436Z] [INGEST] Saved ingest report to /Users/prakharsingh/youtube/WealthGap/05-video/fixtures/sample-job/plan/ingest-report.md
+[2026-10-18T11:35:14.437Z] [INGEST] Mirrored audio & captions to public/jobs/sample-job/ for Remotion bundler
