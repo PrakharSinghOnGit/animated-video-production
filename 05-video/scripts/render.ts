@@ -38,11 +38,13 @@ async function main() {
   }
 
   // Create props file for Remotion CLI
+  const ext = paths.audioFile ? path.extname(paths.audioFile) : ".mp3";
   const renderPropsPath = path.join(paths.outputDir, "render-props.json");
   const propsPayload = {
     jobId: paths.jobId,
     scenes: scenesRaw.scenes,
     captions: captionsRaw,
+    audioSrc: `jobs/${paths.jobId}/audio${ext}`,
     showCaptions: true,
     captionStyle: "clean-bottom",
   };

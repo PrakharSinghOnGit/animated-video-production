@@ -44,8 +44,19 @@ export const Main: React.FC<MainProps> = ({
   const { fps, width, height, durationInFrames } = useVideoConfig();
   const isVertical = height > width;
 
-  // Resolve voiceover audio path: default to staticFile for the job
-  const effectiveAudioSrc = audioSrc || staticFile(`jobs/${jobId}/audio.mp3`);
+  // Resolve voiceover audio path
+  const effectiveAudioSrc = useMemo(() => {
+    if (!audioSrc) return staticFile(`jobs/${jobId}/audio.mp3`);
+    if (
+      audioSrc.startsWith("http://") ||
+      audioSrc.startsWith("https://") ||
+      audioSrc.startsWith("blob:") ||
+      audioSrc.startsWith("data:")
+    ) {
+      return audioSrc;
+    }
+    return staticFile(audioSrc);
+  }, [audioSrc, jobId]);
 
   // Build scheduled SFX events from storyboard
   const sfxEvents = useMemo(() => {

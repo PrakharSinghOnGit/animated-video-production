@@ -86,6 +86,31 @@ export function normalizeTranscript(
         });
       }
     }
+    // Case 4: Studio Multi-Clip Transcription { clips: [{ duration, words: [...] }] }
+    else if (Array.isArray(obj.clips) && obj.clips.length > 0) {
+      formatDetected = "studio-clips";
+      let clipOffsetMs = 0;
+      for (const clip of obj.clips) {
+        if (Array.isArray(clip.words)) {
+          for (const w of clip.words) {
+            const isMs = typeof w.startMs === "number";
+            const startMs = clipOffsetMs + (isMs ? w.startMs : Math.round(Number(w.start) * 1000));
+            const endMs = clipOffsetMs + (isMs ? w.endMs : Math.round(Number(w.end) * 1000));
+            intermediateTokens.push({
+              text: String(w.word || w.text || ""),
+              startMs,
+              endMs,
+              confidence: w.probability ?? w.confidence ?? null,
+            });
+          }
+        }
+        const clipDurMs =
+          typeof clip.durationMs === "number"
+            ? clip.durationMs
+            : Math.round((Number(clip.duration) || 0) * 1000);
+        clipOffsetMs += clipDurMs;
+      }
+    }
     // Case 4: ElevenLabs character alignment { characters, character_start_times_seconds, character_end_times_seconds }
     else if (
       Array.isArray(obj.characters) &&
