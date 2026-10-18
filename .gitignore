@@ -3,12 +3,14 @@ node_modules
 .env
 out/
 dist/
-05-video/node_modules/
-05-video/out/
-05-video/jobs/*
-!05-video/jobs/.gitkeep
-05-video/public/jobs/*
-!05-video/public/jobs/.gitkeep
+workflow/05-video/node_modules/
+workflow/05-video/out/
+workflow/05-video/jobs/*
+!workflow/05-video/jobs/.gitkeep
+workflow/05-video/public/jobs/*
+!workflow/05-video/public/jobs/.gitkeep
+workspace/**/chunks/*
+!workspace/**/chunks/.gitkeep
 
 # Large media files in workspace
 workspace/**/video-bank/*

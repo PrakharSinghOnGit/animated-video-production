@@ -1,117 +1,141 @@
 # 🎬 The Wealth Gap — YouTube Video Production Studio
 
-A modular, code-driven video automation harness and workflow structure separating **pipeline automation code** from **video production workspaces**.
+A modular, code-driven video automation harness and workflow structure separating **generic pipeline automation engine** (`workflow/`) from **video production workspaces** (`workspace/`).
 
 ---
 
-## 🏗️ Studio Architecture: Code vs. Workspace Separation
+## 🏗️ Studio Architecture: Workflow vs. Workspace
 
 ```
 WealthGap/
-├── package.json               # Pipeline runner scripts
-├── tsconfig.json              # TypeScript configuration
-├── .env                       # API keys and active video configuration
+├── package.json               # Root Bun runner scripts for all pipeline steps
+├── tsconfig.json              # Studio TypeScript configuration
+├── .env                       # API keys & active video selection
 ├── brand-assets/              # Global channel logos, banners, watermarks
-│   ├── Logo.png
-│   ├── Banner.png
-│   └── WaterMark.png
 │
 │  ═════════════════════════════════════════════════════════════════════
-│  PIPELINE AUTOMATION & WORKFLOWS (Steps 01 - 07)
-│  (Contains harness code, scripts, prompts, and specs — NO video data)
+│  WORKFLOW (Generic Engine, Prompts & Harness — NO video assets)
 │  ═════════════════════════════════════════════════════════════════════
-├── 01-ideation/               # [Manual] Research workflow, angle prompts, competitor analysis
-├── 02-scripting/              # [Manual] Script structure, retention formulas, writer prompts
-├── 03-voiceover/              # [Automated] Sarvam Bulbul v4 Flash TTS, cost & prosody engine
-├── 04-transcription/          # [Automated] Word-level Whisper timestamps for motion sync & cuts
-├── 05-video/                  # [Spec] Chunked video generation & Remotion/motiongraphics harness
-├── 06-audio/                  # [Spec] Sound design, SFX cues, dynamic music ducking (-18dB)
-├── 07-assembly/               # [Spec] Master stitching, LUFS mastering (-14 LUFS), review checklist
-├── scripts/                   # Workspace scaffolding utilities (new-video)
+├── workflow/
+│   ├── prompts/               # 🎯 Master AI Prompts & Style Guides
+│   │   ├── DIRECTOR_PROMPT.md # Prompt for Claude/GPT to generate scenes.json
+│   │   └── VISUAL_GUIDELINES.md # Pacing, 3-layer architecture & palette rules
+│   ├── 01-ideation/           # Research workflow & angle prompts
+│   ├── 02-scripting/          # Script retention formulas & writer prompts
+│   ├── 03-voiceover/          # Sarvam Bulbul v4 Flash TTS, cost & prosody engine
+│   ├── 04-transcription/      # Word-level Whisper timestamps for motion sync
+│   ├── 05-video/              # Remotion 2D + Three.js 3D Motion Graphics Engine
+│   │   ├── src/components/    # BigNumber, BarCompare, LineDraw, Globe3D...
+│   │   ├── src/backgrounds/   # UnifiedBackground (Grid, GlowBlobs, Vignette)
+│   │   ├── scripts/           # ingest, plan, chunk, render, qc, package
+│   │   └── fixtures/          # Generic test jobs (sample-job)
+│   ├── 06-audio/              # Sound design, SFX cues, dynamic music ducking
+│   └── 07-assembly/           # Master stitching, LUFS mastering, QC review
+├── scripts/                   # Studio scaffolding (new-video)
 │
 │  ═════════════════════════════════════════════════════════════════════
-│  WORKSPACE (Per-Video Inputs, Assets, and Generated Deliverables)
+│  WORKSPACE (Per-Video Assets, Scripts, Audio & Generated Media)
 │  ═════════════════════════════════════════════════════════════════════
 └── workspace/
-    └── VID01_Currency_Market/ # Video project directory
-        ├── 01-ideation/
-        │   ├── notes.md       # Angle ideas, titles, thumbnail sketches
-        │   ├── video-bank/    # Downloaded reference video clips
-        │   └── audio-bank/    # Downloaded reference audio tracks
-        ├── 02-scripting/
-        │   └── script_raw.md  # Production script with clip cues and VO tone tags
-        ├── 03-voiceover/
-        │   ├── sections/      # Part-by-part script with ported TTS prosody
-        │   └── audio/         # Generated 48kHz WAV audio clips (part-1, part-2, ...)
-        ├── 04-transcription/
-        │   ├── words/         # Millisecond-accurate word timestamp JSONs per clip
-        │   └── full_transcript.json
-        ├── 05-video/
-        │   ├── assets/        # Visual assets, charts, B-roll
-        │   └── chunks/        # Rendered video chunks (part-1.mp4, part-2.mp4, ...)
-        ├── 06-audio/
-        │   ├── sfx/           # Sound effects (whooshes, risers, cash sounds)
-        │   └── music/         # Background music tracks
-        └── 07-assembly/
-            └── export/        # Final master video & thumbnails
+    └── VID01_Currency_Market/ # Individual Video Workspace
+        ├── 01-ideation/       # Video/audio references & concept notes
+        ├── 02-scripting/      # Production script (script_raw.md)
+        ├── 03-voiceover/      # Ported TTS prompts & generated WAV clips
+        ├── 04-transcription/  # Word-level timestamps & full_transcript.json
+        ├── 05-video/          # Storyboard (scenes.json) & renders
+        │   ├── chunks/        # Rendered scene chunks (s01.mp4, s02.mp4, ...)
+        │   ├── final.mp4      # Master 1080p broadcast render
+        │   └── stills/        # High-res YouTube thumbnails (A/B/C)
+        ├── 06-audio/          # Video-specific SFX & music tracks
+        └── 07-assembly/       # Final exports & review signoff
 ```
 
 ---
 
-## ⚡ Quick Start: 7 Production Steps
+## ⚡ Master Control from Root (Using `bun`)
 
-### Step 1: Ideation (Manual)
-Download competitor videos and audio references to `workspace/<VIDEO>/01-ideation/video-bank/` and `audio-bank/`.
+All commands run directly from repo root — you never need to `cd` into subdirectories:
 
-### Step 2: Scripting (Manual)
-Draft the production script in `workspace/<VIDEO>/02-scripting/script_raw.md` using the format:
-```markdown
-**[CLIP 1]:** Fast drone zoom into Wall Street.
-**VO:** `[VO: Intense, dramatic tone]` There is a shadow market out there...
-```
-
-### Step 3: Voiceover (Automated)
-Generate voiceovers via Sarvam AI Bulbul v4 Flash:
+### 1. New Video Setup
 ```bash
-# Check character count and estimated cost (₹1 / 1,000 chars)
-bun run cost
-
-# Preview voice settings without calling the API
-bun run tts:dry-run
-
-# Generate audio for Part 1 (or all parts)
-bun run tts --part 1
-bun run tts
-
-# Combine generated clips into unified tracks
-bun run tts --combine
-```
-
-### Step 4: Word-Level Transcription (Automated)
-Run Whisper to extract millisecond word timestamps for motion graphics & cuts:
-```bash
-# Transcribe all generated clips for the active video
-bun run transcribe
-
-# Transcribe only Part 1 using the 'base' model
-bun run transcribe --part 1 --model base
-```
-
-### Step 5: Chunked Video Generation (Spec)
-Motion graphics harness renders video in 7 modular chunks (`05-video/chunks/chunk_part*.mp4`). See [05-video/README.md](file:///Users/prakharsingh/youtube/WealthGap/05-video/README.md).
-
-### Step 6: Sound Design & Mixing (Spec)
-Automated sidechain ducking (-18dB under speech) and SFX placement. See [06-audio/README.md](file:///Users/prakharsingh/youtube/WealthGap/06-audio/README.md).
-
-### Step 7: Final Assembly & Review (Spec)
-Lossless concatenation into master 4K video, YouTube metadata, and QA checklist. See [07-assembly/README.md](file:///Users/prakharsingh/youtube/WealthGap/07-assembly/README.md).
-
----
-
-## 🆕 Creating a New Video Workspace
-
-To scaffold a clean new video project in 1 second:
-```bash
+# Scaffold a brand new isolated video workspace in 1 second
 bun run new-video VID02_Stock_Market_Bubble
 ```
-This automatically sets up all 7 step folders with templates inside `workspace/VID02_Stock_Market_Bubble/`.
+
+### 2. Voiceover (TTS)
+```bash
+# Check character count and estimated API cost (₹1 per 1,000 chars)
+bun run tts:cost
+
+# Dry-run voice settings & prosody multipliers without calling API
+bun run tts:dry-run
+
+# Generate audio for active video in .env
+bun run tts
+```
+
+### 3. Word-Level Transcription
+```bash
+# Extract millisecond-accurate word timestamps with Whisper
+bun run transcribe
+```
+
+### 4. Video Storyboarding & Planning
+1. Open [`workflow/prompts/DIRECTOR_PROMPT.md`](file:///Users/prakharsingh/youtube/WealthGap/workflow/prompts/DIRECTOR_PROMPT.md).
+2. Paste the prompt along with your `workspace/<VIDEO>/04-transcription/full_transcript.json` into Claude / GPT-4o / Gemini.
+3. Save the resulting JSON directly into `workspace/<VIDEO>/05-video/scenes.json`.
+4. Validate the storyboard against the component registry and design rules:
+```bash
+bun run video:check VID01_Currency_Market
+```
+
+### 5. Video Rendering: Chunks vs. Full Video
+
+#### A. Interactive Live Studio Preview
+```bash
+# Launch Remotion Studio on http://localhost:3000
+bun run video:studio
+```
+
+#### B. Scene-by-Scene Chunk Rendering (Single or All)
+```bash
+# List all scenes with durations for this video
+bun run video:chunk VID01_Currency_Market
+
+# Render ONE specific scene to test or edit:
+bun run video:chunk VID01_Currency_Market s01
+# -> Output saved to workspace/VID01_Currency_Market/05-video/chunks/s01.mp4
+
+# Render ALL scenes sequentially one-by-one into chunks/:
+bun run video:chunk VID01_Currency_Market --all
+```
+
+#### C. Full Video Rendering
+```bash
+# Fast draft render (half-resolution, fast CRF)
+bun run video:draft VID01_Currency_Market
+
+# Broadcast-grade 1080p 30fps master render
+bun run video:render VID01_Currency_Market
+```
+
+#### D. Quality Control & Deliverable Packaging
+```bash
+# Run automated QC checks (layer budget, audio sync, color tokens)
+bun run video:qc VID01_Currency_Market
+
+# Package YouTube thumbnails, chapters, description draft, SRT/VTT captions
+bun run video:package VID01_Currency_Market
+```
+
+---
+
+## 🌐 3D Motion Graphics with Three.js
+
+The engine features native 3D WebGL support via `@remotion/three` and `@react-three/fiber`:
+- **Component**: `Globe3D` (`workflow/05-video/src/components/Globe3D`)
+- **Capabilities**: Interactive 3D rotating wireframe globe, capital flow arcs between global financial hubs (NY, London, Tokyo, Singapore), customizable rotation speeds, lighting, and HTML narrative overlays.
+- **Preview & Test**:
+```bash
+cd workflow/05-video && bun x remotion still Globe3D out/Globe3D.png --gl=angle
+```

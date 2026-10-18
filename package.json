@@ -2,15 +2,26 @@
   "name": "wealthgap-studio",
   "version": "2.0.0",
   "description": "YouTube video production pipeline & automation harness for The Wealth Gap",
-  "main": "03-voiceover/run.ts",
   "type": "module",
   "scripts": {
-    "cost": "bun run 03-voiceover/run.ts --cost",
-    "tts": "bun run 03-voiceover/run.ts",
-    "tts:dry-run": "bun run 03-voiceover/run.ts --dry-run",
-    "tts:list": "bun run 03-voiceover/run.ts --list",
-    "transcribe": "bun run 04-transcription/transcribe.ts",
-    "new-video": "bun run scripts/new_video.ts"
+    "new-video": "bun run scripts/new_video.ts",
+    "tts": "bun run workflow/03-voiceover/run.ts",
+    "tts:cost": "bun run workflow/03-voiceover/run.ts --cost",
+    "tts:dry-run": "bun run workflow/03-voiceover/run.ts --dry-run",
+    "tts:list": "bun run workflow/03-voiceover/run.ts --list",
+    "transcribe": "bun run workflow/04-transcription/transcribe.ts",
+    "video:ingest": "bun --cwd workflow/05-video scripts/ingest.ts",
+    "video:analyze": "bun --cwd workflow/05-video scripts/analyze.ts",
+    "video:plan": "bun --cwd workflow/05-video scripts/plan.ts",
+    "video:check": "bun --cwd workflow/05-video scripts/validate-plan.ts",
+    "video:studio": "bun --cwd workflow/05-video run studio",
+    "video:draft": "bun --cwd workflow/05-video scripts/render.ts --draft",
+    "video:render": "bun --cwd workflow/05-video scripts/render.ts --final",
+    "video:chunk": "bun --cwd workflow/05-video scripts/chunk.ts",
+    "video:qc": "bun --cwd workflow/05-video scripts/qc.ts",
+    "video:package": "bun --cwd workflow/05-video scripts/package.ts",
+    "video:build": "bun --cwd workflow/05-video scripts/build.ts",
+    "video:test": "bun --cwd workflow/05-video scripts/test-fixture.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
