@@ -1,17 +1,25 @@
 #!/usr/bin/env bun
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
+import { execSync } from "node:child_process";
 
 const videoId = process.argv[2];
+const youtubeUrl = process.argv[3];
 
 if (!videoId) {
   console.log(`
-Usage:
-  bun run new-video <VIDEO_ID>
-  bun run scripts/new_video.ts <VIDEO_ID>
+🎬 The Wealth Gap — Video Workspace Scaffolder
 
-Example:
+Usage:
+  bun run new-video <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
+  bun run scripts/new_video.ts <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
+
+Examples:
+  # Standard new video workspace:
   bun run new-video VID02_Stock_Market_Bubble
+
+  # New video from YouTube inspiration reference:
+  bun run new-video VID02_Stock_Market_Bubble "https://www.youtube.com/watch?v=..."
 `);
   process.exit(1);
 }
@@ -24,9 +32,9 @@ if (fs.existsSync(targetDir)) {
   process.exit(1);
 }
 
+// Scaffolding directories (Step 1 ideation does not use separate bank folders)
 const subdirectories = [
-  "01-ideation/video-bank",
-  "01-ideation/audio-bank",
+  "01-ideation",
   "02-scripting",
   "03-voiceover/sections",
   "03-voiceover/audio",
@@ -38,26 +46,169 @@ const subdirectories = [
   "07-assembly/export",
 ];
 
-console.log(`📁 Scaffolding new video workspace: ${videoId}...`);
+console.log(`\n======================================================`);
+console.log(`📁 Scaffolding New Video Workspace: ${videoId}`);
+console.log(`======================================================`);
 
 for (const sub of subdirectories) {
   fs.mkdirSync(path.join(targetDir, sub), { recursive: true });
 }
 
-// Create placeholder notes.md
-fs.writeFileSync(
-  path.join(targetDir, "01-ideation", "notes.md"),
-  `# Ideation Notes: ${videoId}\n\n## Core Concept\n\n## 5 Title Candidates\n1. \n2. \n3. \n4. \n5. \n\n## 3 Thumbnail Angles\n- Angle 1:\n- Angle 2:\n- Angle 3:\n`
-);
+let refMetadata: any = null;
 
-// Create placeholder script_raw.md
+if (youtubeUrl) {
+  console.log(`\n📥 Detected YouTube Reference Link:`);
+  console.log(`   ${youtubeUrl}\n`);
+
+  const ideationDir = path.join(targetDir, "01-ideation");
+
+  // 1. Extract metadata via yt-dlp
+  try {
+    console.log(`⏳ Fetching YouTube metadata via yt-dlp...`);
+    const jsonOutput = execSync(
+      `yt-dlp --dump-json --no-playlist "${youtubeUrl}"`,
+      { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+    );
+    const rawMeta = JSON.parse(jsonOutput);
+
+    refMetadata = {
+      id: rawMeta.id,
+      title: rawMeta.title,
+      channel: rawMeta.channel || rawMeta.uploader,
+      channel_url: rawMeta.uploader_url || rawMeta.channel_url,
+      view_count: rawMeta.view_count,
+      like_count: rawMeta.like_count,
+      duration: rawMeta.duration,
+      duration_string: rawMeta.duration_string,
+      upload_date: rawMeta.upload_date,
+      webpage_url: rawMeta.webpage_url || youtubeUrl,
+      thumbnail_url: rawMeta.thumbnail,
+      description: rawMeta.description ? rawMeta.description.slice(0, 2000) : "",
+    };
+
+    const metaPath = path.join(ideationDir, "metadata.json");
+    fs.writeFileSync(metaPath, JSON.stringify(refMetadata, null, 2), "utf-8");
+    console.log(`✅ Saved metadata to 01-ideation/metadata.json:`);
+    console.log(`   Title:    "${refMetadata.title}"`);
+    console.log(`   Channel:  ${refMetadata.channel}`);
+    console.log(`   Views:    ${(refMetadata.view_count ?? 0).toLocaleString()}`);
+    console.log(`   Duration: ${refMetadata.duration_string || `${refMetadata.duration}s`}`);
+  } catch (err: any) {
+    console.warn(`⚠️ Warning: Could not fetch video metadata: ${err.message}`);
+  }
+
+  // 2. Download thumbnail
+  try {
+    console.log(`\n⏳ Downloading reference thumbnail...`);
+    execSync(
+      `yt-dlp --write-thumbnail --skip-download --convert-thumbnails png -o "${path.join(ideationDir, "thumbnail")}" "${youtubeUrl}"`,
+      { stdio: "ignore" }
+    );
+    console.log(`✅ Reference thumbnail saved to 01-ideation/`);
+  } catch {
+    // Non-fatal if thumbnail fails
+  }
+
+  // 3. Download audio
+  try {
+    console.log(`\n⏳ Extracting reference audio (MP3)...`);
+    const audioOut = path.join(ideationDir, "reference_audio.%(ext)s");
+    execSync(
+      `yt-dlp -x --audio-format mp3 --audio-quality 0 -o "${audioOut}" "${youtubeUrl}"`,
+      { stdio: "inherit" }
+    );
+    console.log(`✅ Reference audio saved to 01-ideation/reference_audio.mp3`);
+  } catch (err: any) {
+    console.error(`❌ Failed to download audio via yt-dlp: ${err.message}`);
+  }
+
+  // 4. Generate pre-populated notes.md
+  const formattedViews = refMetadata?.view_count
+    ? (refMetadata.view_count as number).toLocaleString()
+    : "N/A";
+  const formattedLikes = refMetadata?.like_count
+    ? (refMetadata.like_count as number).toLocaleString()
+    : "N/A";
+
+  const notesContent = `# Ideation & Reference Notes: ${videoId}
+
+## 📺 Reference YouTube Video
+- **Title:** ${refMetadata?.title || "Unknown"}
+- **Channel:** ${refMetadata?.channel || "Unknown"}
+- **URL:** ${youtubeUrl}
+- **Views:** ${formattedViews} | **Likes:** ${formattedLikes} | **Duration:** ${refMetadata?.duration_string || "N/A"}
+- **Audio File:** \`01-ideation/reference_audio.mp3\`
+- **Metadata File:** \`01-ideation/metadata.json\`
+
+---
+
+## 🎯 The Wealth Gap Angle & Counter-Narrative
+*(How do we take this topic and make it 10x more compelling with institutional depth, visual pacing, and financial revelations?)*
+
+- **Core Premise:** 
+- **The Controversy / Hidden Cost:** 
+- **The Institutional Actor (Who wins / Who loses):** 
+
+---
+
+## 💡 5 Original Title Candidates
+1. 
+2. 
+3. 
+4. 
+5. 
+
+---
+
+## 🖼️ 3 High-CTR Thumbnail Angles
+- **Angle 1 (Shocking Scale / Multiple):** 
+- **Angle 2 (Hidden Mechanism / Secret Arena):** 
+- **Angle 3 (Visceral Loss / Winner vs Loser):** 
+
+---
+
+## 📊 Core Data Points to Verify
+- [ ] Metric 1:
+- [ ] Metric 2:
+- [ ] Primary Source / Institutional Citation:
+
+---
+
+## 📝 Original Video Description Snippet
+\`\`\`
+${refMetadata?.description ? refMetadata.description.slice(0, 1000) : "No description."}
+\`\`\`
+`;
+  fs.writeFileSync(path.join(ideationDir, "notes.md"), notesContent, "utf-8");
+} else {
+  // Clean empty notes.md
+  fs.writeFileSync(
+    path.join(targetDir, "01-ideation", "notes.md"),
+    `# Ideation Notes: ${videoId}\n\n## Core Concept\n\n## 5 Title Candidates\n1. \n2. \n3. \n4. \n5. \n\n## 3 Thumbnail Angles\n- Angle 1:\n- Angle 2:\n- Angle 3:\n\n## Core Data Points\n- \n`
+  );
+}
+
+// Initial script_raw placeholder
 fs.writeFileSync(
   path.join(targetDir, "02-scripting", "script_raw.md"),
-  `# ${videoId} Raw Script\n\n### PART 1: THE HOOK\n\n**[CLIP 1 - 0:00–0:05]:** [Describe opening visual]\n**VO:** \`[VO: Intense, dramatic tone]\` [Opening hook script text]\n`
+  `# ${videoId} Raw Script\n\n*(Run 'bun run script:remake ${videoId}' to generate with Ollama Gemma 3, or draft manually)*\n\n### PART 1: THE HOOK\n**[CLIP 1 - 0:00–0:05]:** [Describe opening visual]\n**VO:** \`[VO: Intense, dramatic tone]\` [Opening hook script text]\n`
 );
 
-console.log(`✅ Video workspace created successfully at:\n   ${path.relative(process.cwd(), targetDir)}\n`);
+console.log(`\n======================================================`);
+console.log(`✅ Video Workspace Created: ${path.relative(process.cwd(), targetDir)}`);
+console.log(`======================================================\n`);
+
 console.log(`Next Steps:`);
-console.log(`  1. Add research notes and reference media to 01-ideation/`);
-console.log(`  2. Draft script in 02-scripting/script_raw.md`);
-console.log(`  3. Run TTS: bun run tts --video ${videoId}`);
+if (youtubeUrl) {
+  console.log(`  1. Transcribe reference audio:`);
+  console.log(`     bun run script:transcribe ${videoId}`);
+  console.log(`  2. Remake script with Ollama Gemma 3 (or edit manually):`);
+  console.log(`     bun run script:remake ${videoId}`);
+  console.log(`  3. Format into VO sections with Sarvam prosody:`);
+  console.log(`     bun run tts:format ${videoId}`);
+} else {
+  console.log(`  1. Add research notes to workspace/${videoId}/01-ideation/notes.md`);
+  console.log(`  2. Draft script in workspace/${videoId}/02-scripting/script_raw.md`);
+  console.log(`  3. Format into VO sections: bun run tts:format ${videoId}`);
+}
+console.log(``);

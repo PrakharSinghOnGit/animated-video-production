@@ -56,13 +56,39 @@ WealthGap/
 
 All commands run directly from repo root — you never need to `cd` into subdirectories:
 
-### 1. New Video Setup
+### 1. Step 1: Ideation & Workspace Scaffolding
 ```bash
-# Scaffold a brand new isolated video workspace in 1 second
+# Option A: Standard new video workspace:
 bun run new-video VID02_Stock_Market_Bubble
+
+# Option B: New video with YouTube inspiration URL:
+# (Automatically extracts audio, thumbnail, metadata & populates notes.md)
+bun run new-video VID02_Stock_Market_Bubble "https://www.youtube.com/watch?v=..."
 ```
 
-### 2. Voiceover (TTS)
+### 2. Step 2: Transcribing Reference & Remaking Original Script
+```bash
+# 2A. Transcribe reference audio using Hugging Face Space (openai/whisper via @gradio/client)
+# (Auto-falls back to local faster-whisper if HF ZeroGPU queue is full)
+bun run script:transcribe VID02_Stock_Market_Bubble
+# Or force fast local execution:
+bun run script:transcribe VID02_Stock_Market_Bubble --local
+
+# 2B. Remake into original, retention-optimized Wealth Gap script (anti-plagiarism)
+# Option 1: AI generation via local Ollama Gemma 3 (12b):
+bun run script:remake VID02_Stock_Market_Bubble
+
+# Option 2: Scaffold structured manual template:
+bun run script:remake VID02_Stock_Market_Bubble --manual
+```
+
+### 3. Step 3: Format Voiceover Sections & Prosody
+```bash
+# Convert script_raw.md into structured VO sections with calibrated Sarvam prosody tags:
+bun run tts:format VID02_Stock_Market_Bubble
+```
+
+### 4. Step 4: Voiceover Audio Generation (TTS)
 ```bash
 # Check character count and estimated API cost (₹1 per 1,000 chars)
 bun run tts:cost
@@ -74,13 +100,13 @@ bun run tts:dry-run
 bun run tts
 ```
 
-### 3. Word-Level Transcription
+### 5. Step 5: Word-Level Transcription (For Video Alignment)
 ```bash
 # Extract millisecond-accurate word timestamps with Whisper
 bun run transcribe
 ```
 
-### 4. Video Storyboarding & Planning
+### 6. Step 6: Video Storyboarding & Planning
 1. Open [`workflow/prompts/DIRECTOR_PROMPT.md`](file:///Users/prakharsingh/youtube/WealthGap/workflow/prompts/DIRECTOR_PROMPT.md).
 2. Paste the prompt along with your `workspace/<VIDEO>/04-transcription/full_transcript.json` into Claude / GPT-4o / Gemini.
 3. Save the resulting JSON directly into `workspace/<VIDEO>/05-video/scenes.json`.
@@ -89,7 +115,7 @@ bun run transcribe
 bun run video:check VID01_Currency_Market
 ```
 
-### 5. Video Rendering: Chunks vs. Full Video
+### 7. Step 7: Video Rendering (Chunks vs. Full Video)
 
 #### A. Interactive Live Studio Preview
 ```bash

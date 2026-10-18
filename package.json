@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "new-video": "bun run scripts/new_video.ts",
+    "script:transcribe": "bun run workflow/02-scripting/transcribe_ref.ts",
+    "script:remake": "bun run workflow/02-scripting/remake_script.ts",
+    "tts:format": "bun run workflow/03-voiceover/src/format_sections.ts",
     "tts": "bun run workflow/03-voiceover/run.ts",
     "tts:cost": "bun run workflow/03-voiceover/run.ts --cost",
     "tts:dry-run": "bun run workflow/03-voiceover/run.ts --dry-run",
@@ -24,6 +27,7 @@
     "video:test": "bun --cwd workflow/05-video scripts/test-fixture.ts"
   },
   "devDependencies": {
+    "@gradio/client": "^2.7.1",
     "@types/bun": "latest"
   }
 }
