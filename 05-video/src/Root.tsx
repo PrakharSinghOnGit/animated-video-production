@@ -13,6 +13,7 @@ import { MoneyFlowPreview } from "./components/MoneyFlow/preview";
 import { TitleCardPreview } from "./components/TitleCard/preview";
 import { TermCardPreview } from "./components/TermCard/preview";
 import { SourceTagPreview } from "./components/SourceTag/preview";
+import { Thumbnail } from "./compositions/Thumbnail";
 import { msToFrames } from "./lib/timing";
 
 // Default fixture data for Studio preview
@@ -154,6 +155,17 @@ export const RemotionRoot: React.FC = () => {
         fps={fps}
         width={1920}
         height={1080}
+      />
+
+      {/* 5. Packaging Thumbnails */}
+      <Composition
+        id="Thumbnail"
+        component={Thumbnail}
+        defaultProps={{ variant: "a" }}
+        durationInFrames={30}
+        fps={fps}
+        width={1280}
+        height={720}
       />
     </>
   );

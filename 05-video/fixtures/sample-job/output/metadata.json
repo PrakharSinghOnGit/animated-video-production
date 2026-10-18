@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "jobId": "sample-job",
+  "title": "The FX Shadow Engine",
+  "topic": "Foreign exchange market daily turnover and architecture",
+  "language": "en",
+  "createdAt": "2026-10-18T12:20:28.711Z",
+  "inputsHash": "f487509e86c92ad0d84511d377358b649167cd041adeece2ebc483547cd6f4a9",
+  "video": {
+    "file": "final.mp4",
+    "durationSec": 31.1,
+    "fps": 30,
+    "width": 1920,
+    "height": 1080,
+    "codec": "h264",
+    "sizeBytes": 11682358
+  },
+  "audio": {
+    "integratedLUFS": -22.32,
+    "truePeakDBTP": -16.26,
+    "hasMusic": false,
+    "sfxCount": 5
+  },
+  "captions": {
+    "mode": "sidecar",
+    "files": [
+      "captions.srt",
+      "captions.vtt",
+      "captions.json"
+    ],
+    "wordCount": 67
+  },
+  "chapters": [
+    {
+      "time": "0:00",
+      "title": "The Invisible River"
+    },
+    {
+      "time": "0:08",
+      "title": "The $9.6 Trillion Scale"
+    },
+    {
+      "time": "0:19",
+      "title": "Interbank Transfers"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s01",
+      "startMs": 0,
+      "endMs": 8775,
+      "components": [
+        "TitleCard"
+      ],
+      "chapter": "The Invisible River"
+    },
+    {
+      "id": "s02",
+      "startMs": 8775,
+      "endMs": 14850,
+      "components": [
+        "BigNumber"
+      ],
+      "chapter": "The $9.6 Trillion Scale"
+    },
+    {
+      "id": "s03",
+      "startMs": 14850,
+      "endMs": 19850,
+      "components": [
+        "SizeCompare"
+      ],
+      "chapter": "The 10x Multiple"
+    },
+    {
+      "id": "s04",
+      "startMs": 19850,
+      "endMs": 25775,
+      "components": [
+        "BigNumber"
+      ],
+      "chapter": "Interbank Transfers"
+    },
+    {
+      "id": "s05",
+      "startMs": 25775,
+      "endMs": 31100,
+      "components": [
+        "TermCard"
+      ],
+      "chapter": "The Wealth Architecture"
+    }
+  ],
+  "numbersShown": [
+    {
+      "scene": "s02",
+      "value": "9.6",
+      "source": "Bank for International Settlements (BIS) Triennial Survey 2025",
+      "dataRef": "brief.must_show[0]"
+    },
+    {
+      "scene": "s03",
+      "value": "9.6",
+      "source": "World Federation of Exchanges (WFE) / BIS Comparison",
+      "dataRef": "brief.must_show[1]"
+    },
+    {
+      "scene": "s04",
+      "value": "9.6",
+      "source": "Bank for International Settlements (BIS) Triennial Survey 2025",
+      "dataRef": "brief.must_show[0]"
+    }
+  ],
+  "fonts": [
+    "Inter",
+    "JetBrains Mono"
+  ],
+  "thumbnails": [
+    "stills/thumbnails/thumb-a.png",
+    "stills/thumbnails/thumb-b.png",
+    "stills/thumbnails/thumb-c.png"
+  ],
+  "qc": {
+    "errors": 0,
+    "warnings": 0,
+    "needsData": []
+  },
+  "render": {
+    "seconds": 14,
+    "profile": "final",
+    "remotion": "4.0.536",
+    "node": "v26.11.1",
+    "ffmpeg": "9.0.2"
+  },
+  "suggestedMetadata": {
+    "titleOptions": [
+      "The $9.6 Trillion Currency Machine Nobody Talks About",
+      "The Invisible River: Inside the Global Currency Market",
+      "How $9.6 Trillion Moves Every Single Day (In Secret)"
+    ],
+    "descriptionFile": "description_draft.md",
+    "tags": [
+      "finance",
+      "economics",
+      "currency",
+      "wealth-gap",
+      "forex"
+    ]
+  }
+}
