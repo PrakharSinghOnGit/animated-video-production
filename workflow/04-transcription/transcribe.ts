@@ -42,6 +42,8 @@ function parseArgs(): TranscribeOptions {
       options.force = true;
     } else if (arg === "--python") {
       options.pythonPath = args[++i];
+    } else if (!arg.startsWith("-") && !options.video) {
+      options.video = arg;
     }
   }
 
@@ -105,10 +107,23 @@ function findAudioFiles(audioDir: string, partFilter?: number): { part: number; 
 }
 
 async function main() {
+  const options = parseArgs();
   const workspaceRoot = fs.existsSync(path.resolve(process.cwd(), "workspace"))
     ? path.resolve(process.cwd(), "workspace")
     : path.resolve(__dirname, "../../workspace");
-  const videoId = options.video || process.env.ACTIVE_VIDEO || "VID01_Currency_Market";
+
+  const candidates = fs.existsSync(workspaceRoot)
+    ? fs.readdirSync(workspaceRoot, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+    : [];
+
+  let targetVideo = options.video || process.env.ACTIVE_VIDEO || "VID01_Currency_Market";
+  const matched = candidates.find((c) => c.toLowerCase() === targetVideo.toLowerCase()) ||
+                  candidates.find((c) => c.toLowerCase().startsWith(targetVideo.toLowerCase()));
+  if (matched) {
+    targetVideo = matched;
+  }
+
+  const videoId = targetVideo;
   const videoDir = path.join(workspaceRoot, videoId);
 
   if (!fs.existsSync(videoDir)) {
@@ -131,7 +146,7 @@ async function main() {
   }
 
   const pythonExec = options.pythonPath || findPython();
-  const whisperScript = path.resolve(process.cwd(), "04-transcription/transcribe_whisper.py");
+  const whisperScript = path.resolve(__dirname, "transcribe_whisper.py");
   const model = options.model || "base";
 
   console.log("\n=======================================================");
