@@ -1,0 +1,18 @@
+{
+  "name": "wealthgap-studio",
+  "version": "2.0.0",
+  "description": "YouTube video production pipeline & automation harness for The Wealth Gap",
+  "main": "03-voiceover/run.ts",
+  "type": "module",
+  "scripts": {
+    "cost": "bun run 03-voiceover/run.ts --cost",
+    "tts": "bun run 03-voiceover/run.ts",
+    "tts:dry-run": "bun run 03-voiceover/run.ts --dry-run",
+    "tts:list": "bun run 03-voiceover/run.ts --list",
+    "transcribe": "bun run 04-transcription/transcribe.ts",
+    "new-video": "bun run scripts/new_video.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

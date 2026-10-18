@@ -1,0 +1,372 @@
+{
+  "audio_file": "03_part1_03_7_trillion.wav",
+  "duration": 12.86,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "It's called the foreign exchange market or FX. The arena where money itself is bought and sold to the tune of more than $7 trillion every single day.",
+  "words": [
+    {
+      "word": "It's",
+      "start": 0.0,
+      "end": 0.24,
+      "probability": 0.746
+    },
+    {
+      "word": "called",
+      "start": 0.24,
+      "end": 0.66,
+      "probability": 0.997
+    },
+    {
+      "word": "the",
+      "start": 0.66,
+      "end": 1.1,
+      "probability": 0.784
+    },
+    {
+      "word": "foreign",
+      "start": 1.1,
+      "end": 1.42,
+      "probability": 0.606
+    },
+    {
+      "word": "exchange",
+      "start": 1.42,
+      "end": 1.86,
+      "probability": 0.993
+    },
+    {
+      "word": "market",
+      "start": 1.86,
+      "end": 2.46,
+      "probability": 0.992
+    },
+    {
+      "word": "or",
+      "start": 2.46,
+      "end": 3.28,
+      "probability": 0.639
+    },
+    {
+      "word": "FX.",
+      "start": 3.28,
+      "end": 3.94,
+      "probability": 0.731
+    },
+    {
+      "word": "The",
+      "start": 4.96,
+      "end": 5.04,
+      "probability": 0.98
+    },
+    {
+      "word": "arena",
+      "start": 5.04,
+      "end": 5.48,
+      "probability": 0.912
+    },
+    {
+      "word": "where",
+      "start": 5.48,
+      "end": 6.0,
+      "probability": 0.908
+    },
+    {
+      "word": "money",
+      "start": 6.0,
+      "end": 6.48,
+      "probability": 0.994
+    },
+    {
+      "word": "itself",
+      "start": 6.48,
+      "end": 6.94,
+      "probability": 0.993
+    },
+    {
+      "word": "is",
+      "start": 6.94,
+      "end": 7.4,
+      "probability": 0.996
+    },
+    {
+      "word": "bought",
+      "start": 7.4,
+      "end": 7.76,
+      "probability": 0.991
+    },
+    {
+      "word": "and",
+      "start": 7.76,
+      "end": 8.06,
+      "probability": 0.995
+    },
+    {
+      "word": "sold",
+      "start": 8.06,
+      "end": 8.38,
+      "probability": 0.999
+    },
+    {
+      "word": "to",
+      "start": 8.38,
+      "end": 8.62,
+      "probability": 0.958
+    },
+    {
+      "word": "the",
+      "start": 8.62,
+      "end": 8.7,
+      "probability": 0.993
+    },
+    {
+      "word": "tune",
+      "start": 8.7,
+      "end": 8.94,
+      "probability": 0.969
+    },
+    {
+      "word": "of",
+      "start": 8.94,
+      "end": 9.14,
+      "probability": 0.992
+    },
+    {
+      "word": "more",
+      "start": 9.14,
+      "end": 9.44,
+      "probability": 0.989
+    },
+    {
+      "word": "than",
+      "start": 9.44,
+      "end": 9.6,
+      "probability": 0.996
+    },
+    {
+      "word": "$7",
+      "start": 9.6,
+      "end": 10.04,
+      "probability": 0.808
+    },
+    {
+      "word": "trillion",
+      "start": 10.04,
+      "end": 10.6,
+      "probability": 0.947
+    },
+    {
+      "word": "every",
+      "start": 10.6,
+      "end": 11.92,
+      "probability": 0.279
+    },
+    {
+      "word": "single",
+      "start": 11.92,
+      "end": 12.4,
+      "probability": 0.977
+    },
+    {
+      "word": "day.",
+      "start": 12.4,
+      "end": 12.66,
+      "probability": 0.996
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 3.94,
+      "text": "It's called the foreign exchange market or FX.",
+      "words": [
+        {
+          "word": "It's",
+          "start": 0.0,
+          "end": 0.24,
+          "probability": 0.746
+        },
+        {
+          "word": "called",
+          "start": 0.24,
+          "end": 0.66,
+          "probability": 0.997
+        },
+        {
+          "word": "the",
+          "start": 0.66,
+          "end": 1.1,
+          "probability": 0.784
+        },
+        {
+          "word": "foreign",
+          "start": 1.1,
+          "end": 1.42,
+          "probability": 0.606
+        },
+        {
+          "word": "exchange",
+          "start": 1.42,
+          "end": 1.86,
+          "probability": 0.993
+        },
+        {
+          "word": "market",
+          "start": 1.86,
+          "end": 2.46,
+          "probability": 0.992
+        },
+        {
+          "word": "or",
+          "start": 2.46,
+          "end": 3.28,
+          "probability": 0.639
+        },
+        {
+          "word": "FX.",
+          "start": 3.28,
+          "end": 3.94,
+          "probability": 0.731
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start": 4.96,
+      "end": 10.6,
+      "text": "The arena where money itself is bought and sold to the tune of more than $7 trillion",
+      "words": [
+        {
+          "word": "The",
+          "start": 4.96,
+          "end": 5.04,
+          "probability": 0.98
+        },
+        {
+          "word": "arena",
+          "start": 5.04,
+          "end": 5.48,
+          "probability": 0.912
+        },
+        {
+          "word": "where",
+          "start": 5.48,
+          "end": 6.0,
+          "probability": 0.908
+        },
+        {
+          "word": "money",
+          "start": 6.0,
+          "end": 6.48,
+          "probability": 0.994
+        },
+        {
+          "word": "itself",
+          "start": 6.48,
+          "end": 6.94,
+          "probability": 0.993
+        },
+        {
+          "word": "is",
+          "start": 6.94,
+          "end": 7.4,
+          "probability": 0.996
+        },
+        {
+          "word": "bought",
+          "start": 7.4,
+          "end": 7.76,
+          "probability": 0.991
+        },
+        {
+          "word": "and",
+          "start": 7.76,
+          "end": 8.06,
+          "probability": 0.995
+        },
+        {
+          "word": "sold",
+          "start": 8.06,
+          "end": 8.38,
+          "probability": 0.999
+        },
+        {
+          "word": "to",
+          "start": 8.38,
+          "end": 8.62,
+          "probability": 0.958
+        },
+        {
+          "word": "the",
+          "start": 8.62,
+          "end": 8.7,
+          "probability": 0.993
+        },
+        {
+          "word": "tune",
+          "start": 8.7,
+          "end": 8.94,
+          "probability": 0.969
+        },
+        {
+          "word": "of",
+          "start": 8.94,
+          "end": 9.14,
+          "probability": 0.992
+        },
+        {
+          "word": "more",
+          "start": 9.14,
+          "end": 9.44,
+          "probability": 0.989
+        },
+        {
+          "word": "than",
+          "start": 9.44,
+          "end": 9.6,
+          "probability": 0.996
+        },
+        {
+          "word": "$7",
+          "start": 9.6,
+          "end": 10.04,
+          "probability": 0.808
+        },
+        {
+          "word": "trillion",
+          "start": 10.04,
+          "end": 10.6,
+          "probability": 0.947
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start": 10.6,
+      "end": 12.66,
+      "text": "every single day.",
+      "words": [
+        {
+          "word": "every",
+          "start": 10.6,
+          "end": 11.92,
+          "probability": 0.279
+        },
+        {
+          "word": "single",
+          "start": 11.92,
+          "end": 12.4,
+          "probability": 0.977
+        },
+        {
+          "word": "day.",
+          "start": 12.4,
+          "end": 12.66,
+          "probability": 0.996
+        }
+      ]
+    }
+  ]
+}

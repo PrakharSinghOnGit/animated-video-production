@@ -1,0 +1,68 @@
+{
+  "name": "motion-engine",
+  "version": "1.0.0",
+  "description": "Deterministic Remotion Motion Engine for The Wealth Gap explainer videos",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/captions": "4.0.536",
+    "@remotion/cli": "4.0.536",
+    "@remotion/google-fonts": "4.0.536",
+    "@remotion/layout-utils": "4.0.536",
+    "@remotion/media": "4.0.536",
+    "@remotion/rough-notation": "4.0.536",
+    "@remotion/sfx": "4.0.536",
+    "@remotion/transitions": "4.0.536",
+    "@remotion/zod-types": "4.0.536",
+    "d3-geo": "^3.1.1",
+    "d3-scale": "^4.0.2",
+    "d3-shape": "^3.2.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.536",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.536",
+    "@types/d3-geo": "^3.1.1",
+    "@types/d3-scale": "^4.0.9",
+    "@types/d3-shape": "^3.2.0",
+    "@types/node": "^22.20.5",
+    "@types/react": "19.2.7",
+    "@types/topojson-client": "^3.1.5",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "job:new": "tsx scripts/new-job.ts",
+    "ingest": "tsx scripts/ingest.ts",
+    "analyze": "tsx scripts/analyze.ts",
+    "plan": "tsx scripts/plan.ts",
+    "check": "tsx scripts/validate-plan.ts",
+    "studio": "remotion studio",
+    "gallery": "remotion studio",
+    "still": "tsx scripts/still.ts",
+    "sheet": "tsx scripts/sheet.ts",
+    "draft": "tsx scripts/render.ts --draft",
+    "render": "tsx scripts/render.ts --final",
+    "qc": "tsx scripts/qc.ts",
+    "package": "tsx scripts/package.ts",
+    "build": "tsx scripts/build.ts",
+    "test": "tsx scripts/test-fixture.ts",
+    "dev": "remotion studio",
+    "upgrade": "remotion upgrade",
+    "lint": "tsc --noEmit"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}

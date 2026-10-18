@@ -1,0 +1,8 @@
+node_modules
+.DS_Store
+.env
+out
+jobs/*
+!jobs/.gitkeep
+public/jobs/*
+!public/jobs/.gitkeep

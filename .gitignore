@@ -1,0 +1,22 @@
+node_modules
+.DS_Store
+.env
+out/
+dist/
+05-video/node_modules/
+05-video/out/
+05-video/jobs/*
+!05-video/jobs/.gitkeep
+05-video/public/jobs/*
+!05-video/public/jobs/.gitkeep
+
+# Large media files in workspace
+workspace/**/video-bank/*
+!workspace/**/video-bank/.gitkeep
+workspace/**/audio-bank/*
+!workspace/**/audio-bank/.gitkeep
+*.mp4
+*.wav
+*.mp3
+*.mov
+
