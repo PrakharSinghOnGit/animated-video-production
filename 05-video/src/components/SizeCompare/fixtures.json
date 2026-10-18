@@ -1,0 +1,26 @@
+[
+  {
+    "id": "fx-vs-equities-circles",
+    "name": "FX vs Equities Proportional Spheres",
+    "props": {
+      "title": "Scale Comparison: Daily Trading Volume",
+      "subtitle": "Area corresponds directly to dollar turnover",
+      "items": [
+        {
+          "label": "Foreign Exchange Market",
+          "value": 9.6,
+          "displayValue": "$9.6T",
+          "color": "#F5B83D",
+          "subtext": "10× larger daily volume"
+        },
+        {
+          "label": "Global Stock Market",
+          "value": 0.95,
+          "displayValue": "$0.95T",
+          "color": "#2EC4B6",
+          "subtext": "All global bourses"
+        }
+      ]
+    }
+  }
+]

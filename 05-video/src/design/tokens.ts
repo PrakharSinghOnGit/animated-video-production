@@ -3,6 +3,8 @@
  * Dark, premium, institutional finance aesthetic.
  * All components read tokens from here. Never hardcode colors or dimensions.
  */
+import { FONTS } from "./fonts";
+export { FONTS };
 
 export const COLOR_TOKENS = {
   bg: "#0B0F14", // Deep obsidian foundation

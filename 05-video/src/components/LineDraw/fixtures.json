@@ -1,0 +1,22 @@
+[
+  {
+    "id": "fx-growth-decade",
+    "name": "Global FX Turnover Growth",
+    "props": {
+      "title": "Daily Global FX Trading Growth",
+      "subtitle": "Average daily turnover recorded every 3 years (USD Trillions)",
+      "unitPrefix": "$",
+      "unitSuffix": "T",
+      "color": "#F5B83D",
+      "peakCallout": "Peak: $9.6T",
+      "data": [
+        { "x": "2010", "y": 4.0 },
+        { "x": "2013", "y": 5.3 },
+        { "x": "2016", "y": 5.1 },
+        { "x": "2019", "y": 6.6 },
+        { "x": "2022", "y": 7.5 },
+        { "x": "2025", "y": 9.6 }
+      ]
+    }
+  }
+]

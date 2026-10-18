@@ -1,0 +1,41 @@
+[
+  {
+    "id": "fx-daily-volume",
+    "name": "FX Daily Volume",
+    "props": {
+      "value": 9.6,
+      "prefix": "$",
+      "suffix": "TRILLION",
+      "decimals": 1,
+      "label": "Traded across currency markets every single day",
+      "sublabel": "Source: BIS Triennial Central Bank Survey 2025",
+      "accentColor": "#F5B83D"
+    }
+  },
+  {
+    "id": "percent-multiple",
+    "name": "Market Multiple",
+    "props": {
+      "value": 10.2,
+      "prefix": "",
+      "suffix": "× LARGER",
+      "decimals": 1,
+      "label": "Than the entire global equity market combined",
+      "sublabel": "Comparing daily turnover volumes",
+      "accentColor": "#2EC4B6"
+    }
+  },
+  {
+    "id": "stress-huge-number",
+    "name": "Stress Test: Long Label and Huge Value",
+    "props": {
+      "value": 1284500000,
+      "prefix": "$",
+      "suffix": "",
+      "decimals": 0,
+      "label": "Continuous capital outflows recorded through offshore settlement hubs across an eighteen month liquidation window",
+      "sublabel": "Stress fixture testing text wrap and tabular alignment",
+      "accentColor": "#FF5A5F"
+    }
+  }
+]
