@@ -12,6 +12,24 @@ export * from "./fonts";
 // Scene Context & Timing
 export * from "./scene";
 
+// Shapes & Geometry
+export * from "./shapes";
+
+// Primitives
+export * from "./primitives/Camera";
+export * from "./primitives/MorphShape";
+export * from "./primitives/Label";
+export * from "./primitives/Ring";
+export * from "./primitives/Glow";
+export * from "./primitives/Particles";
+export * from "./primitives/Orb";
+export * from "./primitives/Gem";
+export * from "./primitives/Coin";
+export * from "./primitives/Sparkle";
+export * from "./primitives/Panel";
+export * from "./primitives/Counter";
+export * from "./primitives/Trail";
+
 // Main Composition & Finish
 export { Backdrop } from "./main/Backdrop";
 export { Finish, type FinishProps } from "./main/Finish";
@@ -66,3 +84,8 @@ export { SourceTagPreview } from "./text/SourceTag/preview";
 export { Globe3D } from "./three/Globe3D";
 export { Globe3DPropsSchema, type Globe3DProps } from "./three/Globe3D/schema";
 export { Globe3DPreview } from "./three/Globe3D/preview";
+
+// Gallery & Fixtures
+export { Gallery, type GalleryProps } from "./gallery/Gallery";
+export { GALLERY_FIXTURES } from "./gallery/fixtures";
+

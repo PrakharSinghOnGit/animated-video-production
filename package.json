@@ -33,7 +33,8 @@
     "video:qc": "bun --cwd workflow/05-video scripts/qc.ts",
     "video:package": "bun --cwd workflow/05-video scripts/package.ts",
     "video:build": "bun --cwd workflow/05-video scripts/build.ts",
-    "video:test": "bun --cwd workflow/05-video scripts/test-fixture.ts"
+    "video:test": "bun --cwd workflow/05-video scripts/test-fixture.ts",
+    "gallery": "bun --cwd workflow/05-video run studio"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",
