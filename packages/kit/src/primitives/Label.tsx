@@ -7,6 +7,8 @@ export interface LabelProps {
   text: string;
   x?: number;
   y?: number;
+  cx?: number;
+  cy?: number;
   size?: number;
   in?: number;
   out?: number;
@@ -25,6 +27,8 @@ export const Label: React.FC<LabelProps> = ({
   text,
   x = 960,
   y = 540,
+  cx,
+  cy,
   size = 132,
   in: enterFrame = 0,
   out: exitFrame,
@@ -73,14 +77,16 @@ export const Label: React.FC<LabelProps> = ({
   const ulWidth = Math.max(0, ulRight - ulLeft);
 
   const resolvedAccent = resolveColorToken(accent);
+  const posX = cx ?? x;
+  const posY = cy ?? y;
   const trackingPx = size * track;
 
   return (
     <div
       style={{
         position: "absolute",
-        left: x,
-        top: y,
+        left: posX,
+        top: posY,
         transform:
           align === "center"
             ? "translate(-50%, -50%)"

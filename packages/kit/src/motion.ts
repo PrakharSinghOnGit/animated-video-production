@@ -97,12 +97,33 @@ export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function resolveEase(e: unknown): (t: number) => number {
+  if (typeof e === "function") return e as (t: number) => number;
+  if (typeof e === "string") {
+    if (e === "io" || e === "inOut" || e === "inOutCubic") return ease.inOutCubic;
+    if (e === "outExpo") return ease.outExpo;
+    if (e === "outCubic") return ease.outCubic;
+    if (e === "out4") return ease.out4;
+    if (e === "inCubic") return ease.inCubic;
+    if (e === "outBack") return ease.outBack();
+    if (e === "smooth") return ease.smooth;
+    if (e === "spring") return ease.spring;
+    if (e === "linear" || e === "lin") return ease.linear;
+    if ((ease as any)[e]) return (ease as any)[e];
+  }
+  return ease.outExpo;
+}
+
 /**
  * Keyframed timeline value or vector lookup
  */
-export type KeyframeStop = [number, number | number[], ((t: number) => number)?];
+export type KeyframeStop = [number, number | number[], (((t: number) => number) | string)?];
 
-export function keys(frame: number, stops: KeyframeStop[]): any {
+export function keys(
+  frame: number,
+  stops: KeyframeStop[],
+  defaultEase?: ((t: number) => number) | string
+): any {
   if (!stops || stops.length === 0) return 0;
   if (stops.length === 1) return stops[0][1];
 
@@ -112,13 +133,17 @@ export function keys(frame: number, stops: KeyframeStop[]): any {
   if (frame <= first[0]) return first[1];
   if (frame >= last[0]) return last[1];
 
+  const defFn = defaultEase ? resolveEase(defaultEase) : ease.outExpo;
+
   for (let i = 0; i < stops.length - 1; i++) {
-    const [f0, v0, easeFn] = stops[i];
-    const [f1, v1] = stops[i + 1];
+    const [f0, v0, e0] = stops[i];
+    const [f1, v1, e1] = stops[i + 1];
 
     if (frame >= f0 && frame <= f1) {
-      let rawT = (frame - f0) / (f1 - f0);
-      const t = easeFn ? easeFn(rawT) : rawT;
+      const rawT = (frame - f0) / (f1 - f0);
+      const easeParam = e1 ?? e0 ?? defaultEase;
+      const easeFn = easeParam ? resolveEase(easeParam) : defFn;
+      const t = easeFn(rawT);
 
       if (Array.isArray(v0) && Array.isArray(v1)) {
         return v0.map((val, idx) => lerp(val, v1[idx] ?? val, t));
@@ -133,9 +158,15 @@ export function keys(frame: number, stops: KeyframeStop[]): any {
 /**
  * Short bumps/breath pulses on given frame centers
  */
-export function pulse(frame: number, centers: number[], widthFrames: number, amp: number): number {
+export function pulse(
+  frame: number,
+  centers: number | number[],
+  widthFrames: number,
+  amp: number
+): number {
+  const arr = Array.isArray(centers) ? centers : [centers];
   let bump = 0;
-  for (const c of centers) {
+  for (const c of arr) {
     const dist = Math.abs(frame - c);
     if (dist < widthFrames) {
       const prog = 1 - dist / widthFrames;

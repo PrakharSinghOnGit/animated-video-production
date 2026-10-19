@@ -19,6 +19,11 @@ export interface LintResult {
 
 export const ALLOWED_SFX = [
   "whoosh",
+  "whip",
+  "switch",
+  "ding",
+  "mouse-click",
+  "page-turn",
   "pop",
   "click",
   "impact",

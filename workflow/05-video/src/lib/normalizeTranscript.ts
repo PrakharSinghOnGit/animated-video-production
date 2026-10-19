@@ -56,7 +56,7 @@ export function normalizeTranscript(
     const obj = rawInput as Record<string, any>;
 
     // Case 2: Whisper segments format { segments: [{ words: [...] }] }
-    if (Array.isArray(obj.segments) && obj.segments.length > 0) {
+    if (Array.isArray(obj.segments) && obj.segments.length > 0 && Array.isArray(obj.segments[0]?.words)) {
       formatDetected = "whisper-segments";
       for (const seg of obj.segments) {
         if (Array.isArray(seg.words)) {

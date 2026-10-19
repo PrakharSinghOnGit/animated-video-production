@@ -80,8 +80,8 @@
         "@wealthgap/kit": "workspace:*",
       },
     },
-    "workspace/VID_TEST_PHASE4/05-video": {
-      "name": "@wealthgap-video/vid_test_phase4",
+    "workspace/_FX_shadow_clip/05-video": {
+      "name": "@wealthgap-video/_fx_shadow_clip",
       "version": "1.0.0",
       "dependencies": {
         "@wealthgap/kit": "workspace:*",
@@ -449,7 +449,7 @@
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.71.2", "", { "dependencies": { "@typescript-eslint/types": "8.71.2", "eslint-visitor-keys": "^5.0.0" } }, "sha512-zozlN0UA32bSG2zkKAgQyRYSbEISVoyU6vvkKYo2aSny74D8Jh4e+POkJ6Lk0dlezZi5x7TtD+88Xb06IB8nhg=="],
 
-    "@wealthgap-video/vid_test_phase4": ["@wealthgap-video/vid_test_phase4@workspace:workspace/VID_TEST_PHASE4/05-video"],
+    "@wealthgap-video/_fx_shadow_clip": ["@wealthgap-video/_fx_shadow_clip@workspace:workspace/_FX_shadow_clip/05-video"],
 
     "@wealthgap/kit": ["@wealthgap/kit@workspace:packages/kit"],
 

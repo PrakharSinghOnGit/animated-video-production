@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Composition } from "remotion";
-import { ensureFontsLoaded, SceneProvider } from "@wealthgap/kit";
+import { ensureFontsLoaded, SceneProvider, Backdrop } from "@wealthgap/kit";
 import { Main } from "./Main";
 import { SCENE_REGISTRY } from "./scenes";
 
@@ -74,6 +74,7 @@ export const RemotionRoot: React.FC = () => {
                   meta: regEntry?.meta,
                 }}
               >
+                <Backdrop />
                 <SceneComponent />
               </SceneProvider>
             )}

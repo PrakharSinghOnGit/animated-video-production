@@ -32,8 +32,17 @@ function generateLayout(total: number, cols: number): string {
   for (let i = 0; i < total; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
-    const x = col === 0 ? "0" : `w0*${col}`;
-    const y = row === 0 ? "0" : `h0*${row}`;
+
+    let x = "0";
+    if (col > 0) {
+      x = Array.from({ length: col }, (_, c) => `w${c}`).join("+");
+    }
+
+    let y = "0";
+    if (row > 0) {
+      y = Array.from({ length: row }, (_, r) => `h${r * cols}`).join("+");
+    }
+
     layouts.push(`${x}_${y}`);
   }
   return layouts.join("|");

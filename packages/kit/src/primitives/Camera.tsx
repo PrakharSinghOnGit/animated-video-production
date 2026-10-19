@@ -19,6 +19,7 @@ const CameraContext = createContext<CameraContextValue>({
 
 export interface CameraProps {
   scale?: number;
+  zoom?: number;
   focus?: [number, number];
   rotate?: number;
   origin?: [number, number];
@@ -27,11 +28,13 @@ export interface CameraProps {
 
 export const Camera: React.FC<CameraProps> = ({
   scale = 1,
+  zoom,
   focus = [0, 0],
   rotate = 0,
   origin = [960, 540],
   children,
 }) => {
+  const actualScale = zoom ?? scale;
   const [ox, oy] = origin;
   const [fx, fy] = focus;
 
@@ -48,21 +51,21 @@ export const Camera: React.FC<CameraProps> = ({
       const rx = dx * cos - dy * sin;
       const ry = dx * sin + dy * cos;
       // 3. Scale & translate to screen origin
-      return [ox + rx * scale, oy + ry * scale];
+      return [ox + rx * actualScale, oy + ry * actualScale];
     };
-  }, [scale, fx, fy, rotate, ox, oy]);
+  }, [actualScale, fx, fy, rotate, ox, oy]);
 
   const contextValue = useMemo<CameraContextValue>(
-    () => ({ scale, focus, rotate, origin, toScreen }),
-    [scale, focus, rotate, origin, toScreen]
+    () => ({ scale: actualScale, focus, rotate, origin, toScreen }),
+    [actualScale, focus, rotate, origin, toScreen]
   );
 
   return (
     <CameraContext.Provider value={contextValue}>
       <AbsoluteFill
         style={{
-          transformOrigin: `${ox}px ${oy}px`,
-          transform: `translate3d(${ox}px, ${oy}px, 0) scale(${scale}) rotate(${rotate}deg) translate3d(${-fx}px, ${-fy}px, 0)`,
+          transformOrigin: "0 0",
+          transform: `translate3d(${ox}px, ${oy}px, 0) scale(${actualScale}) rotate(${rotate}deg) translate3d(${-fx}px, ${-fy}px, 0)`,
           pointerEvents: "none",
         }}
       >

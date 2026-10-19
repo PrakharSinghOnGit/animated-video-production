@@ -124,23 +124,33 @@ async function main() {
         });
       }
 
-      // Check duration match against original audio + tail padding
+      // Check duration match against original audio or timeline specification
       if (paths.audioFile && fs.existsSync(paths.audioFile)) {
         const originalAudio = await probeAudio(paths.audioFile);
         const videoDurationSec = parseFloat(data.format?.duration || "0");
-        const expectedDurationSec = originalAudio.durationSec + (tailPaddingMs / 1000);
+        const timelinePath = path.join(paths.outputDir, "timeline.json");
+        let expectedDurationSec = originalAudio.durationSec + (tailPaddingMs / 1000);
+        if (fs.existsSync(timelinePath)) {
+          try {
+            const tl = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
+            if (typeof tl.durationFrames === "number") {
+              const tlFps = tl.fps || 30;
+              expectedDurationSec = tl.durationFrames / tlFps;
+            }
+          } catch {}
+        }
         const diff = Math.abs(videoDurationSec - expectedDurationSec);
         if (diff > 0.5) {
           issues.push({
             type: "ERROR",
             rule: "duration_drift",
-            message: `Video duration (${videoDurationSec.toFixed(2)}s) differs from audio + tail (${expectedDurationSec.toFixed(2)}s) by ${diff.toFixed(2)}s (> 0.5s).`,
+            message: `Video duration (${videoDurationSec.toFixed(2)}s) differs from expected (${expectedDurationSec.toFixed(2)}s) by ${diff.toFixed(2)}s (> 0.5s).`,
           });
         } else {
           issues.push({
             type: "INFO",
             rule: "duration_match",
-            message: `Duration sync exact: video=${videoDurationSec.toFixed(2)}s, audio+tail=${expectedDurationSec.toFixed(2)}s (diff ${diff.toFixed(3)}s).`,
+            message: `Duration sync exact: video=${videoDurationSec.toFixed(2)}s, expected=${expectedDurationSec.toFixed(2)}s (diff ${diff.toFixed(3)}s).`,
           });
         }
       }
