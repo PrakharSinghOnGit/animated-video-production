@@ -3,6 +3,12 @@ import path from "path";
 import { execSync } from "child_process";
 import type { TranscribeOptions, ClipTranscript, FullTranscript } from "./src/types";
 
+interface WordTimestamp {
+  word: string;
+  start: number;
+  end: number;
+}
+
 function findPython(): string {
   // Check DancingDuck venv
   const duckVenv = path.resolve(process.cwd(), "../DancingDuck/.venv/bin/python");

@@ -21,3 +21,4 @@ workspace/**/audio-bank/*
 *.wav
 *.mp3
 *.mov
+_baseline_stills/

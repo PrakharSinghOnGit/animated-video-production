@@ -4,7 +4,7 @@
   "title": "The FX Shadow Engine",
   "topic": "Foreign exchange market daily turnover and architecture",
   "language": "en",
-  "createdAt": "2026-10-18T13:20:03.647Z",
+  "createdAt": "2026-10-19T04:49:19.585Z",
   "inputsHash": "f487509e86c92ad0d84511d377358b649167cd041adeece2ebc483547cd6f4a9",
   "video": {
     "file": "final.mp4",
@@ -13,7 +13,7 @@
     "width": 1920,
     "height": 1080,
     "codec": "h264",
-    "sizeBytes": 11695247
+    "sizeBytes": 11690852
   },
   "audio": {
     "integratedLUFS": -22.32,

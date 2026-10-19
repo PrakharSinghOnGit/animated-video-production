@@ -1,6 +1,6 @@
 # Ingest Report: sample-job
 
-**Date:** 2026-10-18T13:19:32.921Z  
+**Date:** 2026-10-19T04:48:47.458Z  
 **Audio File:** `audio.mp3`  
 **Audio Duration:** 30.00s (30000 ms)  
 **Sample Rate / Codec:** 44100 Hz / mp3  
