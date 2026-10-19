@@ -1,4 +1,10 @@
-# 🎬 The Director Prompt — Cinematic Storyboard Generator
+# 🎬 The Director Prompt — Cinematic Storyboard Generator (LEGACY)
+
+> [!WARNING] **LEGACY PROMPT NOTICE**  
+> This prompt was used by the original template-based engine and is preserved for historical reference and backward compatibility.  
+> **For new videos, do not use this prompt.** Use the new LLM-authored motion graphics pipeline:
+> - **`workflow/prompts/STORYBOARD.md`**: Video-level arc and scene storyboard generator (`storyboard.json`).
+> - **`workflow/prompts/SCENE_AUTHOR.md`**: Per-scene motion graphics authoring using `@wealthgap/kit`.
 
 > **Purpose**: Feed this prompt to an AI model (Claude, GPT-4o, Gemini 1.5 Pro) along with your `brief.md` and `full_transcript_compact.txt` (or `full_transcript.csv` / `captions.json`) to generate an elite, cinematic `scenes.json` storyboard for the Remotion Motion Engine.
 > **Style Inspiration**: Vox, Johnny Harris, Polymatter, and MagnatesMedia.
