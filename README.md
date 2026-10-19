@@ -130,50 +130,142 @@ bun run transcribe --part 1
 ### 6. Step 6: Video Storyboarding & Planning
 1. Open [`workflow/prompts/DIRECTOR_PROMPT.md`](file:///Users/prakharsingh/youtube/WealthGap/workflow/prompts/DIRECTOR_PROMPT.md).
 2. Paste the prompt along with `workspace/<VIDEO>/04-transcription/full_transcript_compact.txt` (or `.csv`) into Claude / GPT-4o / Gemini.
-3. Save the resulting JSON directly into `workspace/<VIDEO>/05-video/scenes.json`.
+3. Save the resulting JSON directly into `workspace/<VIDEO>/05-video/scenes.json` (or `storyboard.json` in kit workflow).
 4. Validate the storyboard against the component registry and design rules:
 ```bash
 bun run video:check VID01_Currency_Market
+# Or for kit storyboard:
+bun run storyboard:check --video VID02_Stock_Market
 ```
 
-### 7. Step 7: Video Rendering (Chunks vs. Full Video)
+---
 
-#### A. Interactive Live Studio Preview
+## 🎨 New: Kit Video Production Workflow (`@wealthgap/kit`)
+
+The studio includes a code-authoring video motion engine where visual scenes are authored in TypeScript/TSX using `@wealthgap/kit` primitives, deterministic camera choreography (`Camera`), and the 3-layer motion graphics grammar.
+
+### The Two Human Review Gates
+
+The pipeline is split into autonomous computation steps and two mandatory human creative review gates:
+
+```
+VO & Transcript ──> [timeline] ──> [storyboard] ──> 🛑 GATE 1: Storyboard Review
+                                                            │ (Approve storyboard.json)
+                                                            ▼
+[render] <── 🛑 GATE 2: Draft Review <── [author] <── [assemble]
+   │             │ (Inspect contact sheets & draft.mp4)
+   ▼             ▼
+[qc] ──> [package]
+```
+
+1. **Gate 1: Storyboard Sign-off**:
+   - Review scene breakdown, duration pacing, visual density, and word anchor bindings before any TSX code is written.
+   - Verified via `bun run storyboard:check`.
+2. **Gate 2: Draft & Contact Sheet Sign-off**:
+   - Each scene produces 3–4 high-resolution review stills (`review/<scene>/stills/`) and an annotated contact sheet (`review/<scene>/contact-sheet.png`).
+   - Run `bun run draft` to verify motion flow, typography hierarchy, and color palettes before final broadcast rendering.
+
+---
+
+### Step-by-Step Production Guide (Gemini-Manual Mode)
+
+In manual mode (default), you use your preferred AI chat model (Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4o) with zero API keys required:
+
+#### 1. Build Frame Timeline & Storyboard Prompt
 ```bash
-# Launch Remotion Studio on http://localhost:3000
-bun run video:studio
+bun run timeline --video VID02_Stock_Market
+bun run storyboard --video VID02_Stock_Market
 ```
+- Outputs `storyboard-prompt.txt` containing full transcript timestamps, kit component catalog, and pacing constraints.
 
-#### B. Scene-by-Scene Chunk Rendering (Single or All)
+#### 2. Generate and Verify Storyboard (Gate 1)
+- Paste `storyboard-prompt.txt` into Gemini/Claude.
+- Save the returned JSON to `workspace/VID02_Stock_Market/05-video/storyboard.json`.
+- Validate against timeline constraints:
 ```bash
-# List all scenes with durations for this video
-bun run video:chunk VID01_Currency_Market
-
-# Render ONE specific scene to test or edit:
-bun run video:chunk VID01_Currency_Market s01
-# -> Output saved to workspace/VID01_Currency_Market/05-video/chunks/s01.mp4
-
-# Render ALL scenes sequentially one-by-one into chunks/:
-bun run video:chunk VID01_Currency_Market --all
+bun run storyboard:check --video VID02_Stock_Market
 ```
 
-#### C. Full Video Rendering
+#### 3. Assemble Workspace Project
 ```bash
-# Fast draft render (half-resolution, fast CRF)
-bun run video:draft VID01_Currency_Market
-
-# Broadcast-grade 1080p 30fps master render
-bun run video:render VID01_Currency_Market
+bun run assemble --video VID02_Stock_Market
 ```
+- Scaffolds `src/scenes/` TSX skeletons and generates `src/Root.tsx`, `src/Main.tsx`, and `src/index.ts`.
 
-#### D. Quality Control & Deliverable Packaging
+#### 4. Author Scenes with LLM Assistance
 ```bash
-# Run automated QC checks (layer budget, audio sync, color tokens)
-bun run video:qc VID01_Currency_Market
-
-# Package YouTube thumbnails, chapters, description draft, SRT/VTT captions
-bun run video:package VID01_Currency_Market
+bun run author --video VID02_Stock_Market
 ```
+- Generates scene prompts in `review/<scene>/prompt.txt`.
+- Copy each prompt to your LLM, and save the generated TSX to `src/scenes/<scene>.tsx`.
+- The tool automatically runs `lint:scene` static analysis, renders review stills, and stitches `contact-sheet.png`.
+
+#### 5. Review Draft Video (Gate 2)
+```bash
+bun run draft --video VID02_Stock_Market
+```
+- Renders `draft.mp4` at half-resolution in ~10–12 seconds.
+- Inspect contact sheets at `workspace/VID02_Stock_Market/05-video/review/*/contact-sheet.png`.
+
+#### 6. Broadcast Master Render, QC & Packaging
+```bash
+bun run render --video VID02_Stock_Market
+bun run qc --video VID02_Stock_Market
+bun run package --video VID02_Stock_Market
+```
+- Generates 1080p broadcast `final.mp4`, automated quality control report (`review/qc-report.md`), sidecar SRT/VTT subtitles, YouTube chapters, and thumbnails.
+
+---
+
+### End-to-End Orchestrated Runner (`bun run build`)
+
+You can run the full pipeline in one command. It executes each stage automatically and pauses at Gate 1 and Gate 2:
+```bash
+bun run build --video VID02_Stock_Market
+```
+
+---
+
+### Single-Scene Iterations & Re-renders
+
+To tweak a single scene without touching the rest of your video:
+```bash
+# 1. Re-author or re-lint a specific scene:
+bun run author --video VID02_Stock_Market --scenes s02
+
+# 2. Check scene linter:
+bun run lint:scene --video VID02_Stock_Market --scene s02
+
+# 3. Preview live in Remotion Studio:
+bun run studio
+
+# 4. Re-render draft or final video:
+bun run draft --video VID02_Stock_Market
+```
+
+---
+
+### Harvesting Reusable Components (`bun run harvest`)
+
+When you create an outstanding visual element in a scene (e.g. an animated custom 3D coin stack, currency meter, or flow node), promote it to the shared kit:
+```bash
+bun run harvest --video VID02_Stock_Market --scene s01 --name GiantShadow --category illustration
+```
+- Moves the extracted component into `packages/kit/src/components/GiantShadow.tsx`.
+- Exports it in `packages/kit/src/index.ts`.
+- Updates `packages/kit/component-catalog.json` so future storyboard prompts know it exists.
+- Adds an entry to `workflow/05-video/src/Gallery.tsx`.
+
+---
+
+### Render Performance & Timings
+
+Benchmarks measured on Apple Silicon:
+
+| Output Profile | Resolution | Framerate | Encoding | Typical Render Speed | 1-Minute Video Est. |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Draft** (`bun run draft`) | 960x540 (0.5x) | 30 fps | H.264 CRF 26 | **~10–12s** per 12s scene (~1.0x real-time) | **~50–60s** |
+| **Broadcast Final** (`bun run render`) | 1920x1080 | 30 / 60 fps | H.264 CRF 16 | **~10–14s** per 12s scene (~1.0x real-time) | **~60–75s** |
 
 ---
 

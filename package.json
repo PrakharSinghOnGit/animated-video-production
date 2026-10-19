@@ -47,7 +47,10 @@
     "harvest": "bun run workflow/05-video/scripts/harvest.ts",
     "draft": "bun --cwd workflow/05-video scripts/render.ts --draft",
     "render": "bun --cwd workflow/05-video scripts/render.ts --final",
-    "qc": "bun --cwd workflow/05-video scripts/qc.ts"
+    "qc": "bun --cwd workflow/05-video scripts/qc.ts",
+    "studio": "bun --cwd workflow/05-video run studio",
+    "package": "bun --cwd workflow/05-video scripts/package.ts",
+    "build": "bun run workflow/05-video/scripts/build_flow.ts"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",

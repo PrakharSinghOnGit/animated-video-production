@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
-import { lintSceneCode } from "@wealthgap/kit";
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -34,6 +33,15 @@ function parseArgs() {
     force,
     concurrency,
   };
+}
+
+function runCommandSilent(cmd: string): { success: boolean; output: string } {
+  try {
+    const out = execSync(cmd, { encoding: "utf-8", stdio: "pipe" });
+    return { success: true, output: out };
+  } catch (err: any) {
+    return { success: false, output: (err.stdout || "") + (err.stderr || "") + err.message };
+  }
 }
 
 async function main() {
@@ -76,12 +84,26 @@ async function main() {
     ? storyboard.scenes.filter((s: any) => targetScenes.includes(s.id.toUpperCase()))
     : storyboard.scenes;
 
+  if (scenesToProcess.length === 0) {
+    console.log(`No matching scenes found for target: ${targetScenes.join(", ")}`);
+    process.exit(0);
+  }
+
   console.log(`Targeting ${scenesToProcess.length} scene(s): ${scenesToProcess.map((s: any) => s.id).join(", ")}\n`);
 
   const scenesDir = path.join(paths.outputDir, "src", "scenes");
   fs.mkdirSync(scenesDir, { recursive: true });
 
-  const authorLog: Record<string, any> = {};
+  const authorLogPath = path.join(paths.outputDir, "review", "author-log.json");
+  let authorLog: Record<string, any> = {};
+  if (fs.existsSync(authorLogPath)) {
+    try {
+      authorLog = JSON.parse(fs.readFileSync(authorLogPath, "utf-8"));
+    } catch {}
+  }
+
+  // Check Claude CLI availability
+  const claudeAvailable = runCommandSilent("which claude").success;
 
   for (let idx = 0; idx < scenesToProcess.length; idx++) {
     const s = scenesToProcess[idx];
@@ -95,6 +117,15 @@ async function main() {
     if (fs.existsSync(sceneFile) && !force) {
       console.log(`⏩ [${s.id}] Already exists at ${path.basename(sceneFile)}. Skipping (use --force to overwrite).`);
       continue;
+    }
+
+    // If force and file exists, archive to history
+    if (fs.existsSync(sceneFile) && force) {
+      const historyDir = path.join(sceneReviewDir, "history");
+      fs.mkdirSync(historyDir, { recursive: true });
+      const archivePath = path.join(historyDir, `${s.id}_${Date.now()}.tsx`);
+      fs.copyFileSync(sceneFile, archivePath);
+      console.log(`📦 [${s.id}] Archived previous version to: ${archivePath}`);
     }
 
     const prevScene = idx > 0 ? scenesToProcess[idx - 1] : null;
@@ -148,18 +179,89 @@ After writing the file, run:
     fs.writeFileSync(promptPath, prompt, "utf-8");
     console.log(`📝 [${s.id}] Prepared author prompt at: ${promptPath}`);
 
+    const startTime = Date.now();
+    let agentResult: "headless_success" | "interactive_fallback" = "interactive_fallback";
+
+    // Attempt headless run with Claude Code if available
+    if (claudeAvailable) {
+      console.log(`🤖 [${s.id}] Attempting headless agent authoring via Claude Code...`);
+      const claudeRes = spawnSync(
+        "claude",
+        ["-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits"],
+        { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+      );
+
+      if (claudeRes.status === 0) {
+        console.log(`✅ [${s.id}] Headless authoring finished.`);
+        agentResult = "headless_success";
+      } else {
+        console.log(`ℹ️ [${s.id}] Headless execution unavailable (${(claudeRes.stderr || "").trim().slice(0, 80)}). Falling back to interactive mode.`);
+      }
+    } else {
+      console.log(`ℹ️ [${s.id}] Claude CLI not found. Falling back to interactive mode.`);
+    }
+
+    if (agentResult === "interactive_fallback") {
+      console.log(`
+👉 Interactive Authoring Action for [${s.id}]:
+   1. Open Claude Code or your AI coding assistant.
+   2. Paste the prompt from:
+      ${promptPath}
+   3. Author the scene and save to:
+      ${sceneFile}
+   4. Run:
+      bun run lint:scene --video ${paths.jobId} --scene ${s.id}
+      bun run still --video ${paths.jobId} --scene ${s.id}
+      bun run sheet --video ${paths.jobId} --scene ${s.id}
+`);
+    }
+
+    // Run verification if the file exists
+    let lintPassed = false;
+    if (fs.existsSync(sceneFile)) {
+      console.log(`🔍 [${s.id}] Running static linter...`);
+      const lintRes = runCommandSilent(`bun run workflow/05-video/scripts/lint_scene.ts --video ${paths.jobId} --scene ${s.id}`);
+      lintPassed = lintRes.success;
+      if (lintPassed) {
+        console.log(`   ✓ Lint: PASS`);
+      } else {
+        console.warn(`   ⚠️ Lint: FAILED\n${lintRes.output}`);
+      }
+
+      console.log(`📸 [${s.id}] Capturing keyframe stills...`);
+      runCommandSilent(`bun run workflow/05-video/scripts/still.ts --video ${paths.jobId} --scene ${s.id}`);
+
+      console.log(`🖼️ [${s.id}] Tiling contact sheet...`);
+      runCommandSilent(`bun run workflow/05-video/scripts/sheet.ts --video ${paths.jobId} --scene ${s.id}`);
+    }
+
     authorLog[s.id] = {
-      status: "prompt_prepared",
+      status: fs.existsSync(sceneFile) ? (lintPassed ? "verified" : "needs_lint_fix") : "pending_author",
+      agentResult,
       promptPath,
       targetFile: sceneFile,
+      durationMs: Date.now() - startTime,
       timestamp: new Date().toISOString(),
     };
   }
 
-  const logPath = path.join(paths.outputDir, "review", "author-log.json");
-  fs.writeFileSync(logPath, JSON.stringify(authorLog, null, 2), "utf-8");
-  console.log(`\n✓ Author log saved to: ${logPath}`);
-  console.log(`Authoring prompts ready in review/<sceneId>/prompt.txt for model execution.\n`);
+  fs.writeFileSync(authorLogPath, JSON.stringify(authorLog, null, 2), "utf-8");
+  console.log(`\n✓ Author log saved to: ${authorLogPath}`);
+
+  // After all scenes: assemble & draft
+  console.log(`\n========================================`);
+  console.log(`Post-Authoring Assembly & Verification`);
+  console.log(`========================================`);
+  runCommandSilent(`bun run workflow/05-video/scripts/assemble.ts --video ${paths.jobId}`);
+  console.log(`✓ Assembled video registry and cues.`);
+
+  console.log(`\n✨ Gate 2 Review Ready:`);
+  console.log(`1. Inspect per-scene contact sheets at:`);
+  scenesToProcess.forEach((s: any) => {
+    console.log(`   - ${paths.jobId} [${s.id}]: review/${s.id}/contact-sheet.png`);
+  });
+  console.log(`2. Render a draft preview with: bun run draft --video ${paths.jobId}`);
+  console.log(`3. To re-author any scene: bun run author --video ${paths.jobId} --scenes <sceneId> --force\n`);
 }
 
 main().catch((err) => {

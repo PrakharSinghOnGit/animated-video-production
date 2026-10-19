@@ -91,7 +91,7 @@ the motion graphics engine (05-video/).
    Run Whisper to produce full_transcript.json with word-level timestamps.
 4. Step 5: Automated Motion Graphics (05-video/)
    Open your terminal in 05-video/ and run:
-   cd /Users/prakharsingh/youtube/WealthGap/05-video
+   cd workflow/05-video
 
 
     # 1. Ingest audio & transcript (normalizes timing and copies assets)
