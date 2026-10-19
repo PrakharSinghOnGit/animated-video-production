@@ -1,0 +1,395 @@
+{
+  "jobId": "11_part3_01_beat",
+  "fps": 30,
+  "totalDurationMs": 17580,
+  "scenes": [
+    {
+      "id": "s01",
+      "chapter": "The Scoreboard: Debt vs. Equity",
+      "startMs": 0,
+      "endMs": 5620,
+      "voLine": "Here is how the scoreboard actually works. Jake lent you money, he did not invest in your business.",
+      "intent": "Establish the fundamental legal and financial boundary between a fixed debt loan and dilutive equity investment.",
+      "visualMetaphor": "A classified central bank ledger splits cleanly on a #101010 obsidian grid, isolating non-dilutive debt in Ice Blue (#AED6F1) and striking out equity ownership in Coral (#F5B7B1).",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.65,
+            "backgroundColor": "#101010",
+            "lineColor": "#1A1A1A",
+            "texture": "dithered-noise",
+            "zAxisDrift": "push"
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "#AED6F1",
+            "intensity": 0.12,
+            "style": "flat-elevated-card-dither",
+            "surfaceColor": "#1A1A1A"
+          }
+        },
+        "foreground": [
+          {
+            "component": "TitleCard",
+            "props": {
+              "chapterBadge": "PART 03 // THE SCOREBOARD",
+              "title": "DEBT VS. EQUITY",
+              "subtitle": "NON-DILUTIVE CAPITAL STRUCTURE",
+              "backgroundColor": "#1A1A1A",
+              "textColor": "#E0E0E0",
+              "accentColor": "#AED6F1",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 0,
+            "exitAtMs": 5620,
+            "anchors": [
+              {
+                "word": "scoreboard",
+                "occurrence": 1,
+                "action": "reveal",
+                "offsetFrames": -6
+              }
+            ]
+          },
+          {
+            "component": "TermCard",
+            "props": {
+              "category": "CAPITAL CLASSIFICATION",
+              "term": "Commercial Loan (Debt)",
+              "definition": "Jake lent capital as a creditor; he did not purchase equity shares in your business.",
+              "highlightWord": "lent",
+              "surfaceColor": "#222222",
+              "textColor": "#E0E0E0",
+              "secondaryTextColor": "#9E9E9E",
+              "accentColor": "#AED6F1",
+              "declineColor": "#F5B7B1",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 2700,
+            "exitAtMs": 5620,
+            "anchors": [
+              {
+                "word": "lent",
+                "occurrence": 1,
+                "action": "highlight",
+                "offsetFrames": -5
+              },
+              {
+                "word": "invest",
+                "occurrence": 1,
+                "action": "strike",
+                "offsetFrames": -4
+              }
+            ]
+          }
+        ]
+      },
+      "annotation": {
+        "type": "box",
+        "target": "Commercial Loan (Debt)",
+        "atWord": "lent"
+      },
+      "sourceTag": {
+        "text": "Source: Corporate Finance Institute — Senior Debt Covenants",
+        "dataRef": "0% Equity Dilution"
+      },
+      "transitionOut": {
+        "type": "slide",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        },
+        {
+          "at": "anchor:scoreboard",
+          "sound": "switch",
+          "volume": 0.25
+        },
+        {
+          "at": "anchor:lent",
+          "sound": "pop",
+          "volume": 0.25
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "chapter": "Capped Repayment Liability",
+      "startMs": 5620,
+      "endMs": 11800,
+      "voLine": "That means you owe him his original, Axe took stows and dollars at his back plus the agreed of 5% interest.",
+      "intent": "Visualize the strict ceiling on the lender's return: return of principal plus a fixed 5% interest rate.",
+      "visualMetaphor": "A precision liquidity conduit connects the business node to the creditor node on an elevated #1A1A1A surface, locking in a Soft Lavender (#D2B4DE) 5% interest cap.",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.75,
+            "backgroundColor": "#101010",
+            "lineColor": "#1A1A1A",
+            "texture": "dithered-noise",
+            "zAxisDrift": "pull"
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "#D2B4DE",
+            "intensity": 0.14,
+            "style": "flat-elevated-card-dither",
+            "surfaceColor": "#1A1A1A"
+          }
+        },
+        "foreground": [
+          {
+            "component": "MoneyFlow",
+            "props": {
+              "title": "FIXED REPAYMENT OBLIGATION",
+              "nodes": [
+                {
+                  "id": "business_treasury",
+                  "label": "YOUR BUSINESS",
+                  "surfaceColor": "#1A1A1A",
+                  "borderColor": "#E0E0E0"
+                },
+                {
+                  "id": "creditor_jake",
+                  "label": "JAKE (LENDER)",
+                  "surfaceColor": "#222222",
+                  "borderColor": "#AED6F1"
+                }
+              ],
+              "transfers": [
+                {
+                  "fromId": "business_treasury",
+                  "toId": "creditor_jake",
+                  "amountLabel": "ORIGINAL PRINCIPAL ($X,000)"
+                }
+              ],
+              "accentColor": "#AED6F1",
+              "textColor": "#E0E0E0",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 0,
+            "exitAtMs": 6180,
+            "anchors": [
+              {
+                "word": "original,",
+                "occurrence": 1,
+                "action": "reveal",
+                "offsetFrames": -6
+              },
+              {
+                "word": "dollars",
+                "occurrence": 1,
+                "action": "transfer.lock",
+                "offsetFrames": -4
+              }
+            ]
+          },
+          {
+            "component": "BigNumber",
+            "props": {
+              "value": 5,
+              "prefix": "+",
+              "suffix": "%",
+              "label": "Agreed Interest Cap",
+              "sublabel": "Fixed Cost of Capital",
+              "surfaceColor": "#222222",
+              "textColor": "#E0E0E0",
+              "sublabelColor": "#9E9E9E",
+              "accentColor": "#D2B4DE",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 3720,
+            "exitAtMs": 6180,
+            "anchors": [
+              {
+                "word": "5",
+                "occurrence": 1,
+                "action": "countUp.end",
+                "offsetFrames": -8
+              },
+              {
+                "word": "interest.",
+                "occurrence": 1,
+                "action": "highlight",
+                "offsetFrames": -4
+              }
+            ]
+          }
+        ]
+      },
+      "annotation": {
+        "type": "underline",
+        "target": "Agreed Interest Cap",
+        "atWord": "interest."
+      },
+      "sourceTag": {
+        "text": "Source: Commercial Promissory Note Schedule",
+        "dataRef": "Principal + 5.00% Fixed Yield"
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        },
+        {
+          "at": "anchor:dollars",
+          "sound": "switch",
+          "volume": 0.22
+        },
+        {
+          "at": "anchor:5",
+          "sound": "ding",
+          "volume": 0.3
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "chapter": "100% Residual Equity Upside",
+      "startMs": 11800,
+      "endMs": 17580,
+      "voLine": "And that is day it. Once you hand Jake his check, every single penny left over belongs entirely to you.",
+      "intent": "Demonstrate how settling fixed debt leaves 100% of excess profit and enterprise growth in the founder's hands.",
+      "visualMetaphor": "Jake's capped check bar locks into a compact Ice Blue (#AED6F1) segment, while the founder's surplus bar and 100-unit wealth grid snap across the frame in Mint (#A3E4D7).",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": {
+            "intensity": 0.8,
+            "backgroundColor": "#101010",
+            "lineColor": "#1A1A1A",
+            "texture": "dithered-noise",
+            "zAxisDrift": "push"
+          }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": {
+            "hue": "#A3E4D7",
+            "intensity": 0.15,
+            "style": "flat-elevated-card-dither",
+            "surfaceColor": "#1A1A1A"
+          }
+        },
+        "foreground": [
+          {
+            "component": "BarCompare",
+            "props": {
+              "title": "POST-SETTLEMENT PROFIT CLAIM",
+              "items": [
+                {
+                  "label": "Jake's Settlement Check (Principal + 5%)",
+                  "value": 15,
+                  "displayValue": "CAPPED",
+                  "highlight": false,
+                  "color": "#AED6F1"
+                },
+                {
+                  "label": "Your Residual Business Surplus",
+                  "value": 100,
+                  "displayValue": "100% YOURS",
+                  "highlight": true,
+                  "color": "#A3E4D7"
+                }
+              ],
+              "surfaceColor": "#1A1A1A",
+              "textColor": "#E0E0E0",
+              "secondaryTextColor": "#9E9E9E",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 0,
+            "exitAtMs": 5780,
+            "anchors": [
+              {
+                "word": "check,",
+                "occurrence": 1,
+                "action": "reveal",
+                "offsetFrames": -6
+              },
+              {
+                "word": "penny",
+                "occurrence": 1,
+                "action": "highlight",
+                "offsetFrames": -5
+              }
+            ]
+          },
+          {
+            "component": "IconGrid",
+            "props": {
+              "title": "RETAINED SURPLUS OWNERSHIP",
+              "highlightedCount": 100,
+              "totalCount": 100,
+              "label": "Every Single Penny Left Over (100% Founder Equity)",
+              "surfaceColor": "#222222",
+              "highlightColor": "#A3E4D7",
+              "baseIconColor": "#1A1A1A",
+              "textColor": "#E0E0E0",
+              "easing": "cubic-bezier(0.16, 1, 0.3, 1)"
+            },
+            "enterAtMs": 2680,
+            "exitAtMs": 5780,
+            "anchors": [
+              {
+                "word": "entirely",
+                "occurrence": 1,
+                "action": "countUp.end",
+                "offsetFrames": -8
+              },
+              {
+                "word": "you.",
+                "occurrence": 1,
+                "action": "highlight",
+                "offsetFrames": -4
+              }
+            ]
+          }
+        ]
+      },
+      "annotation": {
+        "type": "highlight",
+        "target": "Your Residual Business Surplus",
+        "atWord": "entirely"
+      },
+      "sourceTag": {
+        "text": "Source: Residual Claimant Doctrine — Capital Structure Theory",
+        "dataRef": "100% Upside Retention"
+      },
+      "transitionOut": {
+        "type": "zoom",
+        "durationFrames": 10
+      },
+      "sfx": [
+        {
+          "at": "scene.start",
+          "sound": "whoosh",
+          "volume": 0.2
+        },
+        {
+          "at": "anchor:check,",
+          "sound": "switch",
+          "volume": 0.25
+        },
+        {
+          "at": "anchor:entirely",
+          "sound": "ding",
+          "volume": 0.3
+        }
+      ]
+    }
+  ]
+}

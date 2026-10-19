@@ -1,0 +1,456 @@
+{
+  "audio_file": "02_part1_02_beat.wav",
+  "duration": 11.327,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "Wall Street loves to wrap this machine in intimidating jargon, so you feel too confused to ask how the game is actually rigged, or who really gets paid first when a business goes belly up.",
+  "words": [
+    {
+      "word": "Wall",
+      "start": 0.0,
+      "end": 0.58,
+      "probability": 0.983
+    },
+    {
+      "word": "Street",
+      "start": 0.58,
+      "end": 0.86,
+      "probability": 0.935
+    },
+    {
+      "word": "loves",
+      "start": 0.86,
+      "end": 1.14,
+      "probability": 0.798
+    },
+    {
+      "word": "to",
+      "start": 1.14,
+      "end": 1.54,
+      "probability": 0.99
+    },
+    {
+      "word": "wrap",
+      "start": 1.54,
+      "end": 1.86,
+      "probability": 0.833
+    },
+    {
+      "word": "this",
+      "start": 1.86,
+      "end": 2.14,
+      "probability": 0.991
+    },
+    {
+      "word": "machine",
+      "start": 2.14,
+      "end": 2.48,
+      "probability": 0.997
+    },
+    {
+      "word": "in",
+      "start": 2.48,
+      "end": 2.8,
+      "probability": 0.952
+    },
+    {
+      "word": "intimidating",
+      "start": 2.8,
+      "end": 3.28,
+      "probability": 0.977
+    },
+    {
+      "word": "jargon,",
+      "start": 3.28,
+      "end": 3.8,
+      "probability": 0.982
+    },
+    {
+      "word": "so",
+      "start": 4.14,
+      "end": 4.28,
+      "probability": 0.997
+    },
+    {
+      "word": "you",
+      "start": 4.28,
+      "end": 4.4,
+      "probability": 0.994
+    },
+    {
+      "word": "feel",
+      "start": 4.4,
+      "end": 4.64,
+      "probability": 0.995
+    },
+    {
+      "word": "too",
+      "start": 4.64,
+      "end": 4.9,
+      "probability": 0.983
+    },
+    {
+      "word": "confused",
+      "start": 4.9,
+      "end": 5.36,
+      "probability": 0.993
+    },
+    {
+      "word": "to",
+      "start": 5.36,
+      "end": 5.56,
+      "probability": 0.995
+    },
+    {
+      "word": "ask",
+      "start": 5.56,
+      "end": 5.82,
+      "probability": 0.995
+    },
+    {
+      "word": "how",
+      "start": 5.82,
+      "end": 6.0,
+      "probability": 0.989
+    },
+    {
+      "word": "the",
+      "start": 6.0,
+      "end": 6.12,
+      "probability": 0.981
+    },
+    {
+      "word": "game",
+      "start": 6.12,
+      "end": 6.36,
+      "probability": 0.999
+    },
+    {
+      "word": "is",
+      "start": 6.36,
+      "end": 6.86,
+      "probability": 0.983
+    },
+    {
+      "word": "actually",
+      "start": 6.86,
+      "end": 7.26,
+      "probability": 0.982
+    },
+    {
+      "word": "rigged,",
+      "start": 7.26,
+      "end": 7.76,
+      "probability": 0.822
+    },
+    {
+      "word": "or",
+      "start": 8.02,
+      "end": 8.16,
+      "probability": 0.992
+    },
+    {
+      "word": "who",
+      "start": 8.16,
+      "end": 8.32,
+      "probability": 0.99
+    },
+    {
+      "word": "really",
+      "start": 8.32,
+      "end": 8.66,
+      "probability": 0.958
+    },
+    {
+      "word": "gets",
+      "start": 8.66,
+      "end": 8.88,
+      "probability": 0.996
+    },
+    {
+      "word": "paid",
+      "start": 8.88,
+      "end": 9.24,
+      "probability": 0.995
+    },
+    {
+      "word": "first",
+      "start": 9.24,
+      "end": 9.68,
+      "probability": 0.995
+    },
+    {
+      "word": "when",
+      "start": 9.68,
+      "end": 9.9,
+      "probability": 0.99
+    },
+    {
+      "word": "a",
+      "start": 9.9,
+      "end": 10.0,
+      "probability": 0.994
+    },
+    {
+      "word": "business",
+      "start": 10.0,
+      "end": 10.36,
+      "probability": 0.995
+    },
+    {
+      "word": "goes",
+      "start": 10.36,
+      "end": 10.66,
+      "probability": 0.014
+    },
+    {
+      "word": "belly",
+      "start": 10.66,
+      "end": 10.98,
+      "probability": 0.991
+    },
+    {
+      "word": "up.",
+      "start": 10.98,
+      "end": 11.22,
+      "probability": 0.949
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 5.36,
+      "text": "Wall Street loves to wrap this machine in intimidating jargon, so you feel too confused",
+      "words": [
+        {
+          "word": "Wall",
+          "start": 0.0,
+          "end": 0.58,
+          "probability": 0.983
+        },
+        {
+          "word": "Street",
+          "start": 0.58,
+          "end": 0.86,
+          "probability": 0.935
+        },
+        {
+          "word": "loves",
+          "start": 0.86,
+          "end": 1.14,
+          "probability": 0.798
+        },
+        {
+          "word": "to",
+          "start": 1.14,
+          "end": 1.54,
+          "probability": 0.99
+        },
+        {
+          "word": "wrap",
+          "start": 1.54,
+          "end": 1.86,
+          "probability": 0.833
+        },
+        {
+          "word": "this",
+          "start": 1.86,
+          "end": 2.14,
+          "probability": 0.991
+        },
+        {
+          "word": "machine",
+          "start": 2.14,
+          "end": 2.48,
+          "probability": 0.997
+        },
+        {
+          "word": "in",
+          "start": 2.48,
+          "end": 2.8,
+          "probability": 0.952
+        },
+        {
+          "word": "intimidating",
+          "start": 2.8,
+          "end": 3.28,
+          "probability": 0.977
+        },
+        {
+          "word": "jargon,",
+          "start": 3.28,
+          "end": 3.8,
+          "probability": 0.982
+        },
+        {
+          "word": "so",
+          "start": 4.14,
+          "end": 4.28,
+          "probability": 0.997
+        },
+        {
+          "word": "you",
+          "start": 4.28,
+          "end": 4.4,
+          "probability": 0.994
+        },
+        {
+          "word": "feel",
+          "start": 4.4,
+          "end": 4.64,
+          "probability": 0.995
+        },
+        {
+          "word": "too",
+          "start": 4.64,
+          "end": 4.9,
+          "probability": 0.983
+        },
+        {
+          "word": "confused",
+          "start": 4.9,
+          "end": 5.36,
+          "probability": 0.993
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start": 5.36,
+      "end": 10.36,
+      "text": "to ask how the game is actually rigged, or who really gets paid first when a business",
+      "words": [
+        {
+          "word": "to",
+          "start": 5.36,
+          "end": 5.56,
+          "probability": 0.995
+        },
+        {
+          "word": "ask",
+          "start": 5.56,
+          "end": 5.82,
+          "probability": 0.995
+        },
+        {
+          "word": "how",
+          "start": 5.82,
+          "end": 6.0,
+          "probability": 0.989
+        },
+        {
+          "word": "the",
+          "start": 6.0,
+          "end": 6.12,
+          "probability": 0.981
+        },
+        {
+          "word": "game",
+          "start": 6.12,
+          "end": 6.36,
+          "probability": 0.999
+        },
+        {
+          "word": "is",
+          "start": 6.36,
+          "end": 6.86,
+          "probability": 0.983
+        },
+        {
+          "word": "actually",
+          "start": 6.86,
+          "end": 7.26,
+          "probability": 0.982
+        },
+        {
+          "word": "rigged,",
+          "start": 7.26,
+          "end": 7.76,
+          "probability": 0.822
+        },
+        {
+          "word": "or",
+          "start": 8.02,
+          "end": 8.16,
+          "probability": 0.992
+        },
+        {
+          "word": "who",
+          "start": 8.16,
+          "end": 8.32,
+          "probability": 0.99
+        },
+        {
+          "word": "really",
+          "start": 8.32,
+          "end": 8.66,
+          "probability": 0.958
+        },
+        {
+          "word": "gets",
+          "start": 8.66,
+          "end": 8.88,
+          "probability": 0.996
+        },
+        {
+          "word": "paid",
+          "start": 8.88,
+          "end": 9.24,
+          "probability": 0.995
+        },
+        {
+          "word": "first",
+          "start": 9.24,
+          "end": 9.68,
+          "probability": 0.995
+        },
+        {
+          "word": "when",
+          "start": 9.68,
+          "end": 9.9,
+          "probability": 0.99
+        },
+        {
+          "word": "a",
+          "start": 9.9,
+          "end": 10.0,
+          "probability": 0.994
+        },
+        {
+          "word": "business",
+          "start": 10.0,
+          "end": 10.36,
+          "probability": 0.995
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start": 10.36,
+      "end": 11.22,
+      "text": "goes belly up.",
+      "words": [
+        {
+          "word": "goes",
+          "start": 10.36,
+          "end": 10.66,
+          "probability": 0.014
+        },
+        {
+          "word": "belly",
+          "start": 10.66,
+          "end": 10.98,
+          "probability": 0.991
+        },
+        {
+          "word": "up.",
+          "start": 10.98,
+          "end": 11.22,
+          "probability": 0.949
+        }
+      ]
+    }
+  ]
+}

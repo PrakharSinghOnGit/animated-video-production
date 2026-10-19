@@ -1,0 +1,217 @@
+{
+  "audio_file": "04_part1_04_beat.wav",
+  "duration": 14.69,
+  "language": "en",
+  "model": "base",
+  "text": "Most people have zero clue it even exists, let alone how a secret scoreboard behind it dictates the price of everything you own, and how one single trap inside it destroys nearly every beginner who tries to play the game.",
+  "words": [
+    {
+      "word": "Most",
+      "start": 0.0,
+      "end": 0.54
+    },
+    {
+      "word": "people",
+      "start": 0.54,
+      "end": 0.82
+    },
+    {
+      "word": "have",
+      "start": 0.82,
+      "end": 1.02
+    },
+    {
+      "word": "zero",
+      "start": 1.02,
+      "end": 1.32
+    },
+    {
+      "word": "clue",
+      "start": 1.32,
+      "end": 1.62
+    },
+    {
+      "word": "it",
+      "start": 1.62,
+      "end": 1.86
+    },
+    {
+      "word": "even",
+      "start": 1.86,
+      "end": 2.24
+    },
+    {
+      "word": "exists,",
+      "start": 2.24,
+      "end": 2.7
+    },
+    {
+      "word": "let",
+      "start": 3.26,
+      "end": 3.54
+    },
+    {
+      "word": "alone",
+      "start": 3.54,
+      "end": 3.8
+    },
+    {
+      "word": "how",
+      "start": 3.8,
+      "end": 4.28
+    },
+    {
+      "word": "a",
+      "start": 4.28,
+      "end": 4.42
+    },
+    {
+      "word": "secret",
+      "start": 4.42,
+      "end": 4.84
+    },
+    {
+      "word": "scoreboard",
+      "start": 4.84,
+      "end": 5.46
+    },
+    {
+      "word": "behind",
+      "start": 5.46,
+      "end": 6.12
+    },
+    {
+      "word": "it",
+      "start": 6.12,
+      "end": 6.38
+    },
+    {
+      "word": "dictates",
+      "start": 6.38,
+      "end": 6.86
+    },
+    {
+      "word": "the",
+      "start": 6.86,
+      "end": 7.0
+    },
+    {
+      "word": "price",
+      "start": 7.0,
+      "end": 7.24
+    },
+    {
+      "word": "of",
+      "start": 7.24,
+      "end": 7.5
+    },
+    {
+      "word": "everything",
+      "start": 7.5,
+      "end": 7.92
+    },
+    {
+      "word": "you",
+      "start": 7.92,
+      "end": 8.2
+    },
+    {
+      "word": "own,",
+      "start": 8.2,
+      "end": 8.52
+    },
+    {
+      "word": "and",
+      "start": 8.9,
+      "end": 9.0
+    },
+    {
+      "word": "how",
+      "start": 9.0,
+      "end": 9.18
+    },
+    {
+      "word": "one",
+      "start": 9.18,
+      "end": 9.52
+    },
+    {
+      "word": "single",
+      "start": 9.52,
+      "end": 9.94
+    },
+    {
+      "word": "trap",
+      "start": 9.94,
+      "end": 10.28
+    },
+    {
+      "word": "inside",
+      "start": 10.28,
+      "end": 10.78
+    },
+    {
+      "word": "it",
+      "start": 10.78,
+      "end": 11.04
+    },
+    {
+      "word": "destroys",
+      "start": 11.04,
+      "end": 11.48
+    },
+    {
+      "word": "nearly",
+      "start": 11.48,
+      "end": 11.86
+    },
+    {
+      "word": "every",
+      "start": 11.86,
+      "end": 12.42
+    },
+    {
+      "word": "beginner",
+      "start": 12.42,
+      "end": 12.9
+    },
+    {
+      "word": "who",
+      "start": 12.9,
+      "end": 13.32
+    },
+    {
+      "word": "tries",
+      "start": 13.32,
+      "end": 13.7
+    },
+    {
+      "word": "to",
+      "start": 13.7,
+      "end": 13.9
+    },
+    {
+      "word": "play",
+      "start": 13.9,
+      "end": 14.16
+    },
+    {
+      "word": "the",
+      "start": 14.16,
+      "end": 14.3
+    },
+    {
+      "word": "game.",
+      "start": 14.3,
+      "end": 14.52
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 14.52,
+      "text": "Most people have zero clue it even exists, let alone how a secret scoreboard behind it dictates the price of everything you own, and how one single trap inside it destroys nearly every beginner who tries to play the game."
+    }
+  ]
+}

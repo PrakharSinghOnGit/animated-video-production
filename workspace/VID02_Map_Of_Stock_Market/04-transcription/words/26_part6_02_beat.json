@@ -1,0 +1,268 @@
+{
+  "audio_file": "26_part6_02_beat.wav",
+  "duration": 6.421,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "And why do people suddenly stampede to buy or sell? Because every investor is is-is betting on the futures.",
+  "words": [
+    {
+      "word": "And",
+      "start": 0.0,
+      "end": 0.44,
+      "probability": 0.417
+    },
+    {
+      "word": "why",
+      "start": 0.44,
+      "end": 0.64,
+      "probability": 0.973
+    },
+    {
+      "word": "do",
+      "start": 0.64,
+      "end": 0.76,
+      "probability": 0.998
+    },
+    {
+      "word": "people",
+      "start": 0.76,
+      "end": 1.04,
+      "probability": 0.996
+    },
+    {
+      "word": "suddenly",
+      "start": 1.04,
+      "end": 1.46,
+      "probability": 0.996
+    },
+    {
+      "word": "stampede",
+      "start": 1.46,
+      "end": 2.18,
+      "probability": 0.924
+    },
+    {
+      "word": "to",
+      "start": 2.18,
+      "end": 2.4,
+      "probability": 0.983
+    },
+    {
+      "word": "buy",
+      "start": 2.4,
+      "end": 2.6,
+      "probability": 0.995
+    },
+    {
+      "word": "or",
+      "start": 2.6,
+      "end": 2.76,
+      "probability": 0.948
+    },
+    {
+      "word": "sell?",
+      "start": 2.76,
+      "end": 3.0,
+      "probability": 0.999
+    },
+    {
+      "word": "Because",
+      "start": 3.52,
+      "end": 3.8,
+      "probability": 0.97
+    },
+    {
+      "word": "every",
+      "start": 3.8,
+      "end": 4.16,
+      "probability": 0.995
+    },
+    {
+      "word": "investor",
+      "start": 4.16,
+      "end": 4.6,
+      "probability": 0.996
+    },
+    {
+      "word": "is",
+      "start": 4.6,
+      "end": 4.84,
+      "probability": 0.993
+    },
+    {
+      "word": "is",
+      "start": 4.84,
+      "end": 5.06,
+      "probability": 0.429
+    },
+    {
+      "word": "-is",
+      "start": 5.06,
+      "end": 5.26,
+      "probability": 0.423
+    },
+    {
+      "word": "betting",
+      "start": 5.26,
+      "end": 5.48,
+      "probability": 0.935
+    },
+    {
+      "word": "on",
+      "start": 5.48,
+      "end": 5.68,
+      "probability": 0.997
+    },
+    {
+      "word": "the",
+      "start": 5.68,
+      "end": 5.76,
+      "probability": 0.992
+    },
+    {
+      "word": "futures.",
+      "start": 5.76,
+      "end": 6.08,
+      "probability": 0.968
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 3.0,
+      "text": "And why do people suddenly stampede to buy or sell?",
+      "words": [
+        {
+          "word": "And",
+          "start": 0.0,
+          "end": 0.44,
+          "probability": 0.417
+        },
+        {
+          "word": "why",
+          "start": 0.44,
+          "end": 0.64,
+          "probability": 0.973
+        },
+        {
+          "word": "do",
+          "start": 0.64,
+          "end": 0.76,
+          "probability": 0.998
+        },
+        {
+          "word": "people",
+          "start": 0.76,
+          "end": 1.04,
+          "probability": 0.996
+        },
+        {
+          "word": "suddenly",
+          "start": 1.04,
+          "end": 1.46,
+          "probability": 0.996
+        },
+        {
+          "word": "stampede",
+          "start": 1.46,
+          "end": 2.18,
+          "probability": 0.924
+        },
+        {
+          "word": "to",
+          "start": 2.18,
+          "end": 2.4,
+          "probability": 0.983
+        },
+        {
+          "word": "buy",
+          "start": 2.4,
+          "end": 2.6,
+          "probability": 0.995
+        },
+        {
+          "word": "or",
+          "start": 2.6,
+          "end": 2.76,
+          "probability": 0.948
+        },
+        {
+          "word": "sell?",
+          "start": 2.76,
+          "end": 3.0,
+          "probability": 0.999
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start": 3.52,
+      "end": 6.08,
+      "text": "Because every investor is is-is betting on the futures.",
+      "words": [
+        {
+          "word": "Because",
+          "start": 3.52,
+          "end": 3.8,
+          "probability": 0.97
+        },
+        {
+          "word": "every",
+          "start": 3.8,
+          "end": 4.16,
+          "probability": 0.995
+        },
+        {
+          "word": "investor",
+          "start": 4.16,
+          "end": 4.6,
+          "probability": 0.996
+        },
+        {
+          "word": "is",
+          "start": 4.6,
+          "end": 4.84,
+          "probability": 0.993
+        },
+        {
+          "word": "is",
+          "start": 4.84,
+          "end": 5.06,
+          "probability": 0.429
+        },
+        {
+          "word": "-is",
+          "start": 5.06,
+          "end": 5.26,
+          "probability": 0.423
+        },
+        {
+          "word": "betting",
+          "start": 5.26,
+          "end": 5.48,
+          "probability": 0.935
+        },
+        {
+          "word": "on",
+          "start": 5.48,
+          "end": 5.68,
+          "probability": 0.997
+        },
+        {
+          "word": "the",
+          "start": 5.68,
+          "end": 5.76,
+          "probability": 0.992
+        },
+        {
+          "word": "futures.",
+          "start": 5.76,
+          "end": 6.08,
+          "probability": 0.968
+        }
+      ]
+    }
+  ]
+}

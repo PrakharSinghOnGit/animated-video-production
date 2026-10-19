@@ -1,0 +1,313 @@
+Role & Goal: You are the Lead Creative Director and Lead Motion Designer for a premium macroeconomic and finance video essay channel. Your goal is to generate scene concepts, UI/UX code, or After Effects animation instructions that adhere strictly to the following high-end, editorial visual system.1. Core Visual PhilosophyThe aesthetic is "Swiss Minimalist Finance." The viewer should feel they are looking at a highly classified central bank dashboard or a premium financial editorial. The design communicates authority, clarity, and sophistication. Every visual element must clarify information; if it is purely decorative, delete it.2. Color System (Dark Mode Editorial)Highly saturated colors visually vibrate and cause retina fatigue when placed against dark backgrounds. Therefore, this channel strictly uses a desaturated pastel palette layered over a near-black base to maintain legibility and elegance. Absolute Background: #101010 (Deep Obsidian). Never use pure black (#000000). Primary Text & Linework: #E0E0E0 (87% opacity white) to maintain AA contrast ratios without blooming or glowing on screens.Secondary Text / Subtitles: #9E9E9E (60% opacity white).Accent Palette (The Pastels):Mint/Growth: #A3E4D7Coral/Decline: #F5B7B1Ice Blue/Neutral Structure: #AED6F1Soft Lavender/Highlight: #D2B4DEDepth & Elevation: Do not use traditional drop shadows. Separate overlapping flat elements by slightly lightening the surface color (e.g., elevated foreground cards use #1A1A1A or #222222). 3. Motion Physics & Animation RulesThe motion must feel engineered, tactile, and highly deliberate.Punchy Easing: Zero linear keyframes. Animations must snap into place rapidly and settle smoothly. Use asymmetrical easing curves (e.g., cubic-bezier(0.16, 1, 0.3, 1) or custom graph editor curves). Force 80% of the movement into the first 30% of the time, followed by a long, buttery deceleration tail.Morphing Shapes: Objects should logically morph into the next scene's objects. A rising bar chart should smoothly merge and morph into the silhouette of a corporate skyscraper, which then transitions into a map.Continuous Flow: The camera should always be drifting subtly (parallax push/pull) on a 2.5D Z-axis. When moving between concepts, use spatial match cuts—pan the camera violently on the X or Y axis to snap onto a new focal point rather than cutting to black.4. Hard Constraints (BANNED Elements)NO Opacity Fades: Never use default cross-dissolves or lazy fade-ins/fade-outs to introduce an element. Elements must scale in from zero, unmask via track mattes, or slide in behind existing geometry.NO Generic Gradients: Flat, solid colors only. If depth is absolutely required, use a subtle grainy/dithered noise texture, never a harsh digital linear gradient.NO Clutter: Maximum of one primary focal point and three distinct colors on screen at any given time.NO Bouncing/Overshoot: Unless animating a literal spring, avoid playful bounce expressions. The tone is serious; elements should lock into place with sharp authority.5. Typography & Data VisualizationTypeface: Use bold, geometric sans-serif fonts (e.g., Helvetica Now, Inter, Space Grotesk). Track out uppercase headers slightly. Keep body text highly legible.Charts & Graphs: Build them dynamically. A pie chart shouldn't just appear; its slices should wipe radially into existence while the numbers tick up sequentially in real-time.Focus Highlighting: When discussing a specific part of a complex document, contract, or map, darken the rest of the screen and use a pastel highlight stroke to box in the relevant information.Execution Directive: Whenever you are asked to design a scene, storyboard, or code a motion graphic for "The Wealth Gap," you will filter every decision through these parameters. Ensure spatial continuity, strict adherence to the #101010 pastel palette, and punchy, un-faded motion flow.
+
+You will receive:
+
+1. `full_transcript_compact.txt` or `full_transcript.csv` (ultra-compact word-level timestamps and speech pause markers)
+
+Your output must be a single, valid JSON object matching the `ScenesFile` schema for `scenes.json`.
+
+---
+
+### Available Component Library
+
+| Component                                    | Role                                               | Essential Props                                                                                                |
+| -------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `BigNumber`                                  | Hero animated numeral landing on word anchor       | `{ "value": 9.6, "prefix": "$", "suffix": "T", "label": "...", "sublabel": "..." }`                            |
+| `BarCompare`                                 | Comparative staggered horizontal bars              | `{ "title": "...", "items": [{ "label": "...", "value": 100, "displayValue": "...", "highlight": true }] }`    |
+| `LineDraw`                                   | Animated D3 trendline with peak pin annotation     | `{ "title": "...", "series": [{ "x": 0, "y": 10, "label": "..." }], "highlightPointIndex": 4 }`                |
+| `SizeCompare`                                | Visceral area-proportional scale spheres           | `{ "title": "...", "items": [{ "label": "...", "value": 9.6, "displayValue": "$9.6T", "color": "#F5B83D" }] }` |
+| `IconGrid`                                   | 100-icon grid (10x10) showing wealth concentration | `{ "title": "...", "highlightedCount": 1, "totalCount": 100, "label": "..." }`                                 |
+| `MoneyFlow`                                  | Financial nodes with particle liquidity arcs       | `{ "title": "...", "nodes": [...], "transfers": [{ "fromId": "a", "toId": "b", "amountLabel": "..." }] }`      |
+| `Globe3D`                                    | 3D interactive rotating globe with currency arcs   | `{ "rotationSpeed": 0.008, "glowColor": "#F5B83D" }`                                                           |
+| `TitleCard`                                  | Cinematic scene opener card with chapter badge     | `{ "chapterBadge": "PROLOGUE", "title": "...", "subtitle": "..." }`                                            |
+| `TermCard`                                   | Definition card with rough-notation underline      | `{ "category": "...", "term": "...", "definition": "...", "highlightWord": "..." }`                            |
+| `SourceTag`                                  | Institutional citation tag                         | `{ "text": "...", "dataRef": "..."                                                                             |
+| }`                                           |
+| but you can also ask to make more components |
+
+---
+
+### Rules for Elite Motion Design
+
+1. **Scene Length**:
+   - Break scenes cleanly at sentence endings or natural voiceover pauses (>= 250ms).
+   - Never let a scene exceed 15 seconds. If a section is longer, split into sub-beats with sequential visual entrances.
+2. **Anchor to Words (Not Hand-Typed Seconds)**:
+   - For every key number or dramatic hit, attach an anchor to the spoken word:
+     `"anchors": [{ "word": "trillion", "occurrence": 1, "action": "countUp.end", "offsetFrames": -8 }]`
+3. **Sequential Entrances (Stagger & Layering)**:
+   - Do NOT dump all elements at frame 0.
+   - Start with background drift + hero card.
+   - Bring supporting data or secondary comparison in at `enterAtMs` when the narrator mentions that specific concept.
+
+---
+
+### INPUT DATA:
+
+# Video Transcript: VID02_Map_Of_Stock_Market
+# Duration: 616.5s | Clips: 33 | Words: 1790
+
+## [11_part3_01_beat] (Part 3 | 0.00s - 17.58s | 17.58s)
+Text: "Here is how the scoreboard actually works. Jake lent you money, he did not invest in your business. That means you owe him his original, Axe took stows and dollars at his back plus the agreed of 5% interest. And that is day it. Once you hand Jake his check, every single penny left over belongs entirely to you."
+Words: [0.00] Here [0.56] is [0.74] how [0.84] the [0.98] scoreboard [1.36] actually [1.72] works. [2.70] Jake [2.76] lent [2.96] you [3.10] money, [3.58] he [3.70] did [3.84] not [4.04] invest [4.40] in [4.70] your [4.84] business. [5.62] That [5.84] means [6.06] you [6.34] owe [6.56] him [6.82] his [7.02] original, [7.68] Axe [8.02] took [8.10] stows [8.38] and [8.54] dollars [8.76] at [8.96] his [9.08] back [9.34] plus [9.66] the [9.90] agreed [10.18] of [10.42] 5 [10.66] % [10.96] interest. [11.80] And [11.88] that [12.04] is [12.26] day [12.46] it. [13.00] Once [13.14] you [13.32] hand [13.50] Jake [13.72] his [13.94] check, [14.48] every [14.72] single [15.06] penny [15.36] left [15.70] over [16.08] belongs [16.38] entirely [17.06] to [17.30] you.
+
+## [12_part3_02_beat] (Part 3 | 17.58s - 26.28s | 8.70s)
+Text: "In the language of Wall Street, Jake is what we call Assessed Bond Holder S, and you are AS or Stock Holder. Look at the difference between the two."
+Words: [0.00] In [0.58] the [0.72] language [1.04] of [1.30] Wall [1.42] Street, [2.16] Jake [2.26] is [2.50] what [2.66] we [2.80] call [3.04] Assessed [3.56] Bond [3.86] Holder [4.28] S, [5.02] and [5.10] you [5.24] are [5.42] AS [5.78] or [5.94] Stock [6.20] Holder. [7.10] Look [7.28] at [7.40] the [7.52] difference [7.82] between [8.18] the [8.34] two.
+
+## [13_part3_03_beat] (Part 3 | 26.28s - 44.10s | 17.82s)
+Text: "Now, Jake is probably sitting across the table thinking. Da, wait a second, I gave you half the startup cash, and you made way more money than me! And yeah, he's right. Fa says however, flip the coin over. What if your carpentry business had completely flopped? What if you made a zero profit?"
+Words: [0.00] Now, [0.90] Jake [0.98] is [1.16] probably [1.44] sitting [1.74] across [2.08] the [2.32] table [2.60] thinking. [3.58] Da, [4.10] wait [4.26] a [4.38] second, [4.98] I [5.06] gave [5.18] you [5.32] half [5.50] the [5.66] startup [5.94] cash, [6.58] and [6.82] you [6.96] made [7.10] way [7.32] more [7.58] money [7.90] than [8.12] me! [9.20] And [9.50] yeah, [9.88] he's [10.08] right. [10.70] Fa [10.78] says [10.94] however, [11.88] flip [12.02] the [12.24] coin [12.48] over. [13.24] What [13.48] if [13.66] your [13.78] carpentry [14.28] business [14.62] had [14.84] completely [15.38] flopped? [16.30] What [16.44] if [16.58] you [16.68] made [16.84] a [17.04] zero [17.28] profit?
+
+## [14_part3_04_beat] (Part 3 | 44.10s - 69.65s | 25.55s)
+Text: "If the business failed, you would be forced to sell the truck and pawn every last tool just to pay Jake back. Jake walks away with his money. You walk away with Avis Russ, nothing, zero. Because that is the ironclad deal of the financial world, as bone holders get paid first, but only what was promised. Stock holders get paid last, but keep everything that's left-dose, that rule never changes."
+Words: [0.00] If [0.58] the [0.72] business [1.02] failed, [1.70] you [1.82] would [1.94] be [2.06] forced [2.30] to [2.54] sell [2.80] the [2.96] truck [3.18] and [3.50] pawn [3.74] every [4.42] last [4.76] tool [5.14] just [5.66] to [5.84] pay [6.04] Jake [6.28] back. [8.04] Jake [8.20] walks [8.50] away [8.78] with [8.98] his [9.10] money. [9.66] You [9.80] walk [10.06] away [10.38] with [10.66] Avis [10.94] Russ, [11.70] nothing, [12.34] zero. [13.22] Because [13.46] that [13.70] is [13.84] the [13.98] ironclad [14.60] deal [14.86] of [15.12] the [15.24] financial [15.72] world, [16.46] as [16.54] bone [16.72] holders [17.00] get [17.26] paid [17.56] first, [18.24] but [18.32] only [18.62] what [18.82] was [18.98] promised. [19.40] Stock [20.08] holders [20.46] get [20.72] paid [20.96] last, [21.56] but [21.66] keep [21.90] everything [22.48] that's [22.82] left [22.98] -dose, [23.80] that [23.94] rule [24.24] never [24.66] changes.
+
+## [15_part3_05_beat] (Part 3 | 69.65s - 84.07s | 14.42s)
+Text: "With this, but what happens when your business gets so big that borrowing from guys like Jake is no longer an option? That is where the public stock market enters the chat, and where most people completely misunderstand where their money goes."
+Words: [0.00] With [0.60] this, [0.80] but [0.90] what [1.08] happens [1.44] when [1.68] your [1.84] business [2.26] gets [2.52] so [2.92] big [3.22] that [3.42] borrowing [3.78] from [4.04] guys [4.36] like [4.64] Jake [4.86] is [5.14] no [5.46] longer [6.04] an [6.24] option? [7.02] That [7.18] is [7.28] where [7.50] the [7.64] public [8.00] stock [8.36] market [8.78] enters [9.10] the [9.32] chat, [10.00] and [10.20] where [10.40] most [10.68] people [11.02] completely [11.54] misunderstand [12.18] where [12.74] their [12.92] money [13.18] goes.
+
+## [16_part4_01_beat] (Part 4 | 84.07s - 116.22s | 32.15s)
+Text: "Two years fly by your carpentry empire is booming and you want to expand into brand new cities to pull that off You need a massive injection of cash sure you to could borrow at all But taking on a mountain of debt is dangerous So instead you decide to slice your company into pieces and sell those pieces to outsiders First your friend S Maria's buys in then S Tom and then a whole crowd of everyday investors all of that cash flows Straight into your company's bank account so you can build new workshops and grow"
+Words: [0.00] Two [0.50] years [0.70] fly [0.98] by [1.22] your [1.62] carpentry [2.20] empire [2.50] is [2.74] booming [2.98] and [3.44] you [3.56] want [3.70] to [3.82] expand [4.24] into [4.60] brand [4.88] new [5.08] cities [5.40] to [5.82] pull [6.06] that [6.24] off [6.52] You [7.18] need [7.40] a [7.50] massive [7.94] injection [8.44] of [8.64] cash [8.86] sure [9.70] you [10.36] to [10.48] could [10.68] borrow [11.08] at [11.28] all [11.44] But [11.82] taking [12.14] on [12.36] a [12.46] mountain [12.70] of [12.90] debt [13.06] is [13.36] dangerous [13.76] So [14.62] instead [15.04] you [15.54] decide [15.90] to [16.18] slice [16.46] your [16.68] company [17.00] into [17.30] pieces [17.72] and [18.08] sell [18.36] those [18.60] pieces [18.98] to [19.22] outsiders [19.68] First [20.52] your [20.74] friend [20.98] S [21.30] Maria's [21.92] buys [22.08] in [22.40] then [22.70] S [23.04] Tom [23.32] and [23.80] then [23.90] a [24.02] whole [24.12] crowd [24.40] of [24.58] everyday [24.94] investors [25.50] all [26.08] of [26.20] that [26.36] cash [26.72] flows [26.98] Straight [27.44] into [27.74] your [27.96] company's [28.54] bank [28.84] account [29.18] so [29.58] you [29.92] can [30.10] build [30.42] new [30.76] workshops [31.22] and [31.64] grow
+
+## [17_part4_02_beat] (Part 4 | 116.22s - 140.31s | 24.09s)
+Text: "On Wall Street, this milestone is called an AS IPO and initial public offering. It is the very first time a private company sells pieces of itself to the public, and it is that not only major stage where the money goes directly into the company's pockets. Once the IPO is over, if an investor wants out, they don't ask the company for a refund, they have to sell their piece to another investor."
+Words: [0.00] On [0.58] Wall [0.78] Street, [1.52] this [1.66] milestone [2.04] is [2.36] called [2.54] an [2.80] AS [3.10] IPO [3.64] and [4.14] initial [4.48] public [4.84] offering. [5.82] It [5.96] is [6.08] the [6.20] very [6.46] first [6.86] time [7.02] a [7.20] private [7.54] company [7.94] sells [8.34] pieces [8.76] of [8.98] itself [9.30] to [9.54] the [9.64] public, [10.36] and [10.54] it [10.66] is [10.80] that [10.98] not [11.24] only [11.56] major [11.92] stage [12.36] where [12.54] the [12.64] money [12.88] goes [13.10] directly [13.48] into [13.96] the [14.12] company's [14.54] pockets. [15.82] Once [16.10] the [16.30] IPO [16.64] is [16.80] over, [17.40] if [17.50] an [17.62] investor [18.02] wants [18.28] out, [19.00] they [19.14] don't [19.42] ask [19.64] the [19.80] company [20.08] for [20.36] a [20.56] refund, [20.90] they [21.54] have [21.70] to [21.84] sell [22.12] their [22.32] piece [22.68] to [23.00] another [23.30] investor.
+
+## [18_part4_03_beat] (Part 4 | 140.31s - 151.24s | 10.93s)
+Text: "So when asked Maria decide she wants to cash out a year later she sells her shares to someone else that new buyer pays to Maria not you not the carpentry company just Maria"
+Words: [0.00] So [0.56] when [0.72] asked [1.16] Maria [1.44] decide [2.14] she [2.42] wants [2.60] to [2.78] cash [3.00] out [3.20] a [3.26] year [3.44] later [3.72] she [4.10] sells [4.34] her [4.52] shares [4.84] to [5.06] someone [5.34] else [5.62] that [6.34] new [6.62] buyer [6.92] pays [7.20] to [7.34] Maria [7.62] not [8.18] you [8.50] not [8.90] the [9.06] carpentry [9.48] company [9.82] just [10.32] Maria
+
+## [19_part4_04_beat] (Part 4 | 151.24s - 180.09s | 28.85s)
+Text: "Think of it like buying a used car. Jure Toyota gets paid exactly once, the day the very first owner drives that car off the dealership lot. After that, the car can get passed around between 10 different people over 20 years, and Toyota doesn't see a single cent of those trades. Stocks work the exact same way. After the IPO, shares just get passed around between investors like used Toyota's. And that giant secondhand marketplace is what we call as of the stock market."
+Words: [0.00] Think [0.56] of [0.70] it [0.76] like [0.92] buying [1.24] a [1.38] used [1.62] car. [2.50] Jure [2.60] Toyota [2.84] gets [3.14] paid [3.44] exactly [3.86] once, [4.88] the [4.96] day [5.10] the [5.24] very [5.48] first [5.86] owner [6.04] drives [6.38] that [6.62] car [6.94] off [7.22] the [7.40] dealership [7.82] lot. [8.72] After [9.06] that, [9.62] the [9.72] car [9.90] can [10.06] get [10.18] passed [10.44] around [10.74] between [11.00] 10 [11.30] different [11.50] people [11.78] over [12.02] 20 [12.46] years, [13.24] and [13.34] Toyota [13.72] doesn't [14.44] see [14.66] a [14.78] single [15.06] cent [15.32] of [15.48] those [15.66] trades. [16.64] Stocks [17.10] work [17.34] the [17.58] exact [17.90] same [18.34] way. [19.22] After [19.52] the [19.68] IPO, [20.72] shares [20.90] just [21.24] get [21.42] passed [21.72] around [22.06] between [22.36] investors [22.86] like [23.20] used [23.64] Toyota's. [24.62] And [24.86] that [25.04] giant [25.38] secondhand [25.90] marketplace [26.40] is [26.94] what [27.12] we [27.24] call [27.46] as [27.72] of [27.88] the [27.96] stock [28.30] market.
+
+## [20_part4_05_beat] (Part 4 | 180.09s - 211.37s | 31.28s)
+Text: "When you hear people talk about Oswald Street or the Osir's New York Stock Exchange, it used to mean frantic guys insults screaming over paper tickets on a crowded floor. Today, it's an app sitting in your pocket, Robinhood, Etoro, Fidelity. You tap a button on your couch, someone across the country taps theirs, and boom. You now own a slice of Google. Every year, since trillions of dollars swap hands this way, none of it going to the companies, just millions of people trading ownership back and forth."
+Words: [0.00] When [0.46] you [0.58] hear [0.74] people [1.02] talk [1.30] about [1.64] Oswald [2.16] Street [2.52] or [2.92] the [3.06] Osir's [3.58] New [3.68] York [3.86] Stock [4.08] Exchange, [4.86] it [5.06] used [5.30] to [5.46] mean [5.64] frantic [6.08] guys [6.38] insults [7.24] screaming [7.66] over [8.16] paper [8.44] tickets [8.78] on [9.08] a [9.16] crowded [9.44] floor. [10.34] Today, [11.20] it's [11.38] an [11.50] app [11.74] sitting [12.08] in [12.26] your [12.36] pocket, [13.30] Robinhood, [14.18] Etoro, [14.78] Fidelity. [15.56] You [15.78] tap [16.02] a [16.16] button [16.42] on [16.52] your [16.68] couch, [17.38] someone [17.70] across [18.00] the [18.20] country [18.42] taps [18.78] theirs, [19.36] and [19.64] boom. [20.44] You [20.58] now [20.80] own [21.10] a [21.28] slice [21.62] of [21.90] Google. [22.56] Every [23.12] year, [23.76] since [23.84] trillions [24.26] of [24.52] dollars [24.82] swap [25.48] hands [25.72] this [25.88] way, [26.56] none [26.72] of [26.84] it [26.94] going [27.12] to [27.26] the [27.36] companies, [27.76] just [28.38] millions [28.88] of [29.14] people [29.42] trading [29.82] ownership [30.32] back [30.68] and [30.86] forth.
+
+## [21_part4_06_beat] (Part 4 | 211.37s - 223.01s | 11.64s)
+Text: "Wait. A second. Hold everything. If your money doesn't even go to the company when you buy a stock on your phone, why on Earth would anyone pay good money for a second hand piece of paper? Air."
+Words: [0.00] Wait. [1.32] A [1.54] second. [2.32] Hold [2.50] everything. [3.36] If [3.48] your [3.60] money [3.84] doesn't [4.26] even [4.44] go [4.66] to [4.80] the [4.90] company [5.26] when [5.66] you [5.80] buy [5.98] a [6.16] stock [6.38] on [6.60] your [6.72] phone, [7.30] why [7.52] on [7.72] Earth [7.94] would [8.12] anyone [8.48] pay [8.80] good [9.02] money [9.34] for [9.56] a [9.68] second [9.98] hand [10.24] piece [10.44] of [10.62] paper? [11.34] Air.
+
+## [22_part5_01_beat] (Part 5 | 223.01s - 228.62s | 5.61s)
+Text: "There are two very lucrative reasons people fight to own shares in these corporate empires."
+Words: [0.00] There [0.58] are [0.70] two [0.98] very [1.36] lucrative [1.82] reasons [2.20] people [2.60] fight [2.98] to [3.18] own [3.44] shares [3.82] in [4.24] these [4.44] corporate [4.84] empires.
+
+## [23_part5_02_beat] (Part 5 | 228.62s - 254.38s | 25.76s)
+Text: "Legacy cash machines like us, Coca-Cola, pay out these dividends like clockwork. Meanwhile, aggressive growth empires like us, Amazon, don't pay a cent in dividends. Instead, they take every dollar of profit and pour it right back into building bigger warehouses, faster servers, and new businesses so the stock price grows faster. Either way, you profit from ownership through price gains, cold hard cash payments, or both."
+Words: [0.00] Legacy [0.70] cash [1.10] machines [1.56] like [1.86] us, [2.30] Coca [2.50] -Cola, [3.36] pay [3.50] out [3.66] these [3.90] dividends [4.28] like [4.70] clockwork. [5.60] Meanwhile, [5.94] aggressive [6.40] growth [6.62] empires [7.06] like [7.34] us, [8.08] Amazon, [8.58] don't [8.76] pay [8.92] a [9.02] cent [9.26] in [9.46] dividends. [10.14] Instead, [10.82] they [11.02] take [11.28] every [11.58] dollar [11.88] of [12.08] profit [12.46] and [12.64] pour [12.88] it [13.04] right [13.44] back [13.66] into [13.98] building [14.36] bigger [14.94] warehouses, [16.08] faster [16.38] servers, [17.00] and [17.08] new [17.30] businesses [17.76] so [18.22] the [18.36] stock [18.66] price [18.92] grows [19.20] faster. [20.28] Either [20.52] way, [21.14] you [21.30] profit [21.68] from [21.94] ownership [22.36] through [22.70] price [23.00] gains, [23.72] cold [23.84] hard [24.16] cash [24.46] payments, [25.10] or [25.30] both.
+
+## [24_part5_03_beat] (Part 5 | 254.38s - 267.50s | 13.12s)
+Text: "But no matter which style of investor you are, there is one hypnotic number every human on Wall Street is glued to the price, and what actually controls that price is way more unhinged than most textbooks admit."
+Words: [0.00] But [0.56] no [0.98] matter [1.20] which [1.48] style [1.88] of [2.10] investor [2.48] you [2.72] are, [3.32] there [3.42] is [3.58] one [3.86] hypnotic [4.52] number [4.78] every [5.20] human [5.56] on [5.82] Wall [6.04] Street [6.42] is [6.82] glued [7.06] to [7.26] the [7.38] price, [8.08] and [8.20] what [8.34] actually [8.72] controls [9.16] that [9.38] price [9.66] is [9.92] way [10.22] more [10.56] unhinged [11.30] than [11.46] most [11.80] textbooks [12.24] admit.
+
+## [05_part2_01_beat] (Part 2 | 267.50s - 288.18s | 20.68s)
+Text: "To see how the machinery really works, forget company names and flashing stock prices for a second. Instead, picture a company as nothing more than a six-basket, and this basket is packed with stuff. Some of that stuff you can physically reach out and touch. Delivery trucks, office computers, massive warehouse buildings, tangible hardware."
+Words: [0.00] To [0.52] see [0.70] how [0.84] the [0.96] machinery [1.34] really [1.66] works, [2.34] forget [2.48] company [2.86] names [3.18] and [3.44] flashing [3.96] stock [4.30] prices [4.68] for [4.98] a [5.08] second. [5.82] Instead, [6.68] picture [6.98] a [7.10] company [7.42] as [7.80] nothing [8.26] more [8.62] than [8.84] a [9.06] six [9.30] -basket, [10.22] and [10.34] this [10.52] basket [10.94] is [11.22] packed [11.48] with [11.72] stuff. [12.42] Some [12.66] of [12.76] that [12.88] stuff [13.16] you [13.32] can [13.50] physically [13.94] reach [14.28] out [14.54] and [14.80] touch. [15.66] Delivery [16.10] trucks, [16.92] office [17.22] computers, [18.26] massive [18.56] warehouse [18.96] buildings, [19.86] tangible [20.12] hardware.
+
+## [06_part2_02_beat] (Part 2 | 288.18s - 323.06s | 34.88s)
+Text: "But some of the stuff, sitting inside that basket you can't touch at all, things like a brand name or a reputation. Take S. Appla, for example. Sure, they own massive warehouses stuffed to the ceiling with iPhones, but is aluminum and glass their real secret weapon. Not even close. The real magic inside Apple's basket is a brand name so ridiculously powerful that millions of people will happily pay twice as much for their phone compared to anyone else's. That is all a company really is a basket full of valuable stuff. Some you can see and some you can't."
+Words: [0.00] But [0.46] some [0.68] of [0.82] the [0.94] stuff, [1.48] sitting [1.76] inside [2.16] that [2.38] basket [2.74] you [2.96] can't [3.32] touch [3.48] at [3.64] all, [4.20] things [4.40] like [4.56] a [4.68] brand [4.92] name [5.24] or [5.60] a [5.72] reputation. [6.84] Take [7.02] S. [7.46] Appla, [7.86] for [7.96] example. [8.98] Sure, [9.60] they [9.68] own [9.94] massive [10.36] warehouses [10.90] stuffed [11.40] to [11.68] the [11.78] ceiling [12.06] with [12.30] iPhones, [13.26] but [13.36] is [13.50] aluminum [13.82] and [14.24] glass [14.50] their [14.76] real [15.00] secret [15.38] weapon. [16.32] Not [16.60] even [16.84] close. [17.82] The [17.98] real [18.22] magic [18.56] inside [19.06] Apple's [19.64] basket [20.02] is [20.36] a [20.44] brand [20.68] name [20.94] so [21.26] ridiculously [21.76] powerful [22.48] that [22.98] millions [23.36] of [23.60] people [23.86] will [24.10] happily [24.48] pay [24.80] twice [25.46] as [25.80] much [26.10] for [26.34] their [26.48] phone [26.88] compared [27.42] to [27.64] anyone [27.94] else's. [28.40] That [28.98] is [29.12] all [29.26] a [29.36] company [29.66] really [30.34] is [30.74] a [30.86] basket [31.18] full [31.48] of [31.64] valuable [32.02] stuff. [32.72] Some [33.04] you [33.22] can [33.36] see [33.62] and [34.02] some [34.26] you [34.44] can't.
+
+## [07_part2_03_beat] (Part 2 | 323.06s - 335.81s | 12.75s)
+Text: "Yes, but here is the multi trillion dollar question that separates the rich from the broke, who actually owns that basket, and how do we decide who gets paid when the cash starts rolling in?"
+Words: [0.00] Yes, [1.28] but [1.54] here [1.86] is [2.32] the [2.52] multi [2.90] trillion [3.54] dollar [3.88] question [4.26] that [4.48] separates [5.02] the [5.30] rich [5.52] from [5.72] the [5.86] broke, [6.42] who [6.60] actually [7.00] owns [7.32] that [7.52] basket, [8.30] and [8.38] how [8.64] do [8.76] we [8.86] decide [9.16] who [9.42] gets [9.62] paid [9.96] when [10.48] the [10.60] cash [10.82] starts [11.22] rolling [11.58] in?
+
+## [08_part2_04_beat] (Part 2 | 335.81s - 356.17s | 20.36s)
+Text: "Let's put you in the driver's seat. Imagine you're a skilled carpenter. You've worked hard, skipped the overpriced lats, and saved up AFSF-10 allows in uter-Z. That's awesome, except there's a glaring problem. 10 grand isn't enough to launch your carpentry business. You still need a work truck and you need professional tools."
+Words: [0.00] Let's [0.58] put [0.72] you [0.90] in [1.00] the [1.10] driver's [1.58] seat. [2.36] Imagine [2.64] you're [2.88] a [2.94] skilled [3.22] carpenter. [4.16] You've [4.32] worked [4.52] hard, [5.18] skipped [5.40] the [5.62] overpriced [6.22] lats, [6.80] and [6.92] saved [7.28] up [7.64] AFSF [8.12] -10 [8.46] allows [8.76] in [9.00] uter [9.28] -Z. [9.94] That's [10.36] awesome, [11.04] except [11.42] there's [11.78] a [11.88] glaring [12.16] problem. [13.14] 10 [13.44] grand [13.68] isn't [14.10] enough [14.34] to [14.56] launch [14.84] your [15.06] carpentry [15.54] business. [16.40] You [16.58] still [16.84] need [17.06] a [17.18] work [17.36] truck [17.70] and [18.48] you [18.86] need [19.08] professional [19.64] tools.
+
+## [09_part2_05_beat] (Part 2 | 356.17s - 381.31s | 25.14s)
+Text: "So, you walk over to your buddy, six jakes and borrow of ten dollars from him at your funds aren't percent interest. Now you're holding in $20,000 in total capital. You buy the truck, you buy the tools, and you get to work building furniture. Fast forward one year. Your business is a runaway hit. After expenses, you've racked up air systems 50,000 in pure profit, plus you still own the truck and the tools sitting in your driveway."
+Words: [0.00] So, [0.56] you [0.70] walk [0.86] over [1.06] to [1.20] your [1.32] buddy, [2.00] six [2.24] jakes [2.60] and [2.82] borrow [2.98] of [3.24] ten [3.44] dollars [3.82] from [4.08] him [4.24] at [4.38] your [4.50] funds [4.72] aren't [4.92] percent [5.16] interest. [5.86] Now [5.98] you're [6.18] holding [6.52] in [6.70] $20 [7.04] ,000 [7.38] in [8.02] total [8.26] capital. [9.16] You [9.26] buy [9.42] the [9.56] truck, [10.34] you [10.46] buy [10.62] the [10.80] tools, [11.36] and [11.42] you [11.54] get [11.64] to [11.80] work [11.98] building [12.38] furniture. [13.30] Fast [13.48] forward [13.92] one [14.26] year. [15.04] Your [15.26] business [15.66] is [15.96] a [16.06] runaway [16.46] hit. [17.18] After [17.38] expenses, [18.30] you've [18.58] racked [18.84] up [18.96] air [19.18] systems [19.42] 50 [20.00] ,000 [20.58] in [20.76] pure [20.98] profit, [21.80] plus [22.12] you [22.62] still [22.84] own [23.02] the [23.10] truck [23.32] and [23.48] the [23.58] tools [23.86] sitting [24.18] in [24.36] your [24.48] driveway.
+
+## [10_part2_06_beat] (Part 2 | 381.31s - 393.91s | 12.60s)
+Text: "VFS now comes the awkward dinner conversation. How exactly do you split that 50,000 windfall with Jake? Spoiler alert, Jake is about to learn a very harsh lesson about how capitalism works. A."
+Words: [0.00] VFS [0.90] now [1.22] comes [1.58] the [1.78] awkward [2.02] dinner [2.22] conversation. [3.34] How [3.46] exactly [4.00] do [4.22] you [4.34] split [4.66] that [4.84] 50 [5.18] ,000 [5.70] windfall [6.24] with [6.44] Jake? [7.10] Spoiler [7.42] alert, [8.08] Jake [8.32] is [8.52] about [8.68] to [8.88] learn [9.10] a [9.30] very [9.64] harsh [9.98] lesson [10.36] about [10.60] how [10.78] capitalism [11.30] works. [12.40] A.
+
+## [29_part7_01_beat] (Part 7 | 393.91s - 421.12s | 27.21s)
+Text: "Here is the simplest, most ruthless strategy in finance, and it's backed by decades of undefeated data, don't pick individual stocks and don't try to time the market. Vess, look, the overwhelming majority of Wall Street professionals, people with supercomputers and Ivy League degrees, cannot beat the market consistently over the long run. Statistically, you probably won't either. That's not being harsh, that's just respecting the math."
+Words: [0.00] Here [0.46] is [0.62] the [0.72] simplest, [1.34] most [1.66] ruthless [2.06] strategy [2.80] in [3.00] finance, [3.76] and [4.10] it's [4.30] backed [4.48] by [4.68] decades [5.00] of [5.28] undefeated [5.76] data, [6.54] don't [7.04] pick [7.24] individual [7.98] stocks [8.40] and [8.94] don't [9.20] try [9.40] to [9.52] time [9.78] the [9.88] market. [10.56] Vess, [10.96] look, [11.42] the [11.50] overwhelming [11.94] majority [12.54] of [12.76] Wall [12.92] Street [13.16] professionals, [14.18] people [14.46] with [14.72] supercomputers [15.60] and [15.88] Ivy [16.18] League [16.54] degrees, [17.28] cannot [17.62] beat [17.98] the [18.16] market [18.44] consistently [19.02] over [19.46] the [19.60] long [19.86] run. [21.22] Statistically, [22.34] you [22.66] probably [23.02] won't [23.28] either. [24.18] That's [24.62] not [24.74] being [24.96] harsh, [25.74] that's [25.96] just [26.10] respecting [26.62] the [26.80] math.
+
+## [30_part7_02_beat] (Part 7 | 421.12s - 450.07s | 28.95s)
+Text: "Instead of gambling on one needle in the haystack, by the entire haystack. That is called an AS Index Fund S, a single master basket that holds hundreds of elite companies all at once. With one click, you own tiny slices of off-fies as Apple, Amazon, Google, Walmart, and hundreds more. The undisputed King of Index Funds tracks the R-Shay S&P 500 Zero, the 500 biggest publicly traded companies in America. When you buy that one fund, you essentially own a piece of the entire US economy."
+Words: [0.00] Instead [0.66] of [0.84] gambling [1.22] on [1.54] one [1.88] needle [2.16] in [2.40] the [2.54] haystack, [3.34] by [3.44] the [3.62] entire [3.98] haystack. [4.86] That [5.00] is [5.12] called [5.28] an [5.50] AS [5.68] Index [6.06] Fund [6.38] S, [6.86] a [7.02] single [7.28] master [7.62] basket [8.00] that [8.18] holds [8.36] hundreds [8.86] of [9.04] elite [9.30] companies [9.72] all [10.14] at [10.30] once. [10.90] With [10.98] one [11.24] click, [11.72] you [11.80] own [12.00] tiny [12.30] slices [12.70] of [12.96] off [13.16] -fies [13.38] as [13.52] Apple, [14.16] Amazon, [14.80] Google, [15.52] Walmart, [15.98] and [16.02] hundreds [16.32] more. [17.10] The [17.20] undisputed [17.80] King [17.98] of [18.18] Index [18.40] Funds [18.90] tracks [19.14] the [19.38] R [19.64] -Shay [19.94] S [20.20] &P [20.42] 500 [20.78] Zero, [21.36] the [21.42] 500 [21.84] biggest [22.30] publicly [22.66] traded [23.18] companies [23.58] in [23.82] America. [24.58] When [24.78] you [24.88] buy [25.06] that [25.22] one [25.38] fund, [25.98] you [26.10] essentially [26.60] own [26.94] a [27.08] piece [27.28] of [27.44] the [27.56] entire [28.00] US [28.36] economy.
+
+## [31_part7_03_beat] (Part 7 | 450.07s - 483.83s | 33.76s)
+Text: "Now, let's be completely honest, index funds are deboring. Nobody is going to crowd around you at a Friday night party because you bought a low-cost S&P 500 fund. However, here's the only number that actually matters over the four last century. The S&P 500 has averaged around first 10% per year. Some years it drops. Some years it rips sky high. But across decades, the trajectory is relentlessly upward. Put money in regularly, don't panic, sell when the news looks scary, and just wait. That is how ordinary people quietly build extraordinary wealth."
+Words: [0.00] Now, [0.78] let's [1.04] be [1.14] completely [1.70] honest, [2.40] index [2.62] funds [2.92] are [3.20] deboring. [4.12] Nobody [4.42] is [4.58] going [4.76] to [4.88] crowd [5.12] around [5.44] you [5.66] at [5.78] a [5.84] Friday [6.06] night [6.32] party [6.68] because [7.22] you [7.38] bought [7.58] a [7.76] low [7.90] -cost [8.24] S [8.56] &P [8.86] 500 [9.52] fund. [10.44] However, [11.04] here's [11.30] the [11.38] only [11.58] number [11.86] that [12.02] actually [12.42] matters [12.68] over [13.00] the [13.12] four [13.30] last [13.46] century. [14.34] The [14.40] S [14.54] &P [14.78] 500 [15.36] has [15.60] averaged [16.00] around [16.22] first [16.48] 10 [16.88] % [17.24] per [17.56] year. [18.36] Some [18.46] years [18.70] it [18.86] drops. [19.54] Some [19.76] years [19.98] it [20.14] rips [20.32] sky [20.70] high. [21.64] But [21.72] across [22.00] decades, [22.90] the [22.96] trajectory [23.28] is [23.74] relentlessly [24.32] upward. [24.68] Put [25.34] money [25.66] in [25.80] regularly, [26.66] don't [26.86] panic, [27.44] sell [27.68] when [27.96] the [28.08] news [28.36] looks [28.62] scary, [29.36] and [29.48] just [29.66] wait. [30.22] That [30.42] is [30.58] how [30.78] ordinary [31.14] people [31.58] quietly [32.04] build [32.44] extraordinary [33.18] wealth.
+
+## [32_part7_04_beat] (Part 7 | 483.83s - 489.63s | 5.80s)
+Text: "Lock these six rules into your brain and the financial world will never intimidate you again"
+Words: [0.00] Lock [0.54] these [0.78] six [1.18] rules [1.50] into [1.96] your [2.20] brain [2.48] and [2.90] the [3.02] financial [3.54] world [3.94] will [4.14] never [4.48] intimidate [5.18] you [5.30] again
+
+## [33_part7_05_beat] (Part 7 | 489.63s - 500.89s | 11.26s)
+Text: "Thanks for watching. If you want more zero, fluff explanations of money, finance, and how the global economy actually works, click the subscribe button right now. See you in the next one."
+Words: [0.00] Thanks [0.66] for [0.84] watching. [1.54] If [1.66] you [1.76] want [1.96] more [2.20] zero, [3.04] fluff [3.14] explanations [3.82] of [4.18] money, [4.82] finance, [5.48] and [5.70] how [5.94] the [6.10] global [6.44] economy [6.96] actually [7.42] works, [8.12] click [8.20] the [8.40] subscribe [8.74] button [9.20] right [9.44] now. [10.22] See [10.44] you [10.62] in [10.70] the [10.78] next [11.02] one.
+
+## [01_part1_01_beat] (Part 1 | 500.89s - 513.64s | 12.75s)
+Text: "Every single year, trillions of dollars violently change hands inside the global stock market. Yet, almost none of that money actually goes to the companies you think you're in investing in."
+Words: [0.00] Every [0.54] single [0.82] year, [1.50] trillions [1.84] of [2.08] dollars [2.42] violently [2.96] change [3.38] hands [3.88] inside [4.46] the [4.66] global [4.98] stock [5.34] market. [6.32] Yet, [6.80] almost [7.16] none [7.52] of [7.70] that [7.88] money [8.22] actually [8.80] goes [9.60] to [9.88] the [10.00] companies [10.40] you [10.58] think [10.82] you're [11.08] in [11.30] investing [11.98] in.
+
+## [02_part1_02_beat] (Part 1 | 513.64s - 524.97s | 11.33s)
+Text: "Wall Street loves to wrap this machine in intimidating jargon, so you feel too confused to ask how the game is actually rigged, or who really gets paid first when a business goes belly up."
+Words: [0.00] Wall [0.58] Street [0.86] loves [1.14] to [1.54] wrap [1.86] this [2.14] machine [2.48] in [2.80] intimidating [3.28] jargon, [4.14] so [4.28] you [4.40] feel [4.64] too [4.90] confused [5.36] to [5.56] ask [5.82] how [6.00] the [6.12] game [6.36] is [6.86] actually [7.26] rigged, [8.02] or [8.16] who [8.32] really [8.66] gets [8.88] paid [9.24] first [9.68] when [9.90] a [10.00] business [10.36] goes [10.66] belly [10.98] up.
+
+## [03_part1_03_beat] (Part 1 | 524.97s - 534.55s | 9.58s)
+Text: "Once you strip away the ticker symbols and understand what a company does, actually is the entire financial matrix clicks into place in less than 10 minutes."
+Words: [0.00] Once [0.60] you [0.72] strip [0.94] away [1.16] the [1.34] ticker [1.62] symbols [1.92] and [2.36] understand [2.88] what [3.22] a [3.30] company [3.60] does, [4.14] actually [4.58] is [5.18] the [5.68] entire [6.06] financial [6.60] matrix [7.02] clicks [7.26] into [7.56] place [7.88] in [8.34] less [8.56] than [8.82] 10 [9.08] minutes.
+
+## [04_part1_04_beat] (Part 1 | 534.55s - 544.68s | 10.13s)
+Text: "And by the end of this video, you'll see why a simple carpenter, a used Toyota, and one dead boring statistic are all you need to beat the pros at their own game."
+Words: [0.00] And [0.54] by [0.66] the [0.76] end [0.98] of [1.08] this [1.30] video, [1.98] you'll [2.20] see [2.46] why [2.70] a [2.88] simple [3.24] carpenter, [4.16] a [4.26] used [4.64] Toyota, [5.62] and [5.70] one [6.00] dead [6.30] boring [6.76] statistic [7.32] are [7.74] all [8.04] you [8.20] need [8.34] to [8.50] beat [8.68] the [8.86] pros [9.26] at [9.46] their [9.60] own [9.84] game.
+
+## [25_part6_01_beat] (Part 6 | 544.68s - 570.18s | 25.50s)
+Text: "Why do stock prices shoot up one day and crash the next? Strip away the fancy math and it comes down to two words and supply and demand. That's it. When there are lots of buyers fighting over a stock and barely any sellers, the price goes up. When everyone panics and tries to sell it once with nobody lining up to buy, the price craters. A stock is only ever worth whatever the next person is willing to pay for it."
+Words: [0.00] Why [0.60] do [0.76] stock [1.02] prices [1.38] shoot [1.76] up [1.92] one [2.16] day [2.40] and [2.64] crash [2.98] the [3.20] next? [3.96] Strip [4.26] away [4.44] the [4.54] fancy [4.88] math [5.16] and [5.70] it [5.80] comes [6.04] down [6.24] to [6.36] two [6.62] words [6.86] and [7.20] supply [7.64] and [7.88] demand. [8.72] That's [9.14] it. [9.64] When [9.72] there [9.88] are [9.98] lots [10.26] of [10.46] buyers [10.78] fighting [11.30] over [11.66] a [11.78] stock [12.06] and [12.50] barely [13.00] any [13.38] sellers, [14.18] the [14.22] price [14.52] goes [14.78] up. [15.40] When [15.60] everyone [16.02] panics [16.52] and [16.70] tries [17.02] to [17.24] sell [17.48] it [17.58] once [17.82] with [18.08] nobody [18.58] lining [18.90] up [19.14] to [19.30] buy, [20.08] the [20.12] price [20.40] craters. [20.78] A [21.26] stock [21.62] is [21.86] only [22.14] ever [22.42] worth [22.72] whatever [23.10] the [23.44] next [23.62] person [24.00] is [24.24] willing [24.56] to [24.80] pay [25.06] for [25.34] it.
+
+## [26_part6_02_beat] (Part 6 | 570.18s - 576.60s | 6.42s)
+Text: "And why do people suddenly stampede to buy or sell? Because every investor is is-is betting on the futures."
+Words: [0.00] And [0.44] why [0.64] do [0.76] people [1.04] suddenly [1.46] stampede [2.18] to [2.40] buy [2.60] or [2.76] sell? [3.52] Because [3.80] every [4.16] investor [4.60] is [4.84] is [5.06] -is [5.26] betting [5.48] on [5.68] the [5.76] futures.
+
+## [27_part6_03_beat] (Part 6 | 576.60s - 603.28s | 26.68s)
+Text: "Sometimes the market moves on cold, hard logic, and sometimes it moves on pure, unfiltered emotion, millions of human beings, and the algorithms programmed to mimic them, get euphoric or terrified at the exact same second. Breaking news, whispered rumors, macroeconomic shifts, everything alters how people doffel about tomorrow, and how people feel about tomorrow move stock prices dot today."
+Words: [0.00] Sometimes [0.76] the [1.02] market [1.28] moves [1.56] on [1.78] cold, [2.50] hard [2.68] logic, [3.52] and [3.84] sometimes [4.30] it [4.48] moves [4.68] on [4.90] pure, [5.62] unfiltered [6.12] emotion, [7.22] millions [7.46] of [7.72] human [7.96] beings, [8.80] and [9.02] the [9.14] algorithms [9.58] programmed [10.14] to [10.46] mimic [10.74] them, [11.34] get [11.56] euphoric [12.02] or [12.26] terrified [12.80] at [13.32] the [13.46] exact [13.80] same [14.24] second. [15.50] Breaking [15.72] news, [16.54] whispered [16.88] rumors, [17.88] macroeconomic [18.52] shifts, [19.56] everything [20.08] alters [20.50] how [20.72] people [21.00] doffel [21.58] about [21.86] tomorrow, [22.60] and [23.02] how [23.22] people [23.54] feel [23.88] about [24.14] tomorrow [24.50] move [24.92] stock [25.26] prices [25.68] dot [26.18] today.
+
+## [28_part6_04_beat] (Part 6 | 603.28s - 616.46s | 13.18s)
+Text: "Isis okay, so now you see the entire chessboard, you know how the basket works, how IPOs work, and why prices swing like a pendulum. So how do you actually use this to get rich without getting chewed up by Wall Street?"
+Words: [0.00] Isis [0.74] okay, [1.36] so [1.62] now [1.76] you [1.90] see [2.04] the [2.18] entire [2.52] chessboard, [3.24] you [3.40] know [3.48] how [3.58] the [3.70] basket [4.02] works, [4.60] how [4.74] IPOs [5.20] work, [5.72] and [6.02] why [6.30] prices [6.72] swing [7.08] like [7.28] a [7.40] pendulum. [8.14] So [8.32] how [8.56] do [8.66] you [8.78] actually [9.14] use [9.44] this [9.72] to [10.04] get [10.18] rich [10.44] without [10.76] getting [11.04] chewed [11.40] up [11.48] by [11.64] Wall [11.80] Street?
+
+
+
+---
+
+### OUTPUT FORMAT:
+
+Return ONLY the raw JSON object matching the `ScenesFile` schema for `scenes.json`. Do not include markdown conversational filler.
+
+#### Required `scenes.json` Schema & Structure:
+```json
+{
+  "jobId": "VID02_Map_Of_Stock_Market",
+  "fps": 30,
+  "totalDurationMs": 616459,
+  "scenes": [
+    {
+      "id": "s01",
+      "chapter": "Chapter Title",
+      "startMs": 0,
+      "endMs": 12680,
+      "voLine": "Full spoken voiceover line for this scene...",
+      "intent": "Core visual takeaway / editorial goal",
+      "visualMetaphor": "Brief description of the visual scene concept",
+      "layers": {
+        "background": {
+          "component": "GridDrift",
+          "props": { "intensity": 0.8 }
+        },
+        "midground": {
+          "component": "GlowBlobs",
+          "props": { "hue": "accent", "intensity": 0.22 }
+        },
+        "foreground": [
+          {
+            "component": "BigNumber",
+            "props": {
+              "value": 7,
+              "prefix": "$",
+              "suffix": "T",
+              "label": "Daily Trading Volume",
+              "sublabel": "Foreign Exchange Market"
+            },
+            "enterAtMs": 0,
+            "exitAtMs": 12680,
+            "anchors": [
+              {
+                "word": "trillion",
+                "occurrence": 1,
+                "action": "countUp.end",
+                "offsetFrames": -8
+              }
+            ]
+          }
+        ]
+      },
+      "annotation": {
+        "type": "highlight",
+        "target": "Daily Trading Volume",
+        "atWord": "trillion"
+      },
+      "sourceTag": {
+        "text": "Source: Bank for International Settlements (BIS)",
+        "dataRef": "bis.org"
+      },
+      "transitionOut": {
+        "type": "wipe",
+        "durationFrames": 10
+      },
+      "sfx": [
+        { "at": "scene.start", "sound": "whoosh", "volume": 0.2 },
+        { "at": "anchor:trillion", "sound": "ding", "volume": 0.3 }
+      ]
+    }
+  ]
+}
+```
+
+#### TypeScript Types:
+```ts
+interface ScenesFile {
+  jobId: string;
+  fps: number; // default: 30
+  totalDurationMs?: number;
+  scenes: Scene[];
+}
+
+interface Scene {
+  id: string; // e.g. "s01", "s02"
+  chapter?: string;
+  startMs: number;
+  endMs: number;
+  voLine: string;
+  intent?: string;
+  visualMetaphor?: string;
+  layers: {
+    background: { component: string; props: Record<string, any> }; // e.g. "GridDrift"
+    midground?: { component: string; props: Record<string, any> }; // e.g. "GlowBlobs"
+    foreground: ForegroundElement[];                               // 1-3 visual components
+  };
+  annotation?: {
+    type: "highlight" | "circle" | "underline" | "box" | "bracket" | "strike";
+    target: string;
+    atWord?: string;
+  };
+  sourceTag?: {
+    text: string;           // Institutional source citation
+    dataRef?: string;
+  };
+  transitionOut?: {
+    type: "wipe" | "slide" | "fade" | "zoom" | "none";
+    durationFrames: number; // default: 10
+  };
+  sfx?: Array<{
+    at: "scene.start" | string; // "scene.start" or "anchor:<word>"
+    sound: string;              // "whoosh", "ding", "switch", "pop"
+    volume: number;             // default: 0.25
+  }>;
+}
+
+interface ForegroundElement {
+  component: string;            // Component name from Available Component Library
+  props: Record<string, any>;   // Props matching component signature
+  enterAtMs?: number;           // Staggered entrance timestamp (ms)
+  exitAtMs?: number;            // Exit timestamp (ms, optional)
+  anchors?: Array<{
+    word: string;               // Spoken word to trigger animation
+    occurrence?: number;        // 1st, 2nd, etc. time word appears in scene
+    action: string;             // e.g. "countUp.end", "reveal", "highlight"
+    offsetFrames?: number;      // lead audio by e.g. -8 frames
+  }>;
+}
+```

@@ -1,0 +1,1304 @@
+{
+  "audio_file": "06_part2_02_beat.wav",
+  "duration": 34.878,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "But some of the stuff, sitting inside that basket you can't touch at all, things like a brand name or a reputation. Take S. Appla, for example. Sure, they own massive warehouses stuffed to the ceiling with iPhones, but is aluminum and glass their real secret weapon. Not even close. The real magic inside Apple's basket is a brand name so ridiculously powerful that millions of people will happily pay twice as much for their phone compared to anyone else's. That is all a company really is a basket full of valuable stuff. Some you can see and some you can't.",
+  "words": [
+    {
+      "word": "But",
+      "start": 0.0,
+      "end": 0.46,
+      "probability": 0.905
+    },
+    {
+      "word": "some",
+      "start": 0.46,
+      "end": 0.68,
+      "probability": 0.985
+    },
+    {
+      "word": "of",
+      "start": 0.68,
+      "end": 0.82,
+      "probability": 0.989
+    },
+    {
+      "word": "the",
+      "start": 0.82,
+      "end": 0.94,
+      "probability": 0.942
+    },
+    {
+      "word": "stuff,",
+      "start": 0.94,
+      "end": 1.16,
+      "probability": 0.998
+    },
+    {
+      "word": "sitting",
+      "start": 1.48,
+      "end": 1.76,
+      "probability": 0.987
+    },
+    {
+      "word": "inside",
+      "start": 1.76,
+      "end": 2.16,
+      "probability": 0.999
+    },
+    {
+      "word": "that",
+      "start": 2.16,
+      "end": 2.38,
+      "probability": 0.962
+    },
+    {
+      "word": "basket",
+      "start": 2.38,
+      "end": 2.74,
+      "probability": 0.99
+    },
+    {
+      "word": "you",
+      "start": 2.74,
+      "end": 2.96,
+      "probability": 0.786
+    },
+    {
+      "word": "can't",
+      "start": 2.96,
+      "end": 3.32,
+      "probability": 0.99
+    },
+    {
+      "word": "touch",
+      "start": 3.32,
+      "end": 3.48,
+      "probability": 0.999
+    },
+    {
+      "word": "at",
+      "start": 3.48,
+      "end": 3.64,
+      "probability": 0.888
+    },
+    {
+      "word": "all,",
+      "start": 3.64,
+      "end": 3.88,
+      "probability": 0.998
+    },
+    {
+      "word": "things",
+      "start": 4.2,
+      "end": 4.4,
+      "probability": 0.976
+    },
+    {
+      "word": "like",
+      "start": 4.4,
+      "end": 4.56,
+      "probability": 0.998
+    },
+    {
+      "word": "a",
+      "start": 4.56,
+      "end": 4.68,
+      "probability": 0.98
+    },
+    {
+      "word": "brand",
+      "start": 4.68,
+      "end": 4.92,
+      "probability": 0.997
+    },
+    {
+      "word": "name",
+      "start": 4.92,
+      "end": 5.24,
+      "probability": 0.958
+    },
+    {
+      "word": "or",
+      "start": 5.24,
+      "end": 5.6,
+      "probability": 0.816
+    },
+    {
+      "word": "a",
+      "start": 5.6,
+      "end": 5.72,
+      "probability": 0.966
+    },
+    {
+      "word": "reputation.",
+      "start": 5.72,
+      "end": 6.22,
+      "probability": 0.986
+    },
+    {
+      "word": "Take",
+      "start": 6.84,
+      "end": 7.02,
+      "probability": 0.968
+    },
+    {
+      "word": "S.",
+      "start": 7.02,
+      "end": 7.3,
+      "probability": 0.744
+    },
+    {
+      "word": "Appla,",
+      "start": 7.46,
+      "end": 7.7,
+      "probability": 0.433
+    },
+    {
+      "word": "for",
+      "start": 7.86,
+      "end": 7.96,
+      "probability": 0.998
+    },
+    {
+      "word": "example.",
+      "start": 7.96,
+      "end": 8.3,
+      "probability": 1.0
+    },
+    {
+      "word": "Sure,",
+      "start": 8.98,
+      "end": 9.24,
+      "probability": 0.984
+    },
+    {
+      "word": "they",
+      "start": 9.6,
+      "end": 9.68,
+      "probability": 0.992
+    },
+    {
+      "word": "own",
+      "start": 9.68,
+      "end": 9.94,
+      "probability": 0.997
+    },
+    {
+      "word": "massive",
+      "start": 9.94,
+      "end": 10.36,
+      "probability": 0.99
+    },
+    {
+      "word": "warehouses",
+      "start": 10.36,
+      "end": 10.9,
+      "probability": 0.995
+    },
+    {
+      "word": "stuffed",
+      "start": 10.9,
+      "end": 11.4,
+      "probability": 0.707
+    },
+    {
+      "word": "to",
+      "start": 11.4,
+      "end": 11.68,
+      "probability": 0.992
+    },
+    {
+      "word": "the",
+      "start": 11.68,
+      "end": 11.78,
+      "probability": 0.993
+    },
+    {
+      "word": "ceiling",
+      "start": 11.78,
+      "end": 12.06,
+      "probability": 0.996
+    },
+    {
+      "word": "with",
+      "start": 12.06,
+      "end": 12.3,
+      "probability": 0.998
+    },
+    {
+      "word": "iPhones,",
+      "start": 12.3,
+      "end": 12.64,
+      "probability": 0.975
+    },
+    {
+      "word": "but",
+      "start": 13.26,
+      "end": 13.36,
+      "probability": 0.997
+    },
+    {
+      "word": "is",
+      "start": 13.36,
+      "end": 13.5,
+      "probability": 0.887
+    },
+    {
+      "word": "aluminum",
+      "start": 13.5,
+      "end": 13.82,
+      "probability": 0.959
+    },
+    {
+      "word": "and",
+      "start": 13.82,
+      "end": 14.24,
+      "probability": 0.954
+    },
+    {
+      "word": "glass",
+      "start": 14.24,
+      "end": 14.5,
+      "probability": 0.987
+    },
+    {
+      "word": "their",
+      "start": 14.5,
+      "end": 14.76,
+      "probability": 0.883
+    },
+    {
+      "word": "real",
+      "start": 14.76,
+      "end": 15.0,
+      "probability": 0.979
+    },
+    {
+      "word": "secret",
+      "start": 15.0,
+      "end": 15.38,
+      "probability": 0.949
+    },
+    {
+      "word": "weapon.",
+      "start": 15.38,
+      "end": 15.7,
+      "probability": 0.997
+    },
+    {
+      "word": "Not",
+      "start": 16.32,
+      "end": 16.6,
+      "probability": 0.996
+    },
+    {
+      "word": "even",
+      "start": 16.6,
+      "end": 16.84,
+      "probability": 0.999
+    },
+    {
+      "word": "close.",
+      "start": 16.84,
+      "end": 17.1,
+      "probability": 0.993
+    },
+    {
+      "word": "The",
+      "start": 17.82,
+      "end": 17.98,
+      "probability": 0.996
+    },
+    {
+      "word": "real",
+      "start": 17.98,
+      "end": 18.22,
+      "probability": 0.928
+    },
+    {
+      "word": "magic",
+      "start": 18.22,
+      "end": 18.56,
+      "probability": 0.972
+    },
+    {
+      "word": "inside",
+      "start": 18.56,
+      "end": 19.06,
+      "probability": 0.992
+    },
+    {
+      "word": "Apple's",
+      "start": 19.06,
+      "end": 19.64,
+      "probability": 0.942
+    },
+    {
+      "word": "basket",
+      "start": 19.64,
+      "end": 20.02,
+      "probability": 0.95
+    },
+    {
+      "word": "is",
+      "start": 20.02,
+      "end": 20.36,
+      "probability": 0.899
+    },
+    {
+      "word": "a",
+      "start": 20.36,
+      "end": 20.44,
+      "probability": 0.995
+    },
+    {
+      "word": "brand",
+      "start": 20.44,
+      "end": 20.68,
+      "probability": 0.999
+    },
+    {
+      "word": "name",
+      "start": 20.68,
+      "end": 20.94,
+      "probability": 0.95
+    },
+    {
+      "word": "so",
+      "start": 20.94,
+      "end": 21.26,
+      "probability": 0.995
+    },
+    {
+      "word": "ridiculously",
+      "start": 21.26,
+      "end": 21.76,
+      "probability": 0.996
+    },
+    {
+      "word": "powerful",
+      "start": 21.76,
+      "end": 22.48,
+      "probability": 0.998
+    },
+    {
+      "word": "that",
+      "start": 22.48,
+      "end": 22.98,
+      "probability": 0.893
+    },
+    {
+      "word": "millions",
+      "start": 22.98,
+      "end": 23.36,
+      "probability": 0.997
+    },
+    {
+      "word": "of",
+      "start": 23.36,
+      "end": 23.6,
+      "probability": 0.994
+    },
+    {
+      "word": "people",
+      "start": 23.6,
+      "end": 23.86,
+      "probability": 0.999
+    },
+    {
+      "word": "will",
+      "start": 23.86,
+      "end": 24.1,
+      "probability": 0.997
+    },
+    {
+      "word": "happily",
+      "start": 24.1,
+      "end": 24.48,
+      "probability": 0.998
+    },
+    {
+      "word": "pay",
+      "start": 24.48,
+      "end": 24.8,
+      "probability": 0.998
+    },
+    {
+      "word": "twice",
+      "start": 24.8,
+      "end": 25.46,
+      "probability": 0.945
+    },
+    {
+      "word": "as",
+      "start": 25.46,
+      "end": 25.8,
+      "probability": 0.993
+    },
+    {
+      "word": "much",
+      "start": 25.8,
+      "end": 26.1,
+      "probability": 0.999
+    },
+    {
+      "word": "for",
+      "start": 26.1,
+      "end": 26.34,
+      "probability": 0.991
+    },
+    {
+      "word": "their",
+      "start": 26.34,
+      "end": 26.48,
+      "probability": 0.997
+    },
+    {
+      "word": "phone",
+      "start": 26.48,
+      "end": 26.88,
+      "probability": 0.993
+    },
+    {
+      "word": "compared",
+      "start": 26.88,
+      "end": 27.42,
+      "probability": 0.666
+    },
+    {
+      "word": "to",
+      "start": 27.42,
+      "end": 27.64,
+      "probability": 0.999
+    },
+    {
+      "word": "anyone",
+      "start": 27.64,
+      "end": 27.94,
+      "probability": 0.992
+    },
+    {
+      "word": "else's.",
+      "start": 27.94,
+      "end": 28.4,
+      "probability": 0.981
+    },
+    {
+      "word": "That",
+      "start": 28.4,
+      "end": 28.98,
+      "probability": 0.792
+    },
+    {
+      "word": "is",
+      "start": 28.98,
+      "end": 29.12,
+      "probability": 0.952
+    },
+    {
+      "word": "all",
+      "start": 29.12,
+      "end": 29.26,
+      "probability": 0.979
+    },
+    {
+      "word": "a",
+      "start": 29.26,
+      "end": 29.36,
+      "probability": 0.933
+    },
+    {
+      "word": "company",
+      "start": 29.36,
+      "end": 29.66,
+      "probability": 0.996
+    },
+    {
+      "word": "really",
+      "start": 29.66,
+      "end": 30.34,
+      "probability": 0.567
+    },
+    {
+      "word": "is",
+      "start": 30.34,
+      "end": 30.74,
+      "probability": 0.98
+    },
+    {
+      "word": "a",
+      "start": 30.74,
+      "end": 30.86,
+      "probability": 0.997
+    },
+    {
+      "word": "basket",
+      "start": 30.86,
+      "end": 31.18,
+      "probability": 0.951
+    },
+    {
+      "word": "full",
+      "start": 31.18,
+      "end": 31.48,
+      "probability": 0.995
+    },
+    {
+      "word": "of",
+      "start": 31.48,
+      "end": 31.64,
+      "probability": 0.992
+    },
+    {
+      "word": "valuable",
+      "start": 31.64,
+      "end": 32.02,
+      "probability": 0.993
+    },
+    {
+      "word": "stuff.",
+      "start": 32.02,
+      "end": 32.54,
+      "probability": 0.998
+    },
+    {
+      "word": "Some",
+      "start": 32.72,
+      "end": 33.04,
+      "probability": 0.983
+    },
+    {
+      "word": "you",
+      "start": 33.04,
+      "end": 33.22,
+      "probability": 0.96
+    },
+    {
+      "word": "can",
+      "start": 33.22,
+      "end": 33.36,
+      "probability": 0.995
+    },
+    {
+      "word": "see",
+      "start": 33.36,
+      "end": 33.62,
+      "probability": 0.997
+    },
+    {
+      "word": "and",
+      "start": 33.62,
+      "end": 34.02,
+      "probability": 0.438
+    },
+    {
+      "word": "some",
+      "start": 34.02,
+      "end": 34.26,
+      "probability": 0.996
+    },
+    {
+      "word": "you",
+      "start": 34.26,
+      "end": 34.44,
+      "probability": 0.993
+    },
+    {
+      "word": "can't.",
+      "start": 34.44,
+      "end": 34.8,
+      "probability": 0.991
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 4.56,
+      "text": "But some of the stuff, sitting inside that basket you can't touch at all, things like",
+      "words": [
+        {
+          "word": "But",
+          "start": 0.0,
+          "end": 0.46,
+          "probability": 0.905
+        },
+        {
+          "word": "some",
+          "start": 0.46,
+          "end": 0.68,
+          "probability": 0.985
+        },
+        {
+          "word": "of",
+          "start": 0.68,
+          "end": 0.82,
+          "probability": 0.989
+        },
+        {
+          "word": "the",
+          "start": 0.82,
+          "end": 0.94,
+          "probability": 0.942
+        },
+        {
+          "word": "stuff,",
+          "start": 0.94,
+          "end": 1.16,
+          "probability": 0.998
+        },
+        {
+          "word": "sitting",
+          "start": 1.48,
+          "end": 1.76,
+          "probability": 0.987
+        },
+        {
+          "word": "inside",
+          "start": 1.76,
+          "end": 2.16,
+          "probability": 0.999
+        },
+        {
+          "word": "that",
+          "start": 2.16,
+          "end": 2.38,
+          "probability": 0.962
+        },
+        {
+          "word": "basket",
+          "start": 2.38,
+          "end": 2.74,
+          "probability": 0.99
+        },
+        {
+          "word": "you",
+          "start": 2.74,
+          "end": 2.96,
+          "probability": 0.786
+        },
+        {
+          "word": "can't",
+          "start": 2.96,
+          "end": 3.32,
+          "probability": 0.99
+        },
+        {
+          "word": "touch",
+          "start": 3.32,
+          "end": 3.48,
+          "probability": 0.999
+        },
+        {
+          "word": "at",
+          "start": 3.48,
+          "end": 3.64,
+          "probability": 0.888
+        },
+        {
+          "word": "all,",
+          "start": 3.64,
+          "end": 3.88,
+          "probability": 0.998
+        },
+        {
+          "word": "things",
+          "start": 4.2,
+          "end": 4.4,
+          "probability": 0.976
+        },
+        {
+          "word": "like",
+          "start": 4.4,
+          "end": 4.56,
+          "probability": 0.998
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start": 4.56,
+      "end": 6.22,
+      "text": "a brand name or a reputation.",
+      "words": [
+        {
+          "word": "a",
+          "start": 4.56,
+          "end": 4.68,
+          "probability": 0.98
+        },
+        {
+          "word": "brand",
+          "start": 4.68,
+          "end": 4.92,
+          "probability": 0.997
+        },
+        {
+          "word": "name",
+          "start": 4.92,
+          "end": 5.24,
+          "probability": 0.958
+        },
+        {
+          "word": "or",
+          "start": 5.24,
+          "end": 5.6,
+          "probability": 0.816
+        },
+        {
+          "word": "a",
+          "start": 5.6,
+          "end": 5.72,
+          "probability": 0.966
+        },
+        {
+          "word": "reputation.",
+          "start": 5.72,
+          "end": 6.22,
+          "probability": 0.986
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start": 6.84,
+      "end": 8.3,
+      "text": "Take S. Appla, for example.",
+      "words": [
+        {
+          "word": "Take",
+          "start": 6.84,
+          "end": 7.02,
+          "probability": 0.968
+        },
+        {
+          "word": "S.",
+          "start": 7.02,
+          "end": 7.3,
+          "probability": 0.744
+        },
+        {
+          "word": "Appla,",
+          "start": 7.46,
+          "end": 7.7,
+          "probability": 0.433
+        },
+        {
+          "word": "for",
+          "start": 7.86,
+          "end": 7.96,
+          "probability": 0.998
+        },
+        {
+          "word": "example.",
+          "start": 7.96,
+          "end": 8.3,
+          "probability": 1.0
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "start": 8.98,
+      "end": 13.82,
+      "text": "Sure, they own massive warehouses stuffed to the ceiling with iPhones, but is aluminum",
+      "words": [
+        {
+          "word": "Sure,",
+          "start": 8.98,
+          "end": 9.24,
+          "probability": 0.984
+        },
+        {
+          "word": "they",
+          "start": 9.6,
+          "end": 9.68,
+          "probability": 0.992
+        },
+        {
+          "word": "own",
+          "start": 9.68,
+          "end": 9.94,
+          "probability": 0.997
+        },
+        {
+          "word": "massive",
+          "start": 9.94,
+          "end": 10.36,
+          "probability": 0.99
+        },
+        {
+          "word": "warehouses",
+          "start": 10.36,
+          "end": 10.9,
+          "probability": 0.995
+        },
+        {
+          "word": "stuffed",
+          "start": 10.9,
+          "end": 11.4,
+          "probability": 0.707
+        },
+        {
+          "word": "to",
+          "start": 11.4,
+          "end": 11.68,
+          "probability": 0.992
+        },
+        {
+          "word": "the",
+          "start": 11.68,
+          "end": 11.78,
+          "probability": 0.993
+        },
+        {
+          "word": "ceiling",
+          "start": 11.78,
+          "end": 12.06,
+          "probability": 0.996
+        },
+        {
+          "word": "with",
+          "start": 12.06,
+          "end": 12.3,
+          "probability": 0.998
+        },
+        {
+          "word": "iPhones,",
+          "start": 12.3,
+          "end": 12.64,
+          "probability": 0.975
+        },
+        {
+          "word": "but",
+          "start": 13.26,
+          "end": 13.36,
+          "probability": 0.997
+        },
+        {
+          "word": "is",
+          "start": 13.36,
+          "end": 13.5,
+          "probability": 0.887
+        },
+        {
+          "word": "aluminum",
+          "start": 13.5,
+          "end": 13.82,
+          "probability": 0.959
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "start": 13.82,
+      "end": 15.7,
+      "text": "and glass their real secret weapon.",
+      "words": [
+        {
+          "word": "and",
+          "start": 13.82,
+          "end": 14.24,
+          "probability": 0.954
+        },
+        {
+          "word": "glass",
+          "start": 14.24,
+          "end": 14.5,
+          "probability": 0.987
+        },
+        {
+          "word": "their",
+          "start": 14.5,
+          "end": 14.76,
+          "probability": 0.883
+        },
+        {
+          "word": "real",
+          "start": 14.76,
+          "end": 15.0,
+          "probability": 0.979
+        },
+        {
+          "word": "secret",
+          "start": 15.0,
+          "end": 15.38,
+          "probability": 0.949
+        },
+        {
+          "word": "weapon.",
+          "start": 15.38,
+          "end": 15.7,
+          "probability": 0.997
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "start": 16.32,
+      "end": 17.1,
+      "text": "Not even close.",
+      "words": [
+        {
+          "word": "Not",
+          "start": 16.32,
+          "end": 16.6,
+          "probability": 0.996
+        },
+        {
+          "word": "even",
+          "start": 16.6,
+          "end": 16.84,
+          "probability": 0.999
+        },
+        {
+          "word": "close.",
+          "start": 16.84,
+          "end": 17.1,
+          "probability": 0.993
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "start": 17.82,
+      "end": 23.36,
+      "text": "The real magic inside Apple's basket is a brand name so ridiculously powerful that millions",
+      "words": [
+        {
+          "word": "The",
+          "start": 17.82,
+          "end": 17.98,
+          "probability": 0.996
+        },
+        {
+          "word": "real",
+          "start": 17.98,
+          "end": 18.22,
+          "probability": 0.928
+        },
+        {
+          "word": "magic",
+          "start": 18.22,
+          "end": 18.56,
+          "probability": 0.972
+        },
+        {
+          "word": "inside",
+          "start": 18.56,
+          "end": 19.06,
+          "probability": 0.992
+        },
+        {
+          "word": "Apple's",
+          "start": 19.06,
+          "end": 19.64,
+          "probability": 0.942
+        },
+        {
+          "word": "basket",
+          "start": 19.64,
+          "end": 20.02,
+          "probability": 0.95
+        },
+        {
+          "word": "is",
+          "start": 20.02,
+          "end": 20.36,
+          "probability": 0.899
+        },
+        {
+          "word": "a",
+          "start": 20.36,
+          "end": 20.44,
+          "probability": 0.995
+        },
+        {
+          "word": "brand",
+          "start": 20.44,
+          "end": 20.68,
+          "probability": 0.999
+        },
+        {
+          "word": "name",
+          "start": 20.68,
+          "end": 20.94,
+          "probability": 0.95
+        },
+        {
+          "word": "so",
+          "start": 20.94,
+          "end": 21.26,
+          "probability": 0.995
+        },
+        {
+          "word": "ridiculously",
+          "start": 21.26,
+          "end": 21.76,
+          "probability": 0.996
+        },
+        {
+          "word": "powerful",
+          "start": 21.76,
+          "end": 22.48,
+          "probability": 0.998
+        },
+        {
+          "word": "that",
+          "start": 22.48,
+          "end": 22.98,
+          "probability": 0.893
+        },
+        {
+          "word": "millions",
+          "start": 22.98,
+          "end": 23.36,
+          "probability": 0.997
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "start": 23.36,
+      "end": 28.4,
+      "text": "of people will happily pay twice as much for their phone compared to anyone else's.",
+      "words": [
+        {
+          "word": "of",
+          "start": 23.36,
+          "end": 23.6,
+          "probability": 0.994
+        },
+        {
+          "word": "people",
+          "start": 23.6,
+          "end": 23.86,
+          "probability": 0.999
+        },
+        {
+          "word": "will",
+          "start": 23.86,
+          "end": 24.1,
+          "probability": 0.997
+        },
+        {
+          "word": "happily",
+          "start": 24.1,
+          "end": 24.48,
+          "probability": 0.998
+        },
+        {
+          "word": "pay",
+          "start": 24.48,
+          "end": 24.8,
+          "probability": 0.998
+        },
+        {
+          "word": "twice",
+          "start": 24.8,
+          "end": 25.46,
+          "probability": 0.945
+        },
+        {
+          "word": "as",
+          "start": 25.46,
+          "end": 25.8,
+          "probability": 0.993
+        },
+        {
+          "word": "much",
+          "start": 25.8,
+          "end": 26.1,
+          "probability": 0.999
+        },
+        {
+          "word": "for",
+          "start": 26.1,
+          "end": 26.34,
+          "probability": 0.991
+        },
+        {
+          "word": "their",
+          "start": 26.34,
+          "end": 26.48,
+          "probability": 0.997
+        },
+        {
+          "word": "phone",
+          "start": 26.48,
+          "end": 26.88,
+          "probability": 0.993
+        },
+        {
+          "word": "compared",
+          "start": 26.88,
+          "end": 27.42,
+          "probability": 0.666
+        },
+        {
+          "word": "to",
+          "start": 27.42,
+          "end": 27.64,
+          "probability": 0.999
+        },
+        {
+          "word": "anyone",
+          "start": 27.64,
+          "end": 27.94,
+          "probability": 0.992
+        },
+        {
+          "word": "else's.",
+          "start": 27.94,
+          "end": 28.4,
+          "probability": 0.981
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "start": 28.4,
+      "end": 32.54,
+      "text": "That is all a company really is a basket full of valuable stuff.",
+      "words": [
+        {
+          "word": "That",
+          "start": 28.4,
+          "end": 28.98,
+          "probability": 0.792
+        },
+        {
+          "word": "is",
+          "start": 28.98,
+          "end": 29.12,
+          "probability": 0.952
+        },
+        {
+          "word": "all",
+          "start": 29.12,
+          "end": 29.26,
+          "probability": 0.979
+        },
+        {
+          "word": "a",
+          "start": 29.26,
+          "end": 29.36,
+          "probability": 0.933
+        },
+        {
+          "word": "company",
+          "start": 29.36,
+          "end": 29.66,
+          "probability": 0.996
+        },
+        {
+          "word": "really",
+          "start": 29.66,
+          "end": 30.34,
+          "probability": 0.567
+        },
+        {
+          "word": "is",
+          "start": 30.34,
+          "end": 30.74,
+          "probability": 0.98
+        },
+        {
+          "word": "a",
+          "start": 30.74,
+          "end": 30.86,
+          "probability": 0.997
+        },
+        {
+          "word": "basket",
+          "start": 30.86,
+          "end": 31.18,
+          "probability": 0.951
+        },
+        {
+          "word": "full",
+          "start": 31.18,
+          "end": 31.48,
+          "probability": 0.995
+        },
+        {
+          "word": "of",
+          "start": 31.48,
+          "end": 31.64,
+          "probability": 0.992
+        },
+        {
+          "word": "valuable",
+          "start": 31.64,
+          "end": 32.02,
+          "probability": 0.993
+        },
+        {
+          "word": "stuff.",
+          "start": 32.02,
+          "end": 32.54,
+          "probability": 0.998
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "start": 32.72,
+      "end": 34.8,
+      "text": "Some you can see and some you can't.",
+      "words": [
+        {
+          "word": "Some",
+          "start": 32.72,
+          "end": 33.04,
+          "probability": 0.983
+        },
+        {
+          "word": "you",
+          "start": 33.04,
+          "end": 33.22,
+          "probability": 0.96
+        },
+        {
+          "word": "can",
+          "start": 33.22,
+          "end": 33.36,
+          "probability": 0.995
+        },
+        {
+          "word": "see",
+          "start": 33.36,
+          "end": 33.62,
+          "probability": 0.997
+        },
+        {
+          "word": "and",
+          "start": 33.62,
+          "end": 34.02,
+          "probability": 0.438
+        },
+        {
+          "word": "some",
+          "start": 34.02,
+          "end": 34.26,
+          "probability": 0.996
+        },
+        {
+          "word": "you",
+          "start": 34.26,
+          "end": 34.44,
+          "probability": 0.993
+        },
+        {
+          "word": "can't.",
+          "start": 34.44,
+          "end": 34.8,
+          "probability": 0.991
+        }
+      ]
+    }
+  ]
+}

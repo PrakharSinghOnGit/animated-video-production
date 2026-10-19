@@ -101,14 +101,33 @@ export const DynamicScene: React.FC<DynamicSceneProps> = ({
             componentProps.landingFrame = resolvedAnchorFrames["countUp.end"];
           }
 
+          const sceneDurMs = scene.endMs - scene.startMs;
+
+          // Detect whether element timing is timeline-absolute or scene-relative (0-based)
+          const isAbsolute =
+            (elem.enterAtMs !== undefined && elem.enterAtMs >= scene.startMs) ||
+            (elem.exitAtMs !== undefined && elem.exitAtMs > sceneDurMs && elem.exitAtMs >= scene.startMs);
+
           // Relative enter timing
           if (elem.enterAtMs !== undefined) {
-            componentProps.enterAtFrame = msToFrames(elem.enterAtMs - scene.startMs, fps);
+            const relEnterMs = isAbsolute
+              ? Math.max(0, elem.enterAtMs - scene.startMs)
+              : Math.max(0, elem.enterAtMs);
+            componentProps.enterAtFrame = msToFrames(relEnterMs, fps);
           }
 
           // Relative exit timing
           if (elem.exitAtMs !== undefined) {
-            componentProps.exitAtFrame = msToFrames(elem.exitAtMs - scene.startMs, fps);
+            const relExitMs = isAbsolute
+              ? elem.exitAtMs - scene.startMs
+              : elem.exitAtMs;
+
+            // If exit is at or after the scene duration, keep visible until scene cut/transition
+            if (relExitMs >= sceneDurMs - 100) {
+              componentProps.exitAtFrame = undefined;
+            } else {
+              componentProps.exitAtFrame = msToFrames(Math.max(0, relExitMs), fps);
+            }
           }
 
           return (

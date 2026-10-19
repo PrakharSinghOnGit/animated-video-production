@@ -1,0 +1,772 @@
+{
+  "audio_file": "27_part6_03_beat.wav",
+  "duration": 26.676,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "Sometimes the market moves on cold, hard logic, and sometimes it moves on pure, unfiltered emotion, millions of human beings, and the algorithms programmed to mimic them, get euphoric or terrified at the exact same second. Breaking news, whispered rumors, macroeconomic shifts, everything alters how people doffel about tomorrow, and how people feel about tomorrow move stock prices dot today.",
+  "words": [
+    {
+      "word": "Sometimes",
+      "start": 0.0,
+      "end": 0.76,
+      "probability": 0.842
+    },
+    {
+      "word": "the",
+      "start": 0.76,
+      "end": 1.02,
+      "probability": 0.851
+    },
+    {
+      "word": "market",
+      "start": 1.02,
+      "end": 1.28,
+      "probability": 0.998
+    },
+    {
+      "word": "moves",
+      "start": 1.28,
+      "end": 1.56,
+      "probability": 0.988
+    },
+    {
+      "word": "on",
+      "start": 1.56,
+      "end": 1.78,
+      "probability": 0.996
+    },
+    {
+      "word": "cold,",
+      "start": 1.78,
+      "end": 2.06,
+      "probability": 0.972
+    },
+    {
+      "word": "hard",
+      "start": 2.5,
+      "end": 2.68,
+      "probability": 0.995
+    },
+    {
+      "word": "logic,",
+      "start": 2.68,
+      "end": 3.06,
+      "probability": 0.946
+    },
+    {
+      "word": "and",
+      "start": 3.52,
+      "end": 3.84,
+      "probability": 0.993
+    },
+    {
+      "word": "sometimes",
+      "start": 3.84,
+      "end": 4.3,
+      "probability": 0.996
+    },
+    {
+      "word": "it",
+      "start": 4.3,
+      "end": 4.48,
+      "probability": 0.994
+    },
+    {
+      "word": "moves",
+      "start": 4.48,
+      "end": 4.68,
+      "probability": 0.992
+    },
+    {
+      "word": "on",
+      "start": 4.68,
+      "end": 4.9,
+      "probability": 0.998
+    },
+    {
+      "word": "pure,",
+      "start": 4.9,
+      "end": 5.22,
+      "probability": 0.98
+    },
+    {
+      "word": "unfiltered",
+      "start": 5.62,
+      "end": 6.12,
+      "probability": 0.982
+    },
+    {
+      "word": "emotion,",
+      "start": 6.12,
+      "end": 6.58,
+      "probability": 0.987
+    },
+    {
+      "word": "millions",
+      "start": 7.22,
+      "end": 7.46,
+      "probability": 0.994
+    },
+    {
+      "word": "of",
+      "start": 7.46,
+      "end": 7.72,
+      "probability": 0.998
+    },
+    {
+      "word": "human",
+      "start": 7.72,
+      "end": 7.96,
+      "probability": 0.999
+    },
+    {
+      "word": "beings,",
+      "start": 7.96,
+      "end": 8.4,
+      "probability": 0.991
+    },
+    {
+      "word": "and",
+      "start": 8.8,
+      "end": 9.02,
+      "probability": 0.998
+    },
+    {
+      "word": "the",
+      "start": 9.02,
+      "end": 9.14,
+      "probability": 0.994
+    },
+    {
+      "word": "algorithms",
+      "start": 9.14,
+      "end": 9.58,
+      "probability": 0.944
+    },
+    {
+      "word": "programmed",
+      "start": 9.58,
+      "end": 10.14,
+      "probability": 0.984
+    },
+    {
+      "word": "to",
+      "start": 10.14,
+      "end": 10.46,
+      "probability": 0.998
+    },
+    {
+      "word": "mimic",
+      "start": 10.46,
+      "end": 10.74,
+      "probability": 0.992
+    },
+    {
+      "word": "them,",
+      "start": 10.74,
+      "end": 11.04,
+      "probability": 0.997
+    },
+    {
+      "word": "get",
+      "start": 11.34,
+      "end": 11.56,
+      "probability": 0.99
+    },
+    {
+      "word": "euphoric",
+      "start": 11.56,
+      "end": 12.02,
+      "probability": 0.941
+    },
+    {
+      "word": "or",
+      "start": 12.02,
+      "end": 12.26,
+      "probability": 0.816
+    },
+    {
+      "word": "terrified",
+      "start": 12.26,
+      "end": 12.8,
+      "probability": 0.986
+    },
+    {
+      "word": "at",
+      "start": 12.8,
+      "end": 13.32,
+      "probability": 0.937
+    },
+    {
+      "word": "the",
+      "start": 13.32,
+      "end": 13.46,
+      "probability": 0.997
+    },
+    {
+      "word": "exact",
+      "start": 13.46,
+      "end": 13.8,
+      "probability": 0.994
+    },
+    {
+      "word": "same",
+      "start": 13.8,
+      "end": 14.24,
+      "probability": 1.0
+    },
+    {
+      "word": "second.",
+      "start": 14.24,
+      "end": 14.6,
+      "probability": 0.986
+    },
+    {
+      "word": "Breaking",
+      "start": 15.5,
+      "end": 15.72,
+      "probability": 0.932
+    },
+    {
+      "word": "news,",
+      "start": 15.72,
+      "end": 16.1,
+      "probability": 0.909
+    },
+    {
+      "word": "whispered",
+      "start": 16.54,
+      "end": 16.88,
+      "probability": 0.969
+    },
+    {
+      "word": "rumors,",
+      "start": 16.88,
+      "end": 17.16,
+      "probability": 0.941
+    },
+    {
+      "word": "macroeconomic",
+      "start": 17.88,
+      "end": 18.52,
+      "probability": 0.974
+    },
+    {
+      "word": "shifts,",
+      "start": 18.52,
+      "end": 19.0,
+      "probability": 0.996
+    },
+    {
+      "word": "everything",
+      "start": 19.56,
+      "end": 20.08,
+      "probability": 0.947
+    },
+    {
+      "word": "alters",
+      "start": 20.08,
+      "end": 20.5,
+      "probability": 0.779
+    },
+    {
+      "word": "how",
+      "start": 20.5,
+      "end": 20.72,
+      "probability": 0.993
+    },
+    {
+      "word": "people",
+      "start": 20.72,
+      "end": 21.0,
+      "probability": 0.999
+    },
+    {
+      "word": "doffel",
+      "start": 21.0,
+      "end": 21.58,
+      "probability": 0.255
+    },
+    {
+      "word": "about",
+      "start": 21.58,
+      "end": 21.86,
+      "probability": 0.832
+    },
+    {
+      "word": "tomorrow,",
+      "start": 21.86,
+      "end": 22.3,
+      "probability": 0.988
+    },
+    {
+      "word": "and",
+      "start": 22.6,
+      "end": 23.02,
+      "probability": 0.996
+    },
+    {
+      "word": "how",
+      "start": 23.02,
+      "end": 23.22,
+      "probability": 0.997
+    },
+    {
+      "word": "people",
+      "start": 23.22,
+      "end": 23.54,
+      "probability": 0.997
+    },
+    {
+      "word": "feel",
+      "start": 23.54,
+      "end": 23.88,
+      "probability": 0.995
+    },
+    {
+      "word": "about",
+      "start": 23.88,
+      "end": 24.14,
+      "probability": 0.997
+    },
+    {
+      "word": "tomorrow",
+      "start": 24.14,
+      "end": 24.5,
+      "probability": 0.985
+    },
+    {
+      "word": "move",
+      "start": 24.5,
+      "end": 24.92,
+      "probability": 0.838
+    },
+    {
+      "word": "stock",
+      "start": 24.92,
+      "end": 25.26,
+      "probability": 0.959
+    },
+    {
+      "word": "prices",
+      "start": 25.26,
+      "end": 25.68,
+      "probability": 0.898
+    },
+    {
+      "word": "dot",
+      "start": 25.68,
+      "end": 26.18,
+      "probability": 0.074
+    },
+    {
+      "word": "today.",
+      "start": 26.18,
+      "end": 26.46,
+      "probability": 0.944
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 6.12,
+      "text": "Sometimes the market moves on cold, hard logic, and sometimes it moves on pure, unfiltered",
+      "words": [
+        {
+          "word": "Sometimes",
+          "start": 0.0,
+          "end": 0.76,
+          "probability": 0.842
+        },
+        {
+          "word": "the",
+          "start": 0.76,
+          "end": 1.02,
+          "probability": 0.851
+        },
+        {
+          "word": "market",
+          "start": 1.02,
+          "end": 1.28,
+          "probability": 0.998
+        },
+        {
+          "word": "moves",
+          "start": 1.28,
+          "end": 1.56,
+          "probability": 0.988
+        },
+        {
+          "word": "on",
+          "start": 1.56,
+          "end": 1.78,
+          "probability": 0.996
+        },
+        {
+          "word": "cold,",
+          "start": 1.78,
+          "end": 2.06,
+          "probability": 0.972
+        },
+        {
+          "word": "hard",
+          "start": 2.5,
+          "end": 2.68,
+          "probability": 0.995
+        },
+        {
+          "word": "logic,",
+          "start": 2.68,
+          "end": 3.06,
+          "probability": 0.946
+        },
+        {
+          "word": "and",
+          "start": 3.52,
+          "end": 3.84,
+          "probability": 0.993
+        },
+        {
+          "word": "sometimes",
+          "start": 3.84,
+          "end": 4.3,
+          "probability": 0.996
+        },
+        {
+          "word": "it",
+          "start": 4.3,
+          "end": 4.48,
+          "probability": 0.994
+        },
+        {
+          "word": "moves",
+          "start": 4.48,
+          "end": 4.68,
+          "probability": 0.992
+        },
+        {
+          "word": "on",
+          "start": 4.68,
+          "end": 4.9,
+          "probability": 0.998
+        },
+        {
+          "word": "pure,",
+          "start": 4.9,
+          "end": 5.22,
+          "probability": 0.98
+        },
+        {
+          "word": "unfiltered",
+          "start": 5.62,
+          "end": 6.12,
+          "probability": 0.982
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "start": 6.12,
+      "end": 12.02,
+      "text": "emotion, millions of human beings, and the algorithms programmed to mimic them, get euphoric",
+      "words": [
+        {
+          "word": "emotion,",
+          "start": 6.12,
+          "end": 6.58,
+          "probability": 0.987
+        },
+        {
+          "word": "millions",
+          "start": 7.22,
+          "end": 7.46,
+          "probability": 0.994
+        },
+        {
+          "word": "of",
+          "start": 7.46,
+          "end": 7.72,
+          "probability": 0.998
+        },
+        {
+          "word": "human",
+          "start": 7.72,
+          "end": 7.96,
+          "probability": 0.999
+        },
+        {
+          "word": "beings,",
+          "start": 7.96,
+          "end": 8.4,
+          "probability": 0.991
+        },
+        {
+          "word": "and",
+          "start": 8.8,
+          "end": 9.02,
+          "probability": 0.998
+        },
+        {
+          "word": "the",
+          "start": 9.02,
+          "end": 9.14,
+          "probability": 0.994
+        },
+        {
+          "word": "algorithms",
+          "start": 9.14,
+          "end": 9.58,
+          "probability": 0.944
+        },
+        {
+          "word": "programmed",
+          "start": 9.58,
+          "end": 10.14,
+          "probability": 0.984
+        },
+        {
+          "word": "to",
+          "start": 10.14,
+          "end": 10.46,
+          "probability": 0.998
+        },
+        {
+          "word": "mimic",
+          "start": 10.46,
+          "end": 10.74,
+          "probability": 0.992
+        },
+        {
+          "word": "them,",
+          "start": 10.74,
+          "end": 11.04,
+          "probability": 0.997
+        },
+        {
+          "word": "get",
+          "start": 11.34,
+          "end": 11.56,
+          "probability": 0.99
+        },
+        {
+          "word": "euphoric",
+          "start": 11.56,
+          "end": 12.02,
+          "probability": 0.941
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "start": 12.02,
+      "end": 14.6,
+      "text": "or terrified at the exact same second.",
+      "words": [
+        {
+          "word": "or",
+          "start": 12.02,
+          "end": 12.26,
+          "probability": 0.816
+        },
+        {
+          "word": "terrified",
+          "start": 12.26,
+          "end": 12.8,
+          "probability": 0.986
+        },
+        {
+          "word": "at",
+          "start": 12.8,
+          "end": 13.32,
+          "probability": 0.937
+        },
+        {
+          "word": "the",
+          "start": 13.32,
+          "end": 13.46,
+          "probability": 0.997
+        },
+        {
+          "word": "exact",
+          "start": 13.46,
+          "end": 13.8,
+          "probability": 0.994
+        },
+        {
+          "word": "same",
+          "start": 13.8,
+          "end": 14.24,
+          "probability": 1.0
+        },
+        {
+          "word": "second.",
+          "start": 14.24,
+          "end": 14.6,
+          "probability": 0.986
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "start": 15.5,
+      "end": 21.58,
+      "text": "Breaking news, whispered rumors, macroeconomic shifts, everything alters how people doffel",
+      "words": [
+        {
+          "word": "Breaking",
+          "start": 15.5,
+          "end": 15.72,
+          "probability": 0.932
+        },
+        {
+          "word": "news,",
+          "start": 15.72,
+          "end": 16.1,
+          "probability": 0.909
+        },
+        {
+          "word": "whispered",
+          "start": 16.54,
+          "end": 16.88,
+          "probability": 0.969
+        },
+        {
+          "word": "rumors,",
+          "start": 16.88,
+          "end": 17.16,
+          "probability": 0.941
+        },
+        {
+          "word": "macroeconomic",
+          "start": 17.88,
+          "end": 18.52,
+          "probability": 0.974
+        },
+        {
+          "word": "shifts,",
+          "start": 18.52,
+          "end": 19.0,
+          "probability": 0.996
+        },
+        {
+          "word": "everything",
+          "start": 19.56,
+          "end": 20.08,
+          "probability": 0.947
+        },
+        {
+          "word": "alters",
+          "start": 20.08,
+          "end": 20.5,
+          "probability": 0.779
+        },
+        {
+          "word": "how",
+          "start": 20.5,
+          "end": 20.72,
+          "probability": 0.993
+        },
+        {
+          "word": "people",
+          "start": 20.72,
+          "end": 21.0,
+          "probability": 0.999
+        },
+        {
+          "word": "doffel",
+          "start": 21.0,
+          "end": 21.58,
+          "probability": 0.255
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "start": 21.58,
+      "end": 26.46,
+      "text": "about tomorrow, and how people feel about tomorrow move stock prices dot today.",
+      "words": [
+        {
+          "word": "about",
+          "start": 21.58,
+          "end": 21.86,
+          "probability": 0.832
+        },
+        {
+          "word": "tomorrow,",
+          "start": 21.86,
+          "end": 22.3,
+          "probability": 0.988
+        },
+        {
+          "word": "and",
+          "start": 22.6,
+          "end": 23.02,
+          "probability": 0.996
+        },
+        {
+          "word": "how",
+          "start": 23.02,
+          "end": 23.22,
+          "probability": 0.997
+        },
+        {
+          "word": "people",
+          "start": 23.22,
+          "end": 23.54,
+          "probability": 0.997
+        },
+        {
+          "word": "feel",
+          "start": 23.54,
+          "end": 23.88,
+          "probability": 0.995
+        },
+        {
+          "word": "about",
+          "start": 23.88,
+          "end": 24.14,
+          "probability": 0.997
+        },
+        {
+          "word": "tomorrow",
+          "start": 24.14,
+          "end": 24.5,
+          "probability": 0.985
+        },
+        {
+          "word": "move",
+          "start": 24.5,
+          "end": 24.92,
+          "probability": 0.838
+        },
+        {
+          "word": "stock",
+          "start": 24.92,
+          "end": 25.26,
+          "probability": 0.959
+        },
+        {
+          "word": "prices",
+          "start": 25.26,
+          "end": 25.68,
+          "probability": 0.898
+        },
+        {
+          "word": "dot",
+          "start": 25.68,
+          "end": 26.18,
+          "probability": 0.074
+        },
+        {
+          "word": "today.",
+          "start": 26.18,
+          "end": 26.46,
+          "probability": 0.944
+        }
+      ]
+    }
+  ]
+}

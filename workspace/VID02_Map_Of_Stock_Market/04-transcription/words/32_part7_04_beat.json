@@ -1,0 +1,212 @@
+{
+  "audio_file": "32_part7_04_beat.wav",
+  "duration": 5.803,
+  "language": "en",
+  "language_probability": 1,
+  "model": "base",
+  "text": "Lock these six rules into your brain and the financial world will never intimidate you again",
+  "words": [
+    {
+      "word": "Lock",
+      "start": 0.0,
+      "end": 0.54,
+      "probability": 0.849
+    },
+    {
+      "word": "these",
+      "start": 0.54,
+      "end": 0.78,
+      "probability": 0.93
+    },
+    {
+      "word": "six",
+      "start": 0.78,
+      "end": 1.18,
+      "probability": 0.883
+    },
+    {
+      "word": "rules",
+      "start": 1.18,
+      "end": 1.5,
+      "probability": 0.995
+    },
+    {
+      "word": "into",
+      "start": 1.5,
+      "end": 1.96,
+      "probability": 0.989
+    },
+    {
+      "word": "your",
+      "start": 1.96,
+      "end": 2.2,
+      "probability": 0.997
+    },
+    {
+      "word": "brain",
+      "start": 2.2,
+      "end": 2.48,
+      "probability": 0.997
+    },
+    {
+      "word": "and",
+      "start": 2.48,
+      "end": 2.9,
+      "probability": 0.553
+    },
+    {
+      "word": "the",
+      "start": 2.9,
+      "end": 3.02,
+      "probability": 0.995
+    },
+    {
+      "word": "financial",
+      "start": 3.02,
+      "end": 3.54,
+      "probability": 0.974
+    },
+    {
+      "word": "world",
+      "start": 3.54,
+      "end": 3.94,
+      "probability": 0.999
+    },
+    {
+      "word": "will",
+      "start": 3.94,
+      "end": 4.14,
+      "probability": 0.971
+    },
+    {
+      "word": "never",
+      "start": 4.14,
+      "end": 4.48,
+      "probability": 0.998
+    },
+    {
+      "word": "intimidate",
+      "start": 4.48,
+      "end": 5.18,
+      "probability": 0.997
+    },
+    {
+      "word": "you",
+      "start": 5.18,
+      "end": 5.3,
+      "probability": 0.999
+    },
+    {
+      "word": "again",
+      "start": 5.3,
+      "end": 5.6,
+      "probability": 0.995
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "start": 0.0,
+      "end": 5.6,
+      "text": "Lock these six rules into your brain and the financial world will never intimidate you again",
+      "words": [
+        {
+          "word": "Lock",
+          "start": 0.0,
+          "end": 0.54,
+          "probability": 0.849
+        },
+        {
+          "word": "these",
+          "start": 0.54,
+          "end": 0.78,
+          "probability": 0.93
+        },
+        {
+          "word": "six",
+          "start": 0.78,
+          "end": 1.18,
+          "probability": 0.883
+        },
+        {
+          "word": "rules",
+          "start": 1.18,
+          "end": 1.5,
+          "probability": 0.995
+        },
+        {
+          "word": "into",
+          "start": 1.5,
+          "end": 1.96,
+          "probability": 0.989
+        },
+        {
+          "word": "your",
+          "start": 1.96,
+          "end": 2.2,
+          "probability": 0.997
+        },
+        {
+          "word": "brain",
+          "start": 2.2,
+          "end": 2.48,
+          "probability": 0.997
+        },
+        {
+          "word": "and",
+          "start": 2.48,
+          "end": 2.9,
+          "probability": 0.553
+        },
+        {
+          "word": "the",
+          "start": 2.9,
+          "end": 3.02,
+          "probability": 0.995
+        },
+        {
+          "word": "financial",
+          "start": 3.02,
+          "end": 3.54,
+          "probability": 0.974
+        },
+        {
+          "word": "world",
+          "start": 3.54,
+          "end": 3.94,
+          "probability": 0.999
+        },
+        {
+          "word": "will",
+          "start": 3.94,
+          "end": 4.14,
+          "probability": 0.971
+        },
+        {
+          "word": "never",
+          "start": 4.14,
+          "end": 4.48,
+          "probability": 0.998
+        },
+        {
+          "word": "intimidate",
+          "start": 4.48,
+          "end": 5.18,
+          "probability": 0.997
+        },
+        {
+          "word": "you",
+          "start": 5.18,
+          "end": 5.3,
+          "probability": 0.999
+        },
+        {
+          "word": "again",
+          "start": 5.3,
+          "end": 5.6,
+          "probability": 0.995
+        }
+      ]
+    }
+  ]
+}
