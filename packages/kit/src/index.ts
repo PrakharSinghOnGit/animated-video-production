@@ -9,6 +9,14 @@ export * from "./motion";
 export * from "./layout";
 export * from "./fonts";
 
+// Scene Context & Timing
+export * from "./scene";
+
+// Main Composition & Finish
+export { Backdrop } from "./main/Backdrop";
+export { Finish, type FinishProps } from "./main/Finish";
+export { VoiceOver, type VoiceOverProps } from "./main/VoiceOver";
+
 // Backgrounds
 export { GridDrift } from "./backgrounds/GridDrift";
 export { GlowBlobs } from "./backgrounds/GlowBlobs";

@@ -1,0 +1,14 @@
+{
+  "name": "@wealthgap-video/{{VIDEO_ID}}",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@wealthgap/kit": "workspace:*"
+  },
+  "scripts": {
+    "studio": "bun x remotion studio",
+    "still": "bun x remotion still",
+    "render": "bun x remotion render Main"
+  }
+}

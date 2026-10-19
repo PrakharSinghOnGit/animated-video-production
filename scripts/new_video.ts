@@ -32,6 +32,26 @@ if (fs.existsSync(targetDir)) {
   process.exit(1);
 }
 
+function copyDirRecursive(src: string, dest: string, videoId: string) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirRecursive(srcPath, destPath, videoId);
+    } else {
+      if (!fs.existsSync(destPath)) {
+        let content = fs.readFileSync(srcPath, "utf-8");
+        if (entry.name === "package.json") {
+          const pkgSlug = videoId.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+          content = content.replace("{{VIDEO_ID}}", pkgSlug);
+        }
+        fs.writeFileSync(destPath, content, "utf-8");
+      }
+    }
+  }
+}
+
 // Scaffolding directories (Step 1 ideation does not use separate bank folders)
 const subdirectories = [
   "01-ideation",
@@ -41,6 +61,8 @@ const subdirectories = [
   "04-transcription/words",
   "05-video/assets",
   "05-video/chunks",
+  "05-video/review",
+  "05-video/src/scenes",
   "06-audio/sfx",
   "06-audio/music",
   "07-assembly/export",
@@ -52,6 +74,14 @@ console.log(`======================================================`);
 
 for (const sub of subdirectories) {
   fs.mkdirSync(path.join(targetDir, sub), { recursive: true });
+}
+
+// Scaffold 05-video Remotion project template
+const templateDir = path.resolve(process.cwd(), "workflow/05-video/template");
+if (fs.existsSync(templateDir)) {
+  console.log(`📦 Scaffolding 05-video Remotion project template...`);
+  copyDirRecursive(templateDir, path.join(targetDir, "05-video"), videoId);
+  console.log(`✅ Scaffolding complete for 05-video.`);
 }
 
 let refMetadata: any = null;
@@ -197,6 +227,14 @@ fs.writeFileSync(
 console.log(`\n======================================================`);
 console.log(`✅ Video Workspace Created: ${path.relative(process.cwd(), targetDir)}`);
 console.log(`======================================================\n`);
+
+console.log(`⏳ Linking workspace dependencies (bun install)...`);
+try {
+  execSync("bun install", { stdio: "inherit" });
+  console.log(`✅ Workspace dependencies linked.\n`);
+} catch (err: any) {
+  console.warn(`⚠️ Warning: bun install had issues: ${err.message}\n`);
+}
 
 console.log(`Next Steps:`);
 if (youtubeUrl) {
