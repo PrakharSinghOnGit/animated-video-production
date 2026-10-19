@@ -34,7 +34,20 @@
     "video:package": "bun --cwd workflow/05-video scripts/package.ts",
     "video:build": "bun --cwd workflow/05-video scripts/build.ts",
     "video:test": "bun --cwd workflow/05-video scripts/test-fixture.ts",
-    "gallery": "bun --cwd workflow/05-video run studio"
+    "gallery": "bun --cwd workflow/05-video run studio",
+    "timeline": "bun run workflow/05-video/scripts/timeline.ts",
+    "storyboard": "bun run workflow/05-video/scripts/storyboard.ts",
+    "storyboard:check": "bun run workflow/05-video/scripts/storyboard_check.ts",
+    "assemble": "bun run workflow/05-video/scripts/assemble.ts",
+    "still": "bun run workflow/05-video/scripts/still.ts",
+    "sheet": "bun run workflow/05-video/scripts/sheet.ts",
+    "lint:scene": "bun run workflow/05-video/scripts/lint_scene.ts",
+    "scene:play": "bun run workflow/05-video/scripts/scene_play.ts",
+    "author": "bun run workflow/05-video/scripts/author.ts",
+    "harvest": "bun run workflow/05-video/scripts/harvest.ts",
+    "draft": "bun --cwd workflow/05-video scripts/render.ts --draft",
+    "render": "bun --cwd workflow/05-video scripts/render.ts --final",
+    "qc": "bun --cwd workflow/05-video scripts/qc.ts"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",

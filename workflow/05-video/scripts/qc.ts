@@ -11,7 +11,23 @@ interface QCIssue {
 }
 
 async function main() {
-  const target = process.argv[2] || "fixtures/sample-job";
+  const args = process.argv.slice(2);
+  let target = process.env.ACTIVE_VIDEO || "fixtures/sample-job";
+  let explicitFinal: boolean | null = null;
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--video" && args[i + 1]) {
+      target = args[i + 1];
+      i++;
+    } else if (args[i] === "--final") {
+      explicitFinal = true;
+    } else if (args[i] === "--draft") {
+      explicitFinal = false;
+    } else if (!args[i].startsWith("--")) {
+      target = args[i];
+    }
+  }
+
   const paths = resolveJobPaths(target);
 
   console.log(`[qc] Running automated quality control on job: ${paths.jobId}`);
@@ -215,6 +231,68 @@ async function main() {
     }
   }
 
+  // 6. Check Scene Completeness & Linting (for storyboard workspaces)
+  const storyboardPath = path.join(paths.outputDir, "storyboard.json");
+  const scenesDir = path.join(paths.outputDir, "src", "scenes");
+  const isFinal = explicitFinal !== null ? explicitFinal : (testVideo ? path.basename(testVideo) === "final.mp4" : false);
+
+  if (fs.existsSync(storyboardPath) && fs.existsSync(scenesDir)) {
+    try {
+      const sb = JSON.parse(fs.readFileSync(storyboardPath, "utf-8"));
+      const existingSceneFiles = fs.readdirSync(scenesDir).filter((f) => f.endsWith(".tsx") && f !== "index.ts");
+
+      // Verify every storyboard scene exists
+      for (const sc of sb.scenes) {
+        const found = existingSceneFiles.find((f) => f.toUpperCase().startsWith(sc.id.toUpperCase()));
+        if (!found) {
+          if (isFinal) {
+            issues.push({
+              type: "ERROR",
+              rule: "missing_scene",
+              message: `Scene ${sc.id} (${sc.slug}) is defined in storyboard but missing from src/scenes/.`,
+            });
+          } else {
+            issues.push({
+              type: "WARN",
+              rule: "missing_scene_draft",
+              message: `Scene ${sc.id} (${sc.slug}) is not yet authored. Rendering as placeholder.`,
+            });
+          }
+        }
+      }
+
+      // Check for placeholder scenes in index.ts for final render
+      const indexPath = path.join(scenesDir, "index.ts");
+      if (fs.existsSync(indexPath) && isFinal) {
+        const indexCode = fs.readFileSync(indexPath, "utf-8");
+        if (indexCode.includes("<PlaceholderScene")) {
+          issues.push({
+            type: "ERROR",
+            rule: "placeholder_in_final",
+            message: "Final broadcast render contains placeholder scenes. Author all scenes before final release.",
+          });
+        }
+      }
+
+      // Lint all existing scene files
+      const { lintSceneCode } = await import("@wealthgap/kit");
+      for (const sf of existingSceneFiles) {
+        const code = fs.readFileSync(path.join(scenesDir, sf), "utf-8");
+        const lintRes = lintSceneCode(code, sf);
+        if (!lintRes.valid) {
+          for (const err of lintRes.errors) {
+            issues.push({
+              type: "ERROR",
+              rule: "scene_lint_error",
+              message: `[${sf}] Line ${err.line ?? "?"}: ${err.message}`,
+            });
+          }
+        }
+      }
+    } catch {}
+  }
+
+
   // Generate Report
   const errors = issues.filter((i) => i.type === "ERROR");
   const warnings = issues.filter((i) => i.type === "WARN");
@@ -243,7 +321,9 @@ ${warnings.length === 0 ? "_No warnings._" : warnings.map((w) => `- **[${w.rule}
 ${info.map((i) => `- **[${i.rule}]** ${i.message}`).join("\n")}
 `;
 
-  const reportPath = path.join(paths.outputDir, "qc-report.md");
+  const reviewDir = paths.isWorkspace ? path.join(paths.outputDir, "review") : paths.outputDir;
+  fs.mkdirSync(reviewDir, { recursive: true });
+  const reportPath = path.join(reviewDir, "qc-report.md");
   fs.writeFileSync(reportPath, report, "utf-8");
   console.log(`[qc] Saved QC report to ${reportPath}`);
 
