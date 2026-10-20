@@ -89,7 +89,12 @@ function findAudioFiles(audioDir: string, partFilter?: number): { part: number; 
 
   const partDirs = fs
     .readdirSync(audioDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && d.name.startsWith("part-"));
+    .filter((d) => d.isDirectory() && d.name.startsWith("part-"))
+    .sort((a, b) => {
+      const numA = parseInt(a.name.replace(/\D/g, ""), 10) || 0;
+      const numB = parseInt(b.name.replace(/\D/g, ""), 10) || 0;
+      return numA - numB;
+    });
 
   for (const pDir of partDirs) {
     const partNum = parseInt(pDir.name.replace("part-", ""), 10);
@@ -99,7 +104,7 @@ function findAudioFiles(audioDir: string, partFilter?: number): { part: number; 
     const wavFiles = fs
       .readdirSync(fullPartDir)
       .filter((f) => f.endsWith(".wav") || f.endsWith(".mp3"))
-      .sort();
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     for (const f of wavFiles) {
       results.push({
