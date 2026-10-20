@@ -43,15 +43,19 @@ async function main() {
     const timelinePath = path.join(paths.outputDir, "timeline.json");
     const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
 
-    // Check voiceover file in public
+    // Check voiceover file in public and keep it synchronized with master audio
     const publicVo = path.join(paths.outputDir, "public", "voiceover.wav");
     const hasAudio = fs.existsSync(publicVo);
 
-    // If audio exists in voiceover directory but not public, copy it
-    if (!hasAudio && paths.audioFile && fs.existsSync(paths.audioFile)) {
-      const publicDir = path.join(paths.outputDir, "public");
-      fs.mkdirSync(publicDir, { recursive: true });
-      fs.copyFileSync(paths.audioFile, publicVo);
+    if (paths.audioFile && fs.existsSync(paths.audioFile)) {
+      const masterSize = fs.statSync(paths.audioFile).size;
+      const publicSize = hasAudio ? fs.statSync(publicVo).size : 0;
+      if (!hasAudio || publicSize !== masterSize) {
+        const publicDir = path.join(paths.outputDir, "public");
+        fs.mkdirSync(publicDir, { recursive: true });
+        fs.copyFileSync(paths.audioFile, publicVo);
+        console.log(`[render] Synchronized master voiceover to public/voiceover.wav (${(masterSize / (1024 * 1024)).toFixed(1)} MB)`);
+      }
     }
 
     const renderPropsPath = path.join(paths.outputDir, "render-props.json");

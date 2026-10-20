@@ -109,9 +109,17 @@ async function main() {
       } catch {}
     }
 
-    // public directory
+    // public directory & master audio sync
     const publicDir = path.join(paths.outputDir, "public");
     fs.mkdirSync(publicDir, { recursive: true });
+    if (paths.audioFile && fs.existsSync(paths.audioFile)) {
+      const publicVo = path.join(publicDir, "voiceover.wav");
+      const masterSize = fs.statSync(paths.audioFile).size;
+      const publicSize = fs.existsSync(publicVo) ? fs.statSync(publicVo).size : 0;
+      if (publicSize !== masterSize) {
+        fs.copyFileSync(paths.audioFile, publicVo);
+      }
+    }
   }
 
   // 2. Discover scene files in src/scenes/

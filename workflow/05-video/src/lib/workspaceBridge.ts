@@ -76,11 +76,44 @@ export function resolveJobPaths(targetId: string, baseDir: string = process.cwd(
     if (fs.existsSync(combinedAudio)) {
       audioFile = combinedAudio;
     } else {
-      // Look under 03-voiceover/audio for any audio file
       const voDir = path.join(baseJobDir, "03-voiceover", "audio");
       if (fs.existsSync(voDir)) {
-        const found = findAudioRecursive(voDir);
-        if (found) audioFile = found;
+        // Auto-combine part-* audio clips if present
+        const partDirs = fs
+          .readdirSync(voDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory() && d.name.startsWith("part-"))
+          .sort((a, b) => (parseInt(a.name.replace(/\D/g, ""), 10) || 0) - (parseInt(b.name.replace(/\D/g, ""), 10) || 0));
+
+        if (partDirs.length > 0) {
+          const allWavs: string[] = [];
+          for (const pDir of partDirs) {
+            const pPath = path.join(voDir, pDir.name);
+            const wFiles = fs
+              .readdirSync(pPath)
+              .filter((f) => f.endsWith(".wav") || f.endsWith(".mp3"))
+              .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+            for (const wf of wFiles) allWavs.push(path.join(pPath, wf));
+          }
+
+          if (allWavs.length > 0) {
+            try {
+              const combinedDir = path.join(voDir, "combined");
+              fs.mkdirSync(combinedDir, { recursive: true });
+              const listPath = path.join(combinedDir, "concat_list.txt");
+              fs.writeFileSync(listPath, allWavs.map((w) => `file '${path.resolve(w)}'`).join("\n"), "utf-8");
+              const { execSync } = require("node:child_process");
+              execSync(`ffmpeg -y -f concat -safe 0 -i "${listPath}" -c copy "${combinedAudio}"`, { stdio: "ignore" });
+              if (fs.existsSync(combinedAudio)) {
+                audioFile = combinedAudio;
+              }
+            } catch {}
+          }
+        }
+
+        if (!audioFile) {
+          const found = findAudioRecursive(voDir);
+          if (found) audioFile = found;
+        }
       }
     }
   } else {
