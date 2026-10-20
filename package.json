@@ -53,6 +53,7 @@
     "build": "bun run workflow/05-video/scripts/build_flow.ts"
   },
   "dependencies": {
+    "@wealthgap/kit": "workspace:*",
     "@react-three/fiber": "^9.8.2",
     "@remotion/captions": "4.0.536",
     "@remotion/cli": "4.0.536",

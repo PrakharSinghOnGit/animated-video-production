@@ -54,6 +54,66 @@ async function main() {
   const timeline = buildTimeline(captions, storyboard, { fps, leadMs: 200 });
   fs.writeFileSync(path.join(paths.outputDir, "timeline.json"), JSON.stringify(timeline, null, 2), "utf-8");
 
+  // 1b. Ensure workspace has Remotion template structure (Root.tsx, Main.tsx, index.ts, configs)
+  const templateDir = path.resolve(process.cwd(), "workflow/05-video/template");
+  if (fs.existsSync(templateDir)) {
+    const srcDir = path.join(paths.outputDir, "src");
+    fs.mkdirSync(srcDir, { recursive: true });
+
+    // Root.tsx
+    const rootFile = path.join(srcDir, "Root.tsx");
+    if (!fs.existsSync(rootFile)) {
+      fs.copyFileSync(path.join(templateDir, "src", "Root.tsx"), rootFile);
+      console.log(`✓ Scaffolding Root.tsx in ${srcDir}`);
+    }
+
+    // Main.tsx
+    const mainFile = path.join(srcDir, "Main.tsx");
+    if (!fs.existsSync(mainFile)) {
+      fs.copyFileSync(path.join(templateDir, "src", "Main.tsx"), mainFile);
+      console.log(`✓ Scaffolding Main.tsx in ${srcDir}`);
+    }
+
+    // index.ts (must call registerRoot)
+    const indexFile = path.join(srcDir, "index.ts");
+    let needsIndexScaffold = !fs.existsSync(indexFile);
+    if (fs.existsSync(indexFile)) {
+      const idxContent = fs.readFileSync(indexFile, "utf-8");
+      if (!idxContent.includes("registerRoot")) {
+        needsIndexScaffold = true;
+      }
+    }
+    if (needsIndexScaffold) {
+      fs.copyFileSync(path.join(templateDir, "src", "index.ts"), indexFile);
+      console.log(`✓ Scaffolding registerRoot entry point: ${indexFile}`);
+    }
+
+    // Config files
+    const configFiles = ["remotion.config.ts", "tsconfig.json"];
+    for (const cf of configFiles) {
+      const dest = path.join(paths.outputDir, cf);
+      if (!fs.existsSync(dest)) {
+        fs.copyFileSync(path.join(templateDir, cf), dest);
+      }
+    }
+
+    // package.json & bun install linking
+    const pkgFile = path.join(paths.outputDir, "package.json");
+    if (!fs.existsSync(pkgFile)) {
+      const templatePkg = fs.readFileSync(path.join(templateDir, "package.json"), "utf-8");
+      const pkgSlug = paths.jobId.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+      fs.writeFileSync(pkgFile, templatePkg.replace("{{VIDEO_ID}}", pkgSlug), "utf-8");
+      try {
+        const { execSync } = require("node:child_process");
+        execSync("bun install", { stdio: "ignore" });
+      } catch {}
+    }
+
+    // public directory
+    const publicDir = path.join(paths.outputDir, "public");
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
+
   // 2. Discover scene files in src/scenes/
   const scenesDir = path.join(paths.outputDir, "src", "scenes");
   fs.mkdirSync(scenesDir, { recursive: true });

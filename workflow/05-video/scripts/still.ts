@@ -115,10 +115,26 @@ async function main() {
 
   console.log(`Capturing ${uniqueFrames.length} frame(s) for scene ${scene.id} (duration: ${scene.durationFrames} frames):`);
 
-  // Target entry file
-  const entryFile = fs.existsSync(path.join(paths.outputDir, "src", "index.ts"))
-    ? path.join(paths.outputDir, "src", "index.ts")
+  // Target entry file & workspace template validation
+  const workspaceSrc = path.join(paths.outputDir, "src");
+  const workspaceEntry = path.join(workspaceSrc, "index.ts");
+  const rootEntry = path.join(workspaceSrc, "Root.tsx");
+  const templateDir = path.resolve(process.cwd(), "workflow/05-video/template");
+
+  // Auto-scaffold Remotion root if missing or corrupt
+  if (fs.existsSync(templateDir) && (!fs.existsSync(rootEntry) || !fs.existsSync(workspaceEntry) || !fs.readFileSync(workspaceEntry, "utf-8").includes("registerRoot"))) {
+    fs.mkdirSync(workspaceSrc, { recursive: true });
+    fs.copyFileSync(path.join(templateDir, "src", "Root.tsx"), rootEntry);
+    fs.copyFileSync(path.join(templateDir, "src", "Main.tsx"), path.join(workspaceSrc, "Main.tsx"));
+    fs.copyFileSync(path.join(templateDir, "src", "index.ts"), workspaceEntry);
+  }
+
+  const entryFile = fs.existsSync(workspaceEntry)
+    ? workspaceEntry
     : "workflow/05-video/src/index.ts";
+
+  const publicDir = path.join(paths.outputDir, "public");
+  const publicDirFlag = fs.existsSync(publicDir) ? ` --public-dir="${publicDir}"` : "";
 
   for (const { frame, label } of uniqueFrames) {
     // Find nearest word
@@ -138,7 +154,7 @@ async function main() {
 
     console.log(`  - Frame ${paddedFrame} (${label}, near "${nearestWord}") -> ${filename}`);
 
-    const cmd = `bunx remotion still ${entryFile} ${scene.id} ${outPath} --frame ${frame} --log=warn`;
+    const cmd = `bunx remotion still ${entryFile} ${scene.id} ${outPath} --frame ${frame}${publicDirFlag} --log=warn`;
     try {
       execSync(cmd, { stdio: "inherit" });
     } catch (e: any) {
