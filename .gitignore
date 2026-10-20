@@ -22,3 +22,4 @@ workspace/**/audio-bank/*
 *.mp3
 *.mov
 _baseline_stills/
+workspace/VID*
