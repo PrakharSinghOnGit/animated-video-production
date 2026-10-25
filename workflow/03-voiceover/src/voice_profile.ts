@@ -3,12 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
-// Resolve Python with F5-TTS
-export function findPython(): string {
-  const possiblePaths = [
-    path.resolve(process.cwd(), "../DancingDuck/.venv/bin/python"),
-    path.resolve(process.cwd(), ".venv/bin/python"),
-  ];
+// Resolve the Python that has the local TTS model: WG_PYTHON, else the repo .venv
+// (Chatterbox + faster-whisper), else the legacy DancingDuck venv that has F5-TTS.
+export function findPython(ttsModel: "chatterbox" | "f5" = "chatterbox"): string {
+  if (process.env.WG_PYTHON) return process.env.WG_PYTHON;
+  const repoVenv = path.resolve(process.cwd(), ".venv/bin/python");
+  const f5Venv = path.resolve(process.cwd(), "../DancingDuck/.venv/bin/python");
+  const possiblePaths = ttsModel === "f5" ? [f5Venv, repoVenv] : [repoVenv, f5Venv];
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) return p;
   }

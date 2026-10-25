@@ -188,20 +188,19 @@ Example:
     const sectionsCode = part.beats.map((b, idx) => {
       const id = `part${part.partNum}_${String(idx + 1).padStart(2, "0")}_beat`;
       const { pace, pitch, loudness, speed } = deriveProsodyFromInstruction(b.rawInstruction);
-      const cleanText = b.text.replace(/"/g, '\\"');
 
       return `  {
     id: "${id}",
     part: ${part.partNum},
     partTitle: "${part.partTitle}",
     clips: "${b.clips}",
-    rawInstruction: "${b.rawInstruction.replace(/"/g, '\\"')}",
+    rawInstruction: ${JSON.stringify(b.rawInstruction)},
     speed: ${speed.toFixed(2)},
     pace: ${pace.toFixed(2)},
     pitch: ${pitch.toFixed(2)},
     loudness: ${loudness.toFixed(2)},
-    text: "${cleanText}",
-    notes: "${b.rawInstruction.replace(/"/g, '\\"')}"
+    text: ${JSON.stringify(b.text)},
+    notes: ${JSON.stringify(b.rawInstruction)}
   }`;
     });
 

@@ -49,9 +49,17 @@ export interface GenerationOptions {
   apiKey?: string;
   sampleRate?: number;
   codec?: "wav" | "mp3";
-  engine?: "local" | "cloud"; // Default: "local" (F5-TTS), "cloud" for Sarvam API
+  engine?: "local" | "cloud"; // Default: "local" (Chatterbox), "cloud" for Sarvam API
+  ttsModel?: "chatterbox" | "f5"; // Local model (default chatterbox)
+  exaggeration?: number;    // Chatterbox: emotional intensity 0.25-2 (default 0.5; ~0.7 for punchy narration)
+  cfgWeight?: number;       // Chatterbox: lower = slower, looser pacing (default 0.5)
+  temperature?: number;     // Chatterbox: sampling temperature (default 0.8)
   voiceDir?: string;
   remakeVoice?: boolean;
+  takes?: number;           // Local: takes per chunk, best scored by ASR (default 3, 1 = fast single take)
+  acceptWer?: number;       // Local: stop taking new seeds once a take scores <= this (default 0.05)
+  asrModel?: string;        // faster-whisper model used to score takes (default small.en)
+  checkRef?: boolean;       // Transcribe the reference clip and compare with its configured text
   expressionScale?: number; // Master multiplier: 0.0 = neutral, 1.0 = full set, 0.3 = 30%
   paceScale?: number;
   pitchScale?: number;

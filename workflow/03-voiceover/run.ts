@@ -46,8 +46,27 @@ function parseArgs(): GenerationOptions {
       options.apiKey = args[++i];
     } else if (arg === "--cloud" || arg === "--sarvam" || arg === "--api") {
       options.engine = "cloud";
-    } else if (arg === "--local" || arg === "--f5") {
+    } else if (arg === "--local" || arg === "--chatterbox") {
       options.engine = "local";
+    } else if (arg === "--f5") {
+      options.engine = "local";
+      options.ttsModel = "f5";
+    } else if (arg === "--tts-model") {
+      options.ttsModel = args[++i] as "chatterbox" | "f5";
+    } else if (arg === "--exaggeration") {
+      options.exaggeration = parseFloat(args[++i]);
+    } else if (arg === "--cfg") {
+      options.cfgWeight = parseFloat(args[++i]);
+    } else if (arg === "--temperature") {
+      options.temperature = parseFloat(args[++i]);
+    } else if (arg === "--takes") {
+      options.takes = parseInt(args[++i], 10);
+    } else if (arg === "--accept-wer") {
+      options.acceptWer = parseFloat(args[++i]);
+    } else if (arg === "--asr-model") {
+      options.asrModel = args[++i];
+    } else if (arg === "--check-ref") {
+      options.checkRef = true;
     } else if (arg === "--out") {
       options.outputDir = args[++i];
     } else if (!arg.startsWith("-") && !options.video) {
@@ -55,7 +74,7 @@ function parseArgs(): GenerationOptions {
     }
   }
 
-  // Default to local F5-TTS voice cloning unless explicitly flagged
+  // Default to local Chatterbox voice cloning unless explicitly flagged
   options.engine = options.engine || "local";
 
   return options;

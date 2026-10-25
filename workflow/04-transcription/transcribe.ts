@@ -1,12 +1,76 @@
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
+import { alignScriptToAsr, matchedFraction } from "./src/align";
 import type { TranscribeOptions, ClipTranscript, FullTranscript } from "./src/types";
 
 interface WordTimestamp {
   word: string;
   start: number;
   end: number;
+  matched?: boolean;
+}
+
+const DEFAULT_MODEL = process.env.WHISPER_MODEL || "small.en";
+const MATCH_WARN_PCT = 80;
+
+/** Exact clip duration in seconds from the WAV header (frames / sample rate). */
+function wavDurationSeconds(file: string): number | undefined {
+  try {
+    const fd = fs.openSync(file, "r");
+    try {
+      const size = fs.fstatSync(fd).size;
+      const head = Buffer.alloc(Math.min(size, 1 << 16));
+      fs.readSync(fd, head, 0, head.length, 0);
+      if (head.toString("ascii", 0, 4) !== "RIFF" || head.toString("ascii", 8, 12) !== "WAVE") return undefined;
+      let pos = 12;
+      let byteRate = 0;
+      while (pos + 8 <= head.length) {
+        const id = head.toString("ascii", pos, pos + 4);
+        let len = head.readUInt32LE(pos + 4);
+        if (id === "fmt ") byteRate = head.readUInt32LE(pos + 16);
+        if (id === "data") {
+          if (len === 0 || len === 0xffffffff || pos + 8 + len > size) len = size - (pos + 8); // streamed/truncated header
+          return byteRate ? len / byteRate : undefined;
+        }
+        pos += 8 + len + (len % 2);
+      }
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {}
+  return undefined;
+}
+
+/** Exact duration: WAV header, else ffprobe, else the (rounded) value Whisper reported. */
+function exactDuration(file: string, fallback: number): number {
+  const wav = wavDurationSeconds(file);
+  if (wav !== undefined && wav > 0) return wav;
+  try {
+    const out = execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${file}"`, { stdio: "pipe" }).toString().trim();
+    const v = parseFloat(out);
+    if (Number.isFinite(v) && v > 0) return v;
+  } catch {}
+  return fallback;
+}
+
+type SectionLookup = (clipBaseName: string) => string | undefined;
+
+/** Load the workspace's script sections; clip `NN_...` maps to getAllSections()[NN-1].text. */
+async function loadSectionLookup(videoDir: string): Promise<SectionLookup> {
+  const modPath = path.join(videoDir, "03-voiceover", "sections", "index.ts");
+  if (!fs.existsSync(modPath)) return () => undefined;
+  try {
+    const mod = await import(modPath);
+    const sections: { text?: string }[] = mod.getAllSections();
+    return (name) => {
+      const m = name.match(/^(\d+)_/);
+      return m ? sections[parseInt(m[1], 10) - 1]?.text : undefined;
+    };
+  } catch (err: any) {
+    console.warn(`⚠️ Could not load script sections (${err.message}); falling back to raw ASR words.`);
+    return () => undefined;
+  }
 }
 
 function findPython(): string {
@@ -30,7 +94,7 @@ function findPython(): string {
 function parseArgs(): TranscribeOptions {
   const args = process.argv.slice(2);
   const options: TranscribeOptions = {
-    model: "base",
+    model: DEFAULT_MODEL,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -67,7 +131,7 @@ Usage:
 Options:
   --help, -h               Show this help message
   --video, -v <id>         Target video workspace (default: active workspace or VID01_Currency_Market)
-  --model, -m <size>       Whisper model (tiny, base, small, medium, large-v3) [default: base]
+  --model, -m <size>       Whisper model (tiny, base, small.en, medium, large-v3, ...) [default: small.en; env WHISPER_MODEL]
   --part, -p <number>      Transcribe audio files for a specific part only
   --force, -f              Overwrite existing word transcript JSONs
   --python <path>          Path to Python executable with faster-whisper
@@ -158,7 +222,7 @@ async function main() {
 
   const pythonExec = options.pythonPath || findPython();
   const whisperScript = path.resolve(__dirname, "transcribe_whisper.py");
-  const model = options.model || "base";
+  const model = options.model || DEFAULT_MODEL;
 
   console.log("\n=======================================================");
   console.log("🎙️  04-TRANSCRIPTION: WORD-LEVEL TIMESTAMP GENERATOR");
@@ -170,6 +234,7 @@ async function main() {
   console.log(`  Output Dir:      ${path.relative(process.cwd(), wordsDir)}`);
   console.log("=======================================================\n");
 
+  const sectionTextFor = await loadSectionLookup(videoDir);
   const clipTranscripts: ClipTranscript[] = [];
   let totalWordsCount = 0;
   let totalAudioDuration = 0;
@@ -185,26 +250,59 @@ async function main() {
       return (rawWords || [])
         .map((w: any) => ({
           word: String(w.word || "").trim(),
-          start: Number(Number(w.start || 0).toFixed(2)),
-          end: Number(Number(w.end || 0).toFixed(2)),
+          start: Number(Number(w.start || 0).toFixed(3)),
+          end: Number(Number(w.end || 0).toFixed(3)),
+          ...(typeof w.matched === "boolean" ? { matched: w.matched } : {}),
         }))
         .filter((w) => w.word.length > 0);
     }
 
+    // Build the clip entry from Whisper output (`data`), replacing ASR words with the
+    // script's words when the section text is known. Rewrites the word JSON with the
+    // raw ASR preserved under `asr_words`.
+    function buildClip(data: any): ClipTranscript {
+      const asrWords = cleanWords(data.asr_words ?? data.words);
+      const duration = exactDuration(clip.file, Number(data.duration || 0));
+      const sectionText = sectionTextFor(baseName);
+      let words = asrWords;
+      let text: string = data.text || "";
+      let matchedPct: number | undefined;
+
+      if (sectionText) {
+        const aligned = alignScriptToAsr(sectionText, asrWords, { clipStart: 0, clipEnd: duration });
+        words = cleanWords(aligned);
+        text = aligned.map((a) => a.word).join(" ");
+        matchedPct = Number((matchedFraction(aligned) * 100).toFixed(1));
+        const warn = matchedPct < MATCH_WARN_PCT ? `  ⚠️ below ${MATCH_WARN_PCT}% - likely TTS babble, listen to this clip` : "";
+        console.log(`    🔗 Script-aligned: ${matchedPct}% of ${aligned.length} tokens matched ASR${warn}`);
+        fs.writeFileSync(
+          outputJson,
+          JSON.stringify({ ...data, duration, text, words, asr_words: asrWords, matchedPct }, null, 2),
+          "utf-8"
+        );
+      } else {
+        console.log(`    ℹ️ No script section found for this clip; using raw ASR words.`);
+      }
+
+      return {
+        part: clip.part,
+        sectionId: baseName,
+        duration,
+        durationMs: duration * 1000,
+        text,
+        words,
+        ...(sectionText ? { asr_words: asrWords, matchedPct } : {}),
+      };
+    }
+
     if (fs.existsSync(outputJson) && !options.force) {
-      console.log(`    ⏩ Skipping: Already transcribed. (Use --force to re-transcribe)`);
+      console.log(`    ⏩ Skipping Whisper: Already transcribed. (Use --force to re-transcribe)`);
       try {
         const cached = JSON.parse(fs.readFileSync(outputJson, "utf-8"));
-        const cleanedWords = cleanWords(cached.words);
-        clipTranscripts.push({
-          part: clip.part,
-          sectionId: baseName,
-          duration: Number((cached.duration || 0).toFixed(2)),
-          text: cached.text || "",
-          words: cleanedWords,
-        });
-        totalWordsCount += cleanedWords.length;
-        totalAudioDuration += cached.duration || 0;
+        const entry = buildClip(cached);
+        clipTranscripts.push(entry);
+        totalWordsCount += entry.words.length;
+        totalAudioDuration += entry.duration;
       } catch {}
       console.log();
       continue;
@@ -219,20 +317,13 @@ async function main() {
 
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
       const data = JSON.parse(fs.readFileSync(outputJson, "utf-8"));
-      const cleanedWords = cleanWords(data.words);
+      console.log(`✅ Done in ${elapsed}s (${data.words?.length ?? 0} ASR words, ${data.duration}s)`);
 
-      clipTranscripts.push({
-        part: clip.part,
-        sectionId: baseName,
-        duration: Number((data.duration || 0).toFixed(2)),
-        text: data.text || "",
-        words: cleanedWords,
-      });
-
-      totalWordsCount += cleanedWords.length;
-      totalAudioDuration += data.duration || 0;
-
-      console.log(`✅ Done in ${elapsed}s (${cleanedWords.length} words, ${data.duration}s)\n`);
+      const entry = buildClip(data);
+      clipTranscripts.push(entry);
+      totalWordsCount += entry.words.length;
+      totalAudioDuration += entry.duration;
+      console.log();
     } catch (err: any) {
       console.log(`❌ Failed: ${err.message}\n`);
     }
@@ -243,7 +334,7 @@ async function main() {
     videoId,
     generatedAt: new Date().toISOString(),
     model,
-    totalDuration: Number(totalAudioDuration.toFixed(2)),
+    totalDuration: Number(totalAudioDuration.toFixed(3)),
     clips: clipTranscripts,
   };
   fs.writeFileSync(fullTranscriptPath, JSON.stringify(fullTranscript, null, 2), "utf-8");

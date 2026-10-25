@@ -1,0 +1,8 @@
+# Local voice stack (repo .venv, Python 3.11):
+#   uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r workflow/03-voiceover/requirements.txt
+chatterbox-tts==0.1.7
+faster-whisper
+soxr
+soundfile
+# chatterbox's watermarker (resemble-perth) still imports pkg_resources
+setuptools<81

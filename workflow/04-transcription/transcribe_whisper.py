@@ -14,7 +14,7 @@ def main():
     parser = argparse.ArgumentParser(description="Word-level Whisper Transcription")
     parser.add_argument("--audio", required=True, help="Path to input audio file (WAV/MP3)")
     parser.add_argument("--output", required=True, help="Path to output JSON file")
-    parser.add_argument("--model", default="base", choices=["tiny", "base", "small", "medium", "large-v3"], help="Whisper model size")
+    parser.add_argument("--model", default="small.en", choices=["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v3"], help="Whisper model size")
     parser.add_argument("--language", default="en", help="Audio language code (default: en)")
     args = parser.parse_args()
 

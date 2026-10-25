@@ -1,10 +1,13 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { execSync, execFileSync } from "child_process";
 import { CONFIG } from "./config";
 import { SarvamClient } from "./sarvam_client";
 import { resolveWorkspace, loadSections, listAvailableVideos } from "./workspace";
 import { setupVoiceProfile, findPython } from "./voice_profile";
+import { normalizeForSpeech } from "./normalize";
+import { chunkText } from "./chunk";
 import type { GenerationOptions, VOSection } from "./types";
 
 const COST_PER_1K_CHARS_INR = 1.0;
@@ -34,7 +37,7 @@ export function scaleProsody(
 export function printHelp() {
   console.log(`
 🎙️  03-Voiceover: Dual-Engine Audio Generator
-   • Default: Local F5-TTS Cloned Voice (100% Offline, Apple Silicon GPU, ₹0.00)
+   • Default: Local Chatterbox Cloned Voice (100% Offline, Apple Silicon GPU, ₹0.00)
    • Cloud:   Sarvam Bulbul v4 Flash API (--cloud / --sarvam)
 
 Usage:
@@ -42,7 +45,11 @@ Usage:
   bun run tts [options]
 
 Engine Options:
-  --local, --f5            Use local F5-TTS voice cloning (DEFAULT)
+  --local, --chatterbox    Use local Chatterbox voice cloning (DEFAULT)
+  --f5                     Use local F5-TTS instead (legacy; flatter pacing)
+  --exaggeration <x>       Chatterbox emotion intensity (default 0.5; 0.6-0.8 = more energetic)
+  --cfg <x>                Chatterbox pacing guidance (default 0.5; 0.3 = slower, more deliberate)
+  --temperature <x>        Chatterbox sampling temperature (default 0.8)
   --cloud, --sarvam        Use Sarvam Bulbul v4 Flash Cloud API
 
 Voice Profile Options:
@@ -57,6 +64,10 @@ Target Options:
   --list, -l               List all script sections, expressions, and prosody
   --dry-run, -d            Preview voice settings and paths without generating audio
   --force, -f              Overwrite existing audio files
+  --takes <n>              Local: takes per sentence chunk, best one picked by ASR score (default 3; 1 = fast, no ASR)
+  --accept-wer <0-1>       Local: keep the first take scoring <= this, else try more seeds up to --takes (default 0.05)
+  --asr-model <name>       Local: faster-whisper model that scores takes (default small.en)
+  --check-ref              Local: verify the reference clip matches its transcript before synthesizing
   --combine, -c            Combine generated clips into single tracks per part and full script (ffmpeg)
 
 Prosody / Cloud Tuning:
@@ -66,7 +77,7 @@ Prosody / Cloud Tuning:
   --codec <wav|mp3>        Set output audio codec (default: wav)
 
 Examples:
-  bun run tts                              # Generate entire video using local F5-TTS
+  bun run tts                              # Generate entire video using local Chatterbox
   bun run tts --part 1                     # Generate part 1 only
   bun run tts --dry-run                    # Preview settings offline
   bun run tts --cloud                      # Fall back to Sarvam Cloud API
@@ -77,7 +88,7 @@ Examples:
 export function printCostEstimate(targets: VOSection[], videoId: string, engine: "local" | "cloud" = "local") {
   console.log("\n=======================================================");
   if (engine === "local") {
-    console.log(`🎙️  LOCAL F5-TTS ENGINE - ZERO COST PIPELINE [${videoId}]`);
+    console.log(`🎙️  LOCAL TTS ENGINE - ZERO COST PIPELINE [${videoId}]`);
     console.log("   Hardware: Apple Silicon GPU (MPS) | 100% Offline");
     console.log("   Rate:     ₹0.00 (Zero API Charges)");
   } else {
@@ -124,7 +135,7 @@ export function printCostEstimate(targets: VOSection[], videoId: string, engine:
   console.log(`  Total Sections:        ${targets.length}`);
   console.log(`  Total Characters:      ${totalChars.toLocaleString()} chars`);
   if (engine === "local") {
-    console.log(`  Active Engine:         Local F5-TTS (Cloned Voice, Offline)`);
+    console.log(`  Active Engine:         Local Chatterbox / F5-TTS (Cloned Voice, Offline)`);
     console.log(`  Estimated Actual Cost: ₹0.00 INR (100% Free)`);
     console.log(`  Cloud Fallback Cost:   ${grandTotalCost} INR (if run with --cloud)`);
   } else {
@@ -168,7 +179,8 @@ export function printList(sections: VOSection[], options?: GenerationOptions) {
         `      Prosody:     Speaker: ${speaker} | Pace: ${scaled.pace} | Pitch: ${scaled.pitch} | Loudness: ${scaled.loudness} (scaled ${(masterScale * 100).toFixed(0)}%)`
       );
       console.log(`      Chars:       ${charCount} chars (~${cost})`);
-      console.log(`      Text:        "${sec.text.slice(0, 90)}..."\n`);
+      console.log(`      Text:        "${sec.text.slice(0, 90)}..."`);
+      console.log(`      Spoken:      "${normalizeForSpeech(sec.text).slice(0, 90)}..."\n`);
     });
   }
 }
@@ -191,6 +203,27 @@ async function combineAudioFiles(filePaths: string[], outputPath: string) {
     console.log(`  🔗 Combined track generated: ${path.relative(process.cwd(), outputPath)}`);
   } catch (err: any) {
     console.warn(`  ⚠️ Could not combine audio files with ffmpeg: ${err.message}`);
+  }
+}
+
+// Transcribe the reference clip and compare with its configured text (WER > 0.1 => warn)
+export function checkReference(pythonBin: string, refWav: string, refTxt: string, asrModel: string) {
+  try {
+    const out = execFileSync(
+      pythonBin,
+      [path.resolve(__dirname, "tts_best_of_n.py"), "--check-ref", refWav, "--ref-text-file", refTxt, "--asr-model", asrModel],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }
+    );
+    const res = JSON.parse(out.trim().split("\n").pop()!);
+    if (res.wer > 0.1) {
+      console.warn(`  ⚠️ Reference transcript does not match the audio (WER ${(res.wer * 100).toFixed(1)}%). This degrades F5 cloning (Chatterbox ignores the transcript).`);
+      console.warn(`     Heard:    "${res.heard}"`);
+      console.warn(`     Expected: "${res.expected}"`);
+    } else {
+      console.log(`  ✓ Reference clip matches its transcript (WER ${(res.wer * 100).toFixed(1)}%)`);
+    }
+  } catch (err: any) {
+    console.warn(`  ⚠️ Could not check reference clip: ${err.message}`);
   }
 }
 
@@ -234,16 +267,21 @@ export async function runGenerate(options: GenerationOptions) {
   const codec = options.codec || (engine === "local" ? "wav" : CONFIG.defaultCodec);
 
   // -------------------------------------------------------------
-  // ENGINE 1: LOCAL F5-TTS VOICE CLONING (DEFAULT, 100% OFFLINE)
+  // ENGINE 1: LOCAL VOICE CLONING: CHATTERBOX (DEFAULT) OR F5-TTS, 100% OFFLINE
   // -------------------------------------------------------------
   if (engine === "local") {
     const profile = setupVoiceProfile(options.remakeVoice || false);
+    const ttsModel = options.ttsModel || "chatterbox";
+    const modelName = ttsModel === "f5" ? "F5-TTS" : "Chatterbox";
 
     console.log("\n=======================================================");
-    console.log("🎙️  LOCAL F5-TTS - CLONED VOICEOVER GENERATOR");
+    console.log(`🎙️  LOCAL ${modelName.toUpperCase()} - CLONED VOICEOVER GENERATOR`);
     console.log("=======================================================");
     console.log(`  Video Project:  ${ws.videoId}`);
-    console.log(`  Engine:         F5-TTS (Offline, Apple Silicon Metal MPS)`);
+    console.log(`  Engine:         ${modelName} (Offline, Apple Silicon Metal MPS)`);
+    if (ttsModel === "chatterbox") {
+      console.log(`  Expression:     exaggeration ${options.exaggeration ?? 0.5}, cfg ${options.cfgWeight ?? 0.5}, temperature ${options.temperature ?? 0.8}`);
+    }
     console.log(`  Voice Profile:  ${path.relative(process.cwd(), profile.profileDir)}`);
     console.log(`  Target Count:   ${targets.length} VO section(s)`);
     console.log(`  Output Dir:     ${path.relative(process.cwd(), baseAudioDir)}`);
@@ -253,12 +291,24 @@ export async function runGenerate(options: GenerationOptions) {
     }
     console.log("=======================================================\n");
 
+    const takes = Math.max(1, options.takes ?? 3);
+    const asrModel = options.asrModel || "small.en";
+    // Reports sit beside the audio, so --out test runs never overwrite the workspace's reports
+    const reportsDir = options.outputDir ? path.join(baseAudioDir, "reports") : path.resolve(ws.sectionsDir, "..", "reports");
+    const pythonBin = findPython(ttsModel);
+
+    // Mismatched reference text degrades F5 cloning, so verify it when asked
+    if (options.checkRef) {
+      checkReference(pythonBin, profile.refWav, profile.refTxt, asrModel);
+    }
+
     const manifestItems: Array<{
       id: string;
       text: string;
       speed: number;
       outputPath: string;
       part: number;
+      reportPath: string;
     }> = [];
 
     let skippedCount = 0;
@@ -273,7 +323,9 @@ export async function runGenerate(options: GenerationOptions) {
         fs.mkdirSync(partFolder, { recursive: true });
       }
 
-      const fileName = `${String(i + 1).padStart(2, "0")}_${sec.id}.wav`;
+      // Name by global section order so --part/--section runs match a full run's files
+      const globalIdx = allSections.indexOf(sec);
+      const fileName = `${String(globalIdx + 1).padStart(2, "0")}_${sec.id}.wav`;
       const filePath = path.join(partFolder, fileName);
       const baseSpeed = sec.speed || 1.0;
       const speed = Number((1.0 + (baseSpeed - 1.0) * effectiveScale).toFixed(2));
@@ -288,6 +340,7 @@ export async function runGenerate(options: GenerationOptions) {
         console.log(`    Instruction: "${sec.rawInstruction}"`);
         console.log(`    Settings:    Speed: ${speed} (scaled ${(effectiveScale * 100).toFixed(0)}%) | Rate: 24kHz Mono PCM`);
         console.log(`    Text:        "${sec.text.slice(0, 80)}..."`);
+        console.log(`    Spoken:      "${normalizeForSpeech(sec.text).slice(0, 80)}..."`);
         console.log(`    Output:      ${path.relative(process.cwd(), filePath)}`);
         console.log(`    [DRY RUN] Would synthesize ${sec.text.length} chars (₹0.00).\n`);
         continue;
@@ -303,10 +356,11 @@ export async function runGenerate(options: GenerationOptions) {
 
       manifestItems.push({
         id: sec.id,
-        text: sec.text,
+        text: normalizeForSpeech(sec.text),
         speed,
         outputPath: filePath,
         part: sec.part,
+        reportPath: path.join(reportsDir, `${path.basename(filePath, ".wav")}.json`),
       });
       generatedFilesByPart.get(sec.part)!.push(filePath);
       allGeneratedFiles.push(filePath);
@@ -317,36 +371,59 @@ export async function runGenerate(options: GenerationOptions) {
       console.log("                    DRY RUN COMPLETE");
       console.log("=======================================================");
       console.log(`  Total Sections:   ${targets.length}`);
-      console.log(`  Estimated Cost:   ₹0.00 (Local F5-TTS)`);
+      console.log(`  Estimated Cost:   ₹0.00 (Local ${modelName})`);
       console.log("=======================================================\n");
       return;
     }
 
     if (manifestItems.length > 0) {
-      console.log(`\n⏳ Synthesizing ${manifestItems.length} section(s) with local F5-TTS...`);
-      const manifestPath = path.join(baseAudioDir, ".f5_manifest.json");
-      fs.writeFileSync(manifestPath, JSON.stringify(manifestItems, null, 2), "utf-8");
+      console.log(`\n⏳ Synthesizing ${manifestItems.length} section(s) with local ${modelName} (${takes} take${takes > 1 ? "s" : ""} per chunk${takes > 1 ? `, scored by ${asrModel}` : ""})...`);
+      const refText = fs.readFileSync(profile.refTxt, "utf-8").trim();
+      const batchScript = path.resolve(__dirname, "tts_best_of_n.py");
+      let totalFlagged = 0;
+      const reportPaths: string[] = [];
 
-      const pythonBin = findPython();
-      const engineScript = path.resolve(__dirname, "f5_tts_engine.py");
-      const cmdArgs = [
-        engineScript,
-        "--voice-dir",
-        profile.profileDir,
-        "--manifest",
-        manifestPath,
-      ];
-      if (options.forceOverwrite) {
-        cmdArgs.push("--force");
-      }
-
-      try {
-        execFileSync(pythonBin, cmdArgs, { stdio: "inherit" });
-      } finally {
-        if (fs.existsSync(manifestPath)) {
-          fs.unlinkSync(manifestPath);
+      for (let m = 0; m < manifestItems.length; m++) {
+        const item = manifestItems[m];
+        const chunks = chunkText(item.text).map((text, ci) => ({ id: `${item.id}_c${String(ci + 1).padStart(2, "0")}`, text }));
+        const job = {
+          engine: ttsModel,
+          exaggeration: options.exaggeration ?? 0.5,
+          cfg_weight: options.cfgWeight ?? 0.5,
+          temperature: options.temperature ?? 0.8,
+          ref_audio: profile.refWav,
+          ref_text: refText,
+          speed: item.speed,
+          chunks,
+          takes,
+          accept_wer: options.acceptWer ?? 0.05,
+          asr_model: asrModel,
+          out_path: item.outputPath,
+          pause_ms: 250,
+          report_path: item.reportPath,
+        };
+        const jobPath = path.join(os.tmpdir(), `wg_tts_job_${process.pid}_${m}.json`);
+        fs.writeFileSync(jobPath, JSON.stringify(job, null, 2), "utf-8");
+        console.log(`\n[${m + 1}/${manifestItems.length}] ${item.id}: ${chunks.length} chunk(s)`);
+        try {
+          execFileSync(pythonBin, [batchScript, "--job", jobPath], { stdio: ["ignore", "inherit", "inherit"] });
+        } finally {
+          if (fs.existsSync(jobPath)) fs.unlinkSync(jobPath);
         }
+
+        const report = JSON.parse(fs.readFileSync(item.reportPath, "utf-8"));
+        const flagged = report.chunks.filter((c: any) => c.flagged).length;
+        const meanWer = report.chunks.reduce((sum: number, c: any) => sum + c.chosenWer, 0) / report.chunks.length;
+        const takesUsed = report.chunks.reduce((sum: number, c: any) => sum + (c.takesUsed ?? 1), 0);
+        const werStr = takes > 1 ? `${(meanWer * 100).toFixed(1)}%` : "n/a (--takes 1)";
+        console.log(`    ✓ ${path.basename(item.outputPath)}: ${report.chunks.length} chunks, ${flagged} flagged, mean WER ${werStr}, ${takesUsed}/${report.chunks.length * takes} takes used`);
+        totalFlagged += flagged;
+        reportPaths.push(item.reportPath);
       }
+
+      console.log(`\n  Flagged chunks (WER > 15%): ${totalFlagged}`);
+      console.log(`  Reports:`);
+      for (const rp of reportPaths) console.log(`    ${path.relative(process.cwd(), rp)}`);
     } else {
       console.log(`\n✨ All ${targets.length} audio sections already exist on disk. Use --force to regenerate.`);
     }
@@ -374,7 +451,7 @@ export async function runGenerate(options: GenerationOptions) {
     console.log("                    SUMMARY");
     console.log("=======================================================");
     console.log(`  Video Workspace:       ${ws.videoId}`);
-    console.log(`  Engine:                Local F5-TTS (Cloned Voice)`);
+    console.log(`  Engine:                Local ${modelName} (Cloned Voice)`);
     console.log(`  Total Sections:        ${targets.length}`);
     console.log(`  Newly Generated:       ${manifestItems.length}`);
     console.log(`  Skipped (Cached):      ${skippedCount}`);
@@ -429,7 +506,7 @@ export async function runGenerate(options: GenerationOptions) {
     }
 
     const speaker = options.speakerOverride || sec.speaker || globalSpeaker;
-    const fileName = `${String(i + 1).padStart(2, "0")}_${sec.id}.${codec}`;
+    const fileName = `${String(allSections.indexOf(sec) + 1).padStart(2, "0")}_${sec.id}.${codec}`;
     const filePath = path.join(partFolder, fileName);
     const charCost = formatCost(sec.text.length);
 
@@ -450,6 +527,7 @@ export async function runGenerate(options: GenerationOptions) {
       `    Prosody:     Speaker: ${speaker} | Pace: ${scaled.pace} | Pitch: ${scaled.pitch} | Loudness: ${scaled.loudness} (scaled ${(effectiveScale * 100).toFixed(0)}%)`
     );
     console.log(`    Text:        "${sec.text.slice(0, 80)}..."`);
+    console.log(`    Spoken:      "${normalizeForSpeech(sec.text).slice(0, 80)}..."`);
     console.log(`    Output:      ${path.relative(process.cwd(), filePath)}`);
 
     if (!generatedFilesByPart.has(sec.part)) {
@@ -475,7 +553,7 @@ export async function runGenerate(options: GenerationOptions) {
       process.stdout.write(`    ⏳ Generating audio with Sarvam Bulbul v4 Flash... `);
 
       const audioBuffer = await client.synthesize({
-        text: sec.text,
+        text: normalizeForSpeech(sec.text),
         speaker,
         pace: scaled.pace,
         pitch: scaled.pitch,
