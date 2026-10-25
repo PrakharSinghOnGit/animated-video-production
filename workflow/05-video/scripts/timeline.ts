@@ -36,7 +36,7 @@ async function main() {
 
   let captionsFile = candidateCaptions.find((p) => fs.existsSync(p));
   if (!captionsFile) {
-    console.error(`❌ Error: Missing captions.json for ${paths.jobId}. Please run "bun run ingest" first.`);
+    console.error(`❌ Error: Missing captions.json for ${paths.jobId}. Please run "bun run captions --video <ID>" first.`);
     process.exit(1);
   }
 

@@ -106,10 +106,12 @@ export function buildTimeline(
     if (isLast) {
       windowEndFrame = Math.max(voiceEndVideoFrame + leadFrames, totalDurationFrames);
     } else {
-      // End when next scene voice begins + buffer, or tile to next scene window
+      // Tile exactly: end where the next scene's window starts (its voice start minus the
+      // lead), so two scenes are never drawn on top of each other at a cut.
       const nextScene = storyboard.scenes[i + 1];
       const nextVoiceStartVideoFrame = Math.round((nextScene.startMs / 1000) * fps);
-      windowEndFrame = Math.max(voiceEndVideoFrame + leadFrames, nextVoiceStartVideoFrame);
+      const nextWindowStartFrame = Math.max(0, nextVoiceStartVideoFrame - leadFrames);
+      windowEndFrame = Math.max(windowStartFrame + 1, nextWindowStartFrame);
     }
 
     const durationFrames = Math.max(1, windowEndFrame - windowStartFrame);

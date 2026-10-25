@@ -3,6 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { probeAudio } from "../src/lib/audioProbe";
+import { readRenderManifest, staleInputs } from "../src/lib/sceneCoverage";
 
 interface QCIssue {
   type: "ERROR" | "WARN" | "INFO";
@@ -203,7 +204,7 @@ async function main() {
         issues.push({
           type: "INFO",
           rule: "ambient_motion",
-          message: "No static scenes over 3s. Ambient camera push-in and background drift verified.",
+          message: "freezedetect found no fully static 3s stretch (note: background drift alone satisfies this; it does not prove scenes have content).",
         });
       }
     } catch {
@@ -271,19 +272,6 @@ async function main() {
         }
       }
 
-      // Check for placeholder scenes in index.ts for final render
-      const indexPath = path.join(scenesDir, "index.ts");
-      if (fs.existsSync(indexPath) && isFinal) {
-        const indexCode = fs.readFileSync(indexPath, "utf-8");
-        if (indexCode.includes("<PlaceholderScene")) {
-          issues.push({
-            type: "ERROR",
-            rule: "placeholder_in_final",
-            message: "Final broadcast render contains placeholder scenes. Author all scenes before final release.",
-          });
-        }
-      }
-
       // Lint all existing scene files
       const { lintSceneCode } = await import("@wealthgap/kit");
       for (const sf of existingSceneFiles) {
@@ -299,7 +287,48 @@ async function main() {
           }
         }
       }
-    } catch {}
+    } catch (err: any) {
+      issues.push({
+        type: "ERROR",
+        rule: "scene_check_failed",
+        message: `Scene completeness/lint check crashed: ${err.message}`,
+      });
+    }
+  }
+
+  // 7. Verify the rendered file against its render manifest (what was actually rendered,
+  //    not what is in src/ now). Catches placeholder renders and stale renders.
+  if (testVideo && fs.existsSync(path.join(paths.outputDir, "timeline.json"))) {
+    const manifest = readRenderManifest(testVideo);
+    if (!manifest) {
+      issues.push({
+        type: "ERROR",
+        rule: "render_manifest_missing",
+        message: `${path.basename(testVideo)} has no render manifest, so its contents cannot be verified. Re-render with "bun run ${isFinal ? "render" : "draft"}".`,
+      });
+    } else {
+      if (manifest.missingScenes.length > 0) {
+        issues.push({
+          type: isFinal ? "ERROR" : "WARN",
+          rule: "placeholder_rendered",
+          message: `${manifest.missingScenes.length}/${manifest.sceneCount} scenes were rendered as placeholders: ${manifest.missingScenes.join(", ")}`,
+        });
+      }
+      const stale = staleInputs(paths.outputDir, manifest);
+      if (stale.length > 0) {
+        issues.push({
+          type: isFinal ? "ERROR" : "WARN",
+          rule: "stale_render",
+          message: `${stale.length} input(s) changed since ${manifest.output} was rendered at ${manifest.renderedAt}: ${stale.slice(0, 8).join(", ")}${stale.length > 8 ? ", ..." : ""}`,
+        });
+      } else {
+        issues.push({
+          type: "INFO",
+          rule: "render_manifest",
+          message: `Render matches current inputs (${manifest.sceneCount - manifest.missingScenes.length}/${manifest.sceneCount} scenes authored, rendered ${manifest.renderedAt}).`,
+        });
+      }
+    }
   }
 
 

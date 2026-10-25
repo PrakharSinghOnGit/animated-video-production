@@ -29,8 +29,10 @@ Your storyboard is judged on: (1) does every scene have a real **visual idea** (
 **Step 1: Read the whole script. Write `videoArc`.** The emotional shape (hook → escalation → turn → payoff), 2-4 **recurring motifs** (e.g., "the dark mass = the shadow market" returns whenever it is referenced), a palette plan (which pastel means what, e.g. mint = stock market everywhere), and a camera/energy plan (where the calm and loud moments are).
 
 **Step 2: Segment into scenes.**
-- A scene is **one idea**. Break on sentence ends or pauses of 250 ms or more.
-- Length **3-8 s**; up to **12 s** only when one persistent visual world carries several beats (prefer one longer scene over several scenes that must share an object).
+- A scene is **one idea that the viewer can hold**, usually 2-4 sentences. Break on sentence ends or pauses of 250 ms or more.
+- Length **8-18 s** (hook and punchline beats may be 4-7 s). A scene evolves through its beats: an archetype adds bars, pins, nodes, highlights or camera moves on cues instead of cutting to a new scene. Rapid cuts every few seconds read as a slideshow.
+- **Build early.** A scene's first main beat (bars grow, number counts, line draws, first node/event appears) lands within ~3 s of the scene start. If the payoff word comes late in a sentence, cut the scene boundary later (put the lead-in sentence in the previous scene) instead of leaving a half-built frame on screen.
+- Target roughly **one scene per 12-15 s of narration** (a 10-minute video is ~40-50 scenes, not 80-100).
 - Scenes tile the timeline: first `startMs` = first word start; each next `startMs` = previous `endMs`; last `endMs` = last word end (the tail is added later). Use word boundaries from the transcript.
 - Open with a **hook** scene (first 5-8 s): the most striking visual of the video.
 
@@ -81,6 +83,12 @@ Prefer ideas that **move and transform** (morph, spawn, pull-back, drain) over i
 7. **Palette tokens only:** `lav, mint, peach, sky, butter, rose, accent, accent2, positive, negative`.
 8. **Be buildable.** Describe motion the way an animator would; avoid requiring video, photos or 3D models.
 
+9. **Archetypes first.** Each scene is either an **archetype scene** (`"archetype"` + `"props"` matching that archetype's JSON schema from the catalog; rendered directly, no code) or a **custom scene** (no `archetype`; an author writes code from your `metaphor`/`beats`). Aim for roughly 70-80% archetype scenes. A custom scene must include `"customReason"`: one sentence on why no archetype can express this beat (e.g. a recurring visual motif, a hero metaphor). Custom is for moments that matter, not a default.
+10. **Archetype props are data, not decoration.** Every number in `props` must also appear in that scene's `data` with a real `source`; cue strings in `props` (`at`, `countAt`, `drawAt`, ...) must be spoken words inside the scene's range (`"word#2"` for a later occurrence) or seconds after the scene's voice starts.
+11. **Vary archetypes.** Never use the same archetype in more than two consecutive scenes, and vary layout variants/accents when you reuse one.
+12. **Mix limits.** `KineticHeadline` is seasoning, not the meal: at most ~15% of scenes, reserved for a thesis line, a new term or a chapter turn. Custom scenes at most ~25%.
+13. **Show the data when the narration has data.** Prices or values over time → `LineChart`; comparisons between categories → `BarChart`; one striking figure → `StatReveal`; places → `WorldMap`; mechanisms and who-pays-whom → `Diagram`; history/sequence → `Timeline`. Before choosing `KineticHeadline` or custom, check whether one of these fits. Every number used must exist in the script or a cited source (never invent data to fill a chart; if a chart would need numbers the script does not have, choose a different archetype).
+
 ---
 
 ## 6. Output schema (return ONLY this JSON, no prose, no code fences)
@@ -117,6 +125,9 @@ Prefer ideas that **move and transform** (morph, spawn, pull-back, drain) over i
       "sfx": [{ "anchor": "bigger", "occurrence": 1, "sound": "whoosh", "volume": 0.2, "offsetMs": -80 }],
       "handoff": "end state the next scene must start from (or null)",
       "transitionOut": { "type": "continue | cut | morph | wipe", "durationMs": 0 },
+      "archetype": "StatReveal (optional: omit for a custom scene)",
+      "props": { "...": "props matching the archetype's JSON schema" },
+      "customReason": "only for custom scenes: why no archetype fits",
       "techNotes": "performance or build hints, e.g. use gradients for glows"
     }
   ],
@@ -204,4 +215,6 @@ Transcript words (seconds): There 0.00 · is · a · shadow 0.50 · market 0.86�
 - [ ] No two consecutive scenes share the same layout or primary metaphor.
 - [ ] No on-screen number without a `source`; `needsData` and `warnings` filled where needed.
 - [ ] No "fades in" or "slides in" anywhere.
+- [ ] Average scene length 8-18 s; KineticHeadline ≤ ~15% of scenes; custom ≤ ~25%, each with `customReason`.
+- [ ] Narration with numbers, trends, places or mechanisms uses the matching data archetype.
 - [ ] Output is **only** valid JSON matching the schema.

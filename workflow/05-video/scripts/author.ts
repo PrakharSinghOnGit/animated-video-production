@@ -9,13 +9,19 @@ function parseArgs() {
   let targetScenes: string[] = [];
   let force = false;
   let concurrency = 1;
+  // Scene authoring fills a well-specified brief, so a mid-size model is the default;
+  // pass --model opus for hero scenes that need more design judgement.
+  let model = process.env.AUTHOR_MODEL || "sonnet";
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--video" || args[i] === "-v") {
       videoId = args[i + 1];
       i++;
-    } else if (args[i] === "--scenes" || args[i] === "-s") {
+    } else if (args[i] === "--scenes" || args[i] === "--scene" || args[i] === "-s") {
       targetScenes = args[i + 1].split(",").map((s) => s.trim().toUpperCase());
+      i++;
+    } else if (args[i] === "--model") {
+      model = args[i + 1];
       i++;
     } else if (args[i] === "--force") {
       force = true;
@@ -32,6 +38,7 @@ function parseArgs() {
     targetScenes,
     force,
     concurrency,
+    model,
   };
 }
 
@@ -45,7 +52,7 @@ function runCommandSilent(cmd: string): { success: boolean; output: string } {
 }
 
 async function main() {
-  const { videoId, targetScenes, force } = parseArgs();
+  const { videoId, targetScenes, force, model } = parseArgs();
   const paths = resolveJobPaths(videoId);
 
   console.log(`\n========================================`);
@@ -113,6 +120,13 @@ async function main() {
 
     const sceneFile = path.join(scenesDir, `${s.id}_${s.slug}.tsx`);
 
+    // Archetype scenes are rendered from their storyboard spec; there is nothing to author.
+    if (s.archetype) {
+      console.log(`🧩 [${s.id}] Archetype scene (${s.archetype}); rendered from storyboard props, skipping authoring.`);
+      authorLog[s.id] = { status: "verified", agentResult: "archetype", archetype: s.archetype, timestamp: new Date().toISOString() };
+      continue;
+    }
+
     // Check if already exists and !force
     if (fs.existsSync(sceneFile) && !force) {
       console.log(`⏩ [${s.id}] Already exists at ${path.basename(sceneFile)}. Skipping (use --force to overwrite).`);
@@ -161,7 +175,7 @@ ${JSON.stringify(tlScene || {}, null, 2)}
 
 ## 5. Available Kit Primitives (from @wealthgap/kit)
 \`\`\`markdown
-${kitApi.slice(0, 3500)}
+${kitApi}
 \`\`\`
 
 ---
@@ -184,18 +198,44 @@ After writing the file, run:
 
     // Attempt headless run with Claude Code if available
     if (claudeAvailable) {
-      console.log(`🤖 [${s.id}] Attempting headless agent authoring via Claude Code...`);
+      console.log(`🤖 [${s.id}] Attempting headless agent authoring via Claude Code (${model})...`);
+      // Prompt goes over stdin (it is far too large for argv), and the tools the brief asks
+      // for are pre-approved so a non-interactive run cannot stall on a permission prompt.
       const claudeRes = spawnSync(
         "claude",
-        ["-p", prompt, "--output-format", "json", "--permission-mode", "acceptEdits"],
-        { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+        [
+          "-p",
+          "--model", model,
+          "--output-format", "json",
+          "--permission-mode", "acceptEdits",
+          "--allowedTools",
+          "Read", "Write", "Edit", "Glob", "Grep",
+          "Bash(bun run lint:scene:*)", "Bash(bun run still:*)", "Bash(bun run sheet:*)",
+        ],
+        { input: prompt, encoding: "utf-8", maxBuffer: 50 * 1024 * 1024, cwd: process.cwd() }
       );
 
-      if (claudeRes.status === 0) {
+      const headlessLog = path.join(sceneReviewDir, "headless.log");
+      fs.writeFileSync(
+        headlessLog,
+        `exit: ${claudeRes.status}\nerror: ${claudeRes.error?.message ?? ""}\n\n--- stdout ---\n${claudeRes.stdout ?? ""}\n\n--- stderr ---\n${claudeRes.stderr ?? ""}\n`,
+        "utf-8"
+      );
+
+      let resultIsError = claudeRes.status !== 0;
+      try {
+        const parsed = JSON.parse(claudeRes.stdout || "{}");
+        if (parsed.is_error) resultIsError = true;
+      } catch {
+        resultIsError = true;
+      }
+
+      if (!resultIsError && fs.existsSync(sceneFile)) {
         console.log(`✅ [${s.id}] Headless authoring finished.`);
         agentResult = "headless_success";
       } else {
-        console.log(`ℹ️ [${s.id}] Headless execution unavailable (${(claudeRes.stderr || "").trim().slice(0, 80)}). Falling back to interactive mode.`);
+        const why = resultIsError ? `agent run failed (exit ${claudeRes.status})` : "agent finished but did not write the scene file";
+        console.log(`❌ [${s.id}] Headless authoring: ${why}. Full output: ${headlessLog}`);
       }
     } else {
       console.log(`ℹ️ [${s.id}] Claude CLI not found. Falling back to interactive mode.`);
@@ -252,8 +292,17 @@ After writing the file, run:
   console.log(`\n========================================`);
   console.log(`Post-Authoring Assembly & Verification`);
   console.log(`========================================`);
-  runCommandSilent(`bun run workflow/05-video/scripts/assemble.ts --video ${paths.jobId}`);
-  console.log(`✓ Assembled video registry and cues.`);
+  const assembleRes = runCommandSilent(`bun run workflow/05-video/scripts/assemble.ts --video ${paths.jobId}`);
+  if (assembleRes.success) {
+    console.log(`✓ Assembled video registry and cues.`);
+  } else {
+    console.error(`❌ Assemble failed:\n${assembleRes.output}`);
+  }
+
+  const unverified = scenesToProcess.filter((s: any) => authorLog[s.id] && authorLog[s.id].status !== "verified");
+  if (unverified.length > 0) {
+    console.warn(`\n⚠️  ${unverified.length} scene(s) not verified: ${unverified.map((s: any) => `${s.id}=${authorLog[s.id].status}`).join(", ")}`);
+  }
 
   console.log(`\n✨ Gate 2 Review Ready:`);
   console.log(`1. Inspect per-scene contact sheets at:`);
@@ -262,6 +311,8 @@ After writing the file, run:
   });
   console.log(`2. Render a draft preview with: bun run draft --video ${paths.jobId}`);
   console.log(`3. To re-author any scene: bun run author --video ${paths.jobId} --scenes <sceneId> --force\n`);
+
+  if (!assembleRes.success || unverified.length > 0) process.exit(1);
 }
 
 main().catch((err) => {

@@ -9,11 +9,6 @@
     "@wealthgap/kit": "workspace:*"
   },
   "scripts": {
-    "job:new": "bun scripts/new-job.ts",
-    "ingest": "bun scripts/ingest.ts",
-    "analyze": "bun scripts/analyze.ts",
-    "plan": "bun scripts/plan.ts",
-    "check": "bun scripts/validate-plan.ts",
     "studio": "bun x remotion studio",
     "gallery": "bun x remotion studio",
     "still": "bun scripts/still.ts",
@@ -21,12 +16,9 @@
     "draft": "bun scripts/render.ts --draft",
     "render": "bun scripts/render.ts --final",
     "qc": "bun scripts/qc.ts",
-    "package": "bun scripts/package.ts",
-    "chunk": "bun scripts/chunk.ts",
-    "build": "bun scripts/build.ts",
-    "test": "bun scripts/test-fixture.ts",
     "dev": "bun x remotion studio",
     "upgrade": "bun x remotion upgrade",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "bun test"
   }
 }

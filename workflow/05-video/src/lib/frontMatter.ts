@@ -12,7 +12,14 @@ export interface ParsedBrief {
 export function parseBrief(content: string): ParsedBrief {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) {
-    throw new Error("Invalid brief.md: Missing YAML front-matter enclosed between '---' delimiters.");
+    // Workspace scripts (02-scripting/script_raw.md) have no front-matter. It only feeds
+    // metadata, so derive title/topic from the first heading instead of failing ingest.
+    const heading = content.match(/^#{1,3}\s+(.+)$/m)?.[1]?.trim() || "Untitled video";
+    console.warn(`[frontMatter] No YAML front-matter found; using defaults (title: "${heading}").`);
+    return {
+      frontMatter: BriefFrontMatterSchema.parse({ title: heading, topic: heading }),
+      body: content.trim(),
+    };
   }
 
   const rawYaml = match[1];

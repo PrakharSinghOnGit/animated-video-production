@@ -116,6 +116,16 @@ export function resolveJobPaths(targetId: string, baseDir: string = process.cwd(
         }
       }
     }
+
+    // Prefer the mastered voiceover (workflow/06-audio/master.ts) when it is newer than its source.
+    const masterAudio = path.join(baseJobDir, "06-audio", "voiceover_master.wav");
+    if (audioFile && fs.existsSync(masterAudio)) {
+      if (fs.statSync(masterAudio).mtimeMs >= fs.statSync(audioFile).mtimeMs) {
+        audioFile = masterAudio;
+      } else {
+        console.warn(`[workspaceBridge] ${masterAudio} is stale (older than ${audioFile}); using unmastered voiceover. Re-run: bun run audio:master --video ${cleanId}`);
+      }
+    }
   } else {
     for (const ext of audioExtensions) {
       const candidate = path.join(inputDir, `audio${ext}`);

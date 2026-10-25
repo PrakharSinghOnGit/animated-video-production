@@ -50,10 +50,15 @@ async function main() {
   console.log(`Mode: ${yesMode ? "NON-INTERACTIVE (--yes)" : "HUMAN-GATED (Gates 1 & 2)"}`);
   console.log(`======================================================`);
 
-  // Step 1: Ingest (if captions don't exist)
+  // Step 1: Captions (if captions are missing or older than the transcript they come from)
   const captionsPath = path.join(paths.outputDir, "captions.json");
-  if (!fs.existsSync(captionsPath)) {
-    runStep("1. Ingest Audio & Transcript", `bun run video:ingest "${effectiveTarget}"`);
+  const transcriptPath = path.join(path.dirname(paths.outputDir), "04-transcription", "full_transcript.json");
+  const captionsStale =
+    fs.existsSync(captionsPath) &&
+    fs.existsSync(transcriptPath) &&
+    fs.statSync(transcriptPath).mtimeMs > fs.statSync(captionsPath).mtimeMs;
+  if (!fs.existsSync(captionsPath) || captionsStale) {
+    runStep("1. Build Captions from Transcript", `bun run captions --video "${effectiveTarget}"`);
   }
 
   // Step 2: Storyboard
@@ -110,12 +115,6 @@ async function main() {
 
   // Step 9: Quality Control
   runStep("9. Automated Quality Control (QC)", `bun run qc --video "${paths.jobId}"`);
-
-  // Step 10: Package (if package script exists)
-  const packageScript = path.resolve(process.cwd(), "workflow", "05-video", "scripts", "package.ts");
-  if (fs.existsSync(packageScript)) {
-    runStep("10. Package Deliverables", `bun --cwd workflow/05-video scripts/package.ts "${effectiveTarget}"`);
-  }
 
   console.log(`\n======================================================`);
   console.log(`🎉 BUILD COMPLETED SUCCESSFULLY FOR: ${paths.jobId}`);

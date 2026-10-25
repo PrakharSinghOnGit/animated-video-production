@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
+import { checkSceneCoverage, writeRenderManifest } from "../src/lib/sceneCoverage";
+
+const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 
 async function main() {
   const args = process.argv.slice(2);
   let target: string | undefined;
   const isDraft = args.includes("--draft");
+  const allowPlaceholders = args.includes("--allow-placeholders");
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--video" || args[i] === "-v") {
@@ -21,7 +25,7 @@ async function main() {
   const paths = resolveJobPaths(effectiveTarget);
 
   console.log(`[render] Starting render for job: ${paths.jobId}`);
-  console.log(`[render] Profile: ${isDraft ? "DRAFT (Fast low-res 0.5x, 30fps)" : "FINAL (1080p Broadcast H.264, 60fps/full)"}`);
+  console.log(`[render] Profile: ${isDraft ? "DRAFT (Fast low-res 0.5x, 30fps)" : "FINAL (1080p Broadcast H.264, full res)"}`);
 
   const isKitWorkspace =
     fs.existsSync(path.join(paths.outputDir, "src", "index.ts")) &&
@@ -39,6 +43,31 @@ async function main() {
     // -------------------------------------------------------------
     // Kit Video Architecture (per-video Remotion root + Main)
     // -------------------------------------------------------------
+    // Always regenerate the scene registry first, so a render can never use a stale
+    // index.ts (VID02's final.mp4 was rendered before assemble and came out all placeholders).
+    console.log(`[render] Regenerating scene registry (assemble)...`);
+    const assemble = spawnSync(
+      "bun",
+      ["run", path.join(REPO_ROOT, "workflow/05-video/scripts/assemble.ts"), "--video", effectiveTarget],
+      { cwd: REPO_ROOT, stdio: "inherit", env: process.env }
+    );
+    if (assemble.status !== 0) {
+      console.error(`[render] assemble failed (exit ${assemble.status}); refusing to render.`);
+      process.exit(1);
+    }
+
+    const coverage = checkSceneCoverage(paths.outputDir);
+    if (coverage.missing.length > 0) {
+      const ids = coverage.missing.map((m) => m.id).join(", ");
+      const msg = `${coverage.missing.length}/${coverage.total} scenes are not authored and would render as placeholders: ${ids}`;
+      if (!isDraft && !allowPlaceholders) {
+        console.error(`\n❌ [render] ${msg}`);
+        console.error(`   Author the missing scenes, or pass --allow-placeholders to override.`);
+        process.exit(1);
+      }
+      console.warn(`\n⚠️  [render] ${msg}\n`);
+    }
+
     const entryFile = path.join(paths.outputDir, "src", "index.ts");
     const timelinePath = path.join(paths.outputDir, "timeline.json");
     const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
@@ -83,62 +112,9 @@ async function main() {
       "--gl=angle",
     ];
 
-    if (!isDraft) {
-      // Broadcast quality 60fps or high frame rate
-      // Remotion will render at 60fps if requested
-    }
   } else {
-    // -------------------------------------------------------------
-    // Legacy Remotion Pipeline (v1 fallback)
-    // -------------------------------------------------------------
-    const scenesPath = path.join(paths.outputDir, "scenes.json");
-    if (!fs.existsSync(scenesPath)) {
-      console.error(`[render] scenes.json not found at: ${scenesPath}. Run 'npm run plan ${effectiveTarget}' first.`);
-      process.exit(1);
-    }
-
-    const captionsPath = path.join(paths.outputDir, "captions.json");
-    if (!fs.existsSync(captionsPath)) {
-      console.error(`[render] captions.json not found at: ${captionsPath}. Run 'npm run ingest ${effectiveTarget}' first.`);
-      process.exit(1);
-    }
-
-    const scenesRaw = JSON.parse(fs.readFileSync(scenesPath, "utf-8"));
-    const captionsRaw = JSON.parse(fs.readFileSync(captionsPath, "utf-8"));
-
-    const publicJobDir = path.resolve(process.cwd(), "public", "jobs", paths.jobId);
-    fs.mkdirSync(publicJobDir, { recursive: true });
-    if (paths.audioFile && fs.existsSync(paths.audioFile)) {
-      const destAudio = path.join(publicJobDir, `audio${path.extname(paths.audioFile)}`);
-      if (!fs.existsSync(destAudio)) {
-        fs.copyFileSync(paths.audioFile, destAudio);
-      }
-    }
-
-    const ext = paths.audioFile ? path.extname(paths.audioFile) : ".mp3";
-    const renderPropsPath = path.join(paths.outputDir, "render-props.json");
-    const propsPayload = {
-      jobId: paths.jobId,
-      scenes: scenesRaw.scenes,
-      captions: captionsRaw,
-      audioSrc: `jobs/${paths.jobId}/audio${ext}`,
-      showCaptions: true,
-      captionStyle: "clean-bottom",
-    };
-    fs.writeFileSync(renderPropsPath, JSON.stringify(propsPayload, null, 2), "utf-8");
-
-    renderArgs = [
-      "remotion",
-      "render",
-      "Main",
-      outFilePath,
-      `--props=${renderPropsPath}`,
-      "--codec=h264",
-      `--crf=${crf}`,
-      `--scale=${scale}`,
-      "--overwrite",
-      "--gl=angle",
-    ];
+    console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run storyboard -> timeline -> assemble first.`);
+    process.exit(1);
   }
 
   console.log(`[render] Executing: bun x ${renderArgs.join(" ")}`);
@@ -174,6 +150,10 @@ async function main() {
       console.log(`\n✅ Render succeeded in ${elapsedSec}s!`);
       console.log(`   File: ${outFilePath}`);
       console.log(`   Size: ${sizeMB} MB`);
+      if (isKitWorkspace) {
+        const manifest = writeRenderManifest(paths.outputDir, outFilePath, isDraft ? "draft" : "final");
+        console.log(`   Manifest: ${manifest.sceneCount - manifest.missingScenes.length}/${manifest.sceneCount} scenes authored`);
+      }
       process.exit(0);
     } else {
       console.error(`\n❌ Render failed with code ${code} after ${elapsedSec}s`);
