@@ -93,3 +93,4 @@ export { GALLERY_FIXTURES } from "./gallery/fixtures";
 export * from "./lint-rules";
 
 
+export * from "./archetypes";
