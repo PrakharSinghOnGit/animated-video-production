@@ -57,6 +57,10 @@ function parseArgs(): GenerationOptions {
       options.exaggeration = parseFloat(args[++i]);
     } else if (arg === "--cfg") {
       options.cfgWeight = parseFloat(args[++i]);
+    } else if (arg === "--pace") {
+      options.pace = parseFloat(args[++i]);
+    } else if (arg === "--pause-ms") {
+      options.pauseMs = parseInt(args[++i], 10);
     } else if (arg === "--temperature") {
       options.temperature = parseFloat(args[++i]);
     } else if (arg === "--takes") {

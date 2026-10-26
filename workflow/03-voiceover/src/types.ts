@@ -54,6 +54,8 @@ export interface GenerationOptions {
   exaggeration?: number;    // Chatterbox: emotional intensity 0.25-2 (default 0.5; ~0.7 for punchy narration)
   cfgWeight?: number;       // Chatterbox: lower = slower, looser pacing (default 0.5)
   temperature?: number;     // Chatterbox: sampling temperature (default 0.8)
+  pace?: number;            // Tempo applied to the chosen take, pitch preserved (default 0.9 Chatterbox, 1 F5)
+  pauseMs?: number;         // Silence between sentence chunks (default 350 Chatterbox, 250 F5)
   voiceDir?: string;
   remakeVoice?: boolean;
   takes?: number;           // Local: takes per chunk, best scored by ASR (default 3, 1 = fast single take)

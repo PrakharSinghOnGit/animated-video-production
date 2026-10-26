@@ -50,6 +50,8 @@ Engine Options:
   --exaggeration <x>       Chatterbox emotion intensity (default 0.5; 0.6-0.8 = more energetic)
   --cfg <x>                Chatterbox pacing guidance (default 0.5; 0.3 = slower, more deliberate)
   --temperature <x>        Chatterbox sampling temperature (default 0.8)
+  --pace <x>               Tempo of the chosen take, pitch kept (default 0.9 for Chatterbox; 1 = as generated)
+  --pause-ms <n>           Pause between sentences (default 350 for Chatterbox)
   --cloud, --sarvam        Use Sarvam Bulbul v4 Flash Cloud API
 
 Voice Profile Options:
@@ -280,6 +282,7 @@ export async function runGenerate(options: GenerationOptions) {
     console.log(`  Video Project:  ${ws.videoId}`);
     console.log(`  Engine:         ${modelName} (Offline, Apple Silicon Metal MPS)`);
     if (ttsModel === "chatterbox") {
+      console.log(`  Pace:           ${options.pace ?? 0.9}× , ${options.pauseMs ?? 350} ms between sentences`);
       console.log(`  Expression:     exaggeration ${options.exaggeration ?? 0.5}, cfg ${options.cfgWeight ?? 0.5}, temperature ${options.temperature ?? 0.8}`);
     }
     console.log(`  Voice Profile:  ${path.relative(process.cwd(), profile.profileDir)}`);
@@ -383,34 +386,42 @@ export async function runGenerate(options: GenerationOptions) {
       let totalFlagged = 0;
       const reportPaths: string[] = [];
 
-      for (let m = 0; m < manifestItems.length; m++) {
-        const item = manifestItems[m];
-        const chunks = chunkText(item.text).map((text, ci) => ({ id: `${item.id}_c${String(ci + 1).padStart(2, "0")}`, text }));
-        const job = {
-          engine: ttsModel,
-          exaggeration: options.exaggeration ?? 0.5,
-          cfg_weight: options.cfgWeight ?? 0.5,
-          temperature: options.temperature ?? 0.8,
-          ref_audio: profile.refWav,
-          ref_text: refText,
-          speed: item.speed,
-          chunks,
-          takes,
-          accept_wer: options.acceptWer ?? 0.05,
-          asr_model: asrModel,
-          out_path: item.outputPath,
-          pause_ms: 250,
-          report_path: item.reportPath,
-        };
-        const jobPath = path.join(os.tmpdir(), `wg_tts_job_${process.pid}_${m}.json`);
-        fs.writeFileSync(jobPath, JSON.stringify(job, null, 2), "utf-8");
-        console.log(`\n[${m + 1}/${manifestItems.length}] ${item.id}: ${chunks.length} chunk(s)`);
-        try {
-          execFileSync(pythonBin, [batchScript, "--job", jobPath], { stdio: ["ignore", "inherit", "inherit"] });
-        } finally {
-          if (fs.existsSync(jobPath)) fs.unlinkSync(jobPath);
-        }
+      // One job for every section: the TTS and ASR models load once, not once per section
+      const items = manifestItems.map((item) => ({
+        id: item.id,
+        speed: item.speed,
+        chunks: chunkText(item.text).map((text, ci) => ({ id: `${item.id}_c${String(ci + 1).padStart(2, "0")}`, text })),
+        out_path: item.outputPath,
+        report_path: item.reportPath,
+      }));
+      const job = {
+        engine: ttsModel,
+        // Chatterbox has no speed control and reads fast; slow it slightly after picking the take
+        pace: options.pace ?? (ttsModel === "chatterbox" ? 0.9 : 1.0),
+        exaggeration: options.exaggeration ?? 0.5,
+        cfg_weight: options.cfgWeight ?? 0.5,
+        temperature: options.temperature ?? 0.8,
+        ref_audio: profile.refWav,
+        ref_text: refText,
+        takes,
+        accept_wer: options.acceptWer ?? 0.05,
+        asr_model: asrModel,
+        pause_ms: options.pauseMs ?? (ttsModel === "chatterbox" ? 350 : 250),
+        items,
+      };
+      const jobPath = path.join(os.tmpdir(), `wg_tts_job_${process.pid}.json`);
+      fs.writeFileSync(jobPath, JSON.stringify(job, null, 2), "utf-8");
+      console.log(`  ${items.length} section(s), ${items.reduce((n, it) => n + it.chunks.length, 0)} chunk(s)`);
+      try {
+        execFileSync(pythonBin, [batchScript, "--job", jobPath], {
+          stdio: ["ignore", "inherit", "inherit"],
+          env: { ...process.env, TQDM_DISABLE: "1", TRANSFORMERS_VERBOSITY: "error", PYTHONWARNINGS: "ignore" },
+        });
+      } finally {
+        if (fs.existsSync(jobPath)) fs.unlinkSync(jobPath);
+      }
 
+      for (const item of manifestItems) {
         const report = JSON.parse(fs.readFileSync(item.reportPath, "utf-8"));
         const flagged = report.chunks.filter((c: any) => c.flagged).length;
         const meanWer = report.chunks.reduce((sum: number, c: any) => sum + c.chosenWer, 0) / report.chunks.length;

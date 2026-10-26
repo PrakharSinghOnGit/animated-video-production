@@ -295,7 +295,9 @@ async function main() {
       };
     }
 
-    if (fs.existsSync(outputJson) && !options.force) {
+    // Re-transcribe when the audio was regenerated after its transcript
+    const fresh = fs.existsSync(outputJson) && fs.statSync(outputJson).mtimeMs >= fs.statSync(clip.file).mtimeMs;
+    if (fresh && !options.force) {
       console.log(`    ⏩ Skipping Whisper: Already transcribed. (Use --force to re-transcribe)`);
       try {
         const cached = JSON.parse(fs.readFileSync(outputJson, "utf-8"));

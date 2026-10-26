@@ -2,7 +2,7 @@
 """Best-of-N TTS synthesis: chunk -> N seeded takes -> ASR score -> pick best -> join into one WAV.
 
 Engines: "chatterbox" (default; Resemble AI Chatterbox, zero-shot cloning from ref_audio) or "f5" (F5-TTS).
-Job JSON: {engine, ref_audio, ref_text, speed, exaggeration, cfg_weight, temperature,
+Job JSON: {engine, pace, ref_audio, ref_text, speed, exaggeration, cfg_weight, temperature,
            chunks: [{id, text}], takes, asr_model, out_path, pause_ms, report_path}
 Also: --check-ref <ref_audio> <ref_text_file> transcribes the reference clip and prints WER (JSON on stdout).
 """
@@ -112,6 +112,21 @@ def trim_silence(wav, sr=SR):
     return wav[max(0, idx[0] - pad): min(len(wav), idx[-1] + 1 + pad)]
 
 
+def stretch(wav, sr, pace):
+    """Pitch-preserving tempo change (ffmpeg atempo); pace < 1 slows delivery."""
+    import subprocess
+    import tempfile
+    import soundfile as sf
+    if abs(pace - 1.0) < 1e-3:
+        return wav
+    with tempfile.TemporaryDirectory() as d:
+        src, dst = os.path.join(d, "in.wav"), os.path.join(d, "out.wav")
+        sf.write(src, wav, sr, subtype="FLOAT")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", src, "-filter:a", f"atempo={pace:.4f}", "-c:a", "pcm_f32le", dst], check=True)
+        out, _ = sf.read(dst, dtype="float32")
+    return out
+
+
 def to_16k(wav, sr):
     """faster-whisper treats raw arrays as 16 kHz mono."""
     import numpy as np
@@ -164,34 +179,32 @@ class ChatterboxEngine:
         self.model.prepare_conditionals(job["ref_audio"], exaggeration=float(job.get("exaggeration", 0.5)))
 
     def synth(self, text, seed):
+        import gc
         self.torch.manual_seed(seed)
-        wav = self.model.generate(text, exaggeration=float(self.job.get("exaggeration", 0.5)),
-                                  cfg_weight=float(self.job.get("cfg_weight", 0.5)),
-                                  temperature=float(self.job.get("temperature", 0.8)))
-        return wav.squeeze(0).detach().cpu().numpy()
+        with self.torch.inference_mode():
+            wav = self.model.generate(text, exaggeration=float(self.job.get("exaggeration", 0.5)),
+                                      cfg_weight=float(self.job.get("cfg_weight", 0.5)),
+                                      temperature=float(self.job.get("temperature", 0.8)))
+        out = wav.squeeze(0).detach().cpu().numpy()
+        # MPS keeps freed blocks cached; across a whole video that grows to an out-of-memory error
+        del wav
+        gc.collect()
+        if self.torch.backends.mps.is_available():
+            self.torch.mps.empty_cache()
+        return out
 
 
 ENGINES = {"f5": F5Engine, "chatterbox": ChatterboxEngine}
 
 
-def run_job(job_path):
+def synth_item(engine, asr, asr_used, item, settings):
+    """One section: best-of-N per chunk, joined with pauses, written with its report."""
     import numpy as np
     import soundfile as sf
 
-    with open(job_path, encoding="utf-8") as f:
-        job = json.load(f)
-    chunks = job["chunks"]
-    takes = max(1, int(job.get("takes", 3)))
-    pause_ms = int(job.get("pause_ms", 250))
-    accept_wer = float(job.get("accept_wer", 0.05))
-
-    engine_name = job.get("engine", "chatterbox")
-    engine = ENGINES[engine_name](job)
+    chunks = item["chunks"]
+    takes, pause_ms, accept_wer, pace = settings["takes"], settings["pause_ms"], settings["accept_wer"], settings["pace"]
     sr = engine.sr
-    asr, asr_used = (None, None)
-    if takes > 1:
-        asr, asr_used = load_asr(job.get("asr_model", "small.en"))
-
     report = []
     pieces = []
     for ci, ch in enumerate(chunks):
@@ -214,7 +227,7 @@ def run_job(job_path):
             if asr is not None and score <= accept_wer:
                 break
         best = min(cands, key=lambda c: c["score"])
-        pieces.append((best["wav"], text))
+        pieces.append((stretch(best["wav"], sr, pace), text))
         flagged = asr is not None and best["wer"] > FLAG_WER
         report.append({
             "id": ch["id"], "text": text, "chosenSeed": best["seed"],
@@ -230,12 +243,37 @@ def run_job(job_path):
         if i < len(pieces) - 1:
             out.append(np.zeros(int(sr * pause_ms / 1000), dtype="float32"))
     final = np.concatenate(out) if out else np.zeros(0, dtype="float32")
-    os.makedirs(os.path.dirname(job["out_path"]), exist_ok=True)
-    sf.write(job["out_path"], final, sr, subtype="PCM_16")
+    os.makedirs(os.path.dirname(item["out_path"]), exist_ok=True)
+    sf.write(item["out_path"], final, sr, subtype="PCM_16")
 
-    os.makedirs(os.path.dirname(job["report_path"]), exist_ok=True)
-    with open(job["report_path"], "w", encoding="utf-8") as f:
-        json.dump({"engine": engine_name, "takes": takes, "asrModel": asr_used, "outPath": job["out_path"], "chunks": report}, f, indent=2)
+    os.makedirs(os.path.dirname(item["report_path"]), exist_ok=True)
+    with open(item["report_path"], "w", encoding="utf-8") as f:
+        json.dump({"engine": settings["engine"], "pace": pace, "takes": takes, "asrModel": asr_used, "outPath": item["out_path"], "chunks": report}, f, indent=2)
+
+
+def run_job(job_path):
+    """A job is one section ({chunks, out_path, report_path, ...}) or many ({items: [...], ...shared settings}).
+    Many sections in one job load the TTS and ASR models once instead of once per section."""
+    with open(job_path, encoding="utf-8") as f:
+        job = json.load(f)
+    items = job.get("items") or [job]
+    settings = {
+        "engine": job.get("engine", "chatterbox"),
+        "takes": max(1, int(job.get("takes", 3))),
+        "pause_ms": int(job.get("pause_ms", 250)),
+        "accept_wer": float(job.get("accept_wer", 0.05)),
+        "pace": float(job.get("pace", 1.0)),
+    }
+    engine = ENGINES[settings["engine"]](job)
+    asr, asr_used = (None, None)
+    if settings["takes"] > 1:
+        asr, asr_used = load_asr(job.get("asr_model", "small.en"))
+    for n, item in enumerate(items):
+        if len(items) > 1:
+            print(f"\n[{n + 1}/{len(items)}] {item.get('id', os.path.basename(item['out_path']))}: {len(item['chunks'])} chunk(s)", flush=True)
+        if "speed" in item:
+            engine.job = {**engine.job, "speed": item["speed"]}
+        synth_item(engine, asr, asr_used, item, settings)
 
 
 def main():
