@@ -86,7 +86,7 @@ async function main() {
 
   for (const file of filesToLint) {
     const filename = path.basename(file);
-    const idMatch = filename.match(/^(S\d+)/i);
+    const idMatch = filename.match(/^([SA]\d+)/i);
     const sceneId = idMatch ? idMatch[1].toUpperCase() : "";
     const words = sceneWordsMap[sceneId] || [];
 

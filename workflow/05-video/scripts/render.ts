@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { recordTiming } from "../src/lib/timings";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
@@ -145,6 +146,8 @@ async function main() {
     logStream.end();
 
     if (code === 0) {
+      finishAudio(outFilePath, paths.outputDir, isDraft);
+      recordTiming(path.dirname(paths.outputDir), { step: isDraft ? "render draft" : "render final", ms: Date.now() - startTime });
       const stats = fs.statSync(outFilePath);
       const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
       console.log(`\n✅ Render succeeded in ${elapsedSec}s!`);
@@ -160,6 +163,32 @@ async function main() {
       process.exit(code ?? 1);
     }
   });
+}
+
+/**
+ * Swap in the full mix (voice + music + foley, 06-audio/mix.wav) when it exists, and add
+ * film grain to finals in ffmpeg: grain drawn per frame would make every frame slow and
+ * incompressible. Drafts keep the voice-only track if there is no mix, and get no grain.
+ */
+function finishAudio(videoPath: string, outputDir: string, isDraft: boolean): void {
+  const mix = path.join(path.dirname(outputDir), "06-audio", "mix.wav");
+  const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "5");
+  if (!fs.existsSync(mix) && grain <= 0) return;
+  const tmp = videoPath.replace(/\.mp4$/, ".mux.mp4");
+  const ff = ["-v", "error", "-y", "-i", videoPath];
+  if (fs.existsSync(mix)) ff.push("-i", mix, "-map", "0:v", "-map", "1:a", "-shortest");
+  else ff.push("-map", "0");
+  if (grain > 0) ff.push("-vf", `noise=alls=${grain}:allf=t`, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-tune", "grain", "-pix_fmt", "yuv420p");
+  else ff.push("-c:v", "copy");
+  ff.push("-c:a", "aac", "-b:a", "256k", tmp);
+  const t0 = Date.now();
+  const r = spawnSync("ffmpeg", ff, { encoding: "utf-8" });
+  if (r.status !== 0) {
+    console.error(`[render] ⚠️ audio/grain pass failed, keeping the plain render:\n${r.stderr}`);
+    return;
+  }
+  fs.renameSync(tmp, videoPath);
+  console.log(`[render] ${fs.existsSync(mix) ? "Mixed audio (voice+music+foley)" : "Voice audio"}${grain > 0 ? ` + grain ${grain}` : ""} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
 main().catch((err) => {

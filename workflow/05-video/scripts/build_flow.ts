@@ -3,6 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import readline from "node:readline";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
+import { recordTiming, formatDuration } from "../src/lib/timings";
 
 async function askConfirmation(query: string): Promise<boolean> {
   const rl = readline.createInterface({
@@ -19,12 +20,18 @@ async function askConfirmation(query: string): Promise<boolean> {
   });
 }
 
+let timingDir = "";
+
 function runStep(title: string, cmd: string) {
   console.log(`\n========================================`);
   console.log(`▶ ${title}`);
   console.log(`  $ ${cmd}`);
   console.log(`========================================`);
+  const t0 = Date.now();
   execSync(cmd, { stdio: "inherit" });
+  const ms = Date.now() - t0;
+  if (timingDir) recordTiming(timingDir, { step: title.replace(/^\d+\.\s*/, ""), ms });
+  console.log(`⏱  ${title}: ${formatDuration(ms)}`);
 }
 
 async function main() {
@@ -44,6 +51,7 @@ async function main() {
 
   const effectiveTarget = target || process.env.ACTIVE_VIDEO || "VID01_Currency_Market";
   const paths = resolveJobPaths(effectiveTarget);
+  timingDir = path.dirname(paths.outputDir);
 
   console.log(`\n======================================================`);
   console.log(`🎬 WEALTH GAP MOTION GRAPHICS BUILD: ${paths.jobId}`);
@@ -61,34 +69,36 @@ async function main() {
     runStep("1. Build Captions from Transcript", `bun run captions --video "${effectiveTarget}"`);
   }
 
-  // Step 2: Storyboard
-  const storyboardPath = path.join(paths.outputDir, "storyboard.json");
-  if (!fs.existsSync(storyboardPath)) {
-    runStep("2. Build Storyboard Prompt", `bun run storyboard --video "${paths.jobId}"`);
+  // Step 2: Director plans the acts (acts.json + treatment; storyboard.json is its one-scene-per-act view)
+  const actsPath = path.join(paths.outputDir, "acts.json");
+  if (!fs.existsSync(actsPath)) {
+    runStep("2. Direct: plan acts (Opus)", `bun run direct --video "${paths.jobId}"`);
+  } else {
+    runStep("2. Validate acts.json", `bun run direct --video "${paths.jobId}" --check`);
   }
 
-  // Gate 1: Human review of storyboard
-  const storyboardMd = path.join(paths.outputDir, "review", "storyboard.md");
+  // Gate 1: Human review of the plan
   if (!yesMode) {
-    console.log(`\n🛑 GATE 1: Storyboard Review`);
-    console.log(`   - Review the storyboard at: ${fs.existsSync(storyboardMd) ? storyboardMd : path.join(paths.outputDir, "review", "storyboard_prompt.txt")}`);
-    console.log(`   - Ensure storyboard.json is placed in: ${storyboardPath}`);
-    const proceed = await askConfirmation("Proceed to timeline generation and scene authoring?");
+    console.log(`\n🛑 GATE 1: Plan Review`);
+    console.log(`   - Read the treatment and acts in: ${actsPath}`);
+    const proceed = await askConfirmation("Proceed to act authoring?");
     if (!proceed) {
-      console.log("Build paused at Gate 1. Resume when storyboard is approved.");
+      console.log("Build paused at Gate 1. Edit acts.json (then `bun run direct --check`) and resume.");
       process.exit(0);
     }
   }
 
-  // Step 3: Storyboard Check & Timeline
-  runStep("3. Validate Storyboard", `bun run storyboard:check --video "${paths.jobId}"`);
-  runStep("4. Generate Frame-Accurate Timeline", `bun run timeline --video "${paths.jobId}"`);
+  // Step 3-4: Timeline, then acts (Opus draws, fresh-context critic reviews)
+  runStep("3. Timeline", `bun run timeline --video "${paths.jobId}"`);
+  runStep("4. Author acts", `bun run act --video "${paths.jobId}"`);
 
-  // Step 5: Author Scenes
-  runStep("5. Author Scenes Orchestration", `bun run author --video "${paths.jobId}"`);
+  // Step 5: Sound: foley events + music plan from the acts, music bed, full mix
+  runStep("5a. Sound cues", `bun run cues --video "${paths.jobId}"`);
+  runStep("5b. Music bed", `bun run audio:music --video "${paths.jobId}"`);
+  runStep("5c. Mix voice + music + foley", `bun run audio:mix --video "${paths.jobId}"`);
 
-  // Step 6: Assemble Registry & SFX Cues
-  runStep("6. Assemble Scenes & Cues", `bun run assemble --video "${paths.jobId}"`);
+  // Step 6: Assemble Registry
+  runStep("6. Assemble", `bun run assemble --video "${paths.jobId}"`);
 
   // Step 7: Draft Render
   runStep("7. Render Draft Video (30fps fast)", `bun run draft --video "${paths.jobId}"`);
@@ -102,10 +112,10 @@ async function main() {
   if (!yesMode) {
     console.log(`\n🛑 GATE 2: Draft & Contact Sheet Review`);
     console.log(`   - Watch draft video: ${path.join(paths.outputDir, "draft.mp4")}`);
-    console.log(`   - Inspect contact sheets under: ${path.join(paths.outputDir, "review")}/*/contact-sheet.png`);
+    console.log(`   - Inspect contact sheets under: ${path.join(paths.outputDir, "review")}/*/sheet.jpg`);
     const proceed = await askConfirmation("Proceed to final 1080p broadcast render & QC?");
     if (!proceed) {
-      console.log("Build paused at Gate 2. Fix any scenes with 'bun run author --video <id> --scenes <scene>' and resume.");
+      console.log("Build paused at Gate 2. Fix an act with 'bun run act --video <id> --act A03 --force' and resume.");
       process.exit(0);
     }
   }
@@ -119,6 +129,7 @@ async function main() {
   console.log(`\n======================================================`);
   console.log(`🎉 BUILD COMPLETED SUCCESSFULLY FOR: ${paths.jobId}`);
   console.log(`   Final video: ${path.join(paths.outputDir, "final.mp4")}`);
+  console.log(`   Time & cost per step: bun run timings --video ${paths.jobId}`);
   console.log(`======================================================\n`);
 }
 

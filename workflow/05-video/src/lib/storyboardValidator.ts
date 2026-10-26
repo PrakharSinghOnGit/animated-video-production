@@ -36,7 +36,7 @@ export const StoryboardDataPointSchema = z.object({
 });
 
 export const StoryboardSceneSchema = z.object({
-  id: z.string().regex(/^S\d+$/i, "Scene id must match S01, S02, etc."),
+  id: z.string().regex(/^[SA]\d+$/i, "Scene id must match S01 (scene) or A01 (act)"),
   slug: z.string().min(1, "Slug is required"),
   startMs: z.number().nonnegative(),
   endMs: z.number().positive(),

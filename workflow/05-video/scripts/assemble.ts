@@ -141,7 +141,7 @@ async function main() {
 
   for (const scene of timeline.scenes) {
     const matchingFile = existingFiles.find((f) => {
-      const idMatch = f.match(/^(S\d+)/i);
+      const idMatch = f.match(/^([SA]\d+)/i);
       return idMatch && idMatch[1].toUpperCase() === scene.id.toUpperCase();
     });
 

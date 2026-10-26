@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
+import { compactTranscript } from "../src/lib/transcript";
 import { execSync, spawnSync } from "node:child_process";
 
 function parseArgs() {
@@ -202,22 +203,6 @@ function primaryCue(sc: any): unknown {
       return [p.highlight?.[0]?.at, p.focus?.[0]?.at, p.markers?.[0]?.at, p.flows?.[0]?.at].find((c) => c !== undefined);
     default: return undefined;
   }
-}
-
-function compactTranscript(words: { text: string; startMs: number; endMs: number }[]): string {
-  const lines: string[] = [];
-  let buf: typeof words = [];
-  const flush = () => {
-    if (buf.length === 0) return;
-    lines.push(`[${buf[0].startMs}-${buf[buf.length - 1].endMs}] ${buf.map((w) => w.text).join(" ")}`);
-    buf = [];
-  };
-  for (const w of words) {
-    buf.push(w);
-    if (/[.!?]["')\]]*$/.test(w.text) || buf.length >= 40) flush();
-  }
-  flush();
-  return lines.join("\n");
 }
 
 /**

@@ -6,11 +6,13 @@
       "name": "wealthgap-tts",
       "dependencies": {
         "@react-three/fiber": "^9.8.2",
+        "@remotion/bundler": "4.0.536",
         "@remotion/captions": "4.0.536",
         "@remotion/cli": "4.0.536",
         "@remotion/google-fonts": "4.0.536",
         "@remotion/layout-utils": "4.0.536",
         "@remotion/media": "4.0.536",
+        "@remotion/renderer": "4.0.536",
         "@remotion/rough-notation": "4.0.536",
         "@remotion/sfx": "4.0.536",
         "@remotion/three": "^4.0.536",

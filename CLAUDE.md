@@ -1,39 +1,30 @@
-# CLAUDE.md — The Wealth Gap Motion Graphics Engine
+# CLAUDE.md — The Wealth Gap video engine
 
-The Wealth Gap video engine creates high-craft Vox/Polymatter-style animated finance videos using Remotion, Bun workspaces, and LLM-authored scenes with a strict render-and-look review loop.
+Automated 8–10 min finance explainers: original script → local Chatterbox voice → script-aligned captions → acts drawn in the **Ledger** style (Remotion + canvas) → music, foley, mix → render → QC.
 
----
+## Layout
+- `packages/kit/` (`@wealthgap/kit`): `paper/` is the Ledger drawing engine (canvas: desk, sheet, pencil, handwriting, cut-outs, halftone, stamps, camera, act transitions, captions). `archetypes/` and the older primitives belong to the previous scene-based style.
+- `workflow/`: the engine. `styles/ledger/STYLE.md` (the look), `prompts/DIRECTOR.md` + `prompts/ACT.md` (agent briefs), `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`.
+- `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`.
 
-## Folder Architecture & Boundaries
-- `packages/kit/`: **The Component Library (`@wealthgap/kit`)**. Contains primitives (`Camera`, `MorphShape`, `Label`, `Orb`, `Gem`, `Coin`, `Panel`, `Ring`, `Sparkle`, etc.), design tokens, motion helpers, and lint rules. **Scene authors never edit the kit directly.**
-- `workflow/`: **The Production Engine**. Automation scripts (`storyboard`, `timeline`, `author`, `still`, `sheet`, `assemble`, `render`, `qc`, `harvest`), templates, and prompts (`workflow/prompts/`). No video-specific assets live here.
-- `workspace/<VIDEO>/`: **Per-Video Workspace**. Isolated environment containing audio, transcript, `storyboard.json`, `timeline.json`, scene code (`05-video/src/scenes/`), review contact sheets, and rendered MP4 deliverables.
-
----
-
-## The Golden Rules (Strictly Enforced by Static Analysis)
-1. **Always Render and Look:** An author must never declare a scene done without capturing stills, building a contact sheet, and reviewing visual frames.
-2. **Design Tokens Only:** Zero raw hex or rgb literals. Colors must come from `tokens.color` (dark `#101010` obsidian foundation + refined pastel palette: `mint`, `lav`, `peach`, `sky`, `butter`, `rose`).
-3. **Deterministic Frame-Driven Motion:** All motion is calculated strictly from `frame = useCurrentFrame()`. Never use `Math.random()`, `Date.now()`, `fetch()`, timers, or CSS `@keyframes` / `transition`. Use `seeded()` for pseudorandom noise.
-4. **Spoken Word Anchoring:** Time animations via `s = useScene()`, e.g. `s.word("inflation").start - s.sec(0.1)`. Never rely on magical hardcoded frame numbers.
-5. **No Full-Screen Opaque Backgrounds:** Allow the global `<Backdrop />` to show through.
-
----
-
-## Core Command Reference
-| Stage | Command | Purpose |
+## Pipeline
+| Step | Command | Who |
 |---|---|---|
-| **Scaffold Video** | `bun run new-video <ID>` | Create video workspace from template |
-| **Storyboard** | `bun run storyboard --video <ID>` | Build storyboard prompt (manual or auto) |
-| **Validate Storyboard** | `bun run storyboard:check --video <ID>` | Validate timing, anchor words, and tokens |
-| **Build Timeline** | `bun run timeline --video <ID>` | Generate frame-accurate `timeline.json` |
-| **Author Scenes** | `bun run author --video <ID>` | Orchestrate scene prompts and verification |
-| **Lint Scene** | `bun run lint:scene --video <ID> --scene <S01>` | Run static analysis rules on scene code |
-| **Render Stills** | `bun run still --video <ID> --scene <S01>` | Capture keyframe PNG stills |
-| **Contact Sheet** | `bun run sheet --video <ID> --scene <S01>` | Tile stills into visual contact sheet |
-| **Assemble** | `bun run assemble --video <ID>` | Wire scene registry, SFX cues, and citations |
-| **Draft Preview** | `bun run draft --video <ID>` | Fast 30fps half-res review render (Gate 2) |
-| **Final Render** | `bun run render --video <ID>` | Broadcast 1080p H.264 video with audio |
-| **Automated QC** | `bun run qc --video <ID>` | Verify duration sync, zero black frames, loudness |
-| **Harvest Patterns**| `bun run harvest --video <ID>` | Propose reusable primitives for promotion to kit |
-| **Full Build** | `bun run build --video <ID>` | Run full pipeline with Gate 1 & 2 pauses |
+| Voice | `bun run tts --video <ID> --force --combine` (Chatterbox; `--pace 0.9`, `--exaggeration`, `--cfg`) | local |
+| Align | `bun run transcribe --video <ID>` → `bun run audio:master --video <ID>` → `bun run captions --video <ID>` | local |
+| Plan | `bun run direct --video <ID>` (acts.json + treatment; `--check` validates) | Opus |
+| Draw | `bun run act --video <ID> [--act A03] [--parallel 2]` (author + fresh-context critic) | Opus + Sonnet |
+| Review frames | `bun run frames --video <ID> --scene A01 --every 4 --words` | local |
+| Sound | `bun run cues` → `bun run audio:music` → `bun run audio:mix` (all `--video <ID>`) | local |
+| Render | `bun run draft` / `bun run render` then `bun run qc` (all `--video <ID>`) | local |
+| Whole build | `bun run build --video <ID>` (gates after plan and draft) | |
+| Time & cost | `bun run timings --video <ID>` | |
+
+Python tools use the repo `.venv` (py3.11): `uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r workflow/03-voiceover/requirements.txt -r workflow/06-audio/requirements.txt`.
+
+## Rules for act code
+1. Follow `workflow/styles/ledger/STYLE.md`; draw only with `paper` from `@wealthgap/kit`; colours from `paper.P`.
+2. Deterministic: everything is a function of `ctx.t`; no `Math.random`, `Date`, timers or state between frames.
+3. Hits come from spoken words (`ctx.word(text, n)`) and are complete at the word's start.
+4. Every act uses `actCamera` + `drawActStage` + `autoCaption` so acts flow into each other.
+5. Always render and look (`bun run frames`) before calling an act done. Never invent data; numbers come from the plan's sourced `data`.
