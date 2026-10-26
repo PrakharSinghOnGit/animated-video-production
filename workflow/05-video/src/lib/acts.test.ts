@@ -51,3 +51,11 @@ test("actsToStoryboard makes one scene per act", () => {
   expect(sb.scenes).toHaveLength(1);
   expect(sb.scenes[0]).toMatchObject({ id: "A01", kind: "act", startMs: 0, endMs: 50_000 });
 });
+
+test("each chapter must open an act at its pause, flagged with chapter", () => {
+  const two = (a2: any) => plan([act("A01", 0, 50_000, [beat(0, 50_000)]), { ...act("A02", 50_000, 99_600, [beat(50_000, 99_600)]), ...a2 }]);
+  const chapters = [{ n: 1, title: "Who owns it", pauseStartMs: 49_700, startMs: 52_000 }];
+  expect(checkActs(two({}), captions, chapters).join("\n")).toContain('set "chapter"');
+  expect(checkActs(two({ chapter: { n: 1, title: "Who owns it" } }), captions, chapters)).toEqual([]);
+  expect(checkActs(two({}), captions, [{ ...chapters[0], pauseStartMs: 70_000 }]).join("\n")).toContain("no act starts at its pause");
+});

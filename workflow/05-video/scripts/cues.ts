@@ -62,6 +62,9 @@ for (const act of plan.acts) {
   }
 
   sections.push({
+    label: act.id,
+    title: act.title,
+    ...(act.chapter ? { intro: "swell" } : {}),
     t0: Math.round(winStart * 1000) / 1000,
     t1: Math.round(winEnd * 1000) / 1000,
     bpm: act.bpm,

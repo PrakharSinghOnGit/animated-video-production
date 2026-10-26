@@ -4,7 +4,7 @@
  * descending onto it, and closes by lifting off and travelling on to the right.
  * The camera always travels right, so act → act is one pan along the desk.
  */
-import { W, H, P, drawDesk, sheet, caption, camPath, type Cam, type Rect } from "./engine";
+import { W, H, P, FONT, drawDesk, sheet, caption, camPath, setType, pencilStroke, type Cam, type Rect } from "./engine";
 import { seg, lerp, inOutCubic } from "./lib";
 
 export const ACT_IN = 0.9;
@@ -120,4 +120,24 @@ export function shots(keys: ShotKey[]): (t: number) => Cam {
       return { t: k.t, x: c.x, y: c.y, zoom: c.zoom, roll: c.roll, ease: k.ease };
     })
   );
+}
+
+/**
+ * Chapter card, drawn in world space at (x, y) = top-left of the title block, while the
+ * narration pauses before a chapter: "CHAPTER 02" in mono, the title set large in Fraunces,
+ * then a double rule ruled under it. Frame it with `frameRect(chapterRect(x, y, title))`.
+ * progress 0..1 over the pause (typeset ~0–0.45, rule 0.45–0.8, then hold).
+ */
+export function chapterCard(g: CanvasRenderingContext2D, x: number, y: number, n: number, title: string, progress: number): void {
+  const p = Math.max(0, Math.min(1, progress));
+  setType(g, `CHAPTER ${String(n).padStart(2, "0")}`, x, y, { size: 30, font: FONT.mono, color: P.red, track: 6, progress: seg(p, 0, 0.2), rise: 8 });
+  setType(g, title, x, y + 118, { size: 104, font: FONT.type, weight: 600, color: P.ink, progress: seg(p, 0.08, 0.45), rise: 18 });
+  const w = Math.max(600, title.length * 52);
+  pencilStroke(g, [[x, y + 168], [x + w, y + 168]], { color: P.ink, width: 2.4, progress: seg(p, 0.45, 0.7), seed: n * 7, wobble: 0.3 });
+  pencilStroke(g, [[x, y + 182], [x + w, y + 182]], { color: P.ink, width: 1.4, progress: seg(p, 0.55, 0.8), seed: n * 7 + 1, wobble: 0.3 });
+}
+
+/** World rect around a chapter card at (x, y), for framing it with frameRect/shots. */
+export function chapterRect(x: number, y: number, title: string): Rect {
+  return [x - 80, y - 90, x + Math.max(600, title.length * 52) + 80, y + 260];
 }

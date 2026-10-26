@@ -2,6 +2,8 @@ export interface VOSection {
   id: string;
   part: number;
   partTitle: string;
+  /** on the first section of a chapter: the title shown while the narration pauses */
+  chapterTitle?: string;
   clips: string;
   rawInstruction: string;
   text: string;
@@ -55,6 +57,9 @@ export interface GenerationOptions {
   cfgWeight?: number;       // Chatterbox: lower = slower, looser pacing (default 0.5)
   temperature?: number;     // Chatterbox: sampling temperature (default 0.8)
   pace?: number;            // Tempo applied to the chosen take, pitch preserved (default 0.9 Chatterbox, 1 F5)
+  sentenceGap?: number;     // seconds between sentences (Chatterbox default 0.6)
+  sectionGap?: number;      // seconds after each section (default 0.9)
+  chapterGap?: number;      // seconds at a part/chapter change (default 0 = off)
   pauseMs?: number;         // Silence between sentence chunks (default 350 Chatterbox, 250 F5)
   voiceDir?: string;
   remakeVoice?: boolean;

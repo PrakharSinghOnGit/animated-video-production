@@ -13,6 +13,8 @@ interface ParsedBeat {
 interface ParsedPart {
   partNum: number;
   partTitle: string;
+  /** set when the header is "### CHAPTER n: Title": the narration pauses and the title card shows */
+  chapterTitle?: string;
   beats: ParsedBeat[];
 }
 
@@ -70,15 +72,18 @@ function parseScriptRaw(content: string): ParsedPart[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Check for Part headers (e.g. ### PART 1: THE HOOK)
-    const partMatch = line.match(/^###\s+PART\s+(\d+)\s*:\s*(.*)/i);
+    // Part headers (### PART 1: THE HOOK) or chapter headers (### CHAPTER 2: Who owns the basket).
+    // A chapter is a part that opens with a pause and a chapter title card.
+    const partMatch = line.match(/^###\s+(PART|CHAPTER)\s+(\d+)\s*:\s*(.*)/i);
     if (partMatch) {
       if (currentPart && currentPart.beats.length > 0) {
         parts.push(currentPart);
       }
+      const isChapter = partMatch[1].toUpperCase() === "CHAPTER";
       currentPart = {
-        partNum: parseInt(partMatch[1], 10),
-        partTitle: `PART ${partMatch[1]}: ${partMatch[2].trim()}`,
+        partNum: parseInt(partMatch[2], 10),
+        partTitle: `${partMatch[1].toUpperCase()} ${partMatch[2]}: ${partMatch[3].trim()}`,
+        ...(isChapter ? { chapterTitle: partMatch[3].trim() } : {}),
         beats: [],
       };
       currentClip = "";
@@ -192,7 +197,7 @@ Example:
       return `  {
     id: "${id}",
     part: ${part.partNum},
-    partTitle: "${part.partTitle}",
+    partTitle: "${part.partTitle}",${part.chapterTitle && idx === 0 ? `\n    chapterTitle: ${JSON.stringify(part.chapterTitle)},` : ""}
     clips: "${b.clips}",
     rawInstruction: ${JSON.stringify(b.rawInstruction)},
     speed: ${speed.toFixed(2)},

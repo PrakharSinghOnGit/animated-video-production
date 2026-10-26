@@ -15,6 +15,9 @@ Pick one or two reference works (an explainer channel episode, a data-journalism
 - **An ending that echoes the opening.**
 - Cut extras: one clear gag or image beats three the viewer can't read.
 
+## Chapters
+If the inputs list chapters, each one opens a new act that starts at the chapter's `pauseStartMs` and carries `"chapter": {"n", "title"}`. The narration is silent until `startMs`: the act opens on its chapter card (the title written large on the new sheet) with the music swelling, then the first spoken words take over. Chapter acts are where the music and the sheet change, so treat each chapter as a fresh start for the viewer.
+
 ## 3. Treatment (write it first)
 1. Three candidate structures in a few lines each, then the chosen one and why.
 2. Logline and arc (setup → turn → ending).

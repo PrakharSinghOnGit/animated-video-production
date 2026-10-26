@@ -57,6 +57,49 @@ async function main() {
   const out = path.join(paths.outputDir, "captions.json");
   fs.writeFileSync(out, JSON.stringify(result.captions, null, 2), "utf-8");
   console.log(`✓ Saved ${out}`);
+  await writeChapters(paths.outputDir, parsed);
+}
+
+/**
+ * Chapters come from "### CHAPTER n: Title" headers in the script (sections carry chapterTitle).
+ * chapters.json: [{ n, title, pauseStartMs, startMs }]: the narration is silent from pauseStartMs
+ * (end of the previous sentence) to startMs (first word of the chapter) while the title card shows.
+ * Also writes chapters.txt in YouTube's description format.
+ */
+async function writeChapters(outputDir: string, transcript: any): Promise<void> {
+  const wsDir = path.dirname(outputDir);
+  const sectionsIndex = path.join(wsDir, "03-voiceover", "sections", "index.ts");
+  const clips: any[] = transcript?.clips ?? [];
+  if (!fs.existsSync(sectionsIndex) || clips.length === 0) return;
+  const { allSections } = await import(sectionsIndex);
+  const chapterStarts = new Map<string, string>((allSections as any[]).filter((s) => s.chapterTitle).map((s) => [s.id, s.chapterTitle]));
+  if (chapterStarts.size === 0) return;
+
+  const chapters: { n: number; title: string; pauseStartMs: number; startMs: number }[] = [];
+  let t = 0;
+  let prevLastWordEnd = 0;
+  for (const c of clips) {
+    const id = String(c.sectionId ?? "").replace(/^\d+_/, "");
+    const words: any[] = c.words ?? [];
+    const firstStart = words.length ? Number(words[0].start ?? 0) : 0;
+    const lastEnd = words.length ? Number(words[words.length - 1].end ?? 0) : 0;
+    if (chapterStarts.has(id)) {
+      chapters.push({
+        n: chapters.length + 1,
+        title: chapterStarts.get(id)!,
+        pauseStartMs: Math.round(prevLastWordEnd * 1000),
+        startMs: Math.round((t + firstStart) * 1000),
+      });
+    }
+    prevLastWordEnd = t + lastEnd;
+    t += Number(c.duration ?? 0);
+  }
+  fs.writeFileSync(path.join(outputDir, "chapters.json"), JSON.stringify(chapters, null, 2), "utf-8");
+  const stamp = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+  const lines = chapters.map((c, i) => `${stamp(i === 0 ? 0 : c.pauseStartMs)} ${c.title}`);
+  if (chapters.length && chapters[0].pauseStartMs > 0) lines.unshift("0:00 Intro");
+  fs.writeFileSync(path.join(outputDir, "chapters.txt"), lines.join("\n") + "\n", "utf-8");
+  console.log(`✓ ${chapters.length} chapters → chapters.json, chapters.txt (YouTube description format)`);
 }
 
 main().catch((err) => {

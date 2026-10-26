@@ -49,7 +49,16 @@ export interface Act {
   intensity: number;
   silence?: { word: string; occurrence?: number; durMs: number }[];
   sound?: string;
+  /** set on the act that opens a chapter: it starts on the narration pause with the chapter card */
+  chapter?: { n: number; title: string };
   beats: Beat[];
+}
+
+export interface Chapter {
+  n: number;
+  title: string;
+  pauseStartMs: number;
+  startMs: number;
 }
 
 export interface ActsPlan {
@@ -77,10 +86,16 @@ export function findWord(captions: Caption[], word: string, occurrence: number, 
   return undefined;
 }
 
-export function checkActs(plan: ActsPlan, captions: Caption[]): string[] {
+export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter[] = []): string[] {
   const errors: string[] = [];
   const acts = plan.acts ?? [];
   if (acts.length === 0) return ["acts: no acts"];
+  // Every chapter opens an act exactly at its narration pause (the act begins with the chapter card)
+  for (const ch of chapters) {
+    const act = acts.find((a) => Math.abs(a.startMs - ch.pauseStartMs) <= 800);
+    if (!act) errors.push(`chapter ${ch.n} "${ch.title}": no act starts at its pause (${ch.pauseStartMs} ms)`);
+    else if (!act.chapter || act.chapter.n !== ch.n) errors.push(`${act.id}: opens chapter ${ch.n}, set "chapter": {"n": ${ch.n}, "title": ${JSON.stringify(ch.title)}}`);
+  }
   const voiceStart = captions[0]?.startMs ?? 0;
   const voiceEnd = captions[captions.length - 1]?.endMs ?? 0;
 

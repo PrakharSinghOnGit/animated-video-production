@@ -59,6 +59,12 @@ function parseArgs(): GenerationOptions {
       options.cfgWeight = parseFloat(args[++i]);
     } else if (arg === "--pace") {
       options.pace = parseFloat(args[++i]);
+    } else if (arg === "--sentence-gap") {
+      options.sentenceGap = parseFloat(args[++i]);
+    } else if (arg === "--section-gap") {
+      options.sectionGap = parseFloat(args[++i]);
+    } else if (arg === "--chapter-gap") {
+      options.chapterGap = parseFloat(args[++i]);
     } else if (arg === "--pause-ms") {
       options.pauseMs = parseInt(args[++i], 10);
     } else if (arg === "--temperature") {

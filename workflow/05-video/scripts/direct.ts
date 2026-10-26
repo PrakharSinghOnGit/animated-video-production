@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { compactTranscript } from "../src/lib/transcript";
-import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption } from "../src/lib/acts";
+import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
 import { runAgent } from "../src/lib/agent";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 
@@ -38,6 +38,8 @@ if (!fs.existsSync(captionsFile)) {
   process.exit(1);
 }
 const captions: Caption[] = JSON.parse(fs.readFileSync(captionsFile, "utf-8"));
+const chaptersFile = path.join(paths.outputDir, "chapters.json");
+const chapters: Chapter[] = fs.existsSync(chaptersFile) ? JSON.parse(fs.readFileSync(chaptersFile, "utf-8")) : [];
 
 function validate(): string[] {
   if (!fs.existsSync(actsFile)) return [`${actsFile} was not written`];
@@ -47,7 +49,7 @@ function validate(): string[] {
   } catch (e: any) {
     return [`acts.json is not valid JSON: ${e.message}`];
   }
-  return checkActs(plan, captions);
+  return checkActs(plan, captions, chapters);
 }
 
 function finish(): void {
@@ -89,7 +91,7 @@ const prompt = `${director}
 - Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
 
 ${compactTranscript(captions)}
-
+${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}
 Write acts.json to this exact path with the Write tool: ${actsFile}
 Do not write any other file.`;
 

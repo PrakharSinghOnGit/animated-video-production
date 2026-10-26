@@ -242,6 +242,9 @@ def synth_item(engine, asr, asr_used, item, settings):
         out.append(wav)
         if i < len(pieces) - 1:
             out.append(np.zeros(int(sr * pause_ms / 1000), dtype="float32"))
+    tail_ms = int(item.get("tail_ms", 0))  # section / chapter pause after the last sentence
+    if tail_ms > 0:
+        out.append(np.zeros(int(sr * tail_ms / 1000), dtype="float32"))
     final = np.concatenate(out) if out else np.zeros(0, dtype="float32")
     os.makedirs(os.path.dirname(item["out_path"]), exist_ok=True)
     sf.write(item["out_path"], final, sr, subtype="PCM_16")
