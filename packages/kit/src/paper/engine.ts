@@ -352,7 +352,7 @@ export function dashedCell(g: G, x0: number, y0: number, x1: number, y1: number,
 // flip 0..1 (black lead -> red lead), blur = extra defocus, ang = direction the body extends from the tip.
 let _pc: OffscreenCanvas | null = null, _pb: OffscreenCanvas | null = null;
 function pencilBody(g: G, end: "lead" | "red", axisScale: number): void {
-  const Lg = 16, Lw = 58, Wd = 24, len = 1400;
+  const Lg = 16, Lw = 58, Wd = 24, len = 560;
   g.save(); g.scale(axisScale, 1);
   const cA = end === "red" ? P.red : P.lead, cB = end === "red" ? P.lead : P.red;
   g.fillStyle = cA; g.fillRect(Lg + Lw - 2, -Wd / 2, len * 0.5, Wd);
@@ -406,8 +406,8 @@ export function drawPencil(g: G, o: PencilOpts): void {
 // ---------- figure caption (the subtitle) ----------
 export interface CaptionWord { w: string; t: number }
 /** Figure caption in screen space: hairline rule, Fraunces 400, words appear on their spoken time (absolute seconds). */
-export function caption(g: G, words: CaptionWord[], t: number, o: { x?: number; y?: number; size?: number; maxW?: number; kicker?: string; t0?: number; t1?: number; color?: string } = {}): void {
-  const { x = 180, y = 985, size = 42, maxW = 1380, kicker = "", t0 = 0, t1 = 1e9, color = P.ink } = o;
+export function caption(g: G, words: CaptionWord[], t: number, o: { x?: number; y?: number; size?: number; maxW?: number; kicker?: string; t0?: number; t1?: number; color?: string; rule?: boolean } = {}): void {
+  const { x = 180, y = 985, size = 42, maxW = 1380, kicker = "", t0 = 0, t1 = 1e9, color = P.ink, rule = false } = o;
   if (t < t0 || t > t1 + 0.3) return;
   const out = t > t1 ? clamp((t - t1) / 0.3) : 0, inn = clamp((t - t0) / 0.2);
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
@@ -419,7 +419,7 @@ export function caption(g: G, words: CaptionWord[], t: number, o: { x?: number; 
   const lh = size * 1.22, top = y - (lines.length - 1) * lh, ruleY = top - size * 1.05;
   const maxLine = Math.max(...lines.map((l) => l.reduce((a, b) => a + b.ww + sp, -sp)));
   g.strokeStyle = P.ink; g.lineWidth = 1; g.globalAlpha *= 0.9;
-  g.beginPath(); g.moveTo(x, ruleY); g.lineTo(x + Math.max(260, maxLine) * clamp(inn * 1.2), ruleY); g.stroke();
+  if (rule) { g.beginPath(); g.moveTo(x, ruleY); g.lineTo(x + Math.max(260, maxLine) * clamp(inn * 1.2), ruleY); g.stroke(); }
   if (kicker) setType(g, kicker, x, ruleY - 10, { size: 18, color: P.inkSoft });
   g.fillStyle = color; g.font = `400 ${size}px "${FONT.type}"`;
   lines.forEach((l, li) => {

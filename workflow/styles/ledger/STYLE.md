@@ -53,7 +53,8 @@ It is **not**: a slide deck (no boxes with text in them, no title + bullet layou
 ## 5. Motion quality
 
 - **The voice drives the beats, the music grid places them.** A visual hit is *complete* on its spoken word: the motion starts earlier (anticipation 3–6 frames, then action), so the number is readable as it is said. If a music beat lies within ±150 ms of the word, land on the beat.
-- **Pencil acting**: lift before a mark, land with the shadow meeting the tip, small rebound. It hurries as data gets dense, hovers before a key mark, and leaves the frame when the viewer should just look.
+- **Pencil acting**: lift before a mark, land with the shadow meeting the tip, small rebound. It hovers before a key mark, lingers on a fresh mark, and leaves the frame when the viewer should just look. Calm, never darting: hops ≥ 0.5 s, handwriting about 9 characters a second (the kit's `pencilPerformer` and `writeTime` enforce this).
+- **Camera tempo**: moves take 1.1–2.8 s depending on distance and zoom (the kit's `shots` enforces a minimum); act entries and exits take ~1.8 s. A long-form explainer stays on a view and lets it be read.
 - **Build, then hold.** A diagram is drawn while it is explained, then the camera holds on it while the narrator finishes. No idle element: if nothing is being drawn, the camera is breathing (slow drift, ≤ 2% over 10 s).
 - **Rescale** reads as ratchet steps; **morphs** are staggered sweeps (bars into a unit grid, a map into a ranking).
 - **No fades to blank, no dissolves, no hard cuts inside an act.** Transitions are page operations: a pull-back, a pan along the sheet, a column totalled into the next idea, a cut-out picked up and carried to the next spot.

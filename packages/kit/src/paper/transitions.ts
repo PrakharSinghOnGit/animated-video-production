@@ -7,8 +7,8 @@
 import { W, H, P, FONT, drawDesk, sheet, caption, camPath, setType, pencilStroke, type Cam, type Rect } from "./engine";
 import { seg, lerp, inOutCubic } from "./lib";
 
-export const ACT_IN = 0.9;
-export const ACT_OUT = 0.9;
+export const ACT_IN = 1.8;
+export const ACT_OUT = 1.6;
 
 /** Camera that frames the whole sheet with some desk around it. */
 export function deskView(rect: Rect): Cam {
@@ -112,14 +112,33 @@ export interface ShotKey {
   ease?: (t: number) => number;
 }
 
-/** Keyframed camera over framed regions: each key frames a rect (or holds an explicit cam). */
+/** Time a move should take: longer for bigger zooms and longer travel (1.1–2.8 s). */
+export function moveTime(a: Cam, b: Cam): number {
+  const zoomSteps = Math.abs(Math.log2(b.zoom / a.zoom));
+  const screens = Math.hypot(b.x - a.x, b.y - a.y) * Math.min(a.zoom, b.zoom) / W;
+  return Math.min(2.8, Math.max(1.1, 0.9 + 0.7 * zoomSteps + 0.8 * screens));
+}
+
+/**
+ * Keyframed camera over framed regions: each key frames a rect (or holds an explicit cam).
+ * Moves never run faster than moveTime(): a move that is keyed too tightly starts earlier,
+ * eating into the hold before it (never before the previous key). Punch-ins with an explicit
+ * `ease` (e.g. linear over 2 frames) are left as they are.
+ */
 export function shots(keys: ShotKey[]): (t: number) => Cam {
-  return camPath(
-    keys.map((k) => {
-      const c = k.cam ?? frameRect(k.rect!, k.fill ?? 0.85);
-      return { t: k.t, x: c.x, y: c.y, zoom: c.zoom, roll: c.roll, ease: k.ease };
-    })
-  );
+  const ks = [...keys].sort((a, b) => a.t - b.t).map((k) => {
+    const c = k.cam ?? frameRect(k.rect!, k.fill ?? 0.85);
+    return { t: k.t, x: c.x, y: c.y, zoom: c.zoom, roll: c.roll, ease: k.ease };
+  });
+  for (let i = 1; i < ks.length; i++) {
+    const a = ks[i - 1], b = ks[i];
+    if (b.ease) continue;
+    const need = moveTime(a, b);
+    if (b.t - a.t >= need) continue;
+    const floor = i >= 2 ? ks[i - 2].t + 0.1 : a.t;
+    a.t = Math.max(floor, Math.min(a.t, b.t - need));
+  }
+  return camPath(ks);
 }
 
 /**
