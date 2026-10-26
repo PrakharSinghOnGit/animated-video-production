@@ -1,0 +1,131 @@
+#!/usr/bin/env python
+"""Final mix: voice on top, sidechain-ducked music, light foley, gentle bus compression,
+48 kHz / 24-bit stereo, two-pass ffmpeg loudnorm to -14 LUFS / -1 dBTP.
+
+Usage: mix.py --voice v.wav --music m.wav|none --events events.json|none --out mix.wav
+              [--trim SEC] [--duck-db -12] [--music-db -4] [--foley-db 0] [--lufs -14] [--tp -1]
+events.json: [{t, type, d?, gain?, pan?}] (types: see sfx.FOLEY)
+"""
+import argparse, json, os, re, subprocess, sys, tempfile
+import numpy as np, soundfile as sf, soxr
+from scipy.ndimage import maximum_filter1d, uniform_filter1d
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sfx
+
+SR = 48000
+
+
+def load(path, trim=None):
+    x, sr = sf.read(path, dtype="float64", always_2d=True)
+    if trim: x = x[:int(trim * sr)]
+    if sr != SR: x = soxr.resample(x, sr, SR, quality="VHQ")
+    if x.shape[1] == 1: x = np.repeat(x, 2, 1)
+    return x[:, :2]
+
+
+def follower(x, att=.08, rel=.4, hop=.005):
+    """Voice level (dBFS, 20 ms RMS) -> ducking gain in dB at 'hop' resolution; attack/release smoothing."""
+    h = int(hop * SR); m = np.sqrt((x ** 2).mean(1)); n = len(m) // h
+    r = np.sqrt(np.convolve(m[:n * h] ** 2, np.ones(4 * h) / (4 * h), "same")[::h][:n] + 1e-12)
+    return 20 * np.log10(r + 1e-9), h
+
+
+def duck_gain(voice, duck_db):
+    lvl, h = follower(voice)
+    target = -np.clip((lvl - (-50)) / 8, 0, 1)         # 0 below -50 dBFS, full duck above -42 dBFS
+    a_att, a_rel = np.exp(-.005 / .08), np.exp(-.005 / .4)
+    g = np.zeros(len(target)); s = 0.0
+    for i, tg in enumerate(target):                     # tg<0 means "duck more"
+        a = a_att if tg < s else a_rel
+        s = a * s + (1 - a) * tg; g[i] = s
+    gdb = g * abs(duck_db)
+    full = np.interp(np.arange(len(voice)) / h, np.arange(len(g)), gdb)
+    return 10 ** (full / 20)
+
+
+def bus_comp(x, thr_db=-16, ratio=2.0, att=.01, rel=.15, hop=.004):
+    h = int(hop * SR); pk = np.abs(x).max(1); n = len(pk) // h
+    env = maximum_filter1d(pk[:n * h].reshape(n, h).max(1), 3)
+    ea, er = np.exp(-hop / att), np.exp(-hop / rel); s = 0.0; g = np.ones(n)
+    thr = 10 ** (thr_db / 20)
+    for i in range(n):
+        c = env[i]; a = ea if c > s else er; s = a * s + (1 - a) * c
+        g[i] = 1 if s <= thr else (thr * (s / thr) ** (1 / ratio)) / s
+    gs = np.interp(np.arange(len(x)) / h, np.arange(n), g)
+    return x * gs[:, None]
+
+
+def limit(x, ceil=.89, look=.004):
+    n = int(look * SR); pk = np.abs(x).max(1)
+    m = maximum_filter1d(pk, size=2 * n + 1); g = np.minimum(1, ceil / np.maximum(m, 1e-9)); g = uniform_filter1d(g, size=n)
+    return x * g[:, None]
+
+
+def ff(*args):
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-y", *args], capture_output=True, text=True)
+    if r.returncode: sys.exit("ffmpeg failed:\n" + r.stderr[-1500:])
+    return r.stderr
+
+
+def loudnorm_json(path, extra=""):
+    err = ff("-i", path, "-af", f"loudnorm=I=-14:TP=-1:LRA=11:print_format=json{extra}", "-f", "null", "-")
+    return json.loads(err[err.rfind("{"):err.rfind("}") + 1])
+
+
+def master(src, out, lufs, tp):
+    ln = f"loudnorm=I={lufs}:TP={tp}:LRA=11"
+    err = ff("-i", src, "-af", ln + ":print_format=json", "-f", "null", "-")
+    st = json.loads(err[err.rfind("{"):err.rfind("}") + 1])
+    meas = f":measured_I={st['input_i']}:measured_TP={st['input_tp']}:measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']}:linear=true"
+    ff("-i", src, "-af", ln + meas, "-ar", str(SR), "-ac", "2", "-c:a", "pcm_s24le", out)
+    after = loudnorm_json(out)
+    if float(after["input_tp"]) > tp + .05:
+        tmp = out + ".lim.wav"
+        ff("-i", out, "-af", f"alimiter=limit={10 ** ((tp - .3) / 20):.4f}:level=disabled", "-ar", str(SR), "-c:a", "pcm_s24le", tmp)
+        os.replace(tmp, out); after = loudnorm_json(out)
+    return float(st["input_i"]), float(st["input_tp"]), float(after["input_i"]), float(after["input_tp"]), float(after["input_lra"])
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--voice", required=True); ap.add_argument("--music", default="none"); ap.add_argument("--events", default="none")
+    ap.add_argument("--out", required=True); ap.add_argument("--trim", type=float)
+    ap.add_argument("--duck-db", type=float, default=-12); ap.add_argument("--music-db", type=float, default=-4)
+    ap.add_argument("--foley-db", type=float, default=0); ap.add_argument("--lufs", type=float, default=-14); ap.add_argument("--tp", type=float, default=-1)
+    ap.add_argument("--stems", help="optional dir to dump music/foley stems (for analysis)")
+    a = ap.parse_args()
+    voice = load(a.voice, a.trim); N = len(voice)
+    mus = np.zeros_like(voice); fol = np.zeros_like(voice); gain = np.ones(N)
+    if a.music and a.music.lower() != "none" and os.path.exists(a.music):
+        m = load(a.music)[:N]; mus[:len(m)] = m
+        gain = duck_gain(voice, a.duck_db)
+        mus = mus * gain[:, None] * 10 ** (a.music_db / 20)
+    if a.events and a.events.lower() != "none" and os.path.exists(a.events):
+        evs = json.load(open(a.events)); skipped = 0
+        for i, e in enumerate(evs):
+            if e["type"] not in sfx.FOLEY: skipped += 1; continue
+            if e["t"] >= N / SR or (a.trim and e["t"] > a.trim): continue
+            sfx.seed(1234 + i)
+            x = sfx.render_event(e["type"], e.get("d")).astype(np.float64)
+            lvl = 10 ** ((sfx.FOLEY[e["type"]][2] + a.foley_db) / 20) / .8
+            sfx.add(fol, x, float(e["t"]), lvl * float(e.get("gain", 1)), float(e.get("pan", 0)))
+        if skipped: print(f"[mix] skipped {skipped} unknown event types", file=sys.stderr)
+    mix = voice + mus + fol
+    mix = bus_comp(mix); mix = limit(mix)
+    if a.stems:
+        os.makedirs(a.stems, exist_ok=True)
+        for n, s in (("music", mus), ("foley", fol), ("voice", voice)): sf.write(f"{a.stems}/{n}.wav", s, SR, subtype="PCM_24")
+        sf.write(f"{a.stems}/duck.wav", gain, SR, subtype="FLOAT")
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    tmp = tempfile.mktemp(suffix=".wav", dir=os.path.dirname(os.path.abspath(a.out)))
+    sf.write(tmp, mix, SR, subtype="PCM_24")
+    try: i0, tp0, i1, tp1, lra = master(tmp, a.out, a.lufs, a.tp)
+    finally:
+        if os.path.exists(tmp): os.remove(tmp)
+    print(f"[mix] {a.out}  {N / SR:.1f}s  48 kHz 24-bit stereo")
+    print(f"[mix] loudness before {i0:.1f} LUFS / {tp0:.1f} dBTP -> after {i1:.1f} LUFS / {tp1:.1f} dBTP (LRA {lra:.1f})")
+    if abs(i1 - a.lufs) > 1 or tp1 > a.tp + .1: print("[mix] WARNING: off target", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
