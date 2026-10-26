@@ -28,3 +28,7 @@ workspace/VID*
 .venv/
 __pycache__/
 *.pyc
+
+# Audio libraries (manifests stay tracked)
+assets/**/*.wav
+assets/**/*.mp3

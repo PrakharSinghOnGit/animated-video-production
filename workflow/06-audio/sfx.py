@@ -251,15 +251,120 @@ def whoosh(d=.5, v=1.0):
     return _out(lp(x, 2600) * np.sin(np.pi * u) ** 1.5) * v
 
 
+def coin_drop(d=.7, v=1.0):
+    """A coin lands and rings, then settles with two small bounces."""
+    out = np.zeros(int(d * SR))
+    for at, g, p in [(0, 1, 1.0), (.11, .45, 1.04), (.19, .2, 1.07)]:
+        tt = t_(.5); ring = sum(a * np.sin(2 * np.pi * f * p * tt) * env_exp(.5, tau) for f, a, tau in [(3150, 1, .12), (4720, .5, .08), (6300, .25, .05)])
+        s0 = int(at * SR); x = norm(ring, g * .6); out[s0:s0 + len(x)] += x[:len(out) - s0]
+    return _out(lp(out, 9000)) * v
+
+
+def cash_register(d=1.1, v=1.0):
+    """Key clacks, a drawer thunk and a short 'ching'."""
+    out = np.zeros(int(d * SR))
+    def put(x, at, g=1.0):
+        s0 = int(at * SR); out[s0:s0 + len(x)] += x[:len(out) - s0] * g
+    for i, at in enumerate([0, .09, .17]): put(clack(.9 + .05 * i, .5), at, .5)
+    put(norm(lp(noise(.2), 450) * env_exp(.2, .05) + np.sin(2 * np.pi * 95 * t_(.2)) * env_exp(.2, .06), .8), .3, .8)
+    bell = sum(a * np.sin(2 * np.pi * f * t_(.7)) * env_exp(.7, tau) for f, a, tau in [(2637, 1, .3), (3951, .5, .2), (5274, .2, .12)])
+    put(norm(bell, .35), .36, 1.0)
+    return _out(lp(out, 9000)) * v
+
+
+def typewriter(d=.9, v=1.0):
+    """A few typebar strikes and a small carriage bell."""
+    out = np.zeros(int(d * SR)); at = 0.0
+    for i in range(5):
+        c = clack(.7 + _rng.random() * .3, .6); s0 = int(at * SR); out[s0:s0 + len(c)] += c[:len(out) - s0] * (.5 + .3 * _rng.random()); at += .1 + .06 * _rng.random()
+    bell = sum(a * np.sin(2 * np.pi * f * t_(.35)) * env_exp(.35, tau) for f, a, tau in [(2349, 1, .15), (4698, .2, .07)])
+    s0 = int((at + .05) * SR); b = norm(bell, .3); out[s0:s0 + len(b)] += b[:len(out) - s0]
+    return _out(lp(out, 8000)) * v
+
+
 # type -> (function, default duration or None, base level in dBFS peak at mix input)
 FOLEY = {
     "pencil_tap": (pencil_tap, None, -16), "pencil_scratch": (pencil_scratch, .6, -23),
     "ruler_hiss": (ruler_hiss, .8, -25), "paper_slide": (paper_slide, .45, -20),
     "stamp_thud": (stamp_thud, None, -11), "page_turn": (page_turn, None, -18),
     "adding_clack": (adding_clack, None, -16), "pop": (pop, None, -19), "whoosh": (whoosh, .5, -26),
+    "coin_drop": (coin_drop, .7, -17), "cash_register": (cash_register, 1.1, -16), "typewriter": (typewriter, .9, -22),
 }
 
 
 def render_event(kind, d=None):
     fn, dd, _ = FOLEY[kind]
     return fn(d if d is not None else dd) if dd is not None else fn()
+
+
+# ===================================================================
+# Licensed sample library (assets/sfx, filled by `bun run sfx:fetch`). Used when present, else the synth above.
+# ===================================================================
+import json as _json, os as _os
+LIB_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "assets", "sfx")
+_lib = None; _wav = {}; _ref = {}
+
+
+def library():
+    """{type: [manifest entries whose wav exists]}"""
+    global _lib
+    if _lib is None:
+        _lib = {}
+        try:
+            for e in _json.load(open(_os.path.join(LIB_DIR, "manifest.json"))):
+                if _os.path.exists(_os.path.join(LIB_DIR, e["file"])): _lib.setdefault(e["type"], []).append(e)
+        except (OSError, ValueError): pass
+    return _lib
+
+
+def _load(entry):
+    import soundfile as sf
+    if entry["file"] not in _wav:
+        x, sr = sf.read(_os.path.join(LIB_DIR, entry["file"]), dtype="float64", always_2d=True); x = x.mean(1)
+        if sr != SR:
+            import soxr; x = soxr.resample(x, sr, SR, quality="HQ")
+        _wav[entry["file"]] = x
+    return _wav[entry["file"]]
+
+
+def _ref_rms(kind):
+    """RMS of the procedural design for this foley type: library samples are matched to it so the mix stays light."""
+    if kind not in _ref:
+        global _rng
+        keep = _rng; _rng = np.random.default_rng(99)
+        try:
+            x = render_event(kind, None).astype(np.float64); a = np.abs(x); _ref[kind] = float(np.sqrt((x[a > .02 * a.max()] ** 2).mean()))
+        finally: _rng = keep
+    return _ref[kind]
+
+
+def lib_render(kind, d=None):
+    """Seeded pick from the library with +-4 % pitch and +-1.5 dB gain variation; matched to the procedural level.
+    Returns (mono float32 @ SR, manifest entry) or None when the type is not in the library."""
+    ents = library().get(kind)
+    if not ents: return None
+    e = ents[int(_rng.integers(len(ents)))]; x = _load(e).copy()
+    rate = 1 + _rng.uniform(-.04, .04)
+    if abs(rate - 1) > 1e-3:
+        import soxr; x = soxr.resample(x, SR, int(round(SR / rate)), quality="HQ")
+    want = d if d is not None else (FOLEY[kind][1] if kind in FOLEY else None)
+    if want is not None:
+        n = int(want * SR)
+        if len(x) < n:                                   # loop with short crossfades
+            xf = max(1, min(int(.03 * SR), len(x) // 3)); w = np.linspace(0, 1, xf); base = x
+            while len(x) < n: x = np.concatenate([x[:-xf], x[-xf:] * np.cos(w * np.pi / 2) + base[:xf] * np.sin(w * np.pi / 2), base[xf:]])
+        x = x[:n]
+    x = _fx(x, .002, .03)
+    a = np.abs(x); act = x[a > .02 * a.max()] if a.max() > 0 else x
+    g = _ref_rms(kind) / (float(np.sqrt((act ** 2).mean())) + 1e-9) * 10 ** (_rng.uniform(-1.5, 1.5) / 20)
+    g = min(g, 3.0); x = x * g; pk = np.abs(x).max()
+    if pk > .9: x *= .9 / pk
+    return x.astype(np.float32), e
+
+
+def render_event_ex(kind, d=None, use_lib=True):
+    """(samples, manifest entry or None). Library first, procedural fallback."""
+    if use_lib:
+        r = lib_render(kind, d if d is not None else None)
+        if r: return r
+    return render_event(kind, d), None

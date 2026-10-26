@@ -24,6 +24,8 @@
     "audio:master": "bun run workflow/06-audio/master.ts",
     "audio:mix": "bun run workflow/06-audio/mix.ts",
     "audio:music": "bun run workflow/06-audio/music.ts",
+    "music:search": "bun run workflow/06-audio/music_search.ts",
+    "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
     "transcribe": "bun run workflow/04-transcription/transcribe.ts",
     "gallery": "bun --cwd workflow/05-video run studio",
     "timeline": "bun run workflow/05-video/scripts/timeline.ts",
@@ -46,7 +48,9 @@
     "act": "bun run workflow/05-video/scripts/author_act.ts",
     "frames": "bun run workflow/05-video/scripts/frames.ts",
     "cues": "bun run workflow/05-video/scripts/cues.ts",
-    "timings": "bun run workflow/05-video/scripts/timings.ts"
+    "timings": "bun run workflow/05-video/scripts/timings.ts",
+    "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",
+    "acts:remap": "bun run workflow/05-video/scripts/acts_remap.ts"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",
