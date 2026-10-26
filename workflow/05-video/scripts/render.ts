@@ -172,13 +172,13 @@ async function main() {
  */
 function finishAudio(videoPath: string, outputDir: string, isDraft: boolean): void {
   const mix = path.join(path.dirname(outputDir), "06-audio", "mix.wav");
-  const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "5");
+  const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "3");
   if (!fs.existsSync(mix) && grain <= 0) return;
   const tmp = videoPath.replace(/\.mp4$/, ".mux.mp4");
   const ff = ["-v", "error", "-y", "-i", videoPath];
   if (fs.existsSync(mix)) ff.push("-i", mix, "-map", "0:v", "-map", "1:a", "-shortest");
   else ff.push("-map", "0");
-  if (grain > 0) ff.push("-vf", `noise=alls=${grain}:allf=t`, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-tune", "grain", "-pix_fmt", "yuv420p");
+  if (grain > 0) ff.push("-vf", `noise=alls=${grain}:allf=t`, "-c:v", "libx264", "-crf", "21", "-preset", "medium", "-pix_fmt", "yuv420p");
   else ff.push("-c:v", "copy");
   ff.push("-c:a", "aac", "-b:a", "256k", tmp);
   const t0 = Date.now();

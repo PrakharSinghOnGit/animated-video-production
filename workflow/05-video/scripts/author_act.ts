@@ -3,7 +3,7 @@
  * then a fresh-context critic (never the author) scores the contact sheet against
  * STYLE.md. Failed acts get the critic's notes back, at most 2 fix rounds.
  *
- * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force]
+ * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force] [--strict]
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -25,6 +25,7 @@ const model = flag("--model") ?? process.env.ACT_MODEL ?? "opus";
 const criticModel = flag("--critic") ?? process.env.CRITIC_MODEL ?? "sonnet";
 const useCritic = !args.includes("--no-critic");
 const force = args.includes("--force");
+const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round
 const MAX_FIX_ROUNDS = 1;
 if (!videoId) {
   console.error("Usage: bun run act --video <ID> [--act A01] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force]");
@@ -72,11 +73,11 @@ function account(step: string, m: string, r: AgentResult): void {
   recordTiming(wsDir, { step, ms: r.durationMs, model: m, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 }
 
-async function critique(act: Act, round: number): Promise<{ pass: boolean; notes: string }> {
+async function critique(act: Act, round: number): Promise<{ pass: boolean; notes: string; layout?: boolean }> {
   const reviewDir = path.join(paths.outputDir, "review", act.id);
   const sheet = path.join(reviewDir, "sheet.jpg");
   const frames = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", act.id, "--every", "4", "--words"], { encoding: "utf-8" });
-  if (frames.status !== 0 || !fs.existsSync(sheet)) return { pass: false, notes: `Frames failed to render:\n${(frames.stderr || frames.stdout).slice(-2000)}` };
+  if (frames.status !== 0 || !fs.existsSync(sheet)) return { pass: false, layout: true, notes: `Frames failed to render:\n${(frames.stderr || frames.stdout).slice(-2000)}` };
   // Free gate first: measured layout problems go straight back to the author, no critic call
   try {
     const layout: { t: number; flags: string[] }[] = JSON.parse(fs.readFileSync(path.join(reviewDir, "layout.json"), "utf-8"));
@@ -85,7 +86,7 @@ async function critique(act: Act, round: number): Promise<{ pass: boolean; notes
       .filter((r) => r.flags.length);
     if (real.length > 2) {
       console.log(`   📏 ${act.id} layout r${round}: ${real.length} frames flagged, skipping the critic`);
-      return { pass: false, notes: real.map((r) => `- ${r.t}s: ${r.flags.join("; ")}`).join("\n") };
+      return { pass: false, layout: true, notes: real.map((r) => `- ${r.t}s: ${r.flags.join("; ")}`).join("\n") };
     }
   } catch {}
   const out = path.join(reviewDir, `critic_${round}.json`);
@@ -138,7 +139,12 @@ ${actWords(act)}`;
 
   for (let round = 1; round <= MAX_FIX_ROUNDS + 1; round++) {
     const v = await critique(act, round);
-    if (v.pass || round > MAX_FIX_ROUNDS) return v.pass;
+    // The vision critic is advisory (it has miscounted marks and is harsh on taste); only the
+    // free layout gate, or --strict, sends an act back for a paid fix round.
+    if (v.pass || round > MAX_FIX_ROUNDS || (!v.layout && !strict)) {
+      if (!v.pass && !v.layout) console.log(`   📝 ${act.id}: critic notes saved for your review (review/${act.id}/critic_${round}.json); no paid fix round`);
+      return v.pass || !v.layout;
+    }
     const fix = `A critic who has not seen your code reviewed ${act.id} (${file}) from its contact sheet. Fix these issues, then re-run assemble and frames and check the sheet once:\n${v.notes}\nKeep everything that works. Reply with 2 lines when done.`;
     // Resume the author's own session: it already knows the style, the engine and its file
     const resume = r.sessionId || undefined;
