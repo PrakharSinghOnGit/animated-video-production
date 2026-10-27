@@ -44,7 +44,7 @@ const wsDir = path.dirname(paths.outputDir);
 const plan: ActsPlan = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"));
 const scenesDir = path.join(paths.outputDir, "src", "scenes");
 fs.mkdirSync(scenesDir, { recursive: true });
-const style = plan.style || "ledger";
+const style = plan.style || "briefing";
 const styleGuide = `workflow/styles/${style}/STYLE.md`;
 if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`))) {
   console.error(`❌ style "${style}" has no workflow/styles/${style}/ACT.md`);

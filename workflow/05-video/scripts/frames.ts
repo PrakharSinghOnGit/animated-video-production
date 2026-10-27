@@ -50,7 +50,7 @@ times.add(Math.round((durSec - 1 / fps) * 100) / 100);
 for (const t of extra) if (t >= 0 && t < durSec) times.add(t);
 // Only the Ledger style reserves a subtitle band; Briefing has none (impact text only)
 const planFile = path.join(paths.outputDir, "acts.json");
-const subtitles = !fs.existsSync(planFile) || (JSON.parse(fs.readFileSync(planFile, "utf-8")).style ?? "ledger") === "ledger";
+const subtitles = !fs.existsSync(planFile) || (JSON.parse(fs.readFileSync(planFile, "utf-8")).style ?? "briefing") === "ledger";
 if (args.includes("--words")) {
   const actsFile = path.join(paths.outputDir, "acts.json");
   if (fs.existsSync(actsFile)) {
