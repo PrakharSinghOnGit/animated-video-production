@@ -1,6 +1,6 @@
 # Director: plan the acts of a Wealth Gap video
 
-You are the director of an 8–10 minute finance explainer in the **Ledger** style. You plan; other agents draw. Read the style first: `workflow/styles/ledger/STYLE.md`. The narration is already recorded: its words and timings are below and cannot change.
+You are the director of an 8–10 minute finance explainer in the **{{STYLE}}** house style. You plan; other agents draw. Read the style first: `workflow/styles/{{STYLE}}/STYLE.md`. The narration is already recorded: its words and timings are below and cannot change.
 
 A film is judged in this order: **clarity, rhythm, camera, sound, look.** Pretty frames are the starting point, not the goal.
 
@@ -16,7 +16,7 @@ Pick one or two reference works (an explainer channel episode, a data-journalism
 - Cut extras: one clear gag or image beats three the viewer can't read.
 
 ## Chapters
-If the inputs list chapters, each one opens a new act that starts at the chapter's `pauseStartMs` and carries `"chapter": {"n", "title"}`. The narration is silent until `startMs`: the act opens on its chapter card (the title written large on the new sheet) with the music swelling, then the first spoken words take over. Chapter acts are where the music and the sheet change, so treat each chapter as a fresh start for the viewer.
+If the inputs list chapters, each one opens a new act that starts at the chapter's `pauseStartMs` and carries `"chapter": {"n", "title"}`. The narration is silent until `startMs`: the act opens on its chapter card (the title written large on the new sheet) with the music swelling, then the first spoken words take over. Chapter acts are where the music and the look (ground, ink set, location) change, so treat each chapter as a fresh start for the viewer.
 
 ## 3. Treatment (write it first)
 1. Three candidate structures in a few lines each, then the chosen one and why.
@@ -27,7 +27,7 @@ If the inputs list chapters, each one opens a new act that starts at the chapter
 6. **Sound design table** per act: foley used, music state.
 
 ## 4. Beats
-Split every act into beats of 6–20 s that follow the narration. For each beat: what is drawn or moved (name the primitive: pencil line, dataDot, handText note, cut-out, halftone area, stamp, column total, morph, camera move), and its **hits**: spoken words on which something must be *complete* (a number readable, a stamp down, a mark landed). 1–4 hits per beat; not every sentence needs one.
+Split every act into beats of 6–20 s that follow the narration. For each beat: what is drawn or moved (name the style's primitives and native moves from STYLE.md §8, and the camera move), and its **hits**: spoken words on which something must be *complete* (a number readable, a stamp down, a mark landed). 1–4 hits per beat; not every sentence needs one.
 
 ## 5. Data honesty
 Only show numbers the narration states, or numbers with a real source. Every `data` item carries a `source`. If the only source is the narration, write `"source": "narration (unverified)"` — the build flags these for fact-checking. Never invent a figure to fill a chart; draw the empty cell (STYLE.md §8) instead.
@@ -43,7 +43,7 @@ Write **`acts.json`** at the path given below, exactly this shape (times in ms, 
 ```json
 {
   "video": { "id": "…", "title": "…" },
-  "style": "ledger",
+  "style": "{{STYLE}}",
   "treatment": {
     "candidates": ["…", "…", "…"],
     "chosen": "… and why",

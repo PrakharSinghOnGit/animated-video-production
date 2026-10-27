@@ -90,3 +90,59 @@ export function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
     child.stdin.end(opts.prompt);
   });
 }
+
+/**
+ * Free helper model: Antigravity's CLI (`agy`) with Gemini Flash, read-only (plan mode).
+ * For cheap, low-stakes work only (the advisory frame critic, summaries); it can read
+ * images by path. Returns the same shape as runAgentAsync, with costUsd 0.
+ */
+export function runAgy(opts: { prompt: string; logPath: string; model?: string; timeoutS?: number; cwd?: string; conversation?: string }): Promise<AgentResult> {
+  const model = opts.model ?? process.env.AGY_MODEL ?? "gemini-3.8-flash-medium";
+  const args = ["-p", opts.prompt, "--model", model, "--mode", "plan", "--output-format", "json", "--print-timeout", `${opts.timeoutS ?? 300}s`];
+  if (opts.conversation) args.push("--conversation", opts.conversation);
+  const t0 = Date.now();
+  return new Promise((resolve) => {
+    const done = (status: number | null, stdout: string, stderr: string, err: string) => {
+      fs.mkdirSync(path.dirname(opts.logPath), { recursive: true });
+      fs.writeFileSync(opts.logPath, `exit: ${status}\nerror: ${err}\n\n--- stdout ---\n${stdout}\n\n--- stderr ---\n${stderr}\n`, "utf-8");
+      let p: any = {};
+      try { p = JSON.parse(stdout || "{}"); } catch {}
+      const u = p.usage ?? {};
+      resolve({
+        ok: status === 0 && p.status === "SUCCESS",
+        text: typeof p.response === "string" ? p.response : "",
+        durationMs: Date.now() - t0,
+        costUsd: 0,
+        numTurns: Number(p.num_turns ?? 0),
+        inputTokens: Number(u.input_tokens ?? 0),
+        outputTokens: Number(u.output_tokens ?? 0) + Number(u.thinking_tokens ?? 0),
+        cacheReadTokens: Number(u.cache_read_tokens ?? 0),
+        logPath: opts.logPath,
+        sessionId: typeof p.conversation_id === "string" ? p.conversation_id : "",
+      });
+    };
+    const child = spawn("agy", args, { cwd: opts.cwd ?? process.cwd(), stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
+    child.on("error", (e) => done(null, stdout, stderr, e.message));
+    child.on("close", (code) => done(code, stdout, stderr, ""));
+  });
+}
+
+/** First JSON object in a model's reply (tolerates code fences and prose around it). */
+export function extractJson(text: string): any {
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s < 0 || e <= s) throw new Error("no JSON object in reply");
+  return JSON.parse(text.slice(s, e + 1));
+}
+
+/** runAgy for a JSON answer: if the reply has no JSON (Gemini sometimes ends its turn after looking at files), ask once more in the same conversation. */
+export async function runAgyJson(opts: { prompt: string; logPath: string; model?: string }): Promise<{ r: AgentResult; json: any }> {
+  let r = await runAgy(opts);
+  try { return { r, json: extractJson(r.text) }; } catch {}
+  const again = await runAgy({ ...opts, prompt: "Now reply with ONLY the JSON object described in my first message, nothing else.", conversation: r.sessionId, logPath: opts.logPath.replace(/(\.log)?$/, ".retry.log") });
+  again.durationMs += r.durationMs; again.inputTokens += r.inputTokens; again.outputTokens += r.outputTokens;
+  return { r: again, json: extractJson(again.text) };
+}

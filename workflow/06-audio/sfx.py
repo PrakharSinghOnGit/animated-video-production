@@ -282,6 +282,53 @@ def typewriter(d=.9, v=1.0):
     return _out(lp(out, 8000)) * v
 
 
+def card_slap(v=1.0):
+    """A cut-paper letter lands: short flat slap of card on card, a little body."""
+    d = .16; slap = bp(noise(d), 900, 5200) * env_exp(d, .011)
+    body = lp(noise(d), 380) * env_exp(d, .03) * .6
+    return _out(slap + body) * v
+
+
+def paper_cut(d=.5, v=1.0):
+    """Scissors through paper: a 'shh' made of tiny crisp snips."""
+    d = max(.2, float(d)); out = bp(noise(d), 2500, 9000) * np.sin(np.pi * np.clip(t_(d) / d, 0, 1)) * .35
+    for at in np.arange(0, d - .05, .07):
+        s0 = int(at * SR); c = bp(noise(.03), 3000, 10000) * env_exp(.03, .004); out[s0:s0 + len(c)] += c[:len(out) - s0] * .8
+    return _out(out) * v
+
+
+def tear(d=.6, v=1.0):
+    """Paper tearing: crackly broadband noise with a rising grain density."""
+    d = max(.2, float(d)); tt = t_(d); u = tt / d
+    grit = (np.abs(lp(noise(d), 160)) * 6) ** 2
+    x = bp(noise(d), 600, 7000) * grit * np.sin(np.pi * np.clip(u, 0, 1)) ** .6
+    return _out(x) * v
+
+
+def metal_click(v=1.0):
+    """A lock, a clasp, a key: two small metal ticks."""
+    out = np.zeros(int(.12 * SR))
+    for at, f, g in [(0, 3400, 1.0), (.045, 2700, .6)]:
+        tt = t_(.04); x = (np.sin(2 * np.pi * f * tt) + bp(noise(.04), 2000, 9000) * .5) * env_exp(.04, .005)
+        s0 = int(at * SR); out[s0:s0 + len(x)] += x[:len(out) - s0] * g
+    return _out(out) * v
+
+
+def tape_click(v=1.0):
+    """Reel-to-reel transport click with a breath of hiss."""
+    d = .25; x = lp(noise(.02), 2500) * env_exp(.02, .003)
+    out = np.zeros(int(d * SR)); out[:len(x)] = x
+    out += hp(noise(d), 4000) * env_exp(d, .12) * .06
+    return _out(out, .6) * v
+
+
+def whip(d=.4, v=1.0):
+    """Whip-pan: a fast, brighter air rip that peaks in the middle."""
+    d = max(.15, float(d)); u = t_(d) / d
+    x = bp(noise(d), 500, 5000) * np.exp(-((u - .5) / .18) ** 2)
+    return _out(x) * v
+
+
 # type -> (function, default duration or None, base level in dBFS peak at mix input)
 FOLEY = {
     "pencil_tap": (pencil_tap, None, -16), "pencil_scratch": (pencil_scratch, .6, -23),
@@ -289,6 +336,8 @@ FOLEY = {
     "stamp_thud": (stamp_thud, None, -11), "page_turn": (page_turn, None, -18),
     "adding_clack": (adding_clack, None, -16), "pop": (pop, None, -19), "whoosh": (whoosh, .5, -26),
     "coin_drop": (coin_drop, .7, -17), "cash_register": (cash_register, 1.1, -16), "typewriter": (typewriter, .9, -22),
+    "card_slap": (card_slap, None, -18), "paper_cut": (paper_cut, .5, -24), "tear": (tear, .6, -20),
+    "metal_click": (metal_click, None, -20), "tape_click": (tape_click, None, -22), "whip": (whip, .4, -22),
 }
 
 

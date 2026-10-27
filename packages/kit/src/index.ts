@@ -95,3 +95,4 @@ export * from "./lint-rules";
 
 export * from "./archetypes";
 export * as paper from "./paper";
+export * as spy from "./spy";

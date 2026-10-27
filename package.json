@@ -50,7 +50,12 @@
     "cues": "bun run workflow/05-video/scripts/cues.ts",
     "timings": "bun run workflow/05-video/scripts/timings.ts",
     "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",
-    "acts:remap": "bun run workflow/05-video/scripts/acts_remap.ts"
+    "acts:remap": "bun run workflow/05-video/scripts/acts_remap.ts",
+    "dashboard": "bun run workflow/dashboard/server.ts",
+    "srt": "bun run workflow/05-video/scripts/srt.ts",
+    "write": "bun run workflow/02-scripting/write_script.ts",
+    "review": "bun run workflow/05-video/scripts/review.ts",
+    "preview": "bun run workflow/05-video/scripts/preview.ts"
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.2",

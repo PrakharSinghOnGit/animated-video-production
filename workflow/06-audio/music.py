@@ -148,6 +148,49 @@ def ride(vel, rng, d=.3):
     return bp(rng.standard_normal(len(t)), 4200, 10500) * np.exp(-t / .07) * (1 - np.exp(-t / .002)) * vel
 
 
+# ---------------- 60s spy combo ----------------
+def vibes_note(m, vel, dur=2.2, rate=5.5):
+    """Vibraphone: bar partials 1:4 with a soft mallet and the motor's amplitude tremolo."""
+    f = hz(m); t = np.arange(int(dur * SR)) / SR
+    x = np.sin(2 * np.pi * f * t) * np.exp(-t / 1.1) + .25 * np.sin(2 * np.pi * 4 * f * t) * np.exp(-t / .12) \
+        + .06 * np.sin(2 * np.pi * 10 * f * t) * np.exp(-t / .03)
+    trem = 1 - .28 * (1 - np.cos(2 * np.pi * rate * t)) / 2
+    return x * trem * (1 - np.exp(-t / .003)) * np.minimum(1, (dur - t) / .25) * vel * .4
+
+
+def twang(m, vel, dur=2.4):
+    """Surf-guitar low string: bright pluck, a little drive, a spring-reverb flutter of short echoes."""
+    f = hz(m); N = int(round(SR / f)); n = int(dur * SR)
+    ex = np.zeros(n); rng = np.random.default_rng(int(m) * 3 + 11)
+    ex[:N] = rng.standard_normal(N) * np.hanning(N)
+    a = np.zeros(N + 2); a[0] = 1; a[N] = a[N + 1] = -.5 * .998
+    y = lfilter([1.0], a, ex); y = np.tanh(2.2 * y / (np.abs(y).max() + 1e-9))
+    t = np.arange(n) / SR
+    y = bp(y, 90, 3200, 2) * np.minimum(1, (dur - t) / .2)
+    out = y.copy()
+    for k, (d, g) in enumerate([(.021, .45), (.034, .35), (.047, .28), (.061, .2), (.083, .14)]):
+        sh = int(d * SR); out[sh:] += y[:-sh] * g * (1 if k % 2 == 0 else -1)
+    return out * vel * .35
+
+
+def brass_stab(notes, vel=1.0, dur=.42):
+    """Staccato trumpets + trombones in octaves: detuned saw stack through a fast-closing filter."""
+    t = np.arange(int(dur * SR)) / SR; x = np.zeros(len(t))
+    for m in notes:
+        for c in (-.004, 0, .004):
+            ph = 2 * np.pi * hz(m) * (1 + c) * t
+            for k in range(1, 12): x += np.sin(k * ph) / k
+    env = (1 - np.exp(-t / .006)) * np.exp(-t / .16) * np.minimum(1, (dur - t) / .05)
+    bright = lp(x * env, 3800, 2) * .7 + lp(x * env * np.exp(-t / .05), 7000, 1) * .3
+    return np.tanh(1.5 * bright / (np.abs(bright).max() + 1e-9)) * vel * .5
+
+
+def bongo(vel, hi=True, d=.22):
+    t = np.arange(int(d * SR)) / SR; f0 = 420 if hi else 300
+    f = f0 * (1 + .25 * np.exp(-t / .02))
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / (.06 if hi else .09)) * (1 - np.exp(-t / .001)) * vel * .5
+
+
 def chord_notes(scale, deg):
     sn = lambda d: scale[d % 7] + 12 * (d // 7)
     return [sn(deg), sn(deg + 2), sn(deg + 4), sn(deg + 6)]
@@ -286,14 +329,56 @@ def pal_celesta(c):
     return [(mel, .15, .5, 1.0, 0), (pad, 0, .6, 1.0, 1), (sub, 0, .5, 0, 0), (pl, 0, .35, 0, 0)]
 
 
-PALETTES = {"felt": pal_felt, "kalimba": pal_kalimba, "arp": pal_arp, "jazz": pal_jazz, "celesta": pal_celesta}
+def pal_spy(c):
+    """60s spy combo, long-form: swung walking bass, ride + brushes, a minor vibraphone motif, bongos when it builds,
+    a surf-guitar twang on the section's first downbeat. Brass stabs come from the plan's hits (render_bed)."""
+    rng, beat, pc, I = c.rng, c.beat, c.pc, c.I
+    bass, vib, perc, gtr = (np.zeros(c.n) for _ in range(4)); sw = beat * 2 / 3
+    motif = [[0, 2, 1.5, 4], [0, 1.5, 3], [0, 2.5], [0, 1, 2, 3.5]]
+    for tb, ch, nch, k in bars(c):
+        r = fold(36 + pc + ch[0], 38, 49); nr = fold(36 + pc + nch[0], 38, 49)
+        walk = [r, fold(36 + pc + ch[2], 38, 52), r + 1 if k % 2 else fold(36 + pc + ch[1], 38, 52), nr + (1 if nr <= r else -1)]
+        for s_, m in enumerate(walk): put(bass, pluck_bass(m, [.9, .6, .7, .6][s_], beat * 1.05), tb + s_ * beat + (rng.random() - .5) * .008)
+        lvl = .45 + .55 * I
+        for s_ in range(4):
+            put(perc, ride(.2 * lvl, rng), tb + s_ * beat)
+            if s_ in (1, 3): put(perc, ride(.13 * lvl, rng), tb + s_ * beat + sw); put(perc, brush(.24 * lvl, rng), tb + s_ * beat)
+            if I > .55 and s_ in (2, 3): put(perc, bongo(.35 * lvl, s_ == 2), tb + s_ * beat + sw)
+        if k % 2 == 0:
+            tones = sorted(fold(69 + pc + x, 67, 86) for x in ch)
+            for j, pos in enumerate(motif[(k // 2) % len(motif)]):
+                put(vib, vibes_note(tones[(j + k // 2) % len(tones)], .55 + .2 * rng.random()), tb + pos * beat)
+        if k == 0: put(gtr, twang(fold(40 + pc + ch[0], 40, 52), 1.0), tb)
+    return [(bass, 0, 1.0, .05, 0), (lp(perc, 8000, 1), .25, .22, .05, 0), (vib, -.25, .55, .7, 1), (gtr, .3, .5, .9, 0)]
+
+
+def pal_spy_noir(c):
+    """The quiet location: half-note bass, brushes only, a low vibraphone line with long gaps."""
+    rng, beat, pc = c.rng, c.beat, c.pc
+    bass, vib, perc = (np.zeros(c.n) for _ in range(3))
+    for tb, ch, nch, k in bars(c):
+        put(bass, pluck_bass(fold(36 + pc + ch[0], 38, 49), .8, beat * 2.1), tb)
+        put(bass, pluck_bass(fold(36 + pc + ch[2], 38, 52), .55, beat * 2.1), tb + 2 * beat)
+        for s_ in range(4): put(perc, brush(.16, rng, .35), tb + s_ * beat)
+        if k % 2 == 1:
+            tones = sorted(fold(62 + pc + x, 60, 79) for x in ch)
+            put(vib, vibes_note(tones[k % 3 + 1], .5, 3.2, 4.0), tb + .5 * beat)
+            put(vib, vibes_note(tones[(k + 1) % 3], .38, 3.0, 4.0), tb + 2.5 * beat)
+    return [(bass, 0, .9, 0, 0), (lp(perc, 6000, 1), .2, .2, .05, 0), (vib, -.2, .5, .9, 1)]
+
+
+PALETTES = {"spy": pal_spy, "spy_noir": pal_spy_noir, "felt": pal_felt, "kalimba": pal_kalimba, "arp": pal_arp, "jazz": pal_jazz, "celesta": pal_celesta}
 # default (palette, key, mode) per chapter: neighbouring keys of D, never the same palette twice in a row
 DEFAULTS = [("felt", "D", "major"), ("kalimba", "A", "major"), ("arp", "B", "minor"), ("jazz", "G", "major"), ("celesta", "E", "dorian"),
             ("felt", "D", "dorian"), ("kalimba", "G", "major"), ("arp", "E", "minor"), ("jazz", "D", "major"), ("celesta", "A", "major")]
 
 
-def default_source(idx, bpm, intensity):
-    pal, key, mode = DEFAULTS[idx % len(DEFAULTS)]
+STYLE_DEFAULTS = {"briefing": [("spy", "D", "minor"), ("spy_noir", "A", "minor"), ("spy", "E", "dorian"), ("spy", "G", "minor"),
+                                ("spy_noir", "D", "dorian"), ("spy", "B", "minor"), ("spy", "A", "dorian")]}
+
+
+def default_source(idx, bpm, intensity, style=None):
+    pal, key, mode = STYLE_DEFAULTS.get(style, DEFAULTS)[idx % len(STYLE_DEFAULTS.get(style, DEFAULTS))]
     return dict(type="synth", palette=pal, bpm=bpm, key=key, mode=mode, intensity=intensity)
 
 
@@ -401,11 +486,22 @@ def render_bed(sections, dur, hits, root, xf, log=print):
                          key=src.get("key"), mode=src.get("mode"), bars=int(np.ceil(length / (4 * beat_s))) if beat_s else None, intro=s.get("intro"), crossfadeSec=xf if i else 0))
     ir = make_reverb()
     L += fftconvolve(sL, ir[0])[:N] * .45; R += fftconvolve(sR, ir[1])[:N] * .45
-    for h in hits:                          # downbeat hits: soft thump + chord swell (synth sections only)
-        if h.get("kind") != "downbeat": continue
+    for h in hits:                          # downbeat hits: soft thump + chord swell; stabs: an accent chord (synth sections only)
+        if h.get("kind") not in ("downbeat", "stab"): continue
         t = float(h["t"]); ch = [c for c in chords_all if c[0] <= t + 1e-6]
         if not ch or t >= dur: continue
         _, cn, pcc, g = ch[-1]; buf = np.zeros(N)
+        pal = next((x["palette"] for x in info if x["t0"] <= t < x["t1"]), None) or ""
+        if pal.startswith("spy"):          # brass stab, ~8 ms early so its peak lands on the frame
+            notes = [fold(57 + pcc + x, 55, 70) for x in cn[:3]]; notes += [m - 12 for m in notes[:2]]
+            put(buf, brass_stab(notes, 1.0 if h["kind"] == "stab" else .8), t - .008, .9)
+            if h["kind"] == "downbeat": put(buf, kick(1.0, .6), t, .5)
+            L += buf * g; R += buf * g
+            continue
+        if h["kind"] == "stab":
+            for i, c_ in enumerate(cn): put(buf, epiano(fold(57 + pcc + c_, 55, 77), .7, 2.0), t + .015 * i, .7)
+            buf = lp(buf, 4500, 2) * .5 * g; L += buf; R += buf
+            continue
         put(buf, kick(1.0, .6), t, .7)
         for i, c_ in enumerate(cn): put(buf, epiano(fold(57 + pcc + c_, 55, 77), .8, 3.0), t + .02 * i, .8)
         put(buf, pluck_bass(fold(36 + pcc + cn[0], 38, 49), 1.0, 2.0), t, 1.0)
@@ -429,7 +525,7 @@ def build_sections(plan, chapters):
     secs = []
     for i, s in enumerate(sorted(plan["sections"], key=lambda s: s["t0"])):
         secs.append(dict(t0=round(float(s["t0"]), 3), t1=round(float(s["t1"]), 3), label="A%02d" % (i + 1),
-                         source=default_source(i, float(s["bpm"]), float(s.get("intensity", .45)))))
+                         source=default_source(i, float(s["bpm"]), float(s.get("intensity", .45)), plan.get("style"))))
     for ch in chapters or []:   # the chapter's section starts at the title card's pause and swells in
         ps, st = float(ch["pauseStartMs"]) / 1000, float(ch["startMs"]) / 1000
         j = next((k for k, s in enumerate(secs) if s["t0"] - 0.5 <= st < s["t1"]), None)

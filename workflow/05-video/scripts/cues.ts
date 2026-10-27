@@ -76,6 +76,7 @@ for (const act of plan.acts) {
   for (const s of act.silence ?? []) {
     const t = winStart + word(s.word, s.occurrence ?? 1);
     hits.push({ t: Math.round((t - s.durMs / 1000) * 1000) / 1000, kind: "silence", dur: s.durMs / 1000 });
+    hits.push({ t: Math.round(t * 1000) / 1000, kind: "stab" }); // the first sound after a silence is the act's accent
   }
 }
 
@@ -84,7 +85,7 @@ fs.writeFileSync(path.join(paths.outputDir, "events.json"), JSON.stringify(event
 const audioDir = path.join(wsDir, "06-audio");
 fs.mkdirSync(audioDir, { recursive: true });
 const duration = timeline.durationFrames / fps;
-fs.writeFileSync(path.join(audioDir, "music_plan.json"), JSON.stringify({ sr: 48000, duration, sections, hits }, null, 2), "utf-8");
+fs.writeFileSync(path.join(audioDir, "music_plan.json"), JSON.stringify({ sr: 48000, duration, style: plan.style, sections, hits }, null, 2), "utf-8");
 
 console.log(`✅ ${events.length} foley events → 05-video/events.json`);
 console.log(`✅ ${sections.length} music sections, ${hits.length} hits → 06-audio/music_plan.json`);

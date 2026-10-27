@@ -1,30 +1,25 @@
 # CLAUDE.md — The Wealth Gap video engine
 
-Automated 8–10 min finance explainers: original script → local Chatterbox voice → script-aligned captions → acts drawn in the **Ledger** style (Remotion + canvas) → music, foley, mix → render → QC.
+Automated 8–10 min finance explainers: original script → local Chatterbox voice → word-aligned captions → acts drawn
+in the **Briefing** style (Remotion + canvas, `packages/kit/src/spy/`) → foley + mix (music added in post) → render → QC.
+
+**To make a video, follow `VIDEO_PRODUCTION.md`** (steps, costs, gates, fixes). Dashboard: `bun run dashboard`.
 
 ## Layout
-- `packages/kit/` (`@wealthgap/kit`): `paper/` is the Ledger drawing engine (canvas: desk, sheet, pencil, handwriting, cut-outs, halftone, stamps, camera, act transitions, captions). `archetypes/` and the older primitives belong to the previous scene-based style.
-- `workflow/`: the engine. `styles/ledger/STYLE.md` (the look), `prompts/DIRECTOR.md` + `prompts/ACT.md` (agent briefs), `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`.
-- `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`.
-
-## Pipeline
-| Step | Command | Who |
-|---|---|---|
-| Voice | `bun run tts --video <ID> --force --combine` (Chatterbox; `--pace 0.9`, `--exaggeration`, `--cfg`) | local |
-| Align | `bun run transcribe --video <ID>` → `bun run audio:master --video <ID>` → `bun run captions --video <ID>` | local |
-| Plan | `bun run direct --video <ID>` (acts.json + treatment; `--check` validates) | Opus |
-| Draw | `bun run act --video <ID> [--act A03] [--parallel 2]` (author + fresh-context critic) | Opus + Sonnet |
-| Review frames | `bun run frames --video <ID> --scene A01 --every 4 --words` | local |
-| Sound | `bun run cues` → `bun run audio:music` → `bun run audio:mix` (all `--video <ID>`) | local |
-| Render | `bun run draft` / `bun run render` then `bun run qc` (all `--video <ID>`) | local |
-| Whole build | `bun run build --video <ID>` (gates after plan and draft) | |
-| Time & cost | `bun run timings --video <ID>` | |
-
-Python tools use the repo `.venv` (py3.11): `uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r workflow/03-voiceover/requirements.txt -r workflow/06-audio/requirements.txt`.
+- `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `paper/` is the older
+  Ledger engine; `archetypes/` and the older primitives belong to the scene-based style before that.
+- `workflow/`: `styles/<style>/` (STYLE.md + ACT.md per house style), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
+  `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `dashboard/`.
+- `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files
+  `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`.
 
 ## Rules for act code
-1. Follow `workflow/styles/ledger/STYLE.md`; draw only with `paper` from `@wealthgap/kit`; colours from `paper.P`.
+1. Follow the plan's style (`acts.json` `style`, default `briefing`): `workflow/styles/<style>/STYLE.md` + `ACT.md`;
+   draw only with that style's kit module and its ink sets.
 2. Deterministic: everything is a function of `ctx.t`; no `Math.random`, `Date`, timers or state between frames.
 3. Hits come from spoken words (`ctx.word(text, n)`) and are complete at the word's start.
-4. Every act uses `actCamera` + `drawActStage` + `autoCaption` so acts flow into each other.
-5. Always render and look (`bun run frames`) before calling an act done. Never invent data; numbers come from the plan's sourced `data`.
+4. Every act uses the style's act wrapper (`drawAct` + `focusCam` in Briefing) so acts flow into each other.
+   No running subtitles in Briefing: impact text only; YouTube captions come from `bun run srt`.
+5. Always render and look (`bun run frames`) before calling an act done. Never invent data; numbers come from the
+   plan's sourced `data`.
+6. Render with `--gl=angle` (the render scripts do); without it canvas rendering is ~30× slower.

@@ -3,7 +3,7 @@
  * enforces DIRECTOR.md's rules (errors fed back, max 3 attempts), and a storyboard
  * view (one scene per act) is written so timeline/assemble/render work unchanged.
  *
- * Usage: bun run direct --video <ID> [--model opus] [--check]
+ * Usage: bun run direct --video <ID> [--model opus] [--style briefing] [--check]
  *   --check   validate an existing acts.json without calling the model
  */
 import fs from "node:fs";
@@ -21,9 +21,15 @@ const flag = (name: string) => {
 };
 const videoId = flag("--video") ?? flag("-v") ?? args.find((a) => !a.startsWith("-"));
 const model = flag("--model") ?? process.env.DIRECTOR_MODEL ?? "opus";
+// House style: workflow/styles/<style>/ (STYLE.md + ACT.md). Saved in acts.json for the act authors.
+const style = flag("--style") ?? process.env.WG_STYLE ?? "briefing";
+if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/STYLE.md`))) {
+  console.error(`❌ unknown style "${style}" (no workflow/styles/${style}/STYLE.md)`);
+  process.exit(1);
+}
 const checkOnly = args.includes("--check");
 if (!videoId) {
-  console.error("Usage: bun run direct --video <ID> [--model opus] [--check]");
+  console.error("Usage: bun run direct --video <ID> [--model opus] [--style briefing] [--check]");
   process.exit(1);
 }
 
@@ -54,6 +60,10 @@ function validate(): string[] {
 
 function finish(): void {
   const plan: ActsPlan = JSON.parse(fs.readFileSync(actsFile, "utf-8"));
+  if (!checkOnly && plan.style !== style) {
+    plan.style = style;
+    fs.writeFileSync(actsFile, JSON.stringify(plan, null, 2), "utf-8");
+  }
   // Keep a scene-based storyboard from the older pipeline instead of overwriting it
   if (fs.existsSync(storyboardFile)) {
     const old = JSON.parse(fs.readFileSync(storyboardFile, "utf-8"));
@@ -83,12 +93,14 @@ if (checkOnly) {
   process.exit(0);
 }
 
-const director = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/DIRECTOR.md"), "utf-8");
+const scriptFile = path.join(wsDir, "02-scripting", "script_raw.md");
+const scriptHints = fs.existsSync(scriptFile) && /\*\*\[ON SCREEN\]:\*\*/i.test(fs.readFileSync(scriptFile, "utf-8")) ? scriptFile : "";
+const director = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/DIRECTOR.md"), "utf-8").replace(/{{STYLE}}/g, style);
 const prompt = `${director}
 
 # Inputs for ${paths.jobId}
-- Style (Read it first): workflow/styles/ledger/STYLE.md
-- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
+- Style (Read it first): workflow/styles/${style}/STYLE.md
+${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
 
 ${compactTranscript(captions)}
 ${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}

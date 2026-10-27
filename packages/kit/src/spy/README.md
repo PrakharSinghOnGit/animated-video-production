@@ -1,0 +1,79 @@
+# spy: the Briefing engine
+
+Cut-paper canvas engine (four flat inks, scissor edges, silhouette puppets, League Gothic type as part of the set) with a continuous following camera, whip-pans with motion blur and paper wipes. Import: `import { spy } from "@wealthgap/kit"`. Look: LemoLab "60s Spy Title Sequence"; camera and seams: LemoLab "Living Screencast" (see CREDITS.md).
+
+Rules (same as the Ledger): everything is a pure function of `ctx.t`; no `Math.random`, `Date`, timers or state between frames; hits come from spoken words (`ctx.word(text, n)`) and are complete at the word's start; numbers come from the plan's sourced data. Drawing is `piece(g, ...)`: never fill shapes directly, or they lose the cut gap and shadow. Flat inks only: no gradients, no fades, no dissolves.
+
+Coordinates: world px with a camera (`applyCam(g, cam)`); screen px 1920x1080 for everything drawn in `overlay`. Safe area `SAFE` = x 96..1824, y 72..890 (below 890 is the subtitle strip).
+
+## Frame skeleton
+`SpyCanvas draw(g, ctx)` -> `drawAct(g, ctx, opts, scene)`; `scene(g)` does `clear(g, ground)`, `applyCam`, then draws the set, type and puppets. `drawAct` adds the whip in/out (with blur), `overlay`, and `paperFinish` (do not call `paperFinish` yourself inside an act). Fonts are loaded before the first draw; `layout()` throws if called before that (module top level).
+
+## Engine (engine.ts)
+- `INKS.noir | teal | cobalt | plum`: `{ink, paper, hot, warm, inkL, paperD, hotD, warmD}`; `D` = darker shadow-paper variant. One set per chapter. `luma(hex)`.
+- `clear(g, ground)`: fill the frame; the ground is the colour seen in cut gaps. `withBg(g, col, fn)`: other gap colour for pieces lying on a card.
+- `piece(g, polys, col, opts?)`: one paper piece (contour or `[outer, hole...]`, evenodd; `rule: "nonzero"` unions strokes); opts `gap` (slit px, default 2.4), `gapCol`, `shadow`, `shA/shB/shX/shY`.
+- `rough(pts, seed, amp, step, closed?)` scissor edge; `roughC(key, fn, seed, amp, step)` cut once, cached by id (use for anything that moves: the edge travels with the piece).
+- Shapes: `rectP(x,y,w,h)`, `circP(cx,cy,r)`, `ellP(cx,cy,rx,ry)`, `arcP(cx,cy,r,a0,a1)`, `smooth(pts, it, closed)` (Chaikin; the easing smoothstep is `smoothstep`), `xf(pts, x, y, s, rot)`, `pathPoly`.
+- `silhouette(g, (L) => {...}, opts?)`: pieces drawn with `piece(L, ...)` merge into one contour, then pasted with one outer slit and shadow. `slit(L, x, y, ang, len, w)`, `cutPoly(L, pts)` cut joints inside it. Nested calls draw directly.
+- `paperFinish(g, amt)` texture (fixed seed, static), `label(g, text, x, y, font, col, align, letterSpacing)` for small text, `state(g)`, `curScale(g)`, `isLayer(g)`.
+- Re-exported helpers: `W H applyCam w2s s2w viewRect frameRect moveTime SAFE clamp lerp seg TAU inOutCubic inOutSine outCubic outBack outExpo hash vnoise mulberry`; types `G Pt Cam Rect Inks`.
+
+## Type (glyph.ts, fonts.ts)
+League Gothic outlines, each letter re-cut as its own piece. Capitals ~0.76 x size tall: size 520 gives ~395 px numerals. Supported: letters, digits, `$ . , % -` etc. (anything League Gothic has); missing glyphs draw the font's notdef box.
+- `layout(str, size, {track?})` -> `{letters, width, size}`; `drawLine(g, lay, x, y, opts)`: (x, y) = baseline; opts `col seed jit amp align gap shadow each`. Default jitter is +-0.8 deg rotation and +-1.5 px baseline; `jit: 0` sets it straight.
+- `each(L, i) => {dx, dy, rot, s, hide, col}` per-letter hook. `landEach(t, t0, {stagger=.07, dur=.25, rise, rot, col})` drops letters in one by one; `landEnd(t0, nLetters, opts)` = time the last one lands (complete this before the word).
+- `lineRect(lay, x, y, align)` world rect of a drawn line (use for `focus.rect`, `spotlight`); `lineWidth(lay)`, `cutLetter`, `loadGothic`, `SPY_FONT`, `ensureSpyFonts`.
+
+## Puppets (chars.ts)
+One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = between the feet, y down, faces +x.
+- `figureSide(g, x, y, s, pose, {col, accent, paper, flip, eye, sil})` -> `{wrist}` (attach a prop there). s = 1 is ~540 px tall; 0.6 is a good scene scale.
+- `POSE.stand | flatten | skid | overShoulder | leap | reach`; `walkPose(p)`, `runPose(p)` with p = cycle 0..1 (one cycle = two steps); `walkStride(s)` = world px per walk cycle (advance `x` by this per cycle and the feet do not slide).
+- `onTwos(t)`: stepped to 12 fps. Sample puppet poses and puppet x with `onTwos(t)`; keep the camera and the type on ones.
+
+## Camera (camera.ts)
+- `focusCam(t, focus, opts?)`, `focusCamFn(focus, opts)`: `focus = [{t0, t1, rect, fill?}]`, one entry per action (something being cut, placed, assembled or acted in world `rect` from t0 to t1). The camera frames the active action, never leaves a rect before `t1 + hold` (opts `hold` .6 s), arrives by the next action's `t0` (moves start earlier, never later), each move takes at least `moveTime()` (1.1-2.8 s, in-out ease), drifts <= 2% / 10 s while holding. Actions too close for a move (or overlapping) are merged into one union frame, so give each action its real `t0`/`t1` and let the plan decide. `planFocus(focus, opts)` shows the merged plan (`dwells`, `moves`).
+- `pushIn(cam, rect, u, fill=.55)`: eased push-in toward a world rect. `spotlight(g, screenRect, amount, color)`: flat dark paper with a scissor-cut window (the one number to remember); `rectToScreen(cam, worldRect)` maps the rect. Draw it in `overlay` or after the scene.
+- `whip(a, b, u)`: camera interpolation with a fast-in/fast-out curve (`whipEase`), 0.4-0.7 s. Pass `cam` to `drawAct` and the blur is automatic.
+- `motionBlur(g, src, vel, {dx, dy, dead, max})`, `camVelocity(camFn, t, fps)`, `scratchCanvas(i)`: the blur is a directional average of copies along the velocity (px/frame), zero below ~60 px/frame so ordinary moves stay sharp.
+
+## Seams and acts (transitions.ts)
+- `irisWipe / stripWipe / pixelWipe(g, u, from, to, opts?)`: u 0 = `from`, 1 = `to` (each a `(g) => void` that draws a whole frame; `fillScreen(color)` for a plain ground). Iris: `{x, y, ring}`; strips (the spy "shatter", paper strips slide off alternately): `{angle, n}`; pixels: `{size}`. `WIPE_T` = 0.9 s.
+- `ACT_IN = ACT_OUT = 0.6`; `actIn(t)` 0..1 over the first 0.6 s (1 = settled), `actOut(t, dur)` 0..1 over the last 0.6 s, `actOffset(t, dur, dir)`. Every act ends with a whip-pan out to the left and the next begins with a whip-pan in from the right, the cut hides inside the blur; hold the first beat until `actIn(t) === 1`.
+- `drawAct(g, ctx, opts, scene)`, opts: `dur` (ctx.duration), `ground`, `cam` (for blur), `open` / `close`: `"whip"` (default) | `"iris"` | `"strips"` | `"pixels"` | `"none"` (chapter acts open with iris or strips), `from` / `to` (backdrop colour during the whip or wipe: previous / next ground), `iris`, `dir` (1 or -1), `overlay(g)` (screen space after the blur: subtitle, pill, spotlight), `finish`.
+- `chapterPill(g, n, title, progress, inks)`: "01 | TITLE" tag top-left, progress 0..1 slides it in. `chapterCard(g, n, title, progress, inks)`: full-frame card of cut League Gothic for the silent pause before a chapter (clears its own ground; letters land by progress ~0.65).
+
+## Title and subtitles
+- `drawTitle(g, "THE GAP", x, y, H, {col, align, split, shatter, strips, each})`: hand-cut letterforms A-Z (own glyphs, not League Gothic), `split` slides two halves apart along the 30 deg diagonal (px), `shatter` 0..1 breaks it into strips that slide off. `titleBox`, `titleLayout`, `drawGlyph`, `TITLE_GLYPHS`. Use for a video or chapter title that splits; use `drawLine` for everything else.
+- `autoSubtitle(g, ctx, {ground, inks, maxWords})`: scissor-cut strip bottom-left, tilted -1 deg, League Spartan 600 44 px, cut bullet, <= 2 lines, never above y 900; light strip on dark grounds, dark on light; chunks are sentences or <= 12 words timed from word starts; slides in over 0.18 s. Call in `drawAct`'s `overlay` with the act's ground.
+
+## Brand (brand.ts)
+- `brandEndCard(g, t, at, { tag? })`: the channel end card in screen space, complete on the act-relative second `at` (the spoken "subscribe"). Uses `brand-assets/Logo.png` (loaded with the fonts). `BRAND` = the logo's colours, `BRAND_TAGLINE`.
+
+## Example act
+```tsx
+import { spy } from "@wealthgap/kit";
+const { INKS, clear, applyCam, layout, drawLine, landEach, landEnd, lineRect, figureSide, walkPose, POSE, onTwos, walkStride,
+  focusCam, drawAct, autoSubtitle, actIn, actOut } = spy;
+const K = INKS.noir, FLOOR = 880;
+
+export function draw(g: spy.G, ctx: spy.SpyCtx) {          // inside <SpyCanvas draw={draw} />
+  const t = ctx.t, w = ctx.word("trillion"), land = landEnd(0, 5);
+  const lay = layout("$9.6T", 520), box = lineRect(lay, 150, 780);
+  const focus = [{ t0: w.t0 - land, t1: w.t1, rect: box },                 // the number lands, then the walk
+                 { t0: w.t1 + 3.0, t1: w.t1 + 6.5, rect: [1400, 360, 2700, 920] as spy.Rect }];
+  drawAct(g, ctx, { dur: ctx.duration, ground: K.hot, cam: (s) => focusCam(s, focus), overlay: (h) => autoSubtitle(h, ctx, { ground: K.hot }) }, (h) => {
+    clear(h, K.hot); applyCam(h, focusCam(t, focus));
+    spy.piece(h, spy.roughC("floor", () => spy.rectP(-700, FLOOR, 5200, 900), 3, 2.4, 20), K.ink, { gap: 0 });
+    const ready = actIn(t) >= 1;                                                        // hold the first beat until the whip-in has landed
+    drawLine(h, lay, 150, 780, { col: K.ink, each: ready ? landEach(t, w.t0 - land) : () => ({ hide: true }) });   // complete when "trillion" starts
+    const u = Math.min(1, Math.max(0, (onTwos(t) - (w.t1 + 3.0)) / 3.5)), x = 1550 + 900 * u;
+    const walking = u > 0 && u < 1 && actOut(t, ctx.duration) === 0;                    // stop walking when the act whips out
+    figureSide(h, x, FLOOR + 6, 0.6, walking ? walkPose((x - 1550) / walkStride(0.6)) : POSE.stand, { col: K.ink, accent: K.warm, paper: K.paper });
+  });
+}
+```
+Notes: build `focus` from word times inside `draw` (the plan is cached per array, recomputing it per frame is cheap). `spy.SpyCtx` is the Ledger's `PaperCtx`. Preview: `bun run studio --spy` (compositions `SpyDemo`, `SpyWipes`).
+
+## Known limits
+Wipes render `from` and `to` both (two full-frame draws) and the strip wipe adds an offscreen copy: fine at 1080p, keep scenes cheap. `luma`-based subtitle colour is a two-way choice. One puppet rig only (profile, facing +x). `drawTitle` has no digits or punctuation; use `drawLine` for those. Silhouettes cannot be nested inside one another.

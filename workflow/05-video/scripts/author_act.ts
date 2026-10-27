@@ -3,14 +3,18 @@
  * then a fresh-context critic (never the author) scores the contact sheet against
  * STYLE.md. Failed acts get the critic's notes back, at most 2 fix rounds.
  *
- * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force] [--strict]
+ * The critic is advisory and runs free on Gemini Flash through `agy` by default
+ * (`--critic sonnet` uses Claude instead). The act brief is workflow/prompts/ACT.md with
+ * the plan's style filled in (workflow/styles/<style>/STYLE.md + ACT.md).
+ *
+ * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]]
  */
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { type ActsPlan, type Act } from "../src/lib/acts";
-import { runAgentAsync, type AgentResult } from "../src/lib/agent";
+import { runAgentAsync, runAgy, runAgyJson, extractJson, type AgentResult } from "../src/lib/agent";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 
 const args = process.argv.slice(2);
@@ -22,10 +26,13 @@ const videoId = flag("--video") ?? flag("-v");
 const only = flag("--act")?.toUpperCase().split(",");
 const parallel = Math.max(1, parseInt(flag("--parallel") ?? "2", 10));
 const model = flag("--model") ?? process.env.ACT_MODEL ?? "opus";
-const criticModel = flag("--critic") ?? process.env.CRITIC_MODEL ?? "sonnet";
+const criticModel = flag("--critic") ?? process.env.CRITIC_MODEL ?? "agy";
 const useCritic = !args.includes("--no-critic");
 const force = args.includes("--force");
 const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round
+// --fix [notes.md]: one fix round on an existing act, in the author's own session, with the critic's notes (+ yours)
+const fixMode = args.includes("--fix");
+const fixNotesFile = fixMode && flag("--fix") && !flag("--fix")!.startsWith("--") ? flag("--fix") : undefined;
 const MAX_FIX_ROUNDS = 1;
 if (!videoId) {
   console.error("Usage: bun run act --video <ID> [--act A01] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force]");
@@ -37,7 +44,13 @@ const wsDir = path.dirname(paths.outputDir);
 const plan: ActsPlan = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"));
 const scenesDir = path.join(paths.outputDir, "src", "scenes");
 fs.mkdirSync(scenesDir, { recursive: true });
-const actPrompt = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/ACT.md"), "utf-8");
+const style = plan.style || "ledger";
+const styleGuide = `workflow/styles/${style}/STYLE.md`;
+if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`))) {
+  console.error(`❌ style "${style}" has no workflow/styles/${style}/ACT.md`);
+  process.exit(1);
+}
+const actPrompt = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/ACT.md"), "utf-8").replace(/{{STYLE}}/g, style);
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
 
 // Timeline + registry must exist before any act can be previewed
@@ -90,18 +103,24 @@ async function critique(act: Act, round: number): Promise<{ pass: boolean; notes
     }
   } catch {}
   const out = path.join(reviewDir, `critic_${round}.json`);
-  const prompt = `You are a strict motion-design critic. You have never seen this project's code. Read the style guide workflow/styles/ledger/STYLE.md, then Read the contact sheet ${sheet} (one frame every few seconds plus frames at the narration's hit words; each tile is labelled with its act-relative time).
+  const free = criticModel === "agy";
+  const plan_ = JSON.stringify({ idea: act.idea, sheet: act.sheet, signature: act.signature, camera: act.camera, hits: act.beats.flatMap((b) => b.hits ?? []) });
+  const prompt = `You are a strict motion-design critic. You have never seen this project's code. Read the style guide ${path.resolve(styleGuide)}, then look at the contact sheet image ${sheet} (one frame every few seconds plus frames at the narration's hit words; each tile is labelled with its act-relative time).
 
-The act's plan: ${JSON.stringify({ idea: act.idea, sheet: act.sheet, signature: act.signature, camera: act.camera, hits: act.beats.flatMap((b) => b.hits ?? []) })}
+The act's plan: ${plan_}
 
 The measured layout report (free pixel checks) is in ${path.join(reviewDir, "layout.json")}: treat its flags as facts.
 
-Judge: (1) does it follow the style (ledger paper, pencil, cut-outs, colour logic) and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the bottom 140 px except the caption; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data. Read individual frames in ${reviewDir} if a tile is unclear.
+Judge: (1) does it follow the style guide and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the subtitle band except the subtitle; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data. Look at individual frames in ${reviewDir} if a tile is unclear.
 
-Write JSON to ${out} with the Write tool: {"pass": boolean, "score": 1-10, "issues": [{"time": "12.0s", "problem": "...", "fix": "..."}]}. pass = score >= 7 and no issue that a viewer would notice. Max 8 issues, most important first. Then reply "done".`;
-  const r = await runAgentAsync({ prompt, model: criticModel, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `critic_${round}.log`) });
-  account(`critic ${act.id} r${round}`, criticModel, r);
+${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} with the Write tool`} this JSON: {"pass": boolean, "score": 1-10, "issues": [{"time": "12.0s", "problem": "...", "fix": "..."}]}. pass = score >= 7 and no issue that a viewer would notice. Max 8 issues, most important first.${free ? "" : ' Then reply "done".'}`;
+  const agy = free ? await runAgyJson({ prompt, logPath: path.join(reviewDir, `critic_${round}.log`) }).catch(() => null) : null;
+  const r = agy ? agy.r : free
+    ? await runAgy({ prompt, logPath: path.join(reviewDir, `critic_${round}.log`) })
+    : await runAgentAsync({ prompt, model: criticModel, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `critic_${round}.log`) });
+  account(`critic ${act.id} r${round}`, free ? "agy" : criticModel, r);
   try {
+    if (free) fs.writeFileSync(out, JSON.stringify(agy ? agy.json : extractJson(r.text), null, 2), "utf-8");
     const v = JSON.parse(fs.readFileSync(out, "utf-8"));
     const notes = (v.issues ?? []).map((i: any) => `- ${i.time}: ${i.problem} → ${i.fix}`).join("\n");
     console.log(`   🔎 ${act.id} critic r${round}: score ${v.score}/10 ${v.pass ? "PASS" : "FAIL"} (${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)})`);
@@ -114,6 +133,7 @@ Write JSON to ${out} with the Write tool: {"pass": boolean, "score": 1-10, "issu
 async function authorAct(act: Act): Promise<boolean> {
   const file = sceneFile(act);
   const reviewDir = path.join(paths.outputDir, "review", act.id);
+  if (fixMode && fs.existsSync(file)) return fixAct(act, file, reviewDir);
   if (fs.existsSync(file) && !force) {
     console.log(`⏩ ${act.id} exists (${path.basename(file)}); --force to redo`);
     return true;
@@ -153,6 +173,30 @@ ${actWords(act)}`;
     console.log(`   ${act.id} fix r${round}: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
   }
   return false;
+}
+
+/** The author's latest session id (from its run logs), so a fix round reuses its context. */
+function lastSession(reviewDir: string): string | undefined {
+  const logs = fs.existsSync(reviewDir) ? fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).sort((a, b) => parseInt(a.slice(7)) - parseInt(b.slice(7))) : [];
+  for (const f of logs.reverse()) {
+    const m = fs.readFileSync(path.join(reviewDir, f), "utf-8").match(/"session_id":"([^"]+)"/);
+    if (m) return m[1];
+  }
+  return undefined;
+}
+
+async function fixAct(act: Act, file: string, reviewDir: string): Promise<boolean> {
+  const v = await critique(act, 1);
+  const extra = fixNotesFile ? fs.readFileSync(fixNotesFile, "utf-8") : "";
+  if (v.pass && !extra) { console.log(`   ✅ ${act.id}: critic passes, nothing to fix`); return true; }
+  const resume = lastSession(reviewDir);
+  const n = fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length;
+  const fix = `Review of ${act.id} (${file}). Fix these, then re-run assemble and frames, check the layout report and the sheet once:\n${extra ? `Director's notes (most important):\n${extra}\n` : ""}${v.notes ? `Critic (advisory, from the contact sheet):\n${v.notes}\n` : ""}Keep everything that works. Reply with 2 lines when done.`;
+  console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resumed session" : ""})...`);
+  const r = await runAgentAsync({ prompt: resume ? fix : `${actPrompt}\n\n# Act ${act.id}, file ${file}\n${fix}`, model, tools: AUTHOR_TOOLS, maxTurns: 40, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
+  account(`act ${act.id} fix`, model, r);
+  console.log(`   ${act.id} fix: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
+  return r.ok;
 }
 
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));

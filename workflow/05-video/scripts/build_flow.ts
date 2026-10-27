@@ -68,6 +68,7 @@ async function main() {
   if (!fs.existsSync(captionsPath) || captionsStale) {
     runStep("1. Build Captions from Transcript", `bun run captions --video "${effectiveTarget}"`);
   }
+  runStep("1b. Closed captions (.srt for YouTube)", `bun run srt --video "${paths.jobId}"`);
 
   // Step 2: Director plans the acts (acts.json + treatment; storyboard.json is its one-scene-per-act view)
   const actsPath = path.join(paths.outputDir, "acts.json");
@@ -94,8 +95,8 @@ async function main() {
 
   // Step 5: Sound: foley events + music plan from the acts, music bed, full mix
   runStep("5a. Sound cues", `bun run cues --video "${paths.jobId}"`);
-  runStep("5b. Music bed", `bun run audio:music --video "${paths.jobId}"`);
-  runStep("5c. Mix voice + music + foley", `bun run audio:mix --video "${paths.jobId}"`);
+  runStep("5b. Music bed (separate stem, added in post)", `bun run audio:music --video "${paths.jobId}"`);
+  runStep("5c. Mix voice + foley", `bun run audio:mix --video "${paths.jobId}"`);
 
   // Step 6: Assemble Registry
   runStep("6. Assemble", `bun run assemble --video "${paths.jobId}"`);

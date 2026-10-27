@@ -53,6 +53,22 @@ export function drawActStage(g: CanvasRenderingContext2D, cam: Cam, rect: Rect):
   sheet(g, rect[0], rect[1], rect[2], rect[3]);
 }
 
+/** Splits spoken words into caption chunks: sentence ends, or at most `maxWords` words (timed from word starts). */
+export function captionChunks(words: { w: string; t: number }[], maxWords = 12): { w: string; t: number }[][] {
+  const chunks: { w: string; t: number }[][] = [];
+  let cur: { w: string; t: number }[] = [];
+  for (const w of words) {
+    cur.push({ w: w.w, t: w.t });
+    if (/[.!?]["')\]]*$/.test(w.w) || cur.length >= maxWords) { chunks.push(cur); cur = []; }
+  }
+  if (cur.length) chunks.push(cur);
+  return chunks;
+}
+/** Index of the chunk shown at time t (from 0.15 s before its first word until the next chunk starts), or -1. */
+export function activeChunk(chunks: { t: number }[][], t: number): number {
+  return chunks.findIndex((c, k) => t >= c[0].t - 0.15 && (k === chunks.length - 1 || t < chunks[k + 1][0].t - 0.15));
+}
+
 /**
  * The figure caption for whatever is being said at t: sentences split into chunks of
  * ≤ 12 words, each shown from just before its first word until the next chunk starts.
@@ -63,15 +79,8 @@ export function autoCaption(
   ctx: { t: number; words: { w: string; t: number; t1: number }[] },
   o: { kicker?: string; maxWords?: number } = {}
 ): void {
-  const maxWords = o.maxWords ?? 12;
-  const chunks: { w: string; t: number }[][] = [];
-  let cur: { w: string; t: number }[] = [];
-  for (const w of ctx.words) {
-    cur.push({ w: w.w, t: w.t });
-    if (/[.!?]["')\]]*$/.test(w.w) || cur.length >= maxWords) { chunks.push(cur); cur = []; }
-  }
-  if (cur.length) chunks.push(cur);
-  const i = chunks.findIndex((c, k) => ctx.t >= c[0].t - 0.15 && (k === chunks.length - 1 || ctx.t < chunks[k + 1][0].t - 0.15));
+  const chunks = captionChunks(ctx.words, o.maxWords ?? 12);
+  const i = activeChunk(chunks, ctx.t);
   if (i < 0) return;
   const c = chunks[i];
   const end = i < chunks.length - 1 ? chunks[i + 1][0].t - 0.45 : c[c.length - 1].t + 1.2;

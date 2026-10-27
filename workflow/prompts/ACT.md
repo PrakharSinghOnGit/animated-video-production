@@ -1,73 +1,27 @@
 # Act author: draw one act of a Wealth Gap video
 
-You are the animator for **one act** (45–120 s, one continuous take) in the **Ledger** style. The director's plan for this act is below; the narration is recorded and its word timings are fixed.
+You are the animator for **one act** (45–120 s, one continuous take) in the **{{STYLE}}** house style. The director's plan for this act is below; the narration is recorded and its word timings are fixed.
 
 ## Read first (and only these)
-1. `workflow/styles/ledger/STYLE.md`: the look, colour logic, motion and camera grammar. Follow it exactly.
-2. `packages/kit/src/paper/engine.ts`, `lib.ts`, `transitions.ts` and `PaperCanvas.tsx`: the drawing engine (the only way you draw). Exported from `@wealthgap/kit` as the `paper` namespace.
-3. `packages/kit/src/paper/preview/Root.tsx`: a worked example of a draw function.
-Don't explore the rest of the repo; everything you need is here.
-
-## The file you write
-`<scene file path below>`, a single TSX module:
-
-```tsx
-import React from "react";
-import { paper } from "@wealthgap/kit";
-const { PaperCanvas, shots, actCamera, drawActStage, autoCaption, pencilStroke, handText, P /* … */ } = paper;
-type Ctx = paper.PaperCtx;
-
-export const meta = { id: "A01", title: "…" };
-
-// Foley for this act (act-relative seconds). word(text, n) = start of that spoken word.
-export const events = (word: (text: string, occurrence?: number) => number) => [
-  { t: word("trillions") - 0.25, type: "pencil_scratch", d: 0.8 },
-  // types: pencil_tap pencil_scratch ruler_hiss paper_slide stamp_thud page_turn adding_clack pop whoosh
-];
-
-type Rect = [number, number, number, number];
-const SHEET: Rect = [0, 0, 4200, 2400];            // this act's sheet in world units
-// One region per beat (world rects). Everything a beat draws stays inside its region,
-// and the camera frames regions, never raw coordinates. Regions may overlap or nest.
-const R: Record<string, Rect> = {
-  hook: [200, 300, 1700, 1150],
-  // …
-};
-
-const draw = (g: CanvasRenderingContext2D, ctx: Ctx) => {
-  // pure function of ctx.t: no state between frames, no Math.random, no Date
-  const w = (s: string, n = 1) => ctx.word(s, n).t0;
-  const shot = shots([
-    { t: 0.9, rect: R.hook, fill: 0.9 },             // frame a region: guaranteed on screen and large
-    { t: w("Wall") - 0.5, rect: R.hook, fill: 0.7 }, // a slow pull back = same region, smaller fill
-    // { t, cam: {...} } only for a deliberate punch-in
-  ]);
-  const cam = actCamera(shot, ctx.t, ctx.duration, SHEET);
-  drawActStage(g, cam, SHEET);   // desk + sheet; the camera is now applied (world space)
-  // … the act, beat by beat …
-  autoCaption(g, ctx);
-};
-
-export default function Act() {
-  return <PaperCanvas draw={draw} />;
-}
-```
+1. `workflow/styles/{{STYLE}}/STYLE.md`: the look, colour logic, motion and camera grammar. Follow it exactly.
+2. `workflow/styles/{{STYLE}}/ACT.md`: the engine you draw with, the file template, act transitions and chapter acts. It lists the engine files to read.
+Don't explore the rest of the repo; everything you need is there.
 
 ## Rules
-- **Pure and deterministic.** Everything is a function of `ctx.t`. Use `seg(t, t0, t1)` + easing for every motion; seeded noise only.
+- **Pure and deterministic.** Everything is a function of `ctx.t`. Use `seg(t, t0, t1)` + easing for every motion; seeded noise only. No `Math.random`, `Date`, timers or state between frames.
 - **Timing from words.** Resolve every hit with `ctx.word(text, n)` (act-relative seconds). A hit is **complete at the word's start**: begin the motion 0.25–0.6 s earlier (anticipation, then action). Never hard-code times that should follow the voice.
-- **One take, framed by regions.** No cuts inside the act. Lay the sheet out as named regions (one per beat or idea) and drive the camera with `shots([{ t, rect, fill }])`: it fits the rect inside the safe area (above the caption slip, inside the margins), so nothing clips and subjects stay large. A pull-back is a lower `fill` or a larger region; a pan is the next region. Never type raw camera x/y/zoom, except one `{ cam }` key for a punch-in. Named moves from STYLE.md §6; something is always being drawn or the camera is breathing.
-- **Act transitions (same for every act, so the video flows):** always wrap your camera with `actCamera(shot, ctx.t, ctx.duration, SHEET)` and start every frame with `drawActStage`. It arrives along the desk and descends onto the sheet in the first 1.8 s, and lifts off and travels on in the last 1.6 s; your `shot` keys should start at t ≈ 1.8 and end at duration − 1.6. Don't put hits in those windows.
-- **Chapter acts.** If the plan has `chapter`, the act opens on the chapter card during the narration pause (from 1.8 s to the first spoken word): put a region `R.chapter = chapterRect(x, y, title)` at the top-left of the sheet, draw `chapterCard(g, x, y, n, title, seg(t, 1.8, firstWord - 0.3))`, frame it with `shots`, then move to the first beat's region as the narration starts.
-- **Pace (long-form, calm).** `shots` already stretches camera moves to at least `moveTime()` (1.1–2.8 s); key the camera with room for that. Use `paper.pencilPerformer(t, ops)` for the pencil (register every mark as an op), never your own pencil timing. Handwriting takes `writeTime(text)` (about 9 characters a second); a hit word should be complete at its start, so start writing that much earlier. No move, write-on or reveal shorter than 0.4 s except a deliberate punch-in.
-- **Layout.** Keep each beat's drawing inside its region. Text sizes in world units must stay ≥ 30 px on screen (size × camera zoom): handwriting ≥ 34, labels ≥ 30, headline ≥ 56. A region holds one idea; if it is crowded, split it. Call `autoCaption(g, ctx)` last in every frame (the figure caption on a paper slip).
-- **Colour logic and data honesty** per STYLE.md §3 and the plan's `data` (only those numbers, with their units; show the source as a small mono note on the sheet where a figure appears).
-- **No boxes with text in them.** If a frame looks like a slide, redraw it as an operation on the ledger.
-- Keep the file readable: small helper functions per beat, < ~700 lines.
+- **One take, framed by regions.** No cuts inside the act. Lay the world out as named regions (one per beat or idea) and let the camera frame regions, never raw coordinates (the engine's framing helpers keep everything inside the safe area and large). Something is always moving: an element being built, a figure acting, or the camera breathing.
+- **The camera never leaves unfinished work.** It arrives at a region before that region's action starts and stays until the action is complete and has been held. Moves are calm (the engine enforces a minimum move time); leave room for them.
+- **Long-form pace.** One idea at a time; build it while it is explained, then hold while the narrator finishes. No move or reveal shorter than 0.4 s except a deliberate punch-in, whip or stop-time.
+- **Layout.** Each beat's drawing stays inside its region. Text must be ≥ 30 px on screen (world size × camera zoom); headline numbers ≥ 90 px. A region holds one idea; if it is crowded, split it. Follow the style's text rule (STYLE.md §4): in Briefing there are no running subtitles, only impact text staged in the scene; the whole frame is usable.
+- **Data honesty.** Only the plan's `data` numbers, with their units; show the source as a small note beside the figure. Never invent a number to fill a chart: draw the empty slot.
+- **No boxes with text in them.** If a frame looks like a slide, restage it in the style's own terms (STYLE.md §8).
+- **Sound.** Export `events(word)` with foley for every visible action (types listed in the style's ACT.md), act-relative seconds.
+- Keep the file readable: small helper functions per beat, < ~800 lines.
 
 ## Process
-1. Plan the sheet layout in world coordinates and the camera path for every beat (a short comment block at the top of the file).
+1. Plan the world layout and the camera/actions for every beat (a short comment block at the top of the file).
 2. Write the file.
-3. `bun run assemble --video <ID>` (it must pass), then `bun run frames --video <ID> --scene <ACT> --every 4 --words`. It prints a **layout report** (measured, free): near-empty frames, content clipped at an edge, content under the caption slip, subjects too small. **Fix every flag** (a right-edge flag that is only the pencil may stay), then **Read the contact sheet** `review/<ACT>/sheet.jpg` for what numbers can't see.
-4. Fix what you see: tiny text, overlapping notes, a hit that is not complete at its word, colour on the same colour, anything that looks like a slide. Repeat step 3 at most 3 times; the act is done when the layout report is clean and the sheet reads as a polished film strip.
-5. Stop when the sheet reads as a polished film strip. Reply with 3 lines: what the act shows, what you are least sure about, and the frames to check.
+3. `bun run assemble --video <ID>` (it must pass), then `bun run frames --video <ID> --scene <ACT> --every 4 --words`. It prints a **layout report** (measured, free): near-empty frames, content clipped at an edge, content in the subtitle band (ignore that flag when the style has no subtitles), subjects too small. **Fix every flag**, then **Read the contact sheet** `review/<ACT>/sheet.jpg` for what numbers can't see.
+4. Fix what you see: tiny text, overlaps, a hit that is not complete at its word, colour on the same colour, a camera that leaves too early, anything that looks like a slide. Repeat step 3 at most 3 times.
+5. Stop when the layout report is clean and the sheet reads as a polished film strip. Reply with 3 lines: what the act shows, what you are least sure about, and the frames to check.

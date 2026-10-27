@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { CONFIG } from "./config";
 import type { VOSection } from "./types";
 
@@ -128,7 +129,8 @@ function parseScriptRaw(content: string): ParsedPart[] {
 
 async function main() {
   const args = process.argv.slice(2);
-  const targetId = args.find((a) => !a.startsWith("-"));
+  const vi = args.findIndex((a) => a === "--video" || a === "-v");
+  const targetId = vi >= 0 ? args[vi + 1] : args.find((a) => !a.startsWith("-"));
 
   const workspaceRoot = path.resolve(process.cwd(), "workspace");
   let videoId = targetId;
@@ -161,6 +163,18 @@ Example:
     console.error(`❌ script_raw.md not found at: ${scriptRawPath}`);
     console.log(`Run 'bun run script:remake ${videoId}' first.`);
     process.exit(1);
+  }
+
+  // Approval gate for scripts written by `bun run write`: no voice until the creator approved this exact text
+  const approvedPath = path.join(videoDir, "02-scripting", "approved.json");
+  if (fs.existsSync(path.join(videoDir, "02-scripting", "idea.md")) && !args.includes("--unapproved")) {
+    const hash = createHash("sha256").update(fs.readFileSync(scriptRawPath)).digest("hex");
+    let ok = false;
+    try { ok = JSON.parse(fs.readFileSync(approvedPath, "utf-8")).sha256 === hash; } catch {}
+    if (!ok) {
+      console.error(`❌ The script is not approved${fs.existsSync(approvedPath) ? " (it changed since approval)" : ""}. Review it, then: bun run write --video ${videoId} --approve`);
+      process.exit(1);
+    }
   }
 
   const scriptContent = fs.readFileSync(scriptRawPath, "utf-8");

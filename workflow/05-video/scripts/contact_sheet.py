@@ -3,7 +3,7 @@
 Each tile is labelled with the time encoded in its file name (t_012.40.jpg -> 12.4s).
 
 --report layout.json [--dur S] also measures every frame (free, no model): near-empty frames,
-content clipped at the top/left edge, content running into the caption slip, subjects too small.
+content clipped at the top/left edge, content running into the subtitle band, subjects too small.
 Frames in the first/last second (desk transitions) are skipped."""
 import argparse
 import os
@@ -17,9 +17,18 @@ ap.add_argument("--cols", type=int, default=4)
 ap.add_argument("--w", type=int, default=480)
 ap.add_argument("--report")
 ap.add_argument("--dur", type=float, default=0)
+ap.add_argument("--no-band", action="store_true", help="style has no subtitle band: check edges over the full height, skip the band check")
 a = ap.parse_args()
 
-PAPER = (244, 238, 226)
+
+
+def ground_colour(im):
+    """The frame's dominant colour (the paper or the scene's ground): the mode of coarse-quantised pixels."""
+    import numpy as np
+    sub = im[::6, ::6].reshape(-1, 3) // 12
+    keys, counts = np.unique(sub[:, 0] * 10000 + sub[:, 1] * 100 + sub[:, 2], return_counts=True)
+    k = keys[counts.argmax()]
+    return im[::6, ::6].reshape(-1, 3)[(sub[:, 0] * 10000 + sub[:, 1] * 100 + sub[:, 2]) == k].mean(axis=0)
 
 
 def layout_flags(path, t):
@@ -27,8 +36,9 @@ def layout_flags(path, t):
     import numpy as np
     im = np.asarray(Image.open(path).convert("RGB")).astype(np.int16)
     h, w, _ = im.shape
-    # pale ledger rules sit ~70 from the paper colour; real marks, cut-outs and type are well above 100
-    ink = np.abs(im - np.array(PAPER)).sum(axis=2) > 100
+    # content = far from the ground colour (paper, or a scene's flat ground); pale rules and paper
+    # texture sit well under 100, real marks, cut-outs and type well above
+    ink = np.abs(im - ground_colour(im)).sum(axis=2) > 100
 
     def drop_thin(mask_1d):
         """Indices of thin (<= 4 px) runs where a line spans the frame: rules, the margin line."""
@@ -57,13 +67,15 @@ def layout_flags(path, t):
     e = max(2, h // 135)
     if ink[:e, :].mean() > 0.06:
         flags.append("content clipped at the top edge")
-    if ink[:, :e].mean() > 0.06:
+    # the subtitle band (bottom ~18%) is the subtitle's own territory: a strip may bleed off the left edge there
+    body = h if a.no_band else int(h * 0.8)
+    if ink[:body, :e].mean() > 0.06:
         flags.append("content clipped at the left edge")
-    if ink[:int(h * 0.8), w - e:].mean() > 0.10:
+    if ink[:body, w - e:].mean() > 0.10:
         flags.append("content clipped at the right edge (ignore if it is only the pencil)")
-    band = ink[int(h * 0.815):int(h * 0.84), sx0:sx1]
-    if band.mean() > 0.08:
-        flags.append("content runs into the caption slip")
+    band = ink[int(h * 0.815):int(h * 0.828), sx0:sx1]   # just under the safe area, above any subtitle strip
+    if not a.no_band and band.mean() > 0.08:
+        flags.append("content runs into the subtitle band")
     return {"t": t, "coverage": round(cov, 4), "span": round(float(span), 3), "flags": flags}
 
 tiles = []

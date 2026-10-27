@@ -2,7 +2,8 @@
  * Open Remotion Studio (the browser dashboard) on a video's workspace: the full video ("Main")
  * and one composition per act. Without --video, opens the Ledger engine preview instead.
  *
- * Usage: bun run studio --video <ID>   |   bun run studio
+ * Usage: bun run studio --video <ID>   |   bun run studio   |   bun run studio --spy
+ * `--spy` opens the Briefing (spy) engine preview (SpyDemo) instead of the Ledger one.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -24,7 +25,8 @@ if (video) {
   const pub = path.join(out, "public");
   if (fs.existsSync(pub)) extra.push(`--public-dir=${pub}`);
 } else {
-  entry = path.resolve(process.cwd(), "packages/kit/src/paper/preview/Root.tsx");
+  const preview = args.includes("--spy") ? "spy" : "paper";
+  entry = path.resolve(process.cwd(), `packages/kit/src/${preview}/preview/Root.tsx`);
 }
 console.log(`🎛  Remotion Studio: ${path.relative(process.cwd(), entry)} (Ctrl+C to stop)`);
 spawn("bunx", ["remotion", "studio", entry, ...extra], { stdio: "inherit" }).on("close", (c) => process.exit(c ?? 0));
