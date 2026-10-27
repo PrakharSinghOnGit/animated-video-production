@@ -36,7 +36,7 @@ async function main() {
     process.exit(1);
   }
   if (!fs.existsSync(storyboardFile)) {
-    console.error(`❌ Error: Missing storyboard.json. Run "bun run storyboard" first.`);
+    console.error(`❌ Error: Missing storyboard.json. Run "bun run direct" first.`);
     process.exit(1);
   }
 

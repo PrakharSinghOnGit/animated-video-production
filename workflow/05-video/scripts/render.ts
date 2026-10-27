@@ -118,7 +118,7 @@ async function main() {
     ];
 
   } else {
-    console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run storyboard -> timeline -> assemble first.`);
+    console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run direct -> assemble first.`);
     process.exit(1);
   }
 
