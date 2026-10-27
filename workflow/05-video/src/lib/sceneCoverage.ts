@@ -46,22 +46,10 @@ export function checkSceneCoverage(outputDir: string): SceneCoverage {
     ? fs.readdirSync(scenesDir).filter((f) => /^[SA]\d+.*\.tsx$/i.test(f))
     : [];
 
-  // Storyboard scenes with an `archetype` render from their spec and need no scene file.
-  const storyboardPath = path.join(outputDir, "storyboard.json");
-  const archetypeIds = new Set<string>(
-    fs.existsSync(storyboardPath)
-      ? JSON.parse(fs.readFileSync(storyboardPath, "utf-8"))
-          .scenes.filter((sc: any) => sc.archetype)
-          .map((sc: any) => String(sc.id).toUpperCase())
-      : []
-  );
-
   const coverage: SceneCoverage = { total: timeline.scenes.length, authored: [], missing: [] };
   for (const scene of timeline.scenes) {
     const file = files.find((f) => f.match(/^([SA]\d+)/i)?.[1].toUpperCase() === scene.id.toUpperCase());
     if (file) coverage.authored.push({ id: scene.id, slug: scene.slug, file });
-    else if (archetypeIds.has(scene.id.toUpperCase()))
-      coverage.authored.push({ id: scene.id, slug: scene.slug, file: "storyboard.json (archetype)" });
     else coverage.missing.push({ id: scene.id, slug: scene.slug });
   }
   return coverage;
