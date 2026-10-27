@@ -28,7 +28,6 @@
     "music:search": "bun run workflow/06-audio/music_search.ts",
     "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
     "transcribe": "bun run workflow/04-transcription/transcribe.ts",
-    "gallery": "bun run workflow/05-video/scripts/studio.ts",
     "timeline": "bun run workflow/05-video/scripts/timeline.ts",
     "assemble": "bun run workflow/05-video/scripts/assemble.ts",
     "draft": "bun --cwd workflow/05-video scripts/render.ts --draft",
