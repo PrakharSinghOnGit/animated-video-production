@@ -221,7 +221,7 @@ ${refMetadata?.description ? refMetadata.description.slice(0, 1000) : "No descri
 // Initial script_raw placeholder
 fs.writeFileSync(
   path.join(targetDir, "02-scripting", "script_raw.md"),
-  `# ${videoId} Raw Script\n\n*(Run 'bun run script:remake ${videoId}' to generate with Ollama Gemma 3, or draft manually)*\n\n### PART 1: THE HOOK\n**[CLIP 1 - 0:00–0:05]:** [Describe opening visual]\n**VO:** \`[VO: Intense, dramatic tone]\` [Opening hook script text]\n`
+  `# ${videoId} Raw Script\n\n*(Write 02-scripting/idea.md, then run 'bun run write --video ${videoId}' to draft this script, or write it by hand)*\n\n### PART 1: THE HOOK\n**[CLIP 1 - 0:00–0:05]:** [Describe opening visual]\n**VO:** \`[VO: Intense, dramatic tone]\` [Opening hook script text]\n`
 );
 
 console.log(`\n======================================================`);
@@ -237,16 +237,7 @@ try {
 }
 
 console.log(`Next Steps:`);
-if (youtubeUrl) {
-  console.log(`  1. Transcribe reference audio:`);
-  console.log(`     bun run script:transcribe ${videoId}`);
-  console.log(`  2. Remake script with Ollama Gemma 3 (or edit manually):`);
-  console.log(`     bun run script:remake ${videoId}`);
-  console.log(`  3. Format into VO sections with Sarvam prosody:`);
-  console.log(`     bun run tts:format ${videoId}`);
-} else {
-  console.log(`  1. Add research notes to workspace/${videoId}/01-ideation/notes.md`);
-  console.log(`  2. Draft script in workspace/${videoId}/02-scripting/script_raw.md`);
-  console.log(`  3. Format into VO sections: bun run tts:format ${videoId}`);
-}
+console.log(`  1. Write your draft/idea in workspace/${videoId}/02-scripting/idea.md (plain text; [brackets] = instructions)`);
+console.log(`  2. Draft the script (paid): bun run write --video ${videoId}   then approve: bun run write --video ${videoId} --approve`);
+console.log(`  3. Format into VO sections: bun run tts:format --video ${videoId}`);
 console.log(``);

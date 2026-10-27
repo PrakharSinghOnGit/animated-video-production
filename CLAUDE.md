@@ -6,9 +6,9 @@ in the **Briefing** style (Remotion + canvas, `packages/kit/src/spy/`) → foley
 **To make a video, follow `VIDEO_PRODUCTION.md`** (steps, costs, gates, fixes). Dashboard: `bun run dashboard`.
 
 ## Layout
-- `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `paper/` is the older
-  Ledger engine; `archetypes/` and the older primitives belong to the scene-based style before that.
-- `workflow/`: `styles/<style>/` (STYLE.md + ACT.md per house style), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
+- `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `paper/{lib,engine,transitions,
+  CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template.
+- `workflow/`: `styles/briefing/` (STYLE.md + ACT.md), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
   `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `dashboard/`.
 - `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files
   `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`.

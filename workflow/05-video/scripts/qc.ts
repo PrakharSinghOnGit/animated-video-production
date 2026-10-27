@@ -13,7 +13,7 @@ interface QCIssue {
 
 async function main() {
   const args = process.argv.slice(2);
-  let target = process.env.ACTIVE_VIDEO || "fixtures/sample-job";
+  let target = process.env.ACTIVE_VIDEO;
   let explicitFinal: boolean | null = null;
 
   for (let i = 0; i < args.length; i++) {
@@ -29,6 +29,10 @@ async function main() {
     }
   }
 
+  if (!target) {
+    console.error("Usage: bun run qc --video <ID>  (or set ACTIVE_VIDEO)");
+    process.exit(1);
+  }
   const paths = resolveJobPaths(target);
 
   console.log(`[qc] Running automated quality control on job: ${paths.jobId}`);

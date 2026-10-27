@@ -9,14 +9,10 @@
     "@wealthgap/kit": "workspace:*"
   },
   "scripts": {
-    "studio": "bun x remotion studio",
-    "gallery": "bun x remotion studio",
-    "still": "bun scripts/still.ts",
-    "sheet": "bun scripts/sheet.ts",
+    "studio": "bun x remotion studio ../../packages/kit/src/spy/preview/Root.tsx",
     "draft": "bun scripts/render.ts --draft",
     "render": "bun scripts/render.ts --final",
     "qc": "bun scripts/qc.ts",
-    "dev": "bun x remotion studio",
     "upgrade": "bun x remotion upgrade",
     "lint": "tsc --noEmit",
     "test": "bun test"

@@ -36,7 +36,7 @@ async function main() {
     process.exit(1);
   }
   if (!fs.existsSync(storyboardFile)) {
-    console.error(`❌ Error: Missing storyboard.json. Run "bun run storyboard" first.`);
+    console.error(`❌ Error: Missing storyboard.json. Run "bun run direct" first.`);
     process.exit(1);
   }
 
@@ -134,10 +134,6 @@ async function main() {
   const metaEntries: string[] = [];
   const allSfx: any[] = [];
   const allNumbers: any[] = [];
-  const archetypeErrors: string[] = [];
-  let archetypeCount = 0;
-  const storyboardById = new Map<string, any>(storyboard.scenes.map((sc: any) => [String(sc.id).toUpperCase(), sc]));
-  const { validateArchetypeSpec } = await import("@wealthgap/kit");
 
   for (const scene of timeline.scenes) {
     const matchingFile = existingFiles.find((f) => {
@@ -145,23 +141,7 @@ async function main() {
       return idMatch && idMatch[1].toUpperCase() === scene.id.toUpperCase();
     });
 
-    const sbScene = storyboardById.get(scene.id.toUpperCase());
-
-    if (!matchingFile && sbScene?.archetype) {
-      // Archetype scene: rendered straight from the storyboard spec, no scene file needed.
-      const spec = { archetype: sbScene.archetype, props: sbScene.props ?? {} };
-      const check = validateArchetypeSpec(spec);
-      if (!check.ok) {
-        archetypeErrors.push(...check.errors.map((e: string) => `${scene.id}: ${e}`));
-      }
-      archetypeCount++;
-      const specJson = JSON.stringify(spec);
-      registryArrayEntries.push(
-        `  { id: "${scene.id}", slug: "${scene.slug}", component: () => React.createElement(ArchetypeScene, { spec: ${specJson} }), meta: { id: "${scene.id}", title: ${JSON.stringify(scene.slug)}, archetype: "${sbScene.archetype}" } },`
-      );
-      registryEntries.push(`  "${scene.id}": () => React.createElement(ArchetypeScene, { spec: ${specJson} }),`);
-      metaEntries.push(`  "${scene.id}": { id: "${scene.id}", title: ${JSON.stringify(scene.slug)}, archetype: "${sbScene.archetype}" },`);
-    } else if (matchingFile) {
+    if (matchingFile) {
       const importName = `${scene.id}Component`;
       const metaName = `${scene.id}Meta`;
       const relPath = `./${matchingFile.replace(/\.tsx$/, "")}`;
@@ -220,7 +200,7 @@ async function main() {
  */
 import React from "react";
 import { AbsoluteFill } from "remotion";
-import { tokens, ArchetypeScene } from "@wealthgap/kit";
+import { tokens } from "@wealthgap/kit";
 
 ${registryImports.join("\n")}
 
@@ -282,13 +262,7 @@ ${metaEntries.join("\n")}
 
   const indexPath = path.join(scenesDir, "index.ts");
   fs.writeFileSync(indexPath, indexContent, "utf-8");
-  console.log(`✓ Generated scene registry: ${indexPath} (${timeline.scenes.length} scenes, ${archetypeCount} from archetypes)`);
-
-  if (archetypeErrors.length > 0) {
-    console.error(`\n❌ ${archetypeErrors.length} invalid archetype prop(s) in storyboard.json:`);
-    for (const e of archetypeErrors) console.error(`   - ${e}`);
-    process.exit(1);
-  }
+  console.log(`✓ Generated scene registry: ${indexPath} (${timeline.scenes.length} scenes)`);
 
   // 5. Write SFX cues
   const sfxPath = path.join(paths.outputDir, "sfx_cues.json");

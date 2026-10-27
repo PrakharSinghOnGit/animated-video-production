@@ -29,7 +29,7 @@ Everything else is this pipeline. Read this whole file before running anything.
 | `workspace/<ID>/` | one video: `02-scripting/script_raw.md`, `03-voiceover/`, `04-transcription/`, `05-video/` (acts.json, act files `src/scenes/A01_*.tsx`, `review/<act>/` frames), `06-audio/`, `07-assembly/export/` (.srt), `timings.json` |
 | `workflow/styles/briefing/` | the house style: `STYLE.md` (the look, sound, camera) + `ACT.md` (engine contract for act authors) |
 | `workflow/prompts/` | `DIRECTOR.md` (plans acts), `ACT.md` (authors one act); both take `{{STYLE}}` |
-| `packages/kit/src/spy/` | the Briefing drawing engine (`README.md` = API); `paper/` = the older Ledger engine |
+| `packages/kit/src/spy/` | the Briefing drawing engine (`README.md` = API); `paper/` = shared canvas helpers it imports |
 | `workflow/05-video/scripts/` | pipeline commands (see `package.json` scripts) |
 | `workflow/06-audio/` | mastering, procedural music/foley, mix |
 | `workflow/dashboard/` | local dashboard (`bun run dashboard`) |

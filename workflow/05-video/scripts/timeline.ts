@@ -49,7 +49,7 @@ async function main() {
 
   let storyboardFile = candidateStoryboard.find((p) => fs.existsSync(p));
   if (!storyboardFile) {
-    console.error(`❌ Error: Missing storyboard.json for ${paths.jobId}. Run "bun run storyboard" first.`);
+    console.error(`❌ Error: Missing storyboard.json for ${paths.jobId}. Run "bun run direct" first.`);
     process.exit(1);
   }
 

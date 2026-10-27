@@ -22,7 +22,11 @@ async function main() {
     }
   }
 
-  const effectiveTarget = target || process.env.ACTIVE_VIDEO || "fixtures/sample-job";
+  const effectiveTarget = target || process.env.ACTIVE_VIDEO;
+  if (!effectiveTarget) {
+    console.error("Usage: bun run render --video <ID>  (or set ACTIVE_VIDEO)");
+    process.exit(1);
+  }
   const paths = resolveJobPaths(effectiveTarget);
 
   console.log(`[render] Starting render for job: ${paths.jobId}`);
@@ -114,7 +118,7 @@ async function main() {
     ];
 
   } else {
-    console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run storyboard -> timeline -> assemble first.`);
+    console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run direct -> assemble first.`);
     process.exit(1);
   }
 
