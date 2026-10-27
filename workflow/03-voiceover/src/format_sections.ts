@@ -19,7 +19,7 @@ interface ParsedPart {
   beats: ParsedBeat[];
 }
 
-// Calibrated rule-based mapping from VO tone tags to Sarvam prosody and F5-TTS speed
+// Calibrated rule-based mapping from VO tone tags to prosody fields (legacy) and F5-TTS speed
 function deriveProsodyFromInstruction(instruction: string): {
   pace: number;
   pitch: number;
@@ -161,7 +161,7 @@ Example:
 
   if (!fs.existsSync(scriptRawPath)) {
     console.error(`❌ script_raw.md not found at: ${scriptRawPath}`);
-    console.log(`Run 'bun run script:remake ${videoId}' first.`);
+    console.log(`Run 'bun run write --video ${videoId}' first (needs 02-scripting/idea.md).`);
     process.exit(1);
   }
 
@@ -280,13 +280,11 @@ ${exportList}
   console.log(`======================================================\n`);
 
   console.log(`Next Steps:`);
-  console.log(`  1. Generate Local Cloned Voiceover (Default, Offline, F5-TTS, ₹0.00):`);
+  console.log(`  1. Generate Local Cloned Voiceover (Offline, Chatterbox; add --f5 for F5-TTS):`);
   console.log(`     bun run tts --video ${videoId}`);
-  console.log(`  2. Generate via Cloud (Sarvam Bulbul v4 Flash API):`);
-  console.log(`     bun run tts --cloud --video ${videoId}`);
-  console.log(`  3. Check character count & cost estimate:`);
+  console.log(`  2. Check character count:`);
   console.log(`     bun run tts:cost --video ${videoId}`);
-  console.log(`  4. Remake or update cloned voice sample:`);
+  console.log(`  3. Remake or update cloned voice sample:`);
   console.log(`     bun run voice:remake`);
   console.log(``);
 }

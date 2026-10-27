@@ -26,30 +26,13 @@ function parseArgs(): GenerationOptions {
       options.video = args[++i];
     } else if (arg === "--scale" || arg === "-m") {
       options.expressionScale = parseFloat(args[++i]);
-    } else if (arg === "--pitch-scale") {
-      options.pitchScale = parseFloat(args[++i]);
-    } else if (arg === "--pace-scale") {
-      options.paceScale = parseFloat(args[++i]);
-    } else if (arg === "--loudness-scale") {
-      options.loudnessScale = parseFloat(args[++i]);
     } else if (arg === "--part" || arg === "-p") {
       options.part = parseInt(args[++i], 10);
     } else if (arg === "--section" || arg === "--id" || arg === "-s") {
       options.sectionId = args[++i];
-    } else if (arg === "--speaker") {
-      options.speakerOverride = args[++i];
-    } else if (arg === "--rate") {
-      options.sampleRate = parseInt(args[++i], 10);
-    } else if (arg === "--codec") {
-      options.codec = args[++i] as "wav" | "mp3";
-    } else if (arg === "--api-key") {
-      options.apiKey = args[++i];
-    } else if (arg === "--cloud" || arg === "--sarvam" || arg === "--api") {
-      options.engine = "cloud";
-    } else if (arg === "--local" || arg === "--chatterbox") {
-      options.engine = "local";
+    } else if (arg === "--chatterbox") {
+      options.ttsModel = "chatterbox";
     } else if (arg === "--f5") {
-      options.engine = "local";
       options.ttsModel = "f5";
     } else if (arg === "--tts-model") {
       options.ttsModel = args[++i] as "chatterbox" | "f5";
@@ -83,9 +66,6 @@ function parseArgs(): GenerationOptions {
       options.video = arg;
     }
   }
-
-  // Default to local Chatterbox voice cloning unless explicitly flagged
-  options.engine = options.engine || "local";
 
   return options;
 }
