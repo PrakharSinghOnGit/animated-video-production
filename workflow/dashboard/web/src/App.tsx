@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
-import { Activity } from "lucide-react";
+import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { AppProvider, useApp } from "@/hooks/app";
 import { useMedia, useStored } from "@/lib/storage";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { useResize } from "@/hooks/useResize";
+import { TooltipProvider, Tip } from "@/components/ui/tooltip";
 import { Sheet } from "@/components/ui/sheet";
-import { Fold } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/TopBar";
-import { StepBar } from "@/components/StepBar";
-import { LeftCollapseButton, LeftPanel } from "@/components/LeftPanel";
+import { LeftPanel } from "@/components/LeftPanel";
 import { MonitorBody } from "@/components/RightPanel";
-import { LogPanel } from "@/components/LogPanel";
+import { Terminal } from "@/components/Terminal";
 import { WorkspacePage } from "@/pages/WorkspacePage";
+import { OverviewPage } from "@/pages/OverviewPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 import { UsagePage } from "@/pages/UsagePage";
 import { MachinePage } from "@/pages/MachinePage";
 import { cn } from "@/lib/utils";
+
+const LEFT = { min: 200, max: 380, def: 260, rail: 52 };
+const RIGHT = { min: 280, max: 520, def: 340, rail: 40 };
 
 function Toasts() {
   const { toasts } = useApp();
@@ -24,42 +29,59 @@ function Toasts() {
   );
 }
 
+/** Thin drag bar between panels (pointer drag or arrow keys). */
+function Handle({ props, label }: { props: ReturnType<typeof useResize>; label: string }) {
+  return <div role="separator" aria-orientation="vertical" aria-label={label} tabIndex={0} {...props} className="group relative z-10 w-1 shrink-0 cursor-col-resize touch-none bg-border hover:bg-brand/70 focus-visible:bg-brand" />;
+}
+
 function Shell() {
-  const { route, d } = useApp();
+  const { route } = useApp();
   const phone = useMedia("(max-width: 767px)");
   const wide = useMedia("(min-width: 1024px)");
-  const [collapsed, setCollapsed] = useStored<boolean>("leftCollapsed", false);
-  const [sheet, setSheet] = useState(false);
-  useEffect(() => { if (!phone) setSheet(false); }, [phone]);
+  const [lw, setLw] = useStored<number>("left.w", LEFT.def);
+  const [lc, setLc] = useStored<boolean>("leftCollapsed", false);
+  const [rw, setRw] = useStored<number>("right.w", RIGHT.def);
+  const [rc, setRc] = useStored<boolean>("right.collapsed", false);
+  const [leftSheet, setLeftSheet] = useState(false), [rightSheet, setRightSheet] = useState(false);
+  useEffect(() => { if (!phone) setLeftSheet(false); }, [phone]);
+  useEffect(() => { if (wide) setRightSheet(false); }, [wide]);
+  const lres = useResize(lw, setLw, LEFT.min, LEFT.max, 1), rres = useResize(rw, setRw, RIGHT.min, RIGHT.max, -1);
 
-  const page = route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : <WorkspacePage />;
+  const page = route.view === "ws" ? <WorkspacePage /> : (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      {route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
+    </div>
+  );
   return (
     <div className="flex h-dvh flex-col">
-      <TopBar phone={phone} onMenu={() => setSheet(true)} />
-      {route.view === "ws" && d && <StepBar />}
+      <TopBar phone={phone} showStats={!wide} onMenu={() => setLeftSheet(true)} onStats={() => setRightSheet(true)} />
       <div className="flex min-h-0 flex-1">
         {!phone && (
-          <aside className={cn("flex shrink-0 flex-col border-r bg-card transition-[width] duration-200", collapsed ? "w-14" : "w-64")} aria-label="Videos and views">
-            <LeftCollapseButton collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-            <LeftPanel rail={collapsed} onExpand={() => setCollapsed(false)} />
-          </aside>
+          <>
+            <aside className="flex shrink-0 flex-col bg-card" style={{ width: lc ? LEFT.rail : lw }} aria-label="Navigation and videos">
+              <LeftPanel rail={lc} onCollapse={() => setLc(true)} onExpand={() => setLc(false)} />
+            </aside>
+            {lc ? <div className="w-px shrink-0 bg-border" /> : <Handle props={lres} label="Resize left panel" />}
+          </>
         )}
-        <main className="min-w-0 flex-1 overflow-y-auto" id="main">
+        <main className="flex min-w-0 flex-1 flex-col" id="main">
           {page}
-          {!wide && (
-            <div className="mx-auto max-w-[1100px] px-3 pb-24 md:px-4">
-              <div className="rounded-xl border bg-card px-3.5">
-                <Fold title={<span className="flex items-center gap-2 text-[14px] font-semibold text-foreground"><Activity className="size-4" />Machine, activity and performance</span>} trigger="min-h-12">
-                  <div className="-mx-3.5 border-t"><MonitorBody /></div>
-                </Fold>
-              </div>
-            </div>
-          )}
+          <Terminal phone={phone} />
         </main>
-        {wide && <aside className="w-[340px] shrink-0 overflow-y-auto border-l bg-card" aria-label="Activity and performance"><MonitorBody /></aside>}
+        {wide && (
+          <>
+            {rc ? <div className="w-px shrink-0 bg-border" /> : <Handle props={rres} label="Resize right panel" />}
+            <aside className={cn("flex shrink-0 flex-col bg-card")} style={{ width: rc ? RIGHT.rail : rw }} aria-label="Stats">
+              <div className={cn("flex shrink-0 p-1", rc ? "justify-center" : "justify-start")}>
+                <Tip label={rc ? "Expand stats" : "Collapse stats"} side="left"><Button variant="ghost" size="icon" className="size-8" onClick={() => setRc(!rc)} aria-label={rc ? "Expand stats panel" : "Collapse stats panel"}>{rc ? <PanelRightOpen /> : <PanelRightClose />}</Button></Tip>
+              </div>
+              {!rc && <div className="min-h-0 flex-1 overflow-y-auto"><MonitorBody /></div>}
+            </aside>
+          </>
+        )}
       </div>
-      <LogPanel phone={phone} />
-      {phone && <Sheet open={sheet} onOpenChange={setSheet} title="Videos and views"><div className="flex min-h-0 flex-1 flex-col pt-10"><LeftPanel onPick={() => setSheet(false)} /></div></Sheet>}
+      {phone && <Sheet open={leftSheet} onOpenChange={setLeftSheet} title="Navigation and videos"><div className="flex min-h-0 flex-1 flex-col pt-10"><LeftPanel onPick={() => setLeftSheet(false)} /></div></Sheet>}
+      {!wide && <Sheet open={rightSheet} onOpenChange={setRightSheet} side="right" title="Stats" className="w-[92vw] max-w-md"><div className="min-h-0 flex-1 overflow-y-auto pt-10"><MonitorBody /></div></Sheet>}
       <Toasts />
     </div>
   );

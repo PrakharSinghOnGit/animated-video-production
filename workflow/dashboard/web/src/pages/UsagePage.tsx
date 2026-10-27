@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
-import { usePoll } from "@/hooks/usePoll";
 import { useStored } from "@/lib/storage";
-import type { TokRow, UsageReport } from "@/lib/types";
+import type { TokRow } from "@/lib/types";
+import { LimitsMeter } from "@/components/LimitsMeter";
 import { ago, dur, money, tok } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
@@ -19,15 +18,13 @@ const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 864e5).toISOStr
 const allTok = (x: { in: number; cw: number; cr: number; out: number }) => x.in + x.cw + x.cr + x.out;
 
 export function UsagePage() {
-  const { toast } = useApp();
-  const [u, setU] = useState<UsageReport | null>(null);
+  const { toast, usage: u, loadUsage: load } = useApp();
   const [prices, setPrices] = useStored<Record<string, Price>>("prices", {});
   const [proj, setProj] = useStored("usageProject", "all");
   const [kindF, setKindF] = useStored("usageKind", "all");
   const [draft, setDraft] = useState<Record<string, Price>>(prices);
 
-  const load = useCallback(async (force = false) => { try { setU(await api.usage(force)); } catch (e) { toast((e as Error).message); } }, [toast]);
-  usePoll(() => load(), 30000);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => setDraft(prices), [prices]);
 
   const m = useMemo(() => {
@@ -56,7 +53,7 @@ export function UsagePage() {
       {priced && <span>{money(x.$)}{x.unpriced && <span className="text-muted-foreground"> (some models unpriced)</span>} est.</span>}</CardBody></Card>
   );
   return (
-    <div className="mx-auto grid max-w-[1100px] gap-3.5 p-3 pb-24 md:p-4">
+    <div className="grid gap-3.5 p-4 pb-10">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1 basis-72">
           <h2 className="m-0 text-lg font-semibold tracking-tight">Claude usage</h2>
@@ -70,6 +67,7 @@ export function UsagePage() {
           <Button onClick={() => load(true)}>Refresh</Button>
         </div>
       </div>
+      <Card><CardHeader><CardTitle>Plan limits</CardTitle><CardSub>from Claude Code's status line</CardSub></CardHeader><CardBody><LimitsMeter /></CardBody></Card>
       <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         {kpi("Today", m.T)}{kpi("Last 7 days", m.W)}{kpi("Last 30 days", m.M)}
         <Card><CardBody className="gap-1"><span className="text-[11px] uppercase tracking-wider text-muted-foreground">Pipeline cost (reported)</span><b className="text-[22px]">{money(m.pipeTotal)}</b><span className="text-muted-foreground">{m.pipe.length} paid or model steps across {new Set(m.pipe.map((r) => r.ws)).size} videos</span></CardBody></Card>

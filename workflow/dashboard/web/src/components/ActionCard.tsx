@@ -11,7 +11,8 @@ import { initialValue, OptionField, toOpts, type OptValue } from "./OptionField"
 import { RunButton } from "./RunButton";
 
 /** One runnable action: what it does, its options, a Run button. Master buttons also show the commands they chain. */
-export function ActionCard({ id, act, children, hint }: { id: string; act?: string; children?: React.ReactNode; hint?: string }) {
+/** `bare`: only the controls (options + Run), for use inside a flow block that already shows the title and status. */
+export function ActionCard({ id, act, children, hint, bare }: { id: string; act?: string; children?: React.ReactNode; hint?: string; bare?: boolean }) {
   const { schema, d, busy, run } = useApp();
   const { hot, setHot } = useHighlight();
   const a = schema[id];
@@ -42,19 +43,19 @@ export function ActionCard({ id, act, children, hint }: { id: string; act?: stri
   return (
     <div
       data-action={id}
-      className={cn("flex flex-col rounded-lg border bg-secondary/30 transition-[box-shadow,border-color]", isMaster && "border-l-[3px] border-l-brand", lit && "border-brand ring-2 ring-brand/60")}
+      className={cn("flex flex-col", !bare && "rounded-lg border bg-secondary/30 transition-[box-shadow,border-color]", !bare && isMaster && "border-l-[3px] border-l-brand", !bare && lit && "border-brand ring-2 ring-brand/60")}
       onMouseEnter={isMaster ? () => setHot(coveredKeys) : undefined}
       onMouseLeave={isMaster ? () => setHot([]) : undefined}
       onFocus={isMaster ? () => setHot(coveredKeys) : undefined}
       onBlur={isMaster ? () => setHot([]) : undefined}
     >
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2.5">
+      {!bare && <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2.5">
         <b className="text-[13px]">{title}</b>
         {isMaster && <Badge tone="solid"><Layers className="size-3" />Master</Badge>}
         {a.paid ? <Badge tone="warning">Paid · {a.paid}</Badge> : <Badge tone="success">Free</Badge>}
         {a.long && <span className="ml-auto text-[11px] text-muted-foreground">{a.long}</span>}
-      </div>
-      <div className="px-3 pb-2 pt-1 text-xs text-muted-foreground">
+      </div>}
+      {!bare && <div className="px-3 pb-2 pt-1 text-xs text-muted-foreground">
         {a.help}
         {last && (
           <div className="mt-0.5 text-[11.5px] opacity-80">
@@ -63,21 +64,21 @@ export function ActionCard({ id, act, children, hint }: { id: string; act?: stri
           </div>
         )}
         {covered.length > 0 && <div className="mt-0.5 text-[11.5px] text-brand">Also runs inside: {covered.join(", ")}</div>}
-      </div>
-      {isMaster && <MasterChain chain={a.chain!} job={running ? busy : null} />}
+      </div>}
+      {!bare && isMaster && <MasterChain chain={a.chain!} job={running ? busy : null} />}
       {hint && <div className="px-3 pb-2 text-xs text-warning">{hint}</div>}
       {children}
       {defs.length > 0 && (
-        <Fold title={`Options (${defs.length})`} className="border-t px-3">
+        <Fold title={`Options (${defs.length})`} className={cn("px-3", !bare && "border-t")}>
           <div className="grid gap-2 pb-3 pt-1">
             {defs.map((o) => (
-              <OptionField key={o.key} o={o} value={merged[o.key]} choices={id === "acts.all" && o.key === "acts" ? planActs : undefined} onChange={(v) => setVals((p) => ({ ...merged, ...p, [o.key]: v }))} />
+              <OptionField key={o.key} o={o} value={merged[o.key]} choices={id === "acts.all" && o.key === "acts" ? planActs : undefined} onChange={(v) => setVals((p) => { const n = { ...merged, ...p, [o.key]: v }; store.set(`opt.${id}`, toOpts(defs, n)); return n; })} />
             ))}
           </div>
         </Fold>
       )}
-      <div className="mt-auto flex items-center gap-2.5 px-3 pb-3 pt-1">
-        <RunButton primary={!a.paid} running={running} disabled={!!busy} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />
+      <div className={cn("mt-auto flex items-center gap-2.5 px-3", bare ? "pb-1 pt-0" : "pb-3 pt-1")}>
+        {!bare && <RunButton primary={!a.paid} running={running} disabled={!!busy} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />}
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={preview}>{preview}</span>
       </div>
     </div>

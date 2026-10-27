@@ -57,3 +57,8 @@ export interface UsageReport {
   sessions: { id: string; project: string; kind: string; last: string; models: Record<string, unknown>; total: { in: number; cacheWrite: number; cacheRead: number; out: number; replies: number } }[];
   pipeline: (Timing & { ws: string })[];
 }
+
+export interface LimitWindow { used_percentage: number; resets_at: number | null }
+export interface Limits { five_hour: LimitWindow | null; seven_day: LimitWindow | null; updatedAt: number | null }
+export interface EnvEntry { key: string; secret: boolean; set: boolean; value: string | null; help: string }
+export interface EnvView { file: string; exists: boolean; entries: EnvEntry[]; suggested: string[] }

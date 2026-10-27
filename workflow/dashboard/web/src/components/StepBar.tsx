@@ -1,34 +1,40 @@
-import { Check } from "lucide-react";
+import { STATE_LABEL, STEPS, stepStates } from "@/lib/steps";
+import { dur, money, cn, STATUS_LABEL } from "@/lib/utils";
+import { StatusDot } from "@/components/Status";
 import { useApp } from "@/hooks/app";
-import { gotoStep, STATE_LABEL, STEPS, stepStates } from "@/lib/steps";
-import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
+import type { Details } from "@/lib/types";
 
-/** Left-to-right pipeline: each step with its state; click scrolls the page to that step. */
-export function StepBar() {
-  const { d, go } = useApp();
-  const states = stepStates(d?.statuses);
-  const done = STEPS.filter((s) => states[s.key] === "done").length;
+/** The pipeline step bar from the original dashboard: step buttons left to right, each with status and a line of detail. */
+export function stepMeta(k: string, d: Details): string {
+  const m = d.meta?.[k];
+  return m ? `${dur(m.totalMs)}${m.totalCost ? ` · ${money(m.totalCost)}` : ""}` : "";
+}
+
+export function StepBar({ current, onPick }: { current: string; onPick: (k: string) => void }) {
+  const { d } = useApp();
+  if (!d) return null;
+  const states = stepStates(d.statuses);
   return (
-    <nav aria-label="Pipeline steps" className="shrink-0 border-b bg-card">
-      <div className="flex overflow-x-auto">
-        {STEPS.map((s, i) => {
-          const st = states[s.key];
-          const hot = st === "next" || st === "running";
-          return (
-            <button key={s.key} onClick={() => { go({ step: s.key }); gotoStep(s.key); }}
-              className={cn("relative flex min-h-12 min-w-[104px] flex-1 flex-col items-start justify-center gap-0.5 border-r px-3 py-1.5 text-left last:border-r-0 hover:bg-accent", hot && "bg-brand/10")}>
-              <span className={cn("flex items-center gap-1.5 text-[11px]", hot ? "font-semibold text-brand" : st === "done" ? "text-success" : "text-muted-foreground")}>
-                {st === "done" ? <Check className="size-3" strokeWidth={3} /> : <span className={cn("inline-block size-2 rounded-full border-[1.5px]", hot ? "border-brand bg-brand" : "border-muted-foreground/60", st === "running" && "pulse")} />}
-                {i + 1} · {STATE_LABEL[st]}
-              </span>
-              <span className="text-[13px] font-semibold">{s.label}</span>
-              {hot && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand" />}
-            </button>
-          );
-        })}
-      </div>
-      <Progress className="h-0.5 rounded-none" tone="success" value={(done / STEPS.length) * 100} />
+    <nav aria-label="Pipeline steps" className="flex shrink-0 overflow-x-auto border-b bg-card">
+      {STEPS.map((s, i) => {
+        const st = d.statuses[s.key] ?? "none", state = states[s.key], on = current === s.key;
+        return (
+          <button key={s.key} onClick={() => onPick(s.key)} aria-current={on ? "step" : undefined}
+            className={cn("flex min-h-[58px] min-w-[92px] flex-1 basis-0 flex-col items-start gap-0.5 border-b-2 border-r border-b-transparent px-2.5 py-2 text-left text-muted-foreground hover:bg-accent hover:text-foreground", on && "border-b-brand bg-background text-foreground")}>
+            <span className="flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
+              <StatusDot s={st} />{i + 1} · {STATUS_LABEL[st]}
+            </span>
+            <span className="flex items-center gap-1.5 text-[13px] font-semibold">{s.label}{state === "next" && <span className="rounded bg-brand px-1 text-[10px] font-semibold uppercase leading-4 text-background">{STATE_LABEL.next}</span>}</span>
+            <span className="w-full truncate text-[11px] text-muted-foreground">{stepMeta(s.key, d) || s.hint}</span>
+          </button>
+        );
+      })}
+      <button onClick={() => onPick("runs")} aria-current={current === "runs" ? "step" : undefined}
+        className={cn("flex min-h-[58px] min-w-[92px] flex-1 basis-0 flex-col items-start gap-0.5 border-b-2 border-b-transparent px-2.5 py-2 text-left text-muted-foreground hover:bg-accent hover:text-foreground", current === "runs" && "border-b-brand bg-background text-foreground")}>
+        <span className="text-[11px] text-muted-foreground">8 · History</span>
+        <span className="text-[13px] font-semibold">Runs</span>
+        <span className="text-[11px] text-muted-foreground">{dur(d.totals.ms)} · {money(d.totals.costUsd)}</span>
+      </button>
     </nav>
   );
 }

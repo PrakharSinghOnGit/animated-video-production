@@ -31,7 +31,7 @@ export function MachinePage() {
   if (!s) return <div className="p-6 text-muted-foreground">Loading…</div>;
   const n = s.now, H = s.history;
   return (
-    <div className="mx-auto grid max-w-[1100px] gap-3.5 p-3 pb-24 md:p-4">
+    <div className="grid gap-3.5 p-4 pb-10">
       <div>
         <h2 className="m-0 text-lg font-semibold tracking-tight">Machine</h2>
         <p className="m-0 mt-1 text-muted-foreground">{s.machine.cpu} · {s.machine.cores} cores · {s.machine.memGB} GB · {s.machine.host}. Sampled every 2 s while this page is open or a job runs (last {Math.round((H.length * 2) / 60)} min).</p>

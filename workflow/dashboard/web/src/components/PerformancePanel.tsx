@@ -5,7 +5,6 @@ import { STEPS } from "@/lib/steps";
 import { dur, money, tok } from "@/lib/utils";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { StatTile } from "@/components/StatTile";
-import { SectionHead } from "@/components/ActivityPanel";
 
 /** Dashboard run step keys ("act:A03", "frames:A03"...) -> the pipeline step they belong to. */
 const stepOf = (k: string) => (/^(act|fix|frames|preview|review)(:|$)/.test(k) ? "acts" : k);
@@ -29,19 +28,18 @@ export function PerformancePanel() {
     return { steps, byModel, acts, wallTotal: Object.values(wall).reduce((a, b) => a + b, 0) };
   }, [d]);
 
-  if (!d || !data) return <div className="h-60 p-3 text-xs text-muted-foreground">Select a video.</div>;
+  if (!d || !data) return <div className="text-xs text-muted-foreground">Open a video to see its time and cost per step.</div>;
   const empty = data.steps.every((s) => !s.pipeline && !s.wall && !s.cost);
   const axis = { tickLine: false, axisLine: false, tickMargin: 4 } as const;
   return (
     <div>
-      <SectionHead right={<span className="font-mono text-[11px] font-normal normal-case tracking-normal">{d.id.replace(/^(VID\d+)_.*/, "$1")}</span>}>Performance</SectionHead>
-      <div className="flex flex-wrap gap-x-5 gap-y-1 px-3 pb-2">
+      <div className="flex flex-wrap gap-x-5 gap-y-1 pb-2">
         <StatTile align="left" value={dur(d.totals.ms)} label="recorded time" />
         <StatTile align="left" value={money(d.totals.costUsd)} label="Claude cost" />
         <StatTile align="left" value={dur(data.wallTotal)} label="dashboard runs" />
       </div>
-      {empty ? <div className="px-3 pb-3 text-xs text-muted-foreground">No timings recorded for this video yet.</div> : (
-        <div className="grid gap-4 px-3 pb-4">
+      {empty ? <div className="pb-3 text-xs text-muted-foreground">No timings recorded for this video yet.</div> : (
+        <div className="grid gap-4 pb-2">
           <div>
             <div className="mb-1 text-xs font-medium">Time per step</div>
             <ChartContainer config={timeCfg} className="aspect-auto h-[210px] w-full">

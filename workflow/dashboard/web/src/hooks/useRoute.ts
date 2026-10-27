@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type View = "ws" | "usage" | "machine";
+export type View = "overview" | "ws" | "usage" | "machine" | "settings";
 export interface Route { view: View; ws: string | null; step: string | null; act: string | null }
 
 const read = (): Route => {
   const h = new URLSearchParams(location.hash.slice(1));
   const v = h.get("view");
-  return { view: v === "usage" || v === "machine" ? v : "ws", ws: h.get("ws"), step: h.get("step"), act: h.get("act") };
+  return { view: v === "ws" || v === "usage" || v === "machine" || v === "settings" ? v : "overview", ws: h.get("ws"), step: h.get("step"), act: h.get("act") };
 };
 
 /** Route lives in the URL hash (view, ws, step, act) so reloads and links keep their place. */

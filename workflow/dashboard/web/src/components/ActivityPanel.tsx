@@ -25,45 +25,43 @@ function JobRow({ j }: { j: Job }) {
   );
 }
 
-/** The one place CPU / GPU / memory are shown: live sparklines, per-core bars, busiest processes, running and recent jobs. */
-export function ActivityPanel() {
-  const { system: s, activity, runningAnywhere } = useApp();
-  const recent = activity.filter((j) => j.status !== "running").slice(0, 10);
+/** Live machine numbers: CPU/GPU/memory sparklines, per-core bars, busiest processes. The one place they are shown. */
+export function MachineBlock() {
+  const { system: s } = useApp();
   const H = s?.history ?? [], n = s?.now;
   const row = (label: string, values: (number | null)[], max: number, color: string, text: string, unit = "%") => (
-    <div className="grid grid-cols-[48px_1fr_64px] items-center gap-2 px-3 py-0.5 text-[11.5px] text-muted-foreground">
+    <div className="grid grid-cols-[48px_1fr_64px] items-center gap-2 py-0.5 text-[11.5px] text-muted-foreground">
       <span>{label}</span><Spark values={values} max={max} color={color} label={label} unit={unit} /><b className="text-right font-semibold text-foreground">{text}</b>
     </div>
   );
+  if (!n) return <div className="h-[200px] text-xs text-muted-foreground">Sampling…</div>;
   return (
-    <div className="divide-y">
-      <div className="pb-2">
-        <SectionHead>Running now</SectionHead>
-        {runningAnywhere.length ? runningAnywhere.map((j) => <JobRow key={j.id} j={j} />) : <div className="px-3 py-2 text-xs text-muted-foreground">Nothing running.</div>}
+    <div>
+      <div className="pb-1 text-[11px] text-muted-foreground" title={s ? s.machine.cpu : ""}>{s ? `${s.machine.cores} cores · ${s.machine.memGB} GB` : ""}</div>
+      {row("CPU", H.map((x) => x.cpu), 100, "var(--chart-1)", `${n.cpu.toFixed(0)}%`)}
+      <div className="grid gap-[3px] py-1" style={{ gridTemplateColumns: `repeat(${Math.min(n.cores.length, 12)}, 1fr)` }}>
+        {n.cores.map((c, i) => <i key={i} title={`core ${i}: ${c}%`} className="relative block h-[20px] overflow-hidden rounded-[2px] bg-secondary"><i className={cn("absolute inset-x-0 bottom-0 block", c > 85 ? "bg-destructive" : c > 60 ? "bg-warning" : "bg-success")} style={{ height: `${c}%` }} /></i>)}
       </div>
-      <div className="pb-2">
-        <SectionHead right={<span className="max-w-[170px] truncate text-[11px] font-normal normal-case tracking-normal" title={s ? `${s.machine.cpu} · ${s.machine.cores} cores · ${s.machine.memGB} GB` : ""}>{s ? `${s.machine.cores} cores · ${s.machine.memGB} GB` : ""}</span>}>Machine</SectionHead>
-        {n ? (
-          <>
-            {row("CPU", H.map((x) => x.cpu), 100, "var(--chart-1)", `${n.cpu.toFixed(0)}%`)}
-            <div className="grid gap-[3px] px-3 py-1" style={{ gridTemplateColumns: `repeat(${Math.min(n.cores.length, 12)}, 1fr)` }}>
-              {n.cores.map((c, i) => (
-                <i key={i} title={`core ${i}: ${c}%`} className="relative block h-[22px] overflow-hidden rounded-[2px] bg-secondary"><i className={cn("absolute inset-x-0 bottom-0 block", c > 85 ? "bg-destructive" : c > 60 ? "bg-warning" : "bg-success")} style={{ height: `${c}%` }} /></i>
-              ))}
-            </div>
-            {row("GPU", H.map((x) => x.gpu), 100, "var(--chart-2)", n.gpu == null ? "—" : `${n.gpu}%`)}
-            {row("Memory", H.map((x) => x.memUsedGB), n.memTotalGB, "var(--chart-3)", `${n.memUsedGB} GB`, " GB")}
-            <div className="flex justify-between px-3 py-1 text-[11.5px] text-muted-foreground"><span>Load {n.load.join(" · ")}</span><b className="font-semibold text-foreground">{n.diskFreeGB ?? "—"} GB free</b></div>
-            <table className="w-full text-[11.5px]"><tbody>{(s?.top ?? []).slice(0, 5).map((p) => (
-              <tr key={p.pid}><td className="max-w-[140px] truncate px-3 py-0.5 font-mono">{p.comm}</td><td className="py-0.5 text-right">{p.cpu}%</td><td className="px-3 py-0.5 text-right text-muted-foreground">{p.rssMB} MB</td></tr>
-            ))}</tbody></table>
-          </>
-        ) : <div className="h-[200px] px-3 py-2 text-xs text-muted-foreground">Sampling…</div>}
-      </div>
-      <div className="pb-2">
-        <SectionHead>Recent runs</SectionHead>
-        {recent.length ? recent.map((j) => <JobRow key={j.id} j={j} />) : <div className="px-3 py-2 text-xs text-muted-foreground">No runs since the dashboard started. History per video is under History.</div>}
-      </div>
+      {row("GPU", H.map((x) => x.gpu), 100, "var(--chart-2)", n.gpu == null ? "—" : `${n.gpu}%`)}
+      {row("Memory", H.map((x) => x.memUsedGB), n.memTotalGB, "var(--chart-3)", `${n.memUsedGB} GB`, " GB")}
+      <div className="flex justify-between py-1 text-[11.5px] text-muted-foreground"><span>Load {n.load.join(" · ")}</span><b className="font-semibold text-foreground">{n.diskFreeGB ?? "—"} GB free</b></div>
+      <table className="w-full text-[11.5px]"><tbody>{(s?.top ?? []).slice(0, 5).map((p) => (
+        <tr key={p.pid}><td className="max-w-[130px] truncate py-0.5 font-mono">{p.comm}</td><td className="py-0.5 text-right">{p.cpu}%</td><td className="py-0.5 pl-2 text-right text-muted-foreground">{p.rssMB} MB</td></tr>
+      ))}</tbody></table>
+    </div>
+  );
+}
+
+/** Running jobs first, then the most recent finished ones (all videos). */
+export function JobsBlock() {
+  const { activity, runningAnywhere } = useApp();
+  const recent = activity.filter((j) => j.status !== "running").slice(0, 10);
+  return (
+    <div className="-mx-3">
+      {runningAnywhere.map((j) => <JobRow key={j.id} j={j} />)}
+      {runningAnywhere.length === 0 && <div className="px-3 py-1.5 text-xs text-muted-foreground">Nothing running.</div>}
+      {recent.map((j) => <JobRow key={j.id} j={j} />)}
+      {recent.length === 0 && <div className="px-3 py-1.5 text-xs text-muted-foreground">No runs since the dashboard started.</div>}
     </div>
   );
 }

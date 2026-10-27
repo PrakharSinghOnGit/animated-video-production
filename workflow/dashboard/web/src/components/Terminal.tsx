@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ChevronDown, ChevronUp, Square, Terminal } from "lucide-react";
+import { ChevronDown, ChevronUp, Square, Terminal as TerminalIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/fields";
 import { StatusDot } from "@/components/Status";
@@ -11,8 +11,8 @@ import { cn, dur } from "@/lib/utils";
 const STEPS_WITH_LOG = ["script", "voice", "align", "plan", "acts", "sound", "render"];
 const MIN = 120;
 
-/** IDE-style panel fixed at the bottom: drag the top edge to resize, collapse to a bar, one tab per job. On a phone it is a bottom drawer. */
-export function LogPanel({ phone }: { phone: boolean }) {
+/** Plain terminal at the bottom of the center panel: drag the top edge to resize, collapse to a bar, one tab per job. On a phone it is a bottom drawer. */
+export function Terminal({ phone }: { phone: boolean }) {
   const { d, ws, busy, logTab, showLog, logRequest, stop } = useApp();
   const [open, setOpen] = useStored<boolean>("log.open", false);
   const [h, setH] = useStored<number>("log.h", 260);
@@ -28,7 +28,7 @@ export function LogPanel({ phone }: { phone: boolean }) {
   const height = Math.max(MIN, Math.min(h, maxH()));
 
   return (
-    <section aria-label="Job log" className="relative z-30 flex shrink-0 flex-col border-t bg-console" style={open ? { height } : undefined}>
+    <section aria-label="Terminal" className="relative z-30 flex shrink-0 flex-col border-t bg-console" style={open ? { height } : undefined}>
       {open && (
         <div role="separator" aria-orientation="horizontal" aria-label="Resize log panel" aria-valuenow={height} tabIndex={0}
           className="absolute inset-x-0 -top-1.5 z-10 h-3 cursor-row-resize touch-none after:absolute after:inset-x-0 after:top-1 after:h-0.5 after:bg-transparent hover:after:bg-brand focus-visible:after:bg-brand"
@@ -40,7 +40,7 @@ export function LogPanel({ phone }: { phone: boolean }) {
       )}
       <div className="flex h-11 shrink-0 items-center gap-1 border-b pl-1 pr-1.5">
         <button onClick={() => setOpen(!open)} className="flex h-full items-center gap-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" aria-expanded={open}>
-          <Terminal className="size-3.5" /> Log {open ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+          <TerminalIcon className="size-3.5" /> Terminal {open ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
         </button>
         <div role="tablist" className="flex min-w-0 flex-1 items-stretch self-stretch overflow-x-auto">
           {jobs.map((j) => (
@@ -64,7 +64,7 @@ export function LogPanel({ phone }: { phone: boolean }) {
       {open && (
         <>
           {job && <div className="truncate border-b px-3 py-1 font-mono text-[11px] text-muted-foreground" title={job.cmd}>$ {job.cmd}</div>}
-          {ws && active ? <JobLogView key={`${ws}:${active}`} ws={ws} tab={active} /> : <div className="p-3 text-xs text-muted-foreground">Run a step to see its log here.</div>}
+          {ws && active ? <JobLogView key={`${ws}:${active}`} ws={ws} tab={active} /> : <div className="p-3 font-mono text-xs text-muted-foreground">$ run a step to see its output here</div>}
         </>
       )}
     </section>

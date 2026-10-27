@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import type { Details, Job, Schema, StudioState, SystemInfo, WsSummary } from "@/lib/types";
+import type { Details, Job, Limits, Schema, StudioState, SystemInfo, UsageReport, WsSummary } from "@/lib/types";
 import { useRoute, type Route } from "./useRoute";
 import { usePoll } from "./usePoll";
 
@@ -16,6 +16,8 @@ interface App {
   /** every job the server knows (all videos), newest first */
   activity: Job[]; runningAnywhere: Job[];
   system: SystemInfo | null;
+  limits: Limits | null;
+  usage: UsageReport | null; loadUsage: (force?: boolean) => Promise<void>;
   toasts: Toast[]; toast: (m: string) => void;
   run: (key: string, act?: string, opts?: Record<string, unknown>) => Promise<void>;
   stop: () => Promise<void>;
@@ -37,6 +39,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [d, setD] = useState<Details | null>(null);
   const [activity, setActivity] = useState<Job[]>([]);
   const [system, setSystem] = useState<SystemInfo | null>(null);
+  const [limits, setLimits] = useState<Limits | null>(null);
+  const [usage, setUsage] = useState<UsageReport | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [logTab, setLogTab] = useState<string | null>(null);
   const [logRequest, setLogRequest] = useState(0);
@@ -54,7 +58,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // default selection: the newest video
   const ws = route.ws ?? list[list.length - 1]?.id ?? null;
-  useEffect(() => { if (!route.ws && ws) go({ ws }); }, [route.ws, ws, go]);
 
   const refresh = useCallback(async () => {
     if (!ws) return;
@@ -72,6 +75,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   usePoll(refresh, 3000, !!ws);
   usePoll(async () => { try { const r = await api.activity(); setActivity((p) => (same(p, r.jobs) ? p : r.jobs)); setStudio(r.studio); } catch { /* ignore */ } }, 3000);
   usePoll(async () => { try { setSystem(await api.system()); } catch { /* ignore */ } }, 2000);
+
+  usePoll(async () => { try { setLimits(await api.limits()); } catch { /* ignore */ } }, 30000);
+  const loadUsage = useCallback(async (force = false) => { try { setUsage(await api.usage(force)); } catch (e) { if (force) toast((e as Error).message); } }, [toast]);
+  usePoll(() => loadUsage(), 60000);
 
   const busy = useMemo(() => d?.jobs.find((j) => j.status === "running") ?? null, [d]);
   const runningAnywhere = useMemo(() => activity.filter((j) => j.status === "running"), [activity]);
@@ -97,6 +104,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const file = useCallback((rel: string) => api.fileUrl(ws ?? "", rel), [ws]);
 
-  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, activity, runningAnywhere, system, toasts, toast, run, stop, file, logTab, showLog, logRequest };
+  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

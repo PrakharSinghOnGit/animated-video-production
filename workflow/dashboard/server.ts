@@ -15,10 +15,14 @@ import path from "node:path";
 import os from "node:os";
 import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./system";
 import { refreshUsage, usageReport } from "./usage";
+import { atomicWrite, helpFor, parseEnv, removeEnv, serializeEnv, setEnv, KEY_RE } from "./envfile";
 
 const REPO = path.resolve(import.meta.dir, "../..");
 const WS_ROOT = path.join(REPO, "workspace");
 const DIST = path.join(import.meta.dir, "web/dist");
+/** WG_ENV_FILE lets tests point the Settings page at a temp file; normally the repo's .env. */
+const ENV_FILE = process.env.WG_ENV_FILE ?? path.join(REPO, ".env");
+const LIMITS_FILE = path.join(os.homedir(), ".claude/wealthgap/statusline.json");
 const arg = (name: string) => {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -437,6 +441,9 @@ const ACTIONS: Record<string, Action> = {
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws)] },
   "render.final": { step: "render", label: "Final render", help: "1080p H.264 with grain + QC.", long: "~5–10 min",
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render final" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
+  "render.all": { step: "render", label: "Render all", help: "Assemble, draft render, final render, QC.", long: "~8–15 min",
+    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "Render final" }, { label: "QC", action: "render.qc" }],
+    build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
   "render.qc": { step: "render", label: "QC", help: "Hard checks: placeholders, loudness, duration.", build: (ws) => [B("qc", "--video", ws)] },
   "timings.run": { step: "timings", label: "Time & cost report", help: "Prints timings.json.", build: (ws) => [B("timings", "--video", ws)] },
 };
@@ -763,6 +770,53 @@ function serveFile(req: Request, abs: string): Response {
   return new Response(file, { headers: { ...headers, "content-length": String(size) } });
 }
 
+
+// ───────────────────────────── settings + limits ─────────────────────────────
+
+/** Files the Settings page may edit: exactly these globs, nothing else. */
+const SETTINGS_FILE = /^(workflow\/prompts\/[\w.-]+\.md|workflow\/styles\/[\w-]+\/(STYLE|ACT)\.md|workflow\/02-scripting\/voice\.md)$/;
+function settingsFiles(): string[] {
+  const out: string[] = [];
+  for (const f of ls(path.join(REPO, "workflow/prompts"), /\.md$/)) out.push(`workflow/prompts/${f}`);
+  for (const d of ls(path.join(REPO, "workflow/styles"))) for (const f of ["STYLE.md", "ACT.md"]) if (exists(path.join(REPO, "workflow/styles", d, f))) out.push(`workflow/styles/${d}/${f}`);
+  if (exists(path.join(REPO, "workflow/02-scripting/voice.md"))) out.push("workflow/02-scripting/voice.md");
+  return out.filter((f) => SETTINGS_FILE.test(f));
+}
+function settingsPath(rel: string | null): string | null {
+  if (!rel || !SETTINGS_FILE.test(rel)) return null;
+  const abs = path.join(REPO, rel);
+  try { if (!fs.realpathSync(abs).startsWith(fs.realpathSync(REPO) + path.sep)) return null; } catch { return null; }
+  return abs;
+}
+
+const SECRET = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|API/i;
+function readEnvLines() { return parseEnv(exists(ENV_FILE) ? fs.readFileSync(ENV_FILE, "utf-8") : ""); }
+function envView() {
+  const lines = readEnvLines();
+  const have = new Set<string>();
+  const entries = lines.flatMap((l, i) => {
+    if (!l.key) return [];
+    have.add(l.key);
+    const secret = SECRET.test(l.key);
+    return [{ key: l.key, secret, set: (l.value ?? "") !== "", value: secret ? null : l.value ?? "", help: helpFor(lines, i) }];
+  });
+  // keys the example file documents (active or commented out) that this file does not set yet
+  const exFile = path.join(REPO, ".env.example");
+  const suggested = exists(exFile)
+    ? [...new Set([...fs.readFileSync(exFile, "utf-8").matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]{2,})=/gm)].map((m) => m[1]))].filter((k) => !have.has(k))
+    : [];
+  return { entries, suggested };
+}
+
+/** Claude Code's status-line JSON (written by ~/.claude/wealthgap/statusline.sh): plan limits as % used + reset time. */
+function limits() {
+  let st: fs.Stats;
+  try { st = fs.statSync(LIMITS_FILE); } catch { return { five_hour: null, seven_day: null, updatedAt: null }; }
+  const rl = readJson<any>(LIMITS_FILE)?.rate_limits ?? {};
+  const pick = (x: any) => (x && typeof x.used_percentage === "number" ? { used_percentage: x.used_percentage, resets_at: typeof x.resets_at === "number" ? x.resets_at : null } : null);
+  return { five_hour: pick(rl.five_hour), seven_day: pick(rl.seven_day), updatedAt: st.mtimeMs };
+}
+
 // ───────────────────────────── web app (workflow/dashboard/web/dist) ─────────────────────────────
 
 /** Static files of the built React app; any other GET falls back to index.html (client-side routing). */
@@ -863,6 +917,43 @@ const server = Bun.serve({
       await refreshUsage(url.searchParams.has("refresh"));
       return json(usageReport(rows));
     }
+    if (p === "/api/limits" && req.method === "GET") return json(limits());
+
+    if (p === "/api/settings/env") {
+      if (req.method === "GET") {
+        const reveal = url.searchParams.get("reveal");
+        if (reveal) {
+          if (!KEY_RE.test(reveal)) return bad("bad key");
+          return json({ value: readEnvLines().find((l) => l.key === reveal)?.value ?? "" });
+        }
+        return json({ file: path.basename(ENV_FILE), exists: exists(ENV_FILE), ...envView() });
+      }
+      if (req.method === "PUT") {
+        const b = await body(req);
+        let lines = readEnvLines();
+        try {
+          for (const [k, v] of Object.entries(b.set && typeof b.set === "object" ? b.set : {})) { if (typeof v !== "string") return bad(`${k}: value must be text`); lines = setEnv(lines, k, v); }
+          for (const k of Array.isArray(b.remove) ? b.remove : []) { if (!KEY_RE.test(String(k))) return bad("bad key"); lines = removeEnv(lines, String(k)); }
+        } catch (e: any) { return bad(e.message); }
+        atomicWrite(ENV_FILE, serializeEnv(lines));
+        return json({ ok: true, ...envView() });
+      }
+    }
+
+    if (p === "/api/settings/files" && req.method === "GET") return json({ files: settingsFiles().map((f) => ({ path: f, mtime: mtime(path.join(REPO, f)) })) });
+    if (p === "/api/settings/file") {
+      const abs = settingsPath(url.searchParams.get("path"));
+      if (!abs) return bad("path not allowed", 403);
+      if (req.method === "GET") return new Response(exists(abs) ? Bun.file(abs) : "", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+      if (req.method === "PUT") {
+        const text = await req.text();
+        if (text.length > 500_000) return bad("file too large");
+        if (exists(abs)) fs.copyFileSync(abs, `${abs}.prev`);   // one-step undo; the name does not match the allowlist
+        atomicWrite(abs, text);
+        return json({ ok: true, mtime: mtime(abs) });
+      }
+    }
+
     const bm = p.match(/^\/brand\/(Logo|Banner|WaterMark)\.png$/);
     if (bm && req.method === "GET") return new Response(Bun.file(path.join(REPO, "brand-assets", `${bm[1]}.png`)), { headers: { "content-type": "image/png", "cache-control": "max-age=3600" } });
 

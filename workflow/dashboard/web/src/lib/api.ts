@@ -1,4 +1,4 @@
-import type { Details, Job, Schema, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { Details, EnvView, Limits, Job, Schema, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -24,6 +24,13 @@ export const api = {
   system: () => call<SystemInfo>("/api/system"),
   activity: () => call<{ jobs: Job[]; studio: StudioState | null }>("/api/activity"),
   usage: (refresh = false) => call<UsageReport>(`/api/usage${refresh ? "?refresh=1" : ""}`),
+  limits: () => call<Limits>("/api/limits"),
+  env: () => call<EnvView>("/api/settings/env"),
+  envReveal: (key: string) => call<{ value: string }>(`/api/settings/env?reveal=${encodeURIComponent(key)}`),
+  envSave: (set: Record<string, string>, remove: string[] = []) => call<EnvView>("/api/settings/env", { method: "PUT", body: { set, remove } }).then((r) => { window.dispatchEvent(new Event("wg:env")); return r; }),
+  settingsFiles: () => call<{ files: { path: string; mtime: number }[] }>("/api/settings/files"),
+  settingsFile: (p: string) => call<string>(`/api/settings/file?path=${encodeURIComponent(p)}`),
+  saveSettingsFile: (p: string, text: string) => call<unknown>(`/api/settings/file?path=${encodeURIComponent(p)}`, { method: "PUT", body: text }),
   stopStudio: () => call<{ ok: true }>("/api/studio/stop", { method: "POST", body: {} }),
 
   status: (ws: string) => call<Details>(`${w(ws)}/status`),
@@ -38,4 +45,5 @@ export const api = {
 
   fileUrl: (ws: string, rel: string) => `${w(ws)}/file?path=${encodeURIComponent(rel)}`,
   logUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}`,
+  logPlainUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}?plain=1`,
 };

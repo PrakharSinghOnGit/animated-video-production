@@ -1,33 +1,32 @@
 import { useApp } from "@/hooks/app";
-import { ActionCard } from "@/components/ActionCard";
-import { ActionGrid } from "@/components/Layout";
-import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
-import { Fold } from "@/components/ui/collapsible";
+import { Flow, BlockFold } from "@/components/Flow";
 import { MediaPlayer } from "@/components/MediaPlayer";
 import { Empty } from "@/components/FileLine";
+import { reruns } from "./useStep";
 
 export function VoiceStep() {
   const { d } = useApp();
   if (!d) return null;
   const v = d.voice;
   return (
-    <>
-      <ActionGrid><ActionCard id="voice.run" /></ActionGrid>
-      <Card>
-        <CardHeader><CardTitle>Full voiceover</CardTitle></CardHeader>
-        <CardBody>{v.combined.length ? v.combined.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />) : <Empty>Not generated yet.</Empty>}</CardBody>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Sections</CardTitle><CardSub>{v.parts.reduce((a, p) => a + p.files.length, 0)} files</CardSub></CardHeader>
-        <CardBody className="gap-0">
-          {v.parts.length === 0 && <Empty>No sections yet.</Empty>}
-          {v.parts.map((p) => (
-            <Fold key={p.part} title={`${p.part.replace("part-", "Part ")} · ${p.files.length} sections`} className="border-b border-border/60 last:border-0">
-              <div className="grid gap-2 pb-3">{p.files.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />)}</div>
-            </Fold>
-          ))}
-        </CardBody>
-      </Card>
-    </>
+    <Flow
+      loops={[{ from: "listen", to: "gen", label: "not right → regenerate", ran: reruns(d, "Generate voice") }]}
+      blocks={[
+        { id: "sections", title: "Voice sections ready", desc: "Produced by “Split into sections” on the Script page.", done: v.sectionCount > 0,
+          children: <div className="text-xs text-muted-foreground">{v.sectionCount ? `${v.sectionCount} sections` : "No sections yet: finish the Script step."}</div> },
+        { id: "gen", title: "Generate voice", action: "voice.run", label: "Generate voice", done: v.combined.length > 0, outAt: v.combined[0]?.mtime, costRe: /^voice\b/i,
+          children: v.running ? <div className="text-xs text-warning">{v.freshWavs}/{v.sectionCount} sections done this run</div> : undefined },
+        { id: "listen", title: "Listen & approve", desc: "Play the full voiceover and a few sections. If something is off, adjust pace or exaggeration and regenerate.", done: v.combined.length > 0,
+          children: (
+            <>
+              {v.combined.length ? v.combined.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />) : <Empty>Not generated yet.</Empty>}
+              {v.parts.map((p) => (
+                <BlockFold key={p.part} title={`${p.part.replace("part-", "Part ")} · ${p.files.length} sections`}>
+                  <div className="grid gap-2 pb-3">{p.files.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />)}</div>
+                </BlockFold>
+              ))}
+            </>) },
+      ]}
+    />
   );
 }
