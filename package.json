@@ -7,6 +7,7 @@
   "workspaces": [
     "packages/*",
     "workflow/05-video",
+    "workflow/dashboard/web",
     "workspace/*/05-video"
   ],
   "scripts": {
@@ -51,7 +52,8 @@
     "timings": "bun run workflow/05-video/scripts/timings.ts",
     "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",
     "acts:remap": "bun run workflow/05-video/scripts/acts_remap.ts",
-    "dashboard": "bun run workflow/dashboard/server.ts",
+    "dashboard": "bun run workflow/dashboard/ensure-build.ts && bun run workflow/dashboard/server.ts",
+    "dashboard:dev": "bun --cwd workflow/dashboard/web run dev",
     "srt": "bun run workflow/05-video/scripts/srt.ts",
     "write": "bun run workflow/02-scripting/write_script.ts",
     "review": "bun run workflow/05-video/scripts/review.ts",

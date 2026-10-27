@@ -18,7 +18,7 @@ import { refreshUsage, usageReport } from "./usage";
 
 const REPO = path.resolve(import.meta.dir, "../..");
 const WS_ROOT = path.join(REPO, "workspace");
-const INDEX_HTML = path.join(import.meta.dir, "index.html");
+const DIST = path.join(import.meta.dir, "web/dist");
 const arg = (name: string) => {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] : undefined;
@@ -295,6 +295,8 @@ interface Action {
   perAct?: boolean;        // needs an act id
   long?: string;           // typical duration
   opts?: Opt[];
+  /** Master buttons: the commands this action runs, in order (same order as build()). `action` = another button that runs that command alone. */
+  chain?: { label: string; action?: string }[];
   build: (ws: string, o: Record<string, any>, act?: string) => string[][] | string;
 }
 const styles = () => ls(path.join(REPO, "workflow/styles")).filter((d) => exists(path.join(REPO, "workflow/styles", d, "STYLE.md")));
@@ -335,7 +337,8 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("tts", "--video", ws, ...args(o, "voice.run"))],
   },
-  "align.all": { step: "align", label: "Align all", help: "Transcribe → master → captions → .srt.", long: "~3 min", build: (ws) => [B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
+  "align.all": { step: "align", label: "Align all", help: "Transcribe → master → captions → .srt.", long: "~3 min",
+    chain: [{ label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Export .srt", action: "align.srt" }], build: (ws) => [B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
   "align.master": { step: "align", label: "Master voice", help: "EQ, de-ess, compression, loudness.", build: (ws) => [B("audio:master", "--video", ws)] },
   "align.captions": { step: "align", label: "Build captions", help: "captions.json + chapters.json for the planner.", build: (ws) => [B("captions", "--video", ws)] },
@@ -351,6 +354,7 @@ const ACTIONS: Record<string, Action> = {
   "plan.check": { step: "plan", label: "Validate plan", help: "Re-checks acts.json without calling a model.", build: (ws) => [B("direct", "--video", ws, "--check")] },
   "acts.all": {
     step: "acts", label: "Author acts", help: "Writes every act (or the selected ones) that has no file yet.", paid: "~$3 per act", long: "~17 min per act",
+    chain: [{ label: "Author each act", action: "acts.act" }],
     opts: [
       { key: "acts", label: "Acts", help: "empty = all missing", type: "multi", choices: [], flag: "--act", map: (v: string[]) => (v.length ? ["--act", v.join(",")] : []) },
       { key: "parallel", label: "In parallel", type: "number", min: 1, max: 4, step: 1, def: 2, flag: "--parallel" },
@@ -406,7 +410,8 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o, act) => [B("review", "--video", ws, "--act", act!, ...args(o, "acts.review"))],
   },
-  "sound.all": { step: "sound", label: "Build sound", help: "Cues → music stem → mix.", long: "~2 min", build: (ws, o) => [B("cues", "--video", ws), B("audio:music", "--video", ws), B("audio:mix", "--video", ws, ...args(o, "sound.mix"))] },
+  "sound.all": { step: "sound", label: "Build sound", help: "Cues → music stem → mix.", long: "~2 min",
+    chain: [{ label: "Cues", action: "sound.cues" }, { label: "Music stem", action: "sound.music" }, { label: "Mix", action: "sound.mix" }], build: (ws, o) => [B("cues", "--video", ws), B("audio:music", "--video", ws), B("audio:mix", "--video", ws, ...args(o, "sound.mix"))] },
   "sound.cues": { step: "sound", label: "Cues", help: "Foley events from the acts + the music cue plan.", build: (ws) => [B("cues", "--video", ws)] },
   "sound.music": {
     step: "sound", label: "Music stem", help: "Procedural spy-jazz bed as a separate file for post.",
@@ -428,8 +433,10 @@ const ACTIONS: Record<string, Action> = {
     build: (ws, o) => [B("audio:mix", "--video", ws, ...args(o, "sound.mix"))],
   },
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
-  "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min", build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws)] },
-  "render.final": { step: "render", label: "Final render", help: "1080p H.264 with grain + QC.", long: "~5–10 min", build: (ws) => [B("assemble", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
+  "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min",
+    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws)] },
+  "render.final": { step: "render", label: "Final render", help: "1080p H.264 with grain + QC.", long: "~5–10 min",
+    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render final" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
   "render.qc": { step: "render", label: "QC", help: "Hard checks: placeholders, loudness, duration.", build: (ws) => [B("qc", "--video", ws)] },
   "timings.run": { step: "timings", label: "Time & cost report", help: "Prints timings.json.", build: (ws) => [B("timings", "--video", ws)] },
 };
@@ -488,7 +495,7 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
 }
 
 function schema() {
-  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
+  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
 }
 
 // ───────────────────────────── status from disk ─────────────────────────────
@@ -756,6 +763,23 @@ function serveFile(req: Request, abs: string): Response {
   return new Response(file, { headers: { ...headers, "content-length": String(size) } });
 }
 
+// ───────────────────────────── web app (workflow/dashboard/web/dist) ─────────────────────────────
+
+/** Static files of the built React app; any other GET falls back to index.html (client-side routing). */
+function serveWeb(req: Request, p: string): Response {
+  if (req.method !== "GET" && req.method !== "HEAD") return bad("not found", 404);
+  const index = path.join(DIST, "index.html");
+  if (!exists(index)) return new Response("Dashboard UI is not built. Run: bun run dashboard (builds it) or bun run --cwd workflow/dashboard/web build", { status: 503 });
+  let rel: string;
+  try { rel = decodeURIComponent(p); } catch { return bad("bad path"); }
+  const abs = path.resolve(DIST, "." + rel);
+  if (abs.startsWith(DIST + path.sep) && exists(abs) && fs.statSync(abs).isFile()) {
+    const hashed = rel.startsWith("/assets/");
+    return new Response(Bun.file(abs), { headers: { "cache-control": hashed ? "public, max-age=31536000, immutable" : "no-cache" } });
+  }
+  return new Response(Bun.file(index), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+
 // ───────────────────────────── routes ─────────────────────────────
 
 function listWorkspaces() {
@@ -823,8 +847,6 @@ const server = Bun.serve({
     const g = guard(req);
     if (g) return g;
 
-    if (p === "/" || p === "/index.html") return new Response(Bun.file(INDEX_HTML), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
-
     if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState() });
     if (p === "/api/schema" && req.method === "GET") return json(schema());
     if (p === "/api/system" && req.method === "GET") {
@@ -859,7 +881,7 @@ const server = Bun.serve({
     }
 
     const m = p.match(/^\/api\/ws\/([^/]+)(\/.*)?$/);
-    if (!m) return bad("not found", 404);
+    if (!m) return p.startsWith("/api/") || p.startsWith("/brand/") ? bad("not found", 404) : serveWeb(req, p);
     const ws = decodeURIComponent(m[1]);
     const rest = m[2] ?? "";
     if (!WS_ID.test(ws)) return bad("bad workspace id");
