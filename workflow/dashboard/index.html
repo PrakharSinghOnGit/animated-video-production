@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wealth Gap Production</title>
+<link rel="icon" href="/brand/WaterMark.png">
+<style>
+:root { color-scheme: dark;
+  --bg: #0b0b0b; --p1: #111111; --p2: #171717; --p3: #1e1e1e; --line: #262626; --line2: #333;
+  --text: #f2e9e4; --dim: #b3aba6; --faint: #7d7672;
+  --green: #60935d; --orange: #dc851f; --red: #bc4b51; --blue: #6c8fb3;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 1px; }
+::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: #2b2b2b; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+a { color: var(--orange); text-decoration: none; } a:hover { text-decoration: underline; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.dim { color: var(--dim); } .faint { color: var(--faint); } .num { font-variant-numeric: tabular-nums; }
+
+/* shell: full viewport, three panes, no outer margins */
+.app { display: grid; height: 100vh; grid-template-rows: 48px minmax(0, 1fr); grid-template-columns: 248px minmax(0, 1fr) 340px; }
+.top { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 12px 0 10px; background: #000; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 226px; }
+.brand img { width: 28px; height: 28px; border-radius: 4px; }
+.brand b { font-weight: 700; letter-spacing: -.01em; font-size: 14px; } .brand span { color: var(--faint); font-size: 12px; }
+.crumb { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumb .mono { color: var(--text); }
+.grow { flex: 1; }
+.meters { display: flex; gap: 14px; align-items: center; }
+.meter { display: grid; grid-template-columns: auto 64px auto; gap: 6px; align-items: center; font-size: 11px; color: var(--dim); }
+.bar { height: 6px; background: var(--p3); border-radius: 3px; overflow: hidden; } .bar > i { display: block; height: 100%; background: var(--green); transition: width .4s; }
+.bar.w > i { background: var(--orange); } .bar.h > i { background: var(--red); }
+
+.side { background: var(--p1); border-right: 1px solid var(--line); overflow: auto; display: flex; flex-direction: column; }
+.main { overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.rail { background: var(--p1); border-left: 1px solid var(--line); overflow: auto; }
+
+.sec-h { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); padding: 14px 12px 6px; display: flex; justify-content: space-between; align-items: center; }
+.nav button, .wsitem { display: flex; width: 100%; align-items: center; gap: 10px; text-align: left; background: none; border: 0; border-left: 2px solid transparent; padding: 8px 12px; cursor: pointer; color: var(--dim); }
+.nav button:hover, .wsitem:hover { background: var(--p2); color: var(--text); }
+.nav button.on, .wsitem.on { background: var(--p2); color: var(--text); border-left-color: var(--orange); }
+.wsitem { flex-direction: column; align-items: stretch; gap: 4px; }
+.wsitem .id { font-family: var(--mono); font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wsitem .t { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wsitem .row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--faint); }
+.dots { display: flex; gap: 3px; }
+.newv { padding: 8px 12px 14px; display: grid; gap: 6px; }
+input[type=text], input[type=number], select, textarea { background: var(--bg); border: 1px solid var(--line2); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+input[type=number] { width: 90px; }
+textarea { width: 100%; resize: vertical; font: 12.5px/1.55 var(--mono); padding: 10px 12px; }
+input.bad { border-color: var(--red); }
+
+/* status */
+.dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #555; flex: none; display: inline-block; }
+.dot[data-s=done] { background: var(--green); border-color: var(--green); }
+.dot[data-s=stale] { border-color: var(--orange); background: transparent; }
+.dot[data-s=partial] { border-color: var(--orange); background: linear-gradient(90deg, var(--orange) 50%, transparent 50%); }
+.dot[data-s=running] { background: var(--orange); border-color: var(--orange); animation: pulse 1s ease-in-out infinite; }
+.dot[data-s=failed] { background: var(--red); border-color: var(--red); }
+@keyframes pulse { 50% { opacity: .3; } }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--line2); color: var(--dim); white-space: nowrap; }
+.pill[data-s=done] { color: #a6cfa3; border-color: #2e4a2d; background: #15201488; }
+.pill[data-s=running], .pill[data-s=partial], .pill[data-s=stale] { color: #f1b46a; border-color: #5a3a12; background: #2a1c0a88; }
+.pill[data-s=failed] { color: #ef9a9d; border-color: #5a2427; background: #2a111388; }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #2a1c0a; color: #f1b46a; border: 1px solid #5a3a12; white-space: nowrap; }
+.tag.free { background: #152014; color: #a6cfa3; border-color: #2e4a2d; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line2); background: var(--p3); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: #4a4a4a; background: #252525; }
+.btn.pri { background: var(--text); color: #111; border-color: var(--text); font-weight: 600; } .btn.pri:hover { background: #fff; }
+.btn.danger { border-color: #5a2427; color: #ef9a9d; } .btn.sm { height: 24px; padding: 0 8px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn .tag { margin-left: 2px; }
+
+/* stepper */
+.stepper { display: flex; border-bottom: 1px solid var(--line); background: var(--p1); overflow-x: auto; flex: none; }
+.stepper button { flex: 1; min-width: 110px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; padding: 9px 14px; background: none; border: 0; border-bottom: 2px solid transparent; border-right: 1px solid var(--line); cursor: pointer; color: var(--dim); text-align: left; }
+.stepper button:hover { background: var(--p2); color: var(--text); }
+.stepper button.on { background: var(--bg); color: var(--text); border-bottom-color: var(--orange); }
+.stepper .n { font-size: 11px; color: var(--faint); display: flex; gap: 6px; align-items: center; }
+.stepper .l { font-weight: 600; font-size: 13px; }
+.stepper .m { font-size: 11px; color: var(--faint); }
+
+.view { flex: 1; overflow: auto; min-height: 0; }
+.panel-h { display: flex; gap: 16px; align-items: flex-start; padding: 16px 20px 14px; border-bottom: 1px solid var(--line); background: var(--p1); position: sticky; top: 0; z-index: 5; }
+.panel-h h2 { margin: 0; font-size: 18px; letter-spacing: -.01em; display: flex; gap: 10px; align-items: center; }
+.panel-h p { margin: 4px 0 0; color: var(--dim); max-width: 760px; }
+.stats { display: flex; gap: 18px; margin-left: auto; }
+.stat { text-align: right; } .stat b { display: block; font-size: 15px; font-weight: 600; } .stat span { font-size: 11px; color: var(--faint); }
+
+.body { padding: 16px 20px 28px; display: grid; gap: 16px; }
+.cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); align-items: start; }
+.card { background: var(--p1); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.card > .h { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.card > .h h3 { margin: 0; font-size: 13px; font-weight: 600; } .card > .h .sub { color: var(--faint); font-size: 12px; }
+.card > .b { padding: 12px 14px; display: grid; gap: 10px; }
+.card > .b.flush { padding: 0; }
+
+/* actions with options */
+.actions { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.action { border: 1px solid var(--line); border-radius: 8px; background: var(--p2); display: flex; flex-direction: column; }
+.action .ah { display: flex; gap: 8px; align-items: center; padding: 10px 12px 4px; }
+.action .ah b { font-size: 13px; } .action .help { color: var(--dim); font-size: 12px; padding: 0 12px 8px; }
+.action .meta { color: var(--faint); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.action details { border-top: 1px solid var(--line); }
+.action summary { cursor: pointer; padding: 6px 12px; color: var(--faint); font-size: 12px; list-style: none; } .action summary::before { content: "▸ "; } .action details[open] summary::before { content: "▾ "; }
+.opts { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 4px 12px 10px; align-items: center; }
+.opts label { color: var(--dim); font-size: 12px; } .opts small { display: block; color: var(--faint); font-size: 11px; }
+.opts .multi { display: flex; flex-wrap: wrap; gap: 4px 10px; justify-content: flex-end; max-width: 220px; }
+.opts .multi label { display: flex; gap: 4px; align-items: center; color: var(--text); }
+.action .go { padding: 8px 12px 12px; display: flex; gap: 8px; align-items: center; margin-top: auto; }
+.cmdprev { font: 11px var(--mono); color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+/* console */
+.console { background: #050505; border-top: 1px solid var(--line); }
+.console .ch { display: flex; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.console pre { margin: 0; padding: 10px 12px; font: 11.5px/1.5 var(--mono); color: #cfc7c2; white-space: pre-wrap; word-break: break-word; overflow: auto; max-height: 340px; min-height: 120px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; padding: 6px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--p1); }
+td { padding: 6px 10px; border-bottom: 1px solid #1c1c1c; vertical-align: top; }
+tr:hover td { background: #141414; } td.r, th.r { text-align: right; }
+tr.sel td { background: #1a1408; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 12.5px; } .kv dt { color: var(--faint); } .kv dd { margin: 0; }
+audio { width: 100%; height: 32px; } video { width: 100%; background: #000; border-radius: 6px; display: block; }
+.audrow { display: grid; grid-template-columns: 180px 1fr; gap: 10px; align-items: center; font-size: 12px; }
+.thumbs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.thumbs figure { margin: 0; flex: none; cursor: zoom-in; } .thumbs img { height: 72px; border-radius: 4px; display: block; border: 1px solid var(--line); }
+.thumbs figcaption { font: 10.5px var(--mono); color: var(--faint); text-align: center; }
+.issue { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1c1c1c; font-size: 12.5px; }
+.issue .t { font-family: var(--mono); color: var(--orange); cursor: pointer; } .issue .fix { color: var(--dim); }
+.sev-high { color: #ef9a9d; } .sev-medium { color: #f1b46a; } .sev-low { color: var(--faint); }
+.acts-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+.actlist button { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 9px 12px; background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left; color: var(--dim); }
+.actlist button:hover { background: var(--p2); color: var(--text); } .actlist button.on { background: var(--p2); color: var(--text); box-shadow: inset 2px 0 0 var(--orange); }
+.actlist .id { font-family: var(--mono); color: var(--text); } .actlist .sc { font-size: 11px; color: var(--faint); text-align: right; }
+.flow { display: flex; gap: 0; align-items: center; flex-wrap: wrap; }
+.flow span { padding: 4px 10px; border: 1px solid var(--line2); color: var(--faint); font-size: 12px; }
+.flow span:first-child { border-radius: 6px 0 0 6px; } .flow span:last-child { border-radius: 0 6px 6px 0; } .flow span + span { border-left: 0; }
+.flow span.ok { color: #a6cfa3; background: #15201466; } .flow span.now { color: #f1b46a; background: #2a1c0a66; }
+.md { white-space: pre-wrap; font-size: 12.5px; line-height: 1.6; color: var(--dim); max-height: 520px; overflow: auto; }
+.empty { padding: 28px; color: var(--faint); text-align: center; }
+.banner { width: 100%; max-width: 900px; border-radius: 8px; border: 1px solid var(--line); display: block; margin: 0 auto; }
+.warn { border: 1px solid #5a2427; background: #2a111366; color: #f2c9cb; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; }
+.note { border: 1px solid #5a3a12; background: #2a1c0a55; color: #f6d6ab; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; }
+
+/* rail */
+.rail .blk { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.spark { display: grid; grid-template-columns: 52px 1fr 56px; gap: 8px; align-items: center; padding: 3px 12px; font-size: 11.5px; color: var(--dim); }
+.spark svg { width: 100%; height: 26px; display: block; } .spark b { text-align: right; color: var(--text); font-weight: 600; }
+.cores { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; padding: 4px 12px 6px; }
+.cores i { height: 22px; background: var(--p3); border-radius: 2px; position: relative; overflow: hidden; } .cores i::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: var(--v); background: var(--green); }
+.job { padding: 8px 12px; border-bottom: 1px solid #1c1c1c; font-size: 12px; display: grid; gap: 3px; cursor: pointer; }
+.job:hover { background: var(--p2); }
+.job .r1 { display: flex; gap: 8px; align-items: center; } .job .r1 b { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job .r2 { display: flex; gap: 10px; color: var(--faint); font-size: 11px; flex-wrap: wrap; }
+.procs { font-size: 11.5px; } .procs td { padding: 3px 12px; }
+
+.lb { position: fixed; inset: 0; background: #000e; display: none; align-items: center; justify-content: center; z-index: 50; flex-direction: column; gap: 10px; }
+.lb.on { display: flex; } .lb img { max-width: 92vw; max-height: 84vh; } .lb .bar2 { display: flex; gap: 10px; align-items: center; color: var(--dim); }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--p3); border: 1px solid var(--line2); padding: 8px 14px; border-radius: 8px; z-index: 60; display: none; }
+.toast.on { display: block; }
+.chart { display: flex; align-items: flex-end; gap: 3px; height: 140px; padding: 8px 4px 0; }
+.chart .col { flex: 1; display: flex; flex-direction: column-reverse; min-width: 6px; position: relative; }
+.chart .col i { display: block; } .chart .col:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--p3); border: 1px solid var(--line2); padding: 4px 8px; border-radius: 4px; white-space: pre; font-size: 11px; z-index: 3; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--dim); } .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><img src="/brand/Logo.png" alt=""><div><b>The Wealth Gap</b><br><span>Production</span></div></div>
+    <div class="crumb" id="crumb"></div>
+    <div class="grow"></div>
+    <div class="meters" id="meters"></div>
+    <div id="studioBox"></div>
+  </header>
+
+  <nav class="side">
+    <div class="nav">
+      <div class="sec-h">Views</div>
+      <button data-view="ws" id="navWs">Workspace</button>
+      <button data-view="usage">Claude usage</button>
+      <button data-view="machine">Machine</button>
+    </div>
+    <div class="sec-h">Videos <span id="wsCount"></span></div>
+    <div id="wsList"></div>
+    <div class="sec-h">New video</div>
+    <div class="newv">
+      <input type="text" id="newId" placeholder="VID03_Short_Name" spellcheck="false" autocomplete="off">
+      <button class="btn" id="newBtn">Create workspace</button>
+      <div class="faint" style="font-size:11.5px">Letters, digits and underscores after <span class="mono">VIDn_</span>.</div>
+    </div>
+  </nav>
+
+  <main class="main" id="main"></main>
+
+  <aside class="rail" id="rail">
+    <div class="blk"><div class="sec-h">Running now</div><div id="nowBox"></div></div>
+    <div class="blk"><div class="sec-h">Machine <span id="machName" class="faint" style="text-transform:none;letter-spacing:0"></span></div><div id="sparks"></div></div>
+    <div class="blk"><div class="sec-h">Recent runs</div><div id="recent"></div></div>
+  </aside>
+</div>
+<div class="lb" id="lb"><img id="lbImg" alt=""><div class="bar2"><button class="btn sm" id="lbPrev">←</button><span id="lbCap" class="mono"></span><button class="btn sm" id="lbNote">Add note at this time</button><button class="btn sm" id="lbNext">→</button><button class="btn sm" id="lbClose">Close</button></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ───────────── helpers ─────────────
+const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const dur = (ms) => { if (ms == null) return "—"; const s = Math.round(ms / 1000); if (s < 60) return s + " s"; const m = Math.floor(s / 60), h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min ${s % 60} s`; };
+const money = (x) => x ? "$" + x.toFixed(2) : "$0";
+const ago = (t) => { if (!t) return "—"; const s = (Date.now() - (typeof t === "string" ? Date.parse(t) : t)) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.round(s / 60) + " min ago"; if (s < 86400) return Math.round(s / 3600) + " h ago"; return Math.round(s / 86400) + " d ago"; };
+const mb = (b) => b == null ? "—" : b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : (b / 1e6).toFixed(1) + " MB";
+const tok = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n);
+const STATUS = { none: "Not started", done: "Done", stale: "Out of date", partial: "In progress", running: "Running", failed: "Failed" };
+const pill = (s, txt) => `<span class="pill" data-s="${s}"><span class="dot" data-s="${s}"></span>${esc(txt ?? STATUS[s] ?? s)}</span>`;
+const file = (rel) => `/api/ws/${encodeURIComponent(S.ws)}/file?path=${encodeURIComponent(rel)}`;
+let toastT; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 4500); }
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "x-wg": "1", ...(opts.body && typeof opts.body === "string" && opts.body[0] === "{" ? { "content-type": "application/json" } : {}), ...(opts.headers ?? {}) } });
+  const ct = r.headers.get("content-type") ?? "";
+  const data = ct.includes("json") ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(data?.error ?? r.statusText);
+  return data;
+}
+const store = { get(k, d) { try { const v = localStorage.getItem("wg." + k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set(k, v) { try { localStorage.setItem("wg." + k, JSON.stringify(v)); } catch {} } };
+
+// ───────────── state ─────────────
+const S = { view: "ws", ws: null, step: "script", act: null, list: [], d: null, schema: {}, sys: null, activity: [], usage: null, logJob: null, es: null, dirty: {}, lb: { list: [], i: 0 } };
+const STEPS = [
+  ["script", "Script", "Draft → script → approval"], ["voice", "Voice", "Local voice clone"], ["align", "Align", "Timings, master, captions"],
+  ["plan", "Plan", "Acts and beats"], ["acts", "Acts", "Draw, preview, review"], ["sound", "Sound", "Foley and mix"],
+  ["render", "Render", "Draft, final, QC"], ["runs", "Runs", "History and costs"],
+];
+function readHash() { const h = new URLSearchParams(location.hash.slice(1)); S.view = h.get("view") ?? "ws"; S.ws = h.get("ws") ?? S.ws; S.step = h.get("step") ?? S.step; S.act = h.get("act") ?? S.act; }
+function writeHash() { const h = new URLSearchParams(); h.set("view", S.view); if (S.ws) h.set("ws", S.ws); h.set("step", S.step); if (S.act) h.set("act", S.act); history.replaceState(null, "", "#" + h); }
+
+// ───────────── keep-alive render: media, focused/dirty fields and open details survive re-renders ─────────────
+function patch(el, html) {
+  const keep = {}; $$("[data-keep]", el).forEach((n) => (keep[n.dataset.keep] = n));
+  const open = new Set($$("details[open][data-id]", el).map((d) => d.dataset.id));
+  const scroll = $$("[data-scroll]", el).map((n) => [n.dataset.scroll, n.scrollTop]);
+  el.innerHTML = html;
+  $$("[data-keep]", el).forEach((n) => {
+    const old = keep[n.dataset.keep];
+    if (!old) return;
+    const same = old.getAttribute("data-src") === n.getAttribute("data-src");
+    const editing = (old.tagName === "TEXTAREA" || old.tagName === "INPUT") && (document.activeElement === old || S.dirty[n.dataset.keep]);
+    if ((old.tagName === "AUDIO" || old.tagName === "VIDEO" || old.tagName === "PRE") && same) n.replaceWith(old);
+    else if (editing) n.replaceWith(old);
+  });
+  $$("details[data-id]", el).forEach((d) => { if (open.has(d.dataset.id)) d.open = true; });
+  for (const [k, v] of scroll) { const n = $(`[data-scroll="${k}"]`, el); if (n) n.scrollTop = v; }
+}
+
+// ───────────── actions with options ─────────────
+function optControl(key, o) {
+  const saved = store.get(`opt.${key}`, {});
+  const v = saved[o.key] ?? o.def;
+  const id = `o_${key}_${o.key}`.replace(/\W/g, "_");
+  const lab = `<label for="${id}">${esc(o.label)}${o.help ? `<small>${esc(o.help)}</small>` : ""}</label>`;
+  if (o.type === "bool") return lab + `<input type="checkbox" id="${id}" data-opt="${o.key}" ${v ? "checked" : ""}>`;
+  if (o.type === "select") return lab + `<select id="${id}" data-opt="${o.key}">${o.choices.map((c) => `<option ${String(c) === String(v) ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
+  if (o.type === "number") return lab + `<input type="number" id="${id}" data-opt="${o.key}" ${o.min != null ? `min="${o.min}"` : ""} ${o.max != null ? `max="${o.max}"` : ""} step="${o.step ?? "any"}" value="${v ?? ""}" placeholder="default">`;
+  if (o.type === "text") return lab + `<input type="text" id="${id}" data-opt="${o.key}" value="${esc(v ?? "")}" placeholder="optional" style="width:180px">`;
+  if (o.type === "multi") {
+    const choices = key === "acts.all" && o.key === "acts" ? (S.d?.plan?.acts ?? []).map((a) => a.id) : o.choices;
+    const sel = new Set(Array.isArray(v) ? v : []);
+    return lab + `<div class="multi" data-opt="${o.key}" data-multi>${choices.map((c) => `<label><input type="checkbox" value="${esc(c)}" ${sel.has(c) ? "checked" : ""}>${esc(c)}</label>`).join("")}</div>`;
+  }
+  return "";
+}
+function readOpts(box) {
+  const o = {};
+  $$("[data-opt]", box).forEach((n) => {
+    const k = n.dataset.opt;
+    if (n.dataset.multi !== undefined) o[k] = $$("input:checked", n).map((c) => c.value);
+    else if (n.type === "checkbox") o[k] = n.checked;
+    else if (n.type === "number") { if (n.value !== "") o[k] = Number(n.value); }
+    else if (n.value !== "") o[k] = n.value;
+  });
+  return o;
+}
+function actionCard(key, act, extra = "") {
+  const a = S.schema[key];
+  if (!a) return "";
+  const busy = !!S.d?.jobs?.find((j) => j.status === "running");
+  const last = (S.d?.runs ?? []).filter((r) => r.label === (a.perAct ? `${a.label} ${act}` : a.label)).pop();
+  return `<div class="action" data-action="${key}" ${act ? `data-act="${act}"` : ""}>
+    <div class="ah"><b>${esc(a.label)}</b>${a.paid ? `<span class="tag">Paid · ${esc(a.paid)}</span>` : `<span class="tag free">Free</span>`}<span class="meta">${a.long ? esc(a.long) : ""}</span></div>
+    <div class="help">${esc(a.help)}${last ? `<br><span class="faint">Last: ${esc(STATUS[last.status === "done" ? "done" : last.status === "failed" ? "failed" : "none"] ?? last.status)} ${ago(last.end)}, ${dur(last.ms)}${last.cpuAvg != null ? `, CPU ${last.cpuAvg}% avg` : ""}${last.rssPeakMB ? `, ${last.rssPeakMB} MB peak` : ""}</span>` : ""}</div>
+    ${a.opts.length ? `<details data-id="opt-${key}"><summary>Options (${a.opts.length})</summary><div class="opts">${a.opts.map((o) => optControl(key, o)).join("")}</div></details>` : ""}
+    ${extra}
+    <div class="go"><button class="btn ${a.paid ? "" : "pri"}" data-run ${busy ? "disabled" : ""}>Run</button><span class="cmdprev" data-cmdprev></span></div>
+  </div>`;
+}
+async function runAction(box) {
+  const key = box.dataset.action, act = box.dataset.act, a = S.schema[key], opts = readOpts(box);
+  store.set(`opt.${key}`, opts);
+  if (a.paid && !confirm(`${a.label}${act ? " " + act : ""} calls Claude and costs about ${a.paid}. Run it?`)) return;
+  try {
+    const r = await api(`/api/ws/${encodeURIComponent(S.ws)}/run`, { method: "POST", body: JSON.stringify({ action: key, act, opts }) });
+    toast(`Started: ${r.job.label}`); S.logJob = r.job.id; await refreshWs(); attachLog(r.job.id);
+  } catch (e) { toast(e.message); }
+}
+
+// ───────────── log console ─────────────
+function consoleHtml(title) {
+  return `<div class="card"><div class="h"><h3>Log</h3><span class="sub" id="logTitle">${esc(title ?? "")}</span><span class="grow"></span><span id="logStats" class="faint" style="font-size:12px"></span>
+  <button class="btn sm danger" id="stopBtn" style="display:none">Stop</button></div><div class="b flush console"><pre data-keep="log" data-src="${esc(S.logJob ?? "")}" id="logPre">No run yet for this step.</pre></div></div>`;
+}
+function attachLog(jobId) {
+  if (S.es) { S.es.close(); S.es = null; }
+  S.logJob = jobId;
+  const pre = $("#logPre"); if (!pre) return;
+  pre.setAttribute("data-src", jobId); pre.textContent = "";
+  const es = new EventSource(`/api/ws/${encodeURIComponent(S.ws)}/log/${jobId}`);
+  S.es = es;
+  const append = (s) => { const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 30; pre.textContent += s; if (atEnd) pre.scrollTop = pre.scrollHeight; };
+  es.addEventListener("reset", () => { pre.textContent = ""; });
+  es.addEventListener("chunk", (e) => append(JSON.parse(e.data)));
+  es.addEventListener("end", () => { es.close(); S.es = null; refreshWs(); });
+  es.onerror = () => { es.close(); S.es = null; };
+}
+async function loadLastLog(stepKey) {
+  const pre = $("#logPre"); if (!pre) return;
+  const mine = (S.d?.jobs ?? []).filter((j) => j.step === stepKey || j.step.startsWith(stepKey.replace(/:.*/, "") + ":") && stepKey.includes(":") === false).pop();
+  const job = (S.d?.jobs ?? []).filter((j) => j.step === stepKey).pop();
+  if (job) { if (pre.getAttribute("data-src") !== job.id || (job.status === "running" && !S.es)) attachLog(job.id); return; }
+  if (pre.getAttribute("data-src") === "last:" + stepKey) return;
+  pre.setAttribute("data-src", "last:" + stepKey);
+  try { const t = await api(`/api/ws/${encodeURIComponent(S.ws)}/log?step=${encodeURIComponent(stepKey)}`); pre.textContent = t || "No run yet for this step."; pre.scrollTop = pre.scrollHeight; } catch {}
+}
+function updConsoleStats() {
+  const j = (S.d?.jobs ?? []).find((x) => x.id === S.logJob);
+  const st = $("#logStats"), stop = $("#stopBtn"), title = $("#logTitle");
+  if (!st || !j) { if (stop) stop.style.display = "none"; return; }
+  title.textContent = `${j.label} · ${j.cmdIndex + 1}/${j.cmdCount} · ${j.cmd ?? ""}`;
+  const s = j.stats ?? {};
+  st.textContent = j.status === "running"
+    ? `Running ${dur(j.ms)}${s.cur ? ` · CPU ${s.cur.cpu}% · ${s.cur.rssMB} MB · ${s.cur.top.join(", ")}` : ""}`
+    : `${STATUS[j.status === "stopped" ? "failed" : j.status] ?? j.status} in ${dur(j.ms)}${s.cpuAvg != null ? ` · CPU ${s.cpuAvg}% avg / ${s.cpuPeak}% peak · ${s.rssPeakMB} MB peak${s.gpuAvg != null ? ` · GPU ${s.gpuAvg}% avg` : ""}` : ""}`;
+  stop.style.display = j.status === "running" ? "" : "none";
+}
+
+// ───────────── sidebar ─────────────
+async function loadList() {
+  try { const r = await api("/api/workspaces"); S.list = r.workspaces; S.studio = r.studio; } catch { return; }
+  if (!S.ws && S.list.length) S.ws = S.list[S.list.length - 1].id;
+  $("#wsCount").textContent = S.list.length;
+  patch($("#wsList"), S.list.map((w) => `<button class="wsitem ${w.id === S.ws && S.view === "ws" ? "on" : ""}" data-ws="${w.id}">
+    <span class="id">${esc(w.id)}</span>${w.title ? `<span class="t">${esc(w.title)}</span>` : ""}
+    <span class="row"><span class="dots">${["script", "voice", "align", "plan", "acts", "sound", "render"].map((k) => `<span class="dot" title="${k}: ${STATUS[w.statuses[k]]}" data-s="${w.statuses[k]}"></span>`).join("")}</span>
+    <span>${w.running ? `<span style="color:#f1b46a">${esc(w.running.label)}</span>` : `${dur(w.totals.ms)} · ${money(w.totals.costUsd)}`}</span></span></button>`).join(""));
+  renderStudio();
+}
+function renderStudio() {
+  const st = S.studio, box = $("#studioBox");
+  const mine = st && st.running;
+  box.innerHTML = mine
+    ? `<span class="pill" data-s="running"><span class="dot" data-s="running"></span>Studio · ${esc(st.ws)}</span> ${st.url ? `<a class="btn sm" href="${esc(st.url)}" target="_blank" rel="noopener">Open Remotion Studio ↗</a>` : `<span class="faint">starting…</span>`} <button class="btn sm danger" id="studioStop">Stop</button>`
+    : `<button class="btn sm" id="studioStart" ${S.ws ? "" : "disabled"}>Open in Remotion Studio</button>`;
+}
+
+// ───────────── header meters + rail ─────────────
+const sparkSvg = (vals, max, col) => {
+  if (!vals.length) return "<svg></svg>";
+  const w = 200, h = 26, n = vals.length, pts = vals.map((v, i) => `${(i / Math.max(1, n - 1)) * w},${h - (Math.min(max, v ?? 0) / max) * (h - 2) - 1}`).join(" ");
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="0,${h} ${pts} ${w},${h}" fill="${col}22" stroke="none"/><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+};
+const lvl = (p) => p > 85 ? "h" : p > 60 ? "w" : "";
+async function loadSystem() {
+  try { S.sys = await api("/api/system"); } catch { return; }
+  const n = S.sys.now, H = S.sys.history, m = S.sys.machine;
+  const memP = (n.memUsedGB / n.memTotalGB) * 100;
+  $("#meters").innerHTML = [["CPU", n.cpu], ["GPU", n.gpu ?? 0], ["Memory", memP]].map(([l, v]) => `<div class="meter"><span>${l}</span><div class="bar ${lvl(v)}"><i style="width:${Math.min(100, v)}%"></i></div><b class="num">${Math.round(v)}%</b></div>`).join("");
+  $("#machName").textContent = `${m.cpu} · ${m.cores} cores · ${m.memGB} GB`;
+  $("#sparks").innerHTML = `
+    <div class="spark"><span>CPU</span>${sparkSvg(H.map((x) => x.cpu), 100, "#60935d")}<b>${n.cpu.toFixed(0)}%</b></div>
+    <div class="cores">${n.cores.map((c) => `<i style="--v:${c}%" title="${c}%"></i>`).join("")}</div>
+    <div class="spark"><span>GPU</span>${sparkSvg(H.map((x) => x.gpu), 100, "#dc851f")}<b>${n.gpu ?? "—"}%</b></div>
+    <div class="spark"><span>Memory</span>${sparkSvg(H.map((x) => x.memUsedGB), n.memTotalGB, "#6c8fb3")}<b>${n.memUsedGB} GB</b></div>
+    <div class="spark"><span>Load</span><span class="dim">${n.load.join(" · ")}</span><b>${n.diskFreeGB ?? "—"} GB free</b></div>
+    <table class="procs"><tbody>${S.sys.top.map((p) => `<tr><td class="mono">${esc(p.comm)}</td><td class="r">${p.cpu}%</td><td class="r faint">${p.rssMB} MB</td></tr>`).join("")}</tbody></table>`;
+  if (S.view === "machine") renderMachine();
+}
+async function loadActivity() {
+  try { const r = await api("/api/activity"); S.activity = r.jobs; S.studio = r.studio; } catch { return; }
+  const running = S.activity.filter((j) => j.status === "running");
+  $("#nowBox").innerHTML = running.length ? running.map(jobRow).join("") : `<div class="job faint" style="cursor:default">Nothing running.</div>`;
+  $("#recent").innerHTML = S.activity.filter((j) => j.status !== "running").slice(0, 14).map(jobRow).join("") || `<div class="job faint" style="cursor:default">No runs since the dashboard started. History per video is under Runs.</div>`;
+  renderStudio();
+}
+function jobRow(j) {
+  const s = j.stats ?? {}, st = j.status === "running" ? "running" : j.status === "done" ? "done" : "failed";
+  return `<div class="job" data-goto="${esc(j.ws)}|${esc(j.step)}|${esc(j.id)}"><div class="r1"><span class="dot" data-s="${st}"></span><b>${esc(j.label)}</b><span class="faint">${dur(j.ms)}</span></div>
+    <div class="r2"><span class="mono">${esc(j.ws.replace(/^(VID\d+)_.*/, "$1"))}</span>${j.status === "running" && s.cur ? `<span>CPU ${s.cur.cpu}%</span><span>${s.cur.rssMB} MB</span><span>${esc(s.cur.top[0] ?? "")}</span>` : s.cpuAvg != null ? `<span>CPU ${s.cpuAvg}% avg</span><span>${s.rssPeakMB} MB peak</span>${s.gpuAvg != null ? `<span>GPU ${s.gpuAvg}%</span>` : ""}` : ""}<span>${j.status === "running" ? `step ${j.cmdIndex + 1}/${j.cmdCount}` : ago(j.endedAt)}</span></div></div>`;
+}
+
+// ───────────── workspace view ─────────────
+async function refreshWs() {
+  if (!S.ws) return;
+  try { S.d = await api(`/api/ws/${encodeURIComponent(S.ws)}/status`); } catch (e) { toast(e.message); return; }
+  if (S.view === "ws") renderWs();
+}
+function stepMeta(k) {
+  const m = S.d.meta?.[k];
+  return m ? `${dur(m.totalMs)}${m.totalCost ? " · " + money(m.totalCost) : ""}` : "";
+}
+function renderWs() {
+  const d = S.d; if (!d) return;
+  $("#crumb").innerHTML = `<span class="mono">${esc(d.id)}</span>${d.title ? ` · ${esc(d.title)}` : ""}${d.style ? ` · <span class="faint">style ${esc(d.style)}</span>` : ""}`;
+  let main = $("#main");
+  if (!$("#stepper", main)) main.innerHTML = `<div class="stepper" id="stepper"></div><div class="view" id="view" data-scroll="view"></div>`;
+  $("#stepper").innerHTML = STEPS.map(([k, l, h], i) => {
+    const st = k === "runs" ? "none" : d.statuses[k] ?? "none";
+    return `<button class="${S.step === k ? "on" : ""}" data-step="${k}"><span class="n"><span class="dot" data-s="${st}"></span>${i + 1} · ${k === "runs" ? "History" : STATUS[st]}</span><span class="l">${l}</span><span class="m">${esc(k === "runs" ? `${dur(d.totals.ms)} · ${money(d.totals.costUsd)}` : stepMeta(k) || h)}</span></button>`;
+  }).join("");
+  const R = { script: viewScript, voice: viewVoice, align: viewAlign, plan: viewPlan, acts: viewActs, sound: viewSound, render: viewRender, runs: viewRuns }[S.step] ?? viewScript;
+  patch($("#view"), R(d));
+  const logKey = S.step === "acts" && S.act ? null : S.step;
+  if (logKey && $("#logPre")) loadLastLog(logKey);
+  updConsoleStats();
+}
+function header(title, desc, st, extraStats = "") {
+  const m = S.d.meta?.[S.step];
+  return `<div class="panel-h"><div><h2>${esc(title)} ${st ? pill(st) : ""}</h2><p>${desc}</p></div><div class="stats">${extraStats}
+    ${m ? `<div class="stat"><b>${m.runs}</b><span>runs</span></div><div class="stat"><b>${dur(m.totalMs)}</b><span>total time</span></div><div class="stat"><b>${money(m.totalCost)}</b><span>Claude cost</span></div>` : ""}</div></div>`;
+}
+
+function viewScript(d) {
+  const s = d.script, ap = s.approval;
+  const flowStage = !s.idea ? 0 : !s.file ? 1 : ap === "approved" || ap === "legacy" ? (d.statuses.script === "done" ? 4 : 3) : 2;
+  const flow = ["Draft", "Script written", "Reviewed & approved", "Split into sections"].map((l, i) => `<span class="${i < flowStage ? "ok" : i === flowStage ? "now" : ""}">${i + 1}. ${l}</span>`).join("");
+  const apTxt = { approved: `Approved ${ago(s.approvedAt)}`, "changed since approval": "Edited after approval: approve again", "not approved": "Waiting for your review", legacy: "Older video (no approval needed)", "no script": "No script yet" }[ap];
+  return header("Script", "Write your idea in plain text. Use [square brackets] for instructions to the writer. Claude turns it into a spoken, chunked script with a scored hook and on-screen hints, using the yt-script method. You review and edit it, then approve it; nothing is voiced before that.", d.statuses.script,
+    `<div class="stat"><b>${s.words || "—"}</b><span>spoken words</span></div><div class="stat"><b>${s.words ? (s.words / 150).toFixed(1) + " min" : "—"}</b><span>at 150 wpm</span></div>`) + `<div class="body">
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div class="flow">${flow}</div>${pill(ap === "approved" || ap === "legacy" ? "done" : s.file ? "partial" : "none", apTxt)}</div>
+    <div class="cols">
+      <div class="card"><div class="h"><h3>1 · Your draft</h3><span class="sub">02-scripting/idea.md · plain text, [notes to the writer]</span><span class="grow"></span><button class="btn sm" data-save="idea">Save</button></div>
+        <div class="b"><textarea rows="16" data-keep="idea" data-field="idea" placeholder="What the video is about, the points you want to make, facts with their sources, examples...&#10;&#10;[make the hook about the money that never reaches companies]&#10;[keep it under 9 minutes]">${esc(s.idea)}</textarea></div></div>
+      <div class="card"><div class="h"><h3>Feedback for a revision</h3><span class="sub">02-scripting/feedback.md</span><span class="grow"></span><button class="btn sm" data-save="feedback">Save</button></div>
+        <div class="b"><textarea rows="6" data-keep="feedback" data-field="feedback" placeholder="What to change in the last script. When this is newer than the script, Write script revises instead of starting over.">${esc(s.feedback)}</textarea>
+        <div class="faint" style="font-size:12px">Small changes: edit the script directly instead (free).</div></div></div>
+    </div>
+    <div class="actions">${actionCard("script.write")}${actionCard("script.approve", null, s.file ? "" : `<div class="help faint">Write or paste a script first.</div>`)}${actionCard("script.format")}</div>
+    <div class="cols">
+      <div class="card"><div class="h"><h3>2 · Script</h3><span class="sub">02-scripting/script_raw.md${s.file ? ` · saved ${ago(s.file.mtime)}` : ""}</span><span class="grow"></span><button class="btn sm" id="saveScript">Save</button></div>
+        <div class="b"><textarea rows="28" data-keep="script" data-field="script" id="scriptTa" spellcheck="true" placeholder="### Part 1: Hook&#10;**VO:** \`[VO: calm documentary tone]\` ...&#10;**[ON SCREEN]:** ...">${esc(S.scriptText ?? "")}</textarea>
+        <div class="faint" style="font-size:12px">Format: <span class="mono">### Part n: Title</span> or <span class="mono">### CHAPTER n: Title</span>; <span class="mono">**VO:** \`[VO: tone]\` text</span>; <span class="mono">**[ON SCREEN]:** hint</span> (not spoken). Saving after approval needs a new approval.</div></div></div>
+      <div class="card"><div class="h"><h3>Writer's notes</h3><span class="sub">hooks and scores, numbers to verify, questions</span></div>
+        <div class="b"><div class="md">${s.notes ? esc(s.notes) : `<span class="faint">Appears after Write script.</span>`}</div></div></div>
+    </div>
+    ${consoleHtml()}</div>`;
+}
+function viewVoice(d) {
+  const v = d.voice;
+  return header("Voice", "Local Chatterbox voice clone. Each section is generated in several takes and the take that best matches the script (speech recognition) is kept.", d.statuses.voice,
+    `<div class="stat"><b>${v.sectionCount || "—"}</b><span>sections</span></div>${v.running ? `<div class="stat"><b>${v.freshWavs}/${v.sectionCount}</b><span>done this run</span></div>` : ""}`) + `<div class="body">
+    <div class="actions">${actionCard("voice.run")}</div>
+    <div class="card"><div class="h"><h3>Full voiceover</h3></div><div class="b">${v.combined.length ? v.combined.map((f) => `<div class="audrow"><span class="mono">${esc(f.path.split("/").pop())} <span class="faint">${mb(f.size)}</span></span><audio controls preload="none" data-keep="a:${esc(f.path)}" data-src="${f.mtime}" src="${file(f.path)}"></audio></div>`).join("") : `<div class="faint">Not generated yet.</div>`}</div></div>
+    <div class="card"><div class="h"><h3>Sections</h3><span class="sub">${v.parts.reduce((a, p) => a + p.files.length, 0)} files</span></div><div class="b">
+      ${v.parts.map((p) => `<details data-id="part-${p.part}"><summary class="dim" style="cursor:pointer">${esc(p.part.replace("part-", "Part "))} · ${p.files.length} sections</summary><div style="display:grid;gap:6px;padding:8px 0">${p.files.map((f) => `<div class="audrow"><span class="mono">${esc(f.path.split("/").pop())} <span class="faint">${ago(f.mtime)}</span></span><audio controls preload="none" data-keep="a:${esc(f.path)}" data-src="${f.mtime}" src="${file(f.path)}"></audio></div>`).join("")}</div></details>`).join("") || `<div class="faint">No sections yet.</div>`}
+    </div></div>${consoleHtml()}</div>`;
+}
+function viewAlign(d) {
+  const a = d.align;
+  return header("Align", "Word-level timings from the voiceover, then mastering (EQ, de-ess, compression, −14 LUFS), the captions the planner uses, and the .srt for YouTube.", d.statuses.align,
+    `<div class="stat"><b>${a.words ?? "—"}</b><span>words</span></div><div class="stat"><b>${a.durationMs ? dur(a.durationMs) : "—"}</b><span>narration</span></div>`) + `<div class="body">
+    <div class="actions">${["align.all", "align.transcribe", "align.master", "align.captions", "align.srt"].map((k) => actionCard(k)).join("")}</div>
+    <div class="cols"><div class="card"><div class="h"><h3>Mastered voice</h3></div><div class="b">${a.master ? `<audio controls preload="none" data-keep="master" data-src="${a.master.mtime}" src="${file(a.master.path)}"></audio><span class="faint">${mb(a.master.size)} · ${ago(a.master.mtime)}</span>` : `<span class="faint">Not mastered yet.</span>`}
+      <a href="${file(`07-assembly/export/${S.ws}.srt`)}" target="_blank">Open .srt</a></div></div>
+    <div class="card"><div class="h"><h3>Chapters</h3></div><div class="b">${a.chapters.length ? `<table><tr><th>#</th><th>Title</th><th class="r">Starts</th></tr>${a.chapters.map((c) => `<tr><td>${c.n}</td><td>${esc(c.title)}</td><td class="r">${dur(c.startMs)}</td></tr>`).join("")}</table>` : `<span class="faint">No chapters in this script.</span>`}</div></div></div>
+    ${consoleHtml()}</div>`;
+}
+function viewPlan(d) {
+  const p = d.plan;
+  return header("Plan", "The director (Claude) splits the narration into acts of 40–90 s: beats, the hits that must land on spoken words, BPM, and the data shown on screen with its source. It also reads the script's on-screen hints.", d.statuses.plan,
+    `<div class="stat"><b>${p.acts.length || "—"}</b><span>acts</span></div>`) + `<div class="body">
+    <div class="actions">${actionCard("plan.run")}${actionCard("plan.check")}</div>
+    ${p.logline ? `<div class="card"><div class="b"><b>Logline</b><span class="dim">${esc(p.logline)}</span></div></div>` : ""}
+    ${p.unverified.length ? `<div class="warn"><b>${p.unverified.length} on-screen figures come only from the narration. Fact-check before publishing:</b><ul style="margin:6px 0 0;padding-left:18px">${p.unverified.map((u) => `<li class="mono">${esc(u)}</li>`).join("")}</ul></div>` : ""}
+    <div class="card"><div class="b flush"><table><tr><th>Act</th><th>Title</th><th class="r">Time</th><th class="r">Length</th><th class="r">BPM</th><th>Chapter</th><th class="r">Beats</th><th>Idea</th></tr>
+      ${p.acts.map((a) => `<tr><td class="mono"><a href="#" data-openact="${a.id}">${a.id}</a></td><td>${esc(a.title)}</td><td class="r">${(a.startMs / 1000).toFixed(1)}–${(a.endMs / 1000).toFixed(1)} s</td><td class="r">${((a.endMs - a.startMs) / 1000).toFixed(0)} s</td><td class="r">${a.bpm ?? ""}</td><td>${a.chapter ? esc(`${a.chapter.n}. ${a.chapter.title}`) : ""}</td><td class="r">${a.beats}</td><td class="dim">${esc(a.idea)}</td></tr>`).join("") || `<tr><td colspan="8" class="faint">No plan yet.</td></tr>`}</table></div></div>
+    ${consoleHtml()}</div>`;
+}
+function viewActs(d) {
+  const acts = d.acts;
+  if (!S.act || !acts.find((a) => a.id === S.act)) S.act = acts[0]?.id ?? null;
+  const a = acts.find((x) => x.id === S.act);
+  const done = acts.filter((x) => x.scene).length;
+  return header("Acts", "Each act is drawn in code by Claude in the plan's house style. Watch the preview, ask a reviewer (you choose the agent and what it is given: the timed voiceover, the plan, the script, the code), collect notes, then send them to the act's author.", d.statuses.acts,
+    `<div class="stat"><b>${done}/${acts.length}</b><span>drawn</span></div>`) + `<div class="body">
+    <div class="actions">${actionCard("acts.all")}</div>
+    <div class="acts-grid">
+      <div class="card actlist"><div class="h"><h3>Acts</h3></div>${acts.map((x) => {
+        const rv = x.reviews?.[0];
+        return `<button class="${x.id === S.act ? "on" : ""}" data-act-sel="${x.id}"><span class="dot" data-s="${x.status}"></span><span><span class="id">${x.id}</span> ${esc(x.title)}<br><span class="faint" style="font-size:11px">${((x.end - x.start) / 1000).toFixed(0)} s${x.meta ? ` · ${dur(x.meta.totalMs)} · ${money(x.meta.totalCost)}` : ""}</span></span><span class="sc">${rv ? `sync ${rv.sync}/10` : x.critic ? `critic ${x.critic.score}/10` : ""}</span></button>`;
+      }).join("") || `<div class="empty">Plan the video first.</div>`}</div>
+      <div style="display:grid;gap:16px;min-width:0">${a ? actDetail(a) : ""}</div>
+    </div></div>`;
+}
+function actDetail(a) {
+  const pv = a.preview;
+  const thumbs = a.thumbs.map((t) => ({ src: file(t.path), t: parseFloat(t.path.match(/t_([\d.]+)\.jpg/)?.[1] ?? "0") }));
+  S.lb.list = thumbs;
+  return `<div class="card"><div class="h"><h3><span class="mono">${a.id}</span> · ${esc(a.title)}</h3>${pill(a.status)}<span class="grow"></span><span class="faint mono" style="font-size:11px">${a.scene ? esc(a.scene.path.split("/").pop()) : "no file yet"}</span></div>
+    <div class="b">${a.idea ? `<div class="dim">${esc(a.idea)}</div>` : ""}
+      ${pv ? `<video controls preload="metadata" id="actVideo" data-keep="pv:${a.id}" data-src="${pv.mtime}" src="${file(pv.path)}"></video>
+        <div style="display:flex;gap:8px;align-items:center"><button class="btn sm" id="noteAtVideo">Add note at current time</button><span class="faint" style="font-size:12px">Preview rendered ${ago(pv.mtime)}${a.scene && a.scene.mtime > pv.mtime ? " · <span style='color:#f1b46a'>the act changed since: render again</span>" : ""}</span></div>`
+        : `<div class="note">No preview yet. Render one below to watch the act with its voice and effects.</div>`}
+      ${thumbs.length ? `<div class="thumbs" data-scroll="thumbs">${thumbs.map((t, i) => `<figure data-lb="${i}"><img loading="lazy" src="${t.src}" alt=""><figcaption>${t.t.toFixed(1)} s</figcaption></figure>`).join("")}</div>` : ""}
+    </div></div>
+    <div class="actions">${["acts.preview", "acts.review", "acts.frames", "acts.act", "acts.fix"].map((k) => actionCard(k, a.id)).join("")}</div>
+    <div class="cols">
+      <div class="card"><div class="h"><h3>Review notes for the author</h3><span class="sub">review/${a.id}/director_notes.md</span><span class="grow"></span><button class="btn sm" data-savenotes="${a.id}">Save</button></div>
+        <div class="b"><textarea rows="14" data-keep="notes:${a.id}" data-field="notes:${a.id}" id="notesTa" placeholder="One line per problem, starting with the time in the act:&#10;12.3 s: the IPO strip lands after &quot;jargon&quot;; it should be complete on the word.&#10;20–23 s: strips cut off at the top.">${esc(a.notes)}</textarea>
+        <div class="faint" style="font-size:12px">“Fix with notes” sends these notes to the act's author for one revision (paid). Reviews can append their findings here.</div></div></div>
+      <div class="card"><div class="h"><h3>Reviews</h3><span class="sub">${a.reviews.length} saved</span></div><div class="b">${a.reviews.length ? a.reviews.map((r, i) => `<details data-id="rv-${a.id}-${i}" ${i === 0 ? "open" : ""}><summary style="cursor:pointer"><b>${esc(r.agent)}</b> · sync ${r.sync}/10 · overall ${r.overall}/10 · ${r.issues.length} issues · <span class="faint">${ago(r.at)} · ${dur(r.ms)} · ${r.costUsd ? money(r.costUsd) : "free"} · given: ${esc(r.give.join(", ") || "frames only")}</span></summary>
+          <div class="dim" style="margin:6px 0">${esc(r.summary ?? "")}</div>${r.issues.map((x) => `<div class="issue"><span class="t" data-seek="${parseFloat(x.time)}">${esc(x.time)}</span><div><span class="sev-${esc(x.severity)}">${esc(x.kind)} · ${esc(x.severity)}</span> ${esc(x.seen)}${x.said ? `<br><span class="faint">said: “${esc(x.said)}”</span>` : ""}<div class="fix">→ ${esc(x.fix)}</div></div><button class="btn sm" data-addissue='${esc(JSON.stringify(x))}'>To notes</button></div>`).join("")}</details>`).join("")
+          : `<span class="faint">No reviews yet. Run “Review” above.</span>`}
+        ${a.critic ? `<details data-id="critic-${a.id}"><summary style="cursor:pointer" class="dim">Author's critic (${esc(a.critic.file)}): ${a.critic.score}/10</summary>${a.critic.issues.map((x) => `<div class="issue"><span class="t">${esc(x.time)}</span><div>${esc(x.problem)}<div class="fix">→ ${esc(x.fix)}</div></div><span></span></div>`).join("")}</details>` : ""}</div></div>
+    </div>
+    ${consoleHtml()}`;
+}
+function viewSound(d) {
+  const s = d.sound;
+  return header("Sound", "Foley events come from each act's code. The music bed is rendered as a separate stem for your editor; the mix is voice + foley only unless you include music.", d.statuses.sound,
+    `<div class="stat"><b>${s.events ?? "—"}</b><span>foley events</span></div>`) + `<div class="body">
+    <div class="actions">${["sound.all", "sound.cues", "sound.music", "sound.mix"].map((k) => actionCard(k)).join("")}</div>
+    <div class="cols"><div class="card"><div class="h"><h3>Files</h3></div><div class="b">${[...s.files, ...s.stems].map((f) => `<div class="audrow"><span class="mono">${esc(f.path.replace("06-audio/", ""))} <span class="faint">${mb(f.size)}</span></span><audio controls preload="none" data-keep="a:${esc(f.path)}" data-src="${f.mtime}" src="${file(f.path)}"></audio></div>`).join("") || `<span class="faint">Nothing yet.</span>`}</div></div>
+    <div class="card"><div class="h"><h3>Credits for the description</h3></div><div class="b"><div class="md">${esc(s.credits || "Appears after the mix.")}</div></div></div></div>
+    ${consoleHtml()}</div>`;
+}
+function viewRender(d) {
+  const r = d.render;
+  return header("Render", "Assemble every act into the video, render a draft or the final 1080p H.264, then run QC (placeholders, loudness, duration). Final renders use the GPU canvas.", d.statuses.render) + `<div class="body">
+    <div class="actions">${["render.draft", "render.final", "render.qc", "render.assemble"].map((k) => actionCard(k)).join("")}</div>
+    ${r.videos.map((v) => `<div class="card"><div class="h"><h3>${esc(v.path.split("/").pop())}</h3><span class="sub">${mb(v.size)} · ${ago(v.mtime)}</span></div><div class="b"><video controls preload="metadata" data-keep="v:${esc(v.path)}" data-src="${v.mtime}" src="${file(v.path)}" style="max-height:62vh"></video></div></div>`).join("") || `<div class="card"><div class="empty"><img class="banner" src="/brand/Banner.png" alt="The Wealth Gap"><br>No render yet.</div></div>`}
+    ${r.qc ? `<div class="card"><div class="h"><h3>QC report</h3><span class="sub">${ago(r.qc.mtime)}</span></div><div class="b"><div class="md">${esc(r.qc.text)}</div></div></div>` : ""}
+    ${consoleHtml()}</div>`;
+}
+function viewRuns(d) {
+  const runs = [...(d.runs ?? [])].reverse(), t = [...(d.timings ?? [])].reverse();
+  return header("Runs", "Every run started from the dashboard (with its duration, CPU, memory and GPU use), and every step the pipeline recorded (with model and Claude cost).", null,
+    `<div class="stat"><b>${dur(d.totals.ms)}</b><span>recorded time</span></div><div class="stat"><b>${money(d.totals.costUsd)}</b><span>Claude cost</span></div>`) + `<div class="body">
+    <div class="actions">${actionCard("timings.run")}</div>
+    <div class="card"><div class="h"><h3>Dashboard runs</h3><span class="sub">${runs.length}</span></div><div class="b flush" style="max-height:420px;overflow:auto"><table>
+      <tr><th>When</th><th>Run</th><th>Status</th><th class="r">Duration</th><th class="r">CPU avg / peak</th><th class="r">Memory peak</th><th class="r">GPU avg / peak</th><th>Options</th></tr>
+      ${runs.map((r) => `<tr><td class="faint">${new Date(r.start).toLocaleString()}</td><td>${esc(r.label)}<br><span class="mono faint">${esc((r.cmds ?? []).join(" → "))}</span></td><td>${pill(r.status === "done" ? "done" : "failed", r.status === "done" ? "Done" : r.status === "stopped" ? "Stopped" : "Failed")}</td><td class="r">${dur(r.ms)}</td><td class="r">${r.cpuAvg ?? "—"}% / ${r.cpuPeak ?? "—"}%</td><td class="r">${r.rssPeakMB != null ? r.rssPeakMB + " MB" : "—"}</td><td class="r">${r.gpuAvg ?? "—"}% / ${r.gpuPeak ?? "—"}%</td><td class="mono faint">${esc(JSON.stringify(r.opts ?? {}))}</td></tr>`).join("") || `<tr><td colspan="8" class="faint">No dashboard runs yet.</td></tr>`}</table></div></div>
+    <div class="card"><div class="h"><h3>Pipeline steps (timings.json)</h3><span class="sub">${t.length}</span></div><div class="b flush" style="max-height:520px;overflow:auto"><table>
+      <tr><th>When</th><th>Step</th><th>Model</th><th class="r">Duration</th><th class="r">Cost</th><th class="r">Input</th><th class="r">Cache read</th><th class="r">Output</th></tr>
+      ${t.map((r) => `<tr><td class="faint">${r.at ? new Date(r.at).toLocaleString() : ""}</td><td>${esc(r.step)}${r.note ? `<br><span class="faint">${esc(r.note)}</span>` : ""}</td><td class="mono">${esc(r.model ?? "")}</td><td class="r">${dur(r.ms)}</td><td class="r">${r.costUsd ? money(r.costUsd) : ""}</td><td class="r">${r.inputTokens ? tok(r.inputTokens) : ""}</td><td class="r">${r.cacheReadTokens ? tok(r.cacheReadTokens) : ""}</td><td class="r">${r.outputTokens ? tok(r.outputTokens) : ""}</td></tr>`).join("")}</table></div></div>
+    ${consoleHtml()}</div>`;
+}
+
+// ───────────── usage view ─────────────
+const MODEL_COL = (m) => /opus/.test(m) ? "#bc4b51" : /sonnet/.test(m) ? "#dc851f" : /haiku/.test(m) ? "#60935d" : "#6c8fb3";
+async function loadUsage(force) {
+  try { S.usage = await api("/api/usage" + (force ? "?refresh=1" : "")); } catch (e) { toast(e.message); return; }
+  if (S.view === "usage") renderUsage();
+}
+function renderUsage() {
+  const u = S.usage, main = $("#main");
+  $("#crumb").innerHTML = "Claude usage";
+  if (!u) { main.innerHTML = `<div class="empty">Reading Claude Code's session logs…</div>`; return; }
+  const prices = store.get("prices", {});
+  const cost = (r) => { const p = prices[r.model]; if (!p) return null; return (r.in * (p.in ?? 0) + r.cacheWrite * (p.cw ?? 0) + r.cacheRead * (p.cr ?? 0) + r.out * (p.out ?? 0)) / 1e6; };
+  const proj = store.get("usageProject", "all"), kindF = store.get("usageKind", "all");
+  const rows = u.rows.filter((r) => (proj === "all" || r.project === proj) && (kindF === "all" || r.kind === kindF));
+  const today = new Date().toISOString().slice(0, 10), weekAgo = new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10), monthAgo = new Date(Date.now() - 29 * 864e5).toISOString().slice(0, 10);
+  const sum = (rs) => rs.reduce((a, r) => ({ in: a.in + r.in, cw: a.cw + r.cacheWrite, cr: a.cr + r.cacheRead, out: a.out + r.out, n: a.n + r.replies, $: a.$ + (cost(r) ?? 0), unpriced: a.unpriced || cost(r) === null }), { in: 0, cw: 0, cr: 0, out: 0, n: 0, $: 0, unpriced: false });
+  const T = sum(rows.filter((r) => r.day === today)), W = sum(rows.filter((r) => r.day >= weekAgo)), M = sum(rows.filter((r) => r.day >= monthAgo));
+  const allTok = (x) => x.in + x.cw + x.cr + x.out;
+  const models = [...new Set(u.rows.map((r) => r.model))].sort(), projects = [...new Set(u.rows.map((r) => r.project))].sort();
+  const days = []; for (let i = 29; i >= 0; i--) days.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+  const perDay = days.map((dd) => ({ d: dd, m: models.map((m) => ({ m, v: rows.filter((r) => r.day === dd && r.model === m).reduce((a, r) => a + r.in + r.cacheWrite + r.out, 0) })) }));
+  const maxDay = Math.max(1, ...perDay.map((x) => x.m.reduce((a, y) => a + y.v, 0)));
+  const byGroup = (key) => { const g = {}; for (const r of rows.filter((r) => r.day >= monthAgo)) { const k = r[key]; g[k] ??= []; g[k].push(r); } return Object.entries(g).map(([k, rs]) => [k, sum(rs)]).sort((a, b) => allTok(b[1]) - allTok(a[1])); };
+  const pipe = u.pipeline, pipe$ = pipe.reduce((a, r) => a + (r.costUsd ?? 0), 0);
+  const pipeBy = {}; for (const r of pipe) { const k = r.step.replace(/\s*\(.*\)$/, "").replace(/\bA\d+\b/, "A··").replace(/ r\d+$/, ""); pipeBy[k] ??= { n: 0, ms: 0, $: 0 }; pipeBy[k].n++; pipeBy[k].ms += r.ms ?? 0; pipeBy[k].$ += r.costUsd ?? 0; }
+  const kpi = (l, x) => `<div class="card"><div class="b"><span class="faint" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">${l}</span><b style="font-size:22px">${tok(allTok(x))} tokens</b><span class="dim">${tok(x.out)} output · ${tok(x.cr)} cache read · ${x.n} replies</span>${Object.keys(prices).length ? `<span>${money(x.$)}${x.unpriced ? " <span class='faint'>(some models unpriced)</span>" : ""} est.</span>` : ""}</div></div>`;
+  main.innerHTML = `<div class="view" data-scroll="usage">${`<div class="panel-h"><div><h2>Claude usage</h2><p>Read from Claude Code's local session logs (every reply's token counts, interactive and headless) and from each video's pipeline cost records. Updated ${ago(u.scannedAt)} · ${u.files} log files in ${u.scanMs} ms.</p></div>
+    <div class="stats"><select id="uProj"><option value="all">All projects</option>${projects.map((p) => `<option ${p === proj ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
+    <select id="uKind">${["all", "interactive", "pipeline", "subagent"].map((k) => `<option ${k === kindF ? "selected" : ""} value="${k}">${k === "all" ? "All sessions" : k === "interactive" ? "Interactive (you + me)" : k === "pipeline" ? "Pipeline (claude -p)" : "Subagents"}</option>`).join("")}</select>
+    <button class="btn sm" id="uRefresh">Refresh</button></div></div>`}
+  <div class="body">
+    <div class="cols" style="grid-template-columns:repeat(4,minmax(0,1fr))">${kpi("Today", T)}${kpi("Last 7 days", W)}${kpi("Last 30 days", M)}
+      <div class="card"><div class="b"><span class="faint" style="font-size:11px;text-transform:uppercase;letter-spacing:.05em">Pipeline cost (reported)</span><b style="font-size:22px">${money(pipe$)}</b><span class="dim">${pipe.length} paid or model steps across ${new Set(pipe.map((r) => r.ws)).size} videos</span></div></div></div>
+    <div class="card"><div class="h"><h3>Tokens per day (input + cache write + output), last 30 days</h3><span class="grow"></span><div class="legend">${models.map((m) => `<span><i style="background:${MODEL_COL(m)}"></i>${esc(m)}</span>`).join("")}</div></div>
+      <div class="b"><div class="chart">${perDay.map((x) => `<div class="col" data-tip="${x.d}\n${x.m.filter((y) => y.v).map((y) => `${y.m}: ${tok(y.v)}`).join("\n") || "none"}">${x.m.map((y) => `<i style="height:${(y.v / maxDay) * 132}px;background:${MODEL_COL(y.m)}"></i>`).join("")}</div>`).join("")}</div>
+      <div style="display:flex;justify-content:space-between" class="faint mono"><span>${days[0]}</span><span>${today}</span></div></div></div>
+    <div class="cols">
+      <div class="card"><div class="h"><h3>By model, 30 days</h3></div><div class="b flush"><table><tr><th>Model</th><th class="r">Input</th><th class="r">Cache write</th><th class="r">Cache read</th><th class="r">Output</th><th class="r">Replies</th>${Object.keys(prices).length ? `<th class="r">Est. $</th>` : ""}</tr>
+        ${byGroup("model").map(([k, x]) => `<tr><td class="mono"><i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${MODEL_COL(k)};margin-right:6px"></i>${esc(k)}</td><td class="r">${tok(x.in)}</td><td class="r">${tok(x.cw)}</td><td class="r">${tok(x.cr)}</td><td class="r">${tok(x.out)}</td><td class="r">${x.n}</td>${Object.keys(prices).length ? `<td class="r">${prices[k] ? money(x.$) : "—"}</td>` : ""}</tr>`).join("")}</table></div></div>
+      <div class="card"><div class="h"><h3>By kind, 30 days</h3></div><div class="b flush"><table><tr><th>Kind</th><th class="r">Tokens</th><th class="r">Output</th><th class="r">Replies</th></tr>
+        ${byGroup("kind").map(([k, x]) => `<tr><td>${esc(k)}</td><td class="r">${tok(allTok(x))}</td><td class="r">${tok(x.out)}</td><td class="r">${x.n}</td></tr>`).join("")}</table>
+        <div class="faint" style="padding:8px 12px;font-size:12px">Interactive = Claude Code sessions in the terminal; pipeline = the director, act authors, writer and reviewers run with <span class="mono">claude -p</span>; subagents = agents started from a session.</div></div></div>
+    </div>
+    <div class="cols">
+      <div class="card"><div class="h"><h3>Pipeline cost by step</h3><span class="sub">as reported by claude -p</span></div><div class="b flush"><table><tr><th>Step</th><th class="r">Runs</th><th class="r">Time</th><th class="r">Cost</th></tr>
+        ${Object.entries(pipeBy).sort((a, b) => b[1].$ - a[1].$).map(([k, x]) => `<tr><td>${esc(k)}</td><td class="r">${x.n}</td><td class="r">${dur(x.ms)}</td><td class="r">${money(x.$)}</td></tr>`).join("")}</table></div></div>
+      <div class="card"><div class="h"><h3>Prices per million tokens (optional)</h3><span class="sub">stored in this browser only; nothing is assumed</span></div><div class="b">
+        <table><tr><th>Model</th><th>Input</th><th>Cache write</th><th>Cache read</th><th>Output</th></tr>${models.map((m) => `<tr data-price="${esc(m)}"><td class="mono">${esc(m)}</td>${["in", "cw", "cr", "out"].map((k) => `<td><input type="number" step="0.01" min="0" style="width:72px" data-pk="${k}" value="${prices[m]?.[k] ?? ""}" placeholder="$"></td>`).join("")}</tr>`).join("")}</table>
+        <button class="btn sm" id="savePrices">Save prices</button><div class="faint" style="font-size:12px">Enter the current prices from your plan or the pricing page to see dollar estimates for interactive sessions. Pipeline costs above are the amounts claude -p reported.</div></div></div>
+    </div>
+    <div class="card"><div class="h"><h3>Recent sessions</h3><span class="sub">${u.sessions.length}</span></div><div class="b flush" style="max-height:460px;overflow:auto"><table>
+      <tr><th>Last reply</th><th>Project</th><th>Kind</th><th>Models</th><th class="r">Input + cache write</th><th class="r">Cache read</th><th class="r">Output</th><th class="r">Replies</th><th>Session</th></tr>
+      ${u.sessions.filter((s) => (proj === "all" || s.project === proj) && (kindF === "all" || s.kind === kindF)).map((s) => `<tr><td class="faint">${s.last ? new Date(s.last).toLocaleString() : ""}</td><td>${esc(s.project)}</td><td>${esc(s.kind)}</td><td class="mono">${Object.keys(s.models).map(esc).join(", ")}</td><td class="r">${tok(s.total.in + s.total.cacheWrite)}</td><td class="r">${tok(s.total.cacheRead)}</td><td class="r">${tok(s.total.out)}</td><td class="r">${s.total.replies}</td><td class="mono faint">${esc(s.id.slice(0, 8))}</td></tr>`).join("")}</table></div></div>
+    <div class="card"><div class="h"><h3>Pipeline steps with a model</h3></div><div class="b flush" style="max-height:420px;overflow:auto"><table><tr><th>When</th><th>Video</th><th>Step</th><th>Model</th><th class="r">Time</th><th class="r">Cost</th></tr>
+      ${[...pipe].sort((a, b) => String(b.at).localeCompare(String(a.at))).map((r) => `<tr><td class="faint">${r.at ? new Date(r.at).toLocaleString() : ""}</td><td class="mono">${esc(r.ws)}</td><td>${esc(r.step)}</td><td class="mono">${esc(r.model ?? "")}</td><td class="r">${dur(r.ms)}</td><td class="r">${r.costUsd ? money(r.costUsd) : "free"}</td></tr>`).join("")}</table></div></div>
+  </div></div>`;
+}
+function renderMachine() {
+  const s = S.sys, main = $("#main");
+  $("#crumb").innerHTML = "Machine";
+  if (!s) { main.innerHTML = `<div class="empty">Loading…</div>`; return; }
+  const H = s.history, n = s.now;
+  const big = (l, vals, max, col, val) => `<div class="card"><div class="h"><h3>${l}</h3><span class="grow"></span><b>${val}</b></div><div class="b">${sparkSvg(vals, max, col).replace('viewBox="0 0 200 26"', 'viewBox="0 0 200 26" style="height:120px;width:100%"')}</div></div>`;
+  patch(main, `<div class="view"><div class="panel-h"><div><h2>Machine</h2><p>${esc(s.machine.cpu)} · ${s.machine.cores} cores · ${s.machine.memGB} GB · ${esc(s.machine.host)}. Sampled every 2 s while this page is open or a job runs (last ${Math.round((H.length * 2) / 60)} min).</p></div></div><div class="body">
+    <div class="cols">${big("CPU", H.map((x) => x.cpu), 100, "#60935d", n.cpu.toFixed(0) + "%")}${big("GPU", H.map((x) => x.gpu), 100, "#dc851f", (n.gpu ?? "—") + "%")}
+    ${big("Memory", H.map((x) => x.memUsedGB), n.memTotalGB, "#6c8fb3", `${n.memUsedGB} / ${n.memTotalGB} GB${n.swapUsedGB ? ` · swap ${n.swapUsedGB} GB` : ""}`)}${big("GPU memory", H.map((x) => x.gpuMemGB ?? 0), Math.max(1, ...H.map((x) => x.gpuMemGB ?? 0)), "#bc4b51", (n.gpuMemGB ?? "—") + " GB")}</div>
+    <div class="card"><div class="h"><h3>Cores</h3></div><div class="b"><div class="cores" style="padding:0;grid-template-columns:repeat(${n.cores.length},1fr)">${n.cores.map((c) => `<i style="--v:${c}%;height:80px" title="${c}%"></i>`).join("")}</div></div></div>
+    <div class="card"><div class="h"><h3>Top processes</h3></div><div class="b flush"><table><tr><th>Process</th><th class="r">PID</th><th class="r">CPU</th><th class="r">Memory</th></tr>${s.top.map((p) => `<tr><td class="mono">${esc(p.comm)}</td><td class="r faint">${p.pid}</td><td class="r">${p.cpu}%</td><td class="r">${p.rssMB} MB</td></tr>`).join("")}</table></div></div>
+  </div></div>`);
+}
+
+// ───────────── navigation ─────────────
+function setView(v) {
+  S.view = v; writeHash();
+  $$(".nav button").forEach((b) => b.classList.toggle("on", b.dataset.view === v));
+  if (v === "ws") { $("#main").innerHTML = ""; refreshWs(); loadScriptText(); }
+  else if (v === "usage") { renderUsage(); loadUsage(); }
+  else renderMachine();
+  loadList();
+}
+async function loadScriptText() {
+  if (!S.ws) return;
+  try { S.scriptText = await api(`/api/ws/${encodeURIComponent(S.ws)}/script`); } catch { S.scriptText = ""; }
+  S.dirty.script = false;
+  const ta = $("#scriptTa"); if (ta && document.activeElement !== ta) ta.value = S.scriptText;
+}
+
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("button, a, figure, [data-goto], [data-seek]");
+  if (!t) return;
+  if (t.dataset.view) return setView(t.dataset.view);
+  if (t.dataset.ws) { S.ws = t.dataset.ws; S.act = null; S.d = null; if (S.es) { S.es.close(); S.es = null; } S.logJob = null; return setView("ws"); }
+  if (t.dataset.step) { S.step = t.dataset.step; writeHash(); if (S.es) { S.es.close(); S.es = null; } S.logJob = null; $("#view").scrollTop = 0; return renderWs(); }
+  if (t.dataset.actSel) { S.act = t.dataset.actSel; writeHash(); if (S.es) { S.es.close(); S.es = null; } S.logJob = null; return renderWs(); }
+  if (t.dataset.openact) { e.preventDefault(); S.act = t.dataset.openact; S.step = "acts"; writeHash(); return renderWs(); }
+  if (t.dataset.goto) { const [ws, step, id] = t.dataset.goto.split("|"); S.ws = ws; S.step = step.includes(":") ? "acts" : ["script", "voice", "align", "plan", "acts", "sound", "render"].includes(step) ? step : "runs"; if (step.includes(":")) S.act = step.split(":")[1]; S.view = "ws"; writeHash(); setView("ws"); setTimeout(() => attachLog(id), 400); return; }
+  if (t.hasAttribute("data-run")) return runAction(t.closest(".action"));
+  if (t.id === "stopBtn") { if (confirm("Stop the running job?")) { try { await api(`/api/ws/${encodeURIComponent(S.ws)}/stop`, { method: "POST" }); toast("Stopping…"); } catch (er) { toast(er.message); } } return; }
+  if (t.dataset.save) { const v = $(`[data-field="${t.dataset.save}"]`).value; try { await api(`/api/ws/${encodeURIComponent(S.ws)}/text/${t.dataset.save}`, { method: "PUT", body: v }); S.dirty[t.dataset.save] = false; toast("Saved"); refreshWs(); } catch (er) { toast(er.message); } return; }
+  if (t.id === "saveScript") { const v = $("#scriptTa").value; try { await api(`/api/ws/${encodeURIComponent(S.ws)}/script`, { method: "PUT", body: v }); S.scriptText = v; S.dirty.script = false; toast("Script saved"); refreshWs(); } catch (er) { toast(er.message); } return; }
+  if (t.dataset.savenotes) return saveNotes(t.dataset.savenotes);
+  if (t.dataset.addissue) { const x = JSON.parse(t.dataset.addissue), ta = $("#notesTa"); ta.value = (ta.value.trim() ? ta.value.replace(/\s*$/, "\n") : "") + `${x.time}: ${x.seen}${x.said ? ` (said: "${x.said}")` : ""}. Fix: ${x.fix}`; S.dirty[`notes:${S.act}`] = true; toast("Added to notes (not saved yet)"); return; }
+  if (t.id === "noteAtVideo") { const v = $("#actVideo"); return addNoteAt(v ? v.currentTime : 0); }
+  if (t.dataset.seek !== undefined) { const v = $("#actVideo"); if (v) { v.currentTime = Number(t.dataset.seek) || 0; v.play(); } return; }
+  if (t.dataset.lb !== undefined) { S.lb.i = Number(t.dataset.lb); return showLb(); }
+  if (t.id === "lbClose") return $("#lb").classList.remove("on");
+  if (t.id === "lbPrev") { S.lb.i = (S.lb.i - 1 + S.lb.list.length) % S.lb.list.length; return showLb(); }
+  if (t.id === "lbNext") { S.lb.i = (S.lb.i + 1) % S.lb.list.length; return showLb(); }
+  if (t.id === "lbNote") { $("#lb").classList.remove("on"); return addNoteAt(S.lb.list[S.lb.i]?.t ?? 0); }
+  if (t.id === "studioStart") { try { await api(`/api/ws/${encodeURIComponent(S.ws)}/studio`, { method: "POST" }); toast("Starting Remotion Studio…"); setTimeout(loadActivity, 1500); } catch (er) { toast(er.message); } return; }
+  if (t.id === "studioStop") { try { await api("/api/studio/stop", { method: "POST" }); setTimeout(loadActivity, 800); } catch (er) { toast(er.message); } return; }
+  if (t.id === "newBtn") return newVideo();
+  if (t.id === "uRefresh") return loadUsage(true);
+  if (t.id === "savePrices") { const p = {}; $$("[data-price]").forEach((r) => { const o = {}; $$("[data-pk]", r).forEach((i) => { if (i.value !== "") o[i.dataset.pk] = Number(i.value); }); if (Object.keys(o).length) p[r.dataset.price] = o; }); store.set("prices", p); toast("Prices saved in this browser"); return renderUsage(); }
+});
+document.addEventListener("input", (e) => { const f = e.target.dataset?.field; if (f) S.dirty[f] = true; });
+document.addEventListener("change", (e) => {
+  if (e.target.id === "uProj") { store.set("usageProject", e.target.value); renderUsage(); }
+  if (e.target.id === "uKind") { store.set("usageKind", e.target.value); renderUsage(); }
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#lb").classList.contains("on")) { if (e.key === "Escape") $("#lb").classList.remove("on"); if (e.key === "ArrowLeft") $("#lbPrev").click(); if (e.key === "ArrowRight") $("#lbNext").click(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { const f = document.activeElement?.dataset?.field; if (!f) return; e.preventDefault(); if (f === "script") $("#saveScript").click(); else if (f.startsWith("notes:")) saveNotes(f.slice(6)); else $(`[data-save="${f}"]`)?.click(); }
+});
+function addNoteAt(t) {
+  const ta = $("#notesTa"); if (!ta) return;
+  ta.value = (ta.value.trim() ? ta.value.replace(/\s*$/, "\n") : "") + `${t.toFixed(1)} s: `;
+  S.dirty[`notes:${S.act}`] = true; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+async function saveNotes(act) {
+  const ta = $(`[data-field="notes:${act}"]`);
+  try { await api(`/api/ws/${encodeURIComponent(S.ws)}/notes/${act}`, { method: "PUT", body: ta.value }); S.dirty[`notes:${act}`] = false; toast("Notes saved"); refreshWs(); } catch (e) { toast(e.message); }
+}
+function showLb() { const x = S.lb.list[S.lb.i]; if (!x) return; $("#lbImg").src = x.src; $("#lbCap").textContent = `${x.t.toFixed(2)} s  (${S.lb.i + 1}/${S.lb.list.length})`; $("#lb").classList.add("on"); }
+async function newVideo() {
+  const inp = $("#newId"), id = inp.value.trim();
+  if (!/^VID\d+_[A-Za-z0-9_]+$/.test(id)) { inp.classList.add("bad"); toast("Use VID<number>_<Name>, e.g. VID03_Debt_Spiral"); return; }
+  inp.classList.remove("bad");
+  try { await api("/api/workspaces", { method: "POST", body: JSON.stringify({ id }) }); toast(`Creating ${id}…`); setTimeout(async () => { await loadList(); S.ws = id; S.step = "script"; setView("ws"); }, 2500); } catch (e) { toast(e.message); }
+}
+// live command preview under each Run button
+document.addEventListener("input", (e) => { const box = e.target.closest?.(".action"); if (box) cmdPreview(box); });
+document.addEventListener("change", (e) => { const box = e.target.closest?.(".action"); if (box) cmdPreview(box); });
+function cmdPreview(box) {
+  const o = readOpts(box), parts = Object.entries(o).filter(([, v]) => v !== false && !(Array.isArray(v) && !v.length)).map(([k, v]) => v === true ? k : `${k}=${Array.isArray(v) ? v.join(",") : v}`);
+  const el = $("[data-cmdprev]", box); if (el) el.textContent = parts.join(" · ");
+}
+
+// ───────────── loops ─────────────
+readHash();
+(async () => {
+  try { S.schema = await api("/api/schema"); } catch {}
+  await loadList();
+  setView(S.view);
+  loadSystem(); loadActivity();
+  setInterval(loadSystem, 2000);
+  setInterval(loadActivity, 3000);
+  setInterval(loadList, 6000);
+  setInterval(() => { if (S.view !== "ws" || !S.ws) return; const busy = S.d?.jobs?.some((j) => j.status === "running"); const typing = ["TEXTAREA", "INPUT", "SELECT"].includes(document.activeElement?.tagName); if (busy || !typing) refreshWs(); }, 3000);
+  setInterval(() => { if (S.view === "usage") loadUsage(); }, 30000);
+})();
+</script>
+</body>
+</html>
