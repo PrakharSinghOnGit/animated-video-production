@@ -381,38 +381,10 @@ async function main() {
   }
   fs.writeFileSync(clipsSummaryCsvPath, clipsSummaryContent, "utf-8");
 
-  // 5. Ready-to-Paste AI Director Prompt (DIRECTOR_PROMPT template with auto-filled transcript & schema)
-  const directorPromptTemplatePath = path.resolve(__dirname, "../prompts/DIRECTOR_PROMPT.md");
-  let promptContent = "";
-  if (fs.existsSync(directorPromptTemplatePath)) {
-    const rawTemplate = fs.readFileSync(directorPromptTemplatePath, "utf-8");
-    const fenceMatch = rawTemplate.match(/````markdown\n([\s\S]*?)\n````/);
-    const templateBody = fenceMatch ? fenceMatch[1] : rawTemplate;
-
-    promptContent = templateBody
-      .replace(
-        /\[PASTE FULL_TRANSCRIPT_COMPACT\.TXT OR FULL_TRANSCRIPT\.CSV HERE\]/gi,
-        compactContent
-      )
-      .replace(/"jobId":\s*"VIDEO_WORKSPACE_ID"/g, `"jobId": "${videoId}"`)
-      .replace(/"totalDurationMs":\s*101640/g, `"totalDurationMs": ${Math.round(totalAudioDuration * 1000)}`);
-  } else {
-    promptContent = compactContent;
-  }
-
-  const promptPathInTranscription = path.join(transcriptionDir, "prompt.txt");
-  fs.writeFileSync(promptPathInTranscription, promptContent, "utf-8");
-
-  const videoDir05 = path.join(videoDir, "05-video");
-  if (!fs.existsSync(videoDir05)) fs.mkdirSync(videoDir05, { recursive: true });
-  const promptPathInVideo = path.join(videoDir05, "prompt.txt");
-  fs.writeFileSync(promptPathInVideo, promptContent, "utf-8");
-
   const jsonSizeKb = (fs.statSync(fullTranscriptPath).size / 1024).toFixed(1);
   const csvSizeKb = (fs.statSync(fullTranscriptCsvPath).size / 1024).toFixed(1);
   const compactSizeKb = (fs.statSync(fullTranscriptCompactPath).size / 1024).toFixed(1);
   const clipsSizeKb = (fs.statSync(clipsSummaryCsvPath).size / 1024).toFixed(1);
-  const promptSizeKb = (fs.statSync(promptPathInTranscription).size / 1024).toFixed(1);
 
   console.log("=======================================================");
   console.log("                    SUMMARY");
@@ -422,12 +394,10 @@ async function main() {
   console.log(`  Total Duration:      ${totalAudioDuration.toFixed(1)} seconds (~${(totalAudioDuration / 60).toFixed(1)} mins)`);
   console.log(`  Per-Clip Words:      ${path.relative(process.cwd(), wordsDir)}/`);
   console.log(`\n  Generated Deliverables:`);
-  console.log(`  1. 🎯 Director Prompt: ${path.relative(process.cwd(), promptPathInTranscription)} (${promptSizeKb} KB - Auto-assembled, ready to paste into LLM!)`);
-  console.log(`     (Also saved to:   ${path.relative(process.cwd(), promptPathInVideo)})`);
-  console.log(`  2. Compact LLM Text: ${path.relative(process.cwd(), fullTranscriptCompactPath)} (${compactSizeKb} KB - 95% token savings)`);
-  console.log(`  3. Word-Level CSV:   ${path.relative(process.cwd(), fullTranscriptCsvPath)} (${csvSizeKb} KB - Tabular word timestamps)`);
-  console.log(`  4. Clips Summary CSV:${path.relative(process.cwd(), clipsSummaryCsvPath)} (${clipsSizeKb} KB - Scene timing & text)`);
-  console.log(`  5. Minimized JSON:   ${path.relative(process.cwd(), fullTranscriptPath)} (${jsonSizeKb} KB - Clean Remotion JSON)`);
+  console.log(`  1. Compact LLM Text: ${path.relative(process.cwd(), fullTranscriptCompactPath)} (${compactSizeKb} KB - 95% token savings)`);
+  console.log(`  2. Word-Level CSV:   ${path.relative(process.cwd(), fullTranscriptCsvPath)} (${csvSizeKb} KB - Tabular word timestamps)`);
+  console.log(`  3. Clips Summary CSV:${path.relative(process.cwd(), clipsSummaryCsvPath)} (${clipsSizeKb} KB - Scene timing & text)`);
+  console.log(`  4. Minimized JSON:   ${path.relative(process.cwd(), fullTranscriptPath)} (${jsonSizeKb} KB - Clean Remotion JSON)`);
   console.log("=======================================================\n");
 }
 
