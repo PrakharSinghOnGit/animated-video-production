@@ -11,8 +11,6 @@
   "scripts": {
     "studio": "bun x remotion studio",
     "gallery": "bun x remotion studio",
-    "still": "bun scripts/still.ts",
-    "sheet": "bun scripts/sheet.ts",
     "draft": "bun scripts/render.ts --draft",
     "render": "bun scripts/render.ts --final",
     "qc": "bun scripts/qc.ts",
