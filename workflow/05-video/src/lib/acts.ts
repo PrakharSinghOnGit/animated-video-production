@@ -70,6 +70,8 @@ export interface ActsPlan {
 
 export const ACT_MIN_MS = 40_000;
 export const ACT_MAX_MS = 150_000;
+/** The cold open (first act) is the hook: it may be shorter than a body act. */
+export const COLD_OPEN_MIN_MS = 20_000;
 const SLACK_MS = 400;
 
 export const normWord = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -112,7 +114,8 @@ export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter
       if (!act[k] || String(act[k]).trim() === "") errors.push(`${where}: missing "${k}"`);
     }
     const len = act.endMs - act.startMs;
-    if (len < ACT_MIN_MS || len > ACT_MAX_MS) errors.push(`${where}: ${Math.round(len / 1000)} s long; acts must be ${ACT_MIN_MS / 1000}-${ACT_MAX_MS / 1000} s`);
+    const min = i === 0 ? COLD_OPEN_MIN_MS : ACT_MIN_MS;
+    if (len < min || len > ACT_MAX_MS) errors.push(`${where}: ${Math.round(len / 1000)} s long; ${i === 0 ? "the cold open" : "acts"} must be ${min / 1000}-${ACT_MAX_MS / 1000} s`);
     if (i > 0 && Math.abs(act.startMs - acts[i - 1].endMs) > SLACK_MS) {
       errors.push(`${where}: starts at ${act.startMs} ms but ${acts[i - 1].id} ends at ${acts[i - 1].endMs} ms (acts must be contiguous)`);
     }

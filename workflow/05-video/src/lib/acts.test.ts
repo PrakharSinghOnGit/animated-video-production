@@ -27,14 +27,26 @@ describe("checkActs", () => {
 
   test("short act, gap between acts, missing hit word and unsourced data are reported", () => {
     const p = plan([
-      act("A01", 0, 30_000, [beat(0, 30_000, [{ word: "nothing", what: "x" }])]),
-      act("A02", 31_000, 99_600, [{ ...beat(31_000, 99_600), data: [{ label: "GDP", value: 1, source: "" }] }]),
+      act("A01", 0, 15_000, [beat(0, 15_000, [{ word: "nothing", what: "x" }])]),
+      act("A02", 16_000, 99_600, [{ ...beat(16_000, 99_600), data: [{ label: "GDP", value: 1, source: "" }] }]),
     ]);
     const errs = checkActs(p, captions).join("\n");
-    expect(errs).toContain("A01: 30 s long");
+    expect(errs).toContain("A01: 15 s long");
     expect(errs).toContain("contiguous");
     expect(errs).toContain('hit word "nothing"');
     expect(errs).toContain('data "GDP" has no source');
+  });
+
+  test("the cold open may be shorter than a body act, a later act may not", () => {
+    const p = plan([
+      act("A01", 0, 31_000, [beat(0, 31_000, [{ word: "money", what: "x" }])]),
+      act("A02", 31_000, 61_000, [beat(31_000, 61_000)]),
+      act("A03", 61_000, 99_600, [beat(61_000, 99_600, [{ word: "money", what: "y" }])]),
+    ]);
+    const errs = checkActs(p, captions).join("\n");
+    expect(errs).not.toContain("A01");
+    expect(errs).toContain("A02: 30 s long; acts must be 40-150 s");
+    expect(errs).toContain("A03: 39 s long");
   });
 });
 

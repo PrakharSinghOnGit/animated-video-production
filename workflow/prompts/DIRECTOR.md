@@ -85,6 +85,6 @@ Write **`acts.json`** at the path given below, exactly this shape (times in ms, 
 }
 ```
 
-Rules the checker enforces: acts are contiguous and cover the whole narration; each act is 40–150 s; beats tile their act; every hit word is spoken inside its beat (occurrence counted within the beat); every data item has a non-empty source; bpm 70–110.
+Rules the checker enforces: acts are contiguous and cover the whole narration; each act is 40–150 s, except the cold open (A01), which may be 20–150 s; beats tile their act; every hit word is spoken inside its beat (occurrence counted within the beat); every data item has a non-empty source; bpm 70–110.
 
 Self-check before writing: Would a viewer with the sound off still follow the argument? Does every act have a different opening move and a signature move? Is any act a list of boxes with text? If so, redesign it.
