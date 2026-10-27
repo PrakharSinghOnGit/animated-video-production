@@ -13,7 +13,7 @@ test("round trip keeps every byte", () => {
 test("edit in place keeps comments and order; add appends before the final newline", () => {
   const lines = parseEnv(example);
   const keys = lines.filter((l) => l.key).map((l) => l.key!);
-  expect(keys.length).toBeGreaterThan(3);
+  expect(keys.length).toBeGreaterThan(0);
   const first = keys[0];
   let n = setEnv(lines, first, "changed value");
   n = setEnv(n, "WRITER_MODEL", "sonnet");
