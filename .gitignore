@@ -36,3 +36,6 @@ assets/**/*.mp3
 # Local fixtures (keep on disk, not in git)
 workspace/_FX*
 .claude/worktrees/
+
+# Local openDAW checkout (bun run daw:setup)
+tools/opendaw/

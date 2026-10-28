@@ -16,6 +16,7 @@ import path from "node:path";
 import os from "node:os";
 import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./system";
 import { refreshUsage, usageReport } from "./usage";
+import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { atomicWrite, helpFor, parseEnv, removeEnv, serializeEnv, setEnv, KEY_RE } from "./envfile";
 
 const REPO = path.resolve(import.meta.dir, "../..");
@@ -451,6 +452,12 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("audio:mix", "--video", ws, ...args(o, "sound.mix"))],
   },
+  "daw.build": { step: "sound", label: "Build openDAW project", help: "Voice, every foley event on its own clip and the music stem as one openDAW project (06-audio/daw/project.odb). Rebuilding replaces the project: edits not exported to the video are lost.", long: "~10 s",
+    opts: [
+      { key: "noMusic", label: "Leave the music stem out", type: "bool", def: false, flag: "--no-music" },
+      { key: "noLib", label: "Procedural foley only", type: "bool", def: false, flag: "--no-lib" },
+    ],
+    build: (ws, o) => [B("daw", "--video", ws, ...args(o, "daw.build"))] },
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
   "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min",
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws)] },
@@ -739,7 +746,7 @@ function details(ws: string) {
   });
 
   // sound
-  const soundFiles = ["06-audio/music.wav", "06-audio/mix.wav"].map((r) => fileInfo(ws, r)).filter(Boolean);
+  const soundFiles = ["06-audio/music.wav", "06-audio/mix.wav", "06-audio/mix_daw.wav"].map((r) => fileInfo(ws, r)).filter(Boolean);
   const stems = [...ls(path.join(d, "06-audio/stems"), /\.wav$/).map((f) => fileInfo(ws, `06-audio/stems/${f}`)), ...ls(path.join(d, "06-audio/audition"), /\.wav$/).map((f) => fileInfo(ws, `06-audio/audition/${f}`))].filter(Boolean);
   const events = readJson<any[]>(path.join(d, "05-video/events.json"));
   const credits = exists(path.join(d, "06-audio/credits.txt")) ? fs.readFileSync(path.join(d, "06-audio/credits.txt"), "utf-8").slice(0, 4000) : "";
@@ -769,7 +776,7 @@ function details(ws: string) {
     align: { master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, acts, unverified },
     acts: actRows,
-    sound: { files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
+    sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
     render: { videos, qc, manifest, ...renderStates(ws) },
     timings: rows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),
@@ -940,13 +947,18 @@ function lastLogBlock(ws: string, step: string): string {
   return (e ? rest.slice(0, e.index! + e[0].length) : rest).slice(-200000);
 }
 
+const dawCtx: DawCtx = { guard, json, bad, wsDir, validWs, childEnv, killTree, pump, ansi: ANSI };
+
 const server = Bun.serve({
   hostname: HOST,
   port: PORT,
   idleTimeout: 0,
+  maxRequestBodySize: 1024 * 1024 * 1024, // the mix exported from openDAW is ~150 MB
   async fetch(req) {
     const url = new URL(req.url);
     const p = url.pathname;
+    const daw = await dawRoute(req, url, dawCtx);
+    if (daw) return daw;
     const g = guard(req);
     if (g) return g;
 
@@ -1138,6 +1150,7 @@ if (MAC_NOTIFY) console.log(`   notifications: this Mac (MAC_NOTIFY=0 to turn of
 
 function shutdown() {
   if (studio?.pid) killTree(studio.pid);
+  stopDaw(dawCtx);
   process.exit(0);
 }
 process.on("SIGINT", shutdown);

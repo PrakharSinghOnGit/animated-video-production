@@ -40,11 +40,16 @@ export interface Details {
   align: { master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
   plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
-  sound: { files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
+  sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];
 }
 export interface WsSummary { id: string; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
+export interface DawInfo {
+  setUp: boolean; bundle: FileInfo | null; mix: FileInfo | null; autoMix: FileInfo | null; bundleStale: boolean;
+  build: { builtAt: number; regions: number; samples: number; bytes: number; events: number; music: boolean; tracks: string[] } | null;
+}
+export interface DawState { setUp: boolean; port: number; running: boolean; ready: boolean; url: string | null; exited: number | null; tail: string }
 export interface StudioState { ws: string; running: boolean; port: number | null; url: string | null; exited: number | null }
 export interface Sample {
   t: number; cpu: number; cores: number[]; memUsedGB: number; memTotalGB: number; swapUsedGB: number; gpu: number | null; gpuMemGB: number | null; load: number[]; diskFreeGB: number | null;

@@ -178,13 +178,22 @@ async function main() {
 
 type AudioMode = "mix" | "voice" | "none";
 
+/** 06-audio/mix_daw.wav (exported from openDAW, see docs/OPENDAW.md) wins over the auto mix.wav when it is newer. */
+function pickMixFile(audioDir: string): string {
+  const auto = path.join(audioDir, "mix.wav"), daw = path.join(audioDir, "mix_daw.wav");
+  const age = (f: string) => (fs.existsSync(f) ? fs.statSync(f).mtimeMs : 0);
+  const useDaw = age(daw) > 0 && age(daw) >= age(auto);
+  if (age(daw) > 0) console.log(`[render] audio: ${useDaw ? "mix_daw.wav (openDAW export)" : "mix.wav (auto mix; mix_daw.wav is older)"}`);
+  return useDaw ? daw : auto;
+}
+
 /**
  * One ffmpeg pass after Remotion: swap in the full mix (06-audio/mix.wav) when it exists, keep the voice-only track, or
  * drop audio; upscale finals to 1440p/2160p (lanczos) and add film grain: grain drawn per frame would make every frame
  * slow and incompressible. Drafts keep the voice-only track if there is no mix, and get no grain.
  */
 function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res = 1080, audio: AudioMode = "mix"): void {
-  const mixFile = path.join(path.dirname(outputDir), "06-audio", "mix.wav");
+  const mixFile = pickMixFile(path.join(path.dirname(outputDir), "06-audio"));
   const mix = audio === "mix" && fs.existsSync(mixFile);
   const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "3");
   const vf = [res > 1080 ? `scale=-2:${res}:flags=lanczos` : "", grain > 0 ? `noise=alls=${grain}:allf=t` : ""].filter(Boolean);

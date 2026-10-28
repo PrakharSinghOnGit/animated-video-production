@@ -97,6 +97,8 @@ Show the user the act list (the command prints it) and the unverified figures. W
 `bun run cues --video <ID>` (foley events from the acts + music cue plan) → `bun run audio:music --video <ID>`
 (procedural spy-jazz bed as a **separate stem**, `06-audio/music.wav`) → `bun run audio:mix --video <ID>`
 (voice + foley only, −14 LUFS; the user adds music in post; `--with-music` includes the bed).
+Optional: the user can retime/regain every foley clip and try music loops in openDAW (`bun run daw --video <ID>`, then the
+dashboard's openDAW button); their export `06-audio/mix_daw.wav` replaces `mix.wav` at render. See `docs/OPENDAW.md`.
 
 ### Step 7: Render → **G3** (~2–4 min draft, free)
 `bun run assemble --video <ID>` → `bun run draft --video <ID>` → user watches `05-video/draft.mp4` →
