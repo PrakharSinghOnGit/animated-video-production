@@ -5,6 +5,7 @@
  * Usage: bun run dashboard [--port 4600] [--host 0.0.0.0]
  *   binds 127.0.0.1 unless --host is given; --host 0.0.0.0 opens it to the local network (no login: home network only)
  *   NTFY_TOPIC=<topic> sends a phone notification (ntfy.sh app) when a job ends
+ *   on macOS a desktop notification is shown too (MAC_NOTIFY=0 turns it off)
  *
  * Commands are allowlisted: the client sends a step key, the server builds the argv and runs it
  * with Bun.spawn (no shell) from the repo root. One job per workspace. Logs live in memory and
@@ -31,6 +32,7 @@ const argPort = parseInt(arg("--port") ?? "", 10);
 const PORT = Number.isFinite(argPort) ? argPort : 4600;
 const HOST = arg("--host") ?? "127.0.0.1";
 const NTFY_TOPIC = process.env.NTFY_TOPIC ?? "";
+const MAC_NOTIFY = process.platform === "darwin" && process.env.MAC_NOTIFY !== "0";
 /** This machine's own IPv4 addresses on the network (the Host a phone at home uses with --host). */
 const lanIps = () => Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === "IPv4" && !n.internal).map((n) => n!.address);
 
@@ -140,16 +142,23 @@ function recordRun(j: Job) {
   try { fs.writeFileSync(f, JSON.stringify(all.slice(-500), null, 1)); } catch {}
 }
 
-/** Phone notification through ntfy.sh when a job ends (only if NTFY_TOPIC is set). Best effort, never throws. */
+/** When a job ends: a macOS notification (unless MAC_NOTIFY=0) and a phone one through ntfy.sh (if NTFY_TOPIC is set). Best effort, never throws. */
 function notifyEnd(j: Job) {
-  if (!NTFY_TOPIC) return;
   const min = Math.round(((j.endedAt ?? Date.now()) - j.startedAt) / 60000);
-  const icon = j.status === "done" ? "white_check_mark" : j.status === "stopped" ? "stop_sign" : "x";
-  fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}`, {
-    method: "POST",
-    headers: { Title: `${j.ws}: ${j.label} ${j.status}`, Tags: icon },
-    body: `${j.step} ${j.status} after ${min} min${j.status === "failed" ? ` (exit ${j.exitCode})` : ""}`,
-  }).catch(() => {});
+  const title = `${j.ws}: ${j.label} ${j.status}`;
+  const body = `${j.step} ${j.status} after ${min} min${j.status === "failed" ? ` (exit ${j.exitCode})` : ""}`;
+  if (MAC_NOTIFY) {
+    // title/body go in as argv, so no AppleScript quoting is needed
+    const sound = j.status === "done" ? "Glass" : "Basso";
+    try {
+      Bun.spawn(["osascript", "-e", "on run argv", "-e", `display notification (item 2 of argv) with title (item 1 of argv) sound name "${sound}"`, "-e", "end run", title, body],
+        { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+    } catch {}
+  }
+  if (NTFY_TOPIC) {
+    const icon = j.status === "done" ? "white_check_mark" : j.status === "stopped" ? "stop_sign" : "x";
+    fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}`, { method: "POST", headers: { Title: title, Tags: icon }, body }).catch(() => {});
+  }
 }
 
 /** Sample the machine every 2 s while the page is open or a job runs; attribute CPU/memory to each job's process tree. */
@@ -1073,6 +1082,7 @@ if (HOST !== "127.0.0.1") {
   for (const ip of lanIps()) console.log(`   on your network: http://${ip}:${server.port}  (no login: home network only)`);
 }
 if (NTFY_TOPIC) console.log(`   notifications: ntfy.sh/${NTFY_TOPIC}`);
+if (MAC_NOTIFY) console.log(`   notifications: this Mac (MAC_NOTIFY=0 to turn off)`);
 
 function shutdown() {
   if (studio?.pid) killTree(studio.pid);
