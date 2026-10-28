@@ -1,6 +1,6 @@
 import React from "react";
-import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
-import { Backdrop, Finish, VoiceOver, SceneProvider, tokens } from "@wealthgap/kit";
+import { AbsoluteFill, Freeze, Sequence, useVideoConfig } from "remotion";
+import { Backdrop, END_HOLD_S, Finish, VoiceOver, SceneProvider, tokens } from "@wealthgap/kit";
 import { SCENE_REGISTRY } from "./scenes";
 
 export interface TimelineScene {
@@ -31,6 +31,61 @@ export interface MainProps {
 export const Main: React.FC<MainProps> = ({ timeline, showVoiceOver = false }) => {
   const { fps, width, height } = useVideoConfig();
   const scenes = timeline?.scenes ?? [];
+  // The timeline ends at endFrame; the root adds END_HOLD_S after it. The last scene (clipped at endFrame) runs on through the hold, frozen on its final frame (a Freeze only reaches frames inside its Sequence, so one Sequence covers both).
+  const endFrame = timeline?.durationFrames ?? 0;
+  const lastScene = scenes.reduce<TimelineScene | undefined>((m, x) => (!m || (x.windowEndFrame ?? 0) > (m.windowEndFrame ?? 0) ? x : m), undefined);
+  const lastDur = lastScene ? Math.max(1, Math.min(lastScene.windowEndFrame, endFrame) - lastScene.windowStartFrame) : 1;
+
+  const renderScene = (sceneData: TimelineScene, durOverride?: number, freezeAt?: number) => {
+      const regEntry = SCENE_REGISTRY.find((s) => s.id === sceneData.id);
+      const SceneComponent = regEntry ? regEntry.component : () => (
+        <AbsoluteFill
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: tokens.color.muted,
+            fontSize: 36,
+            fontFamily: tokens.font.body,
+          }}
+        >
+          <span>{sceneData.id} — {sceneData.slug || "Scene"}</span>
+        </AbsoluteFill>
+      );
+
+      const from = sceneData.windowStartFrame ?? 0;
+      const windowDuration = Math.max(
+        1,
+        (sceneData.windowEndFrame ?? ((sceneData.windowStartFrame ?? 0) + 90)) - (sceneData.windowStartFrame ?? 0)
+      );
+
+      return (
+        <Sequence
+          key={sceneData.id}
+          from={from}
+          durationInFrames={durOverride ?? windowDuration}
+          premountFor={Math.round(fps * 1)}
+          name={sceneData.id}
+        >
+          <SceneProvider
+            value={{
+              id: sceneData.id,
+              fps,
+              width,
+              height,
+              durationFrames: windowDuration,
+              leadFrames: sceneData.leadFrames,
+              voiceStart: sceneData.voiceStartFrame,
+              voiceEnd: sceneData.voiceEndFrame,
+              words: sceneData.words,
+              meta: regEntry?.meta,
+            }}
+          >
+            {freezeAt === undefined ? <SceneComponent /> : <Freeze frame={freezeAt} active={(f) => f >= freezeAt}><SceneComponent /></Freeze>}
+          </SceneProvider>
+        </Sequence>
+      );
+  };
 
   return (
     <AbsoluteFill style={{ backgroundColor: tokens.color.bg }}>
@@ -57,56 +112,9 @@ export const Main: React.FC<MainProps> = ({ timeline, showVoiceOver = false }) =
           <span>The Wealth Gap</span>
         </AbsoluteFill>
       ) : (
-        scenes.map((sceneData) => {
-          const regEntry = SCENE_REGISTRY.find((s) => s.id === sceneData.id);
-          const SceneComponent = regEntry ? regEntry.component : () => (
-            <AbsoluteFill
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: tokens.color.muted,
-                fontSize: 36,
-                fontFamily: tokens.font.body,
-              }}
-            >
-              <span>{sceneData.id} — {sceneData.slug || "Scene"}</span>
-            </AbsoluteFill>
-          );
-
-          const from = sceneData.windowStartFrame ?? 0;
-          const windowDuration = Math.max(
-            1,
-            (sceneData.windowEndFrame ?? (from + 90)) - from
-          );
-
-          return (
-            <Sequence
-              key={sceneData.id}
-              from={from}
-              durationInFrames={windowDuration}
-              premountFor={Math.round(fps * 1)}
-              name={sceneData.id}
-            >
-              <SceneProvider
-                value={{
-                  id: sceneData.id,
-                  fps,
-                  width,
-                  height,
-                  durationFrames: windowDuration,
-                  leadFrames: sceneData.leadFrames,
-                  voiceStart: sceneData.voiceStartFrame,
-                  voiceEnd: sceneData.voiceEndFrame,
-                  words: sceneData.words,
-                  meta: regEntry?.meta,
-                }}
-              >
-                <SceneComponent />
-              </SceneProvider>
-            </Sequence>
-          );
-        })
+        <>
+          {scenes.map((sceneData) => sceneData === lastScene ? renderScene(sceneData, lastDur + Math.round(fps * END_HOLD_S), lastDur - 1) : renderScene(sceneData))}
+        </>
       )}
 
       {/* 4. Video Finish Fadeout */}

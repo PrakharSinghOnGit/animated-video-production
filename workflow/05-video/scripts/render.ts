@@ -191,7 +191,9 @@ function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res
   if (!mix && !vf.length && audio !== "none") return;
   const tmp = videoPath.replace(/\.mp4$/, ".mux.mp4");
   const ff = ["-v", "error", "-y", "-i", videoPath];
-  if (mix) ff.push("-i", mixFile, "-map", "0:v", "-map", "1:a", "-shortest");
+  // mix.wav ends before the video (end-card hold): pad it with silence, -shortest then stops at the video. The voice track comes from Remotion at full length.
+  const pad = ["-af", "apad", "-shortest"];
+  if (mix) ff.push("-i", mixFile, "-map", "0:v", "-map", "1:a", ...pad);
   else ff.push("-map", "0:v", ...(audio === "none" ? [] : ["-map", "0:a?"]));
   if (vf.length) ff.push("-vf", vf.join(","), "-c:v", "libx264", "-crf", res > 1080 ? "18" : "21", "-preset", "medium", "-pix_fmt", "yuv420p");
   else ff.push("-c:v", "copy");

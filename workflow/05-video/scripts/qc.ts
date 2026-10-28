@@ -3,6 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { probeAudio } from "../src/lib/audioProbe";
+import { END_HOLD_S } from "../../../packages/kit/src/main/hold";
 import { readRenderManifest, staleInputs } from "../src/lib/sceneCoverage";
 
 interface QCIssue {
@@ -134,13 +135,13 @@ async function main() {
         const originalAudio = await probeAudio(paths.audioFile);
         const videoDurationSec = parseFloat(data.format?.duration || "0");
         const timelinePath = path.join(paths.outputDir, "timeline.json");
-        let expectedDurationSec = originalAudio.durationSec + (tailPaddingMs / 1000);
+        let expectedDurationSec = originalAudio.durationSec + (tailPaddingMs / 1000) + END_HOLD_S;
         if (fs.existsSync(timelinePath)) {
           try {
             const tl = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
             if (typeof tl.durationFrames === "number") {
               const tlFps = tl.fps || 30;
-              expectedDurationSec = tl.durationFrames / tlFps;
+              expectedDurationSec = tl.durationFrames / tlFps + END_HOLD_S;
             }
           } catch {}
         }
@@ -197,7 +198,9 @@ async function main() {
         `ffmpeg -i "${testVideo}" -vf "freezedetect=n=-60dB:d=3.0" -f null - 2>&1`,
         { encoding: "utf-8" }
       );
-      const freezeMatches = freezeLog.match(/freeze_start:([0-9.]+)/g);
+      // the end-card hold is a deliberate freeze: ignore freezes that start inside it
+      const vidSec = parseFloat(JSON.parse(execSync(`ffprobe -v quiet -print_format json -show_format "${testVideo}"`, { encoding: "utf-8" })).format?.duration || "0");
+      const freezeMatches = (freezeLog.match(/freeze_start:\s*([0-9.]+)/g) ?? []).filter((m) => parseFloat(m.split(":")[1]) < vidSec - END_HOLD_S - 1);
       if (freezeMatches && freezeMatches.length > 0) {
         issues.push({
           type: "WARN",

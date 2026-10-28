@@ -60,19 +60,15 @@ async function main() {
     const srcDir = path.join(paths.outputDir, "src");
     fs.mkdirSync(srcDir, { recursive: true });
 
-    // Root.tsx
-    const rootFile = path.join(srcDir, "Root.tsx");
-    if (!fs.existsSync(rootFile)) {
-      fs.copyFileSync(path.join(templateDir, "src", "Root.tsx"), rootFile);
-      console.log(`✓ Scaffolding Root.tsx in ${srcDir}`);
-    }
-
-    // Main.tsx
-    const mainFile = path.join(srcDir, "Main.tsx");
-    if (!fs.existsSync(mainFile)) {
-      fs.copyFileSync(path.join(templateDir, "src", "Main.tsx"), mainFile);
-      console.log(`✓ Scaffolding Main.tsx in ${srcDir}`);
-    }
+    // Root.tsx + Main.tsx follow the template (end-card hold etc.): refreshed when they differ
+    const syncTemplate = (name: string) => {
+      const from = path.join(templateDir, "src", name), to = path.join(srcDir, name);
+      if (fs.existsSync(to) && fs.readFileSync(to, "utf-8") === fs.readFileSync(from, "utf-8")) return;
+      fs.copyFileSync(from, to);
+      console.log(`✓ Synced ${name} from template in ${srcDir}`);
+    };
+    syncTemplate("Root.tsx");
+    syncTemplate("Main.tsx");
 
     // index.ts (must call registerRoot)
     const indexFile = path.join(srcDir, "index.ts");

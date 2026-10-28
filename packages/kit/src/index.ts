@@ -18,6 +18,7 @@ export * from "./shapes";
 // Main Composition & Finish
 export { Backdrop } from "./main/Backdrop";
 export { Finish, type FinishProps } from "./main/Finish";
+export { END_HOLD_S } from "./main/hold";
 export { VoiceOver, type VoiceOverProps } from "./main/VoiceOver";
 
 // Backgrounds

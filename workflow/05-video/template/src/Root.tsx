@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Composition } from "remotion";
-import { ensureFontsLoaded, SceneProvider, Backdrop } from "@wealthgap/kit";
+import { END_HOLD_S, ensureFontsLoaded, SceneProvider, Backdrop } from "@wealthgap/kit";
 import { Main } from "./Main";
 import { SCENE_REGISTRY } from "./scenes";
 
@@ -29,7 +29,7 @@ export const RemotionRoot: React.FC = () => {
   const fps = timelineData.fps || 30;
   const width = timelineData.width || 1920;
   const height = timelineData.height || 1080;
-  const durationInFrames = Math.max(1, timelineData.durationFrames || 150);
+  const durationInFrames = Math.max(1, timelineData.durationFrames || 150) + Math.round(fps * END_HOLD_S);   // + end-card hold (see Main)
 
   return (
     <>
