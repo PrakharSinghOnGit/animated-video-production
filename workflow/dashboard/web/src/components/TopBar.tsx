@@ -1,4 +1,5 @@
-import { BarChart3, List, Menu, Workflow, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
+import { AudioLines, BarChart3, List, Menu, Workflow, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { StatusDot } from "@/components/Status";
@@ -71,8 +72,45 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
           </Button>
         </Tip>
       )}
+      <DawButton phone={phone} />
       <Button variant="ghost" size="icon" onClick={toggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>{theme === "dark" ? <Sun /> : <Moon />}</Button>
       {showStats && <Button variant="ghost" size="icon" onClick={onStats} aria-label="Open stats"><BarChart3 /></Button>}
     </header>
+  );
+}
+
+/** Starts the local openDAW (like Remotion Studio) and opens it with this video's project; its Export > "To video pipeline" sends the mix back. */
+function DawButton({ phone }: { phone: boolean }) {
+  const { ws, route, d, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  const bundle = d?.sound.daw.bundle;
+  const open = async () => {
+    if (!ws) return;
+    if (!bundle) { toast("Build the openDAW project first (Sound step)"); return; }
+    const win = window.open("about:blank", "_blank"); // opened now so the browser does not block it after the wait
+    setBusy(true);
+    try {
+      let s = await api.startDaw();
+      for (let i = 0; i < 90 && !s.ready; i++) {
+        if (s.exited !== null) throw new Error(`openDAW stopped: ${s.tail.split("\n").slice(-3).join(" ")}`);
+        await new Promise((r) => setTimeout(r, 1000));
+        s = await api.daw();
+      }
+      if (!s.ready || !s.url) throw new Error("openDAW did not start in 90 s");
+      const base = `${location.origin}/api/ws/${encodeURIComponent(ws)}/daw`;
+      const v = d?.sound.daw.build?.builtAt ?? bundle.mtime;
+      const q = new URLSearchParams({ bundle: `${base}/project.odb?v=${v}`, export: `${base}/mix` });
+      if (win) win.location.href = `${s.url}/?${q}`; else window.open(`${s.url}/?${q}`, "_blank");
+    } catch (e) {
+      win?.close();
+      toast((e as Error).message);
+    } finally { setBusy(false); }
+  };
+  return (
+    <Tip label={ws ? "Open this video's sound in openDAW (retime, gain, add music)" : "Select a video first"}>
+      <Button variant="ghost" size={phone ? "icon" : "sm"} disabled={!ws || route.view === "settings" || busy} aria-label="Open in openDAW" onClick={open}>
+        <AudioLines />{!phone && (busy ? "openDAW…" : "openDAW")}
+      </Button>
+    </Tip>
   );
 }

@@ -91,13 +91,16 @@ export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
     }
     case "sound": {
       const s = d.sound, has = (n: string) => s.files.find((f) => f.path.endsWith(n));
-      const music = has("music.wav"), mix = has("mix.wav");
+      const music = has("music.wav"), mix = has("mix.wav"), daw = d.sound.daw;
       return {
         loops: [],
         blocks: [
           { id: "cues", title: "Cues", action: "sound.cues", label: "Cues", done: s.events != null, costRe: /^cues\b/i },
           { id: "music", title: "Music stem", action: "sound.music", label: "Music stem", done: !!music, outAt: music?.mtime, costRe: /^music\b/i },
           { id: "mix", title: "Mix", action: "sound.mix", label: "Mix", done: !!mix, outAt: mix?.mtime, costRe: /^mix\b/i },
+          { id: "daw", title: "openDAW project", desc: "Voice, every foley event on its own clip, the music stem: one project to edit.", action: "daw.build", label: "Build openDAW project", done: !!daw.bundle, outAt: daw.bundle?.mtime, costRe: /^build opendaw\b/i,
+            note: !daw.setUp ? "Needs `bun run daw:setup` once" : daw.bundleStale ? "The cues changed since this project was built" : undefined },
+          { id: "edited", title: "Edited in openDAW", desc: "Top bar: openDAW. Edit, then File > Export > To video pipeline. The next render uses it.", done: !!daw.mix, outAt: daw.mix?.mtime },
         ],
       };
     }

@@ -1,0 +1,145 @@
+diff --git a/packages/app/studio/src/boot.ts b/packages/app/studio/src/boot.ts
+index 5ddbd299a..a4fc608b7 100644
+--- a/packages/app/studio/src/boot.ts
++++ b/packages/app/studio/src/boot.ts
+@@ -8,6 +8,7 @@ if (localStorage.getItem("opendaw-suppress-unload-guard") !== null) {
+ import {App} from "@/ui/App.tsx"
+ import {isDefined, panic, Progress, RuntimeNotification, RuntimeNotifier, UUID} from "@opendaw/lib-std"
+ import {StudioService} from "@/service/StudioService"
++import {WealthGap} from "@/service/WealthGap"
+ import {SampleMetaData, SoundfontMetaData} from "@opendaw/studio-adapters"
+ import {Dialogs} from "@/ui/components/dialogs.tsx"
+ import {installCursors} from "@/ui/Cursors.ts"
+@@ -181,6 +182,7 @@ export const boot = async ({workersUrl, workletsUrl, wasmProcessorUrl, wasmOffli
+         return
+     }
+     SampleGarbage.purge().catch(console.warn)
++    WealthGap.openBundleFromQuery(service).catch(console.warn)
+     if (buildInfo.env === "production" && !Browser.isLocalHost()) {
+         if (import.meta.env.BUILD_UUID !== buildInfo.uuid) {
+             console.warn("Cache issue:")
+diff --git a/packages/app/studio/src/service/StudioMenu.ts b/packages/app/studio/src/service/StudioMenu.ts
+index 21e5426e9..666808b61 100644
+--- a/packages/app/studio/src/service/StudioMenu.ts
++++ b/packages/app/studio/src/service/StudioMenu.ts
+@@ -12,6 +12,7 @@ import {connectRoom} from "@/service/StudioLiveRoomConnect"
+ import {NeuralDemux} from "@/service/NeuralDemux.tsx"
+ import {NextcloudDialogs} from "@/project/NextcloudDialogs"
+ import {openManual} from "@/ui/manuals"
++import {WealthGap} from "@/service/WealthGap"
+ 
+ export const populateStudioMenu = (service: StudioService) => {
+     const Global = GlobalShortcuts
+@@ -68,6 +69,11 @@ export const populateStudioMenu = (service: StudioService) => {
+                         )),
+                     MenuItem.default({label: "Export", selectable: service.hasProfile})
+                         .setRuntimeChildrenProcedure(parent => parent.addMenuItem(
++                            MenuItem.default({
++                                label: "To video pipeline",
++                                selectable: service.hasProfile,
++                                hidden: WealthGap.exportUrl() === null
++                            }).setTriggerProcedure(() => WealthGap.exportToVideo(service)),
+                             MenuItem.default({label: "Mixdown...", selectable: service.hasProfile})
+                                 .setTriggerProcedure(() => service.exportMixdown()),
+                             MenuItem.default({label: "Stems...", selectable: service.hasProfile})
+diff --git a/packages/app/studio/src/service/WealthGap.ts b/packages/app/studio/src/service/WealthGap.ts
+new file mode 100644
+index 000000000..b6419891a
+--- /dev/null
++++ b/packages/app/studio/src/service/WealthGap.ts
+@@ -0,0 +1,83 @@
++// WealthGap video pipeline: ?bundle=<url> opens a project, ?export=<url> adds Export > "To video pipeline"
++import {DefaultObservableValue, Errors, isDefined, Nullable, Option, RuntimeNotifier, tryCatch} from "@opendaw/lib-std"
++import {WavFile} from "@opendaw/lib-dsp"
++import {Promises} from "@opendaw/lib-runtime"
++import {AudioContexts, MixdownSection, ProjectBundle} from "@opendaw/studio-core"
++import {StudioService} from "@/service/StudioService"
++import {Mixdowns} from "@/service/Mixdowns"
++
++// read once at load: the router rewrites the address bar afterwards
++const query = new URLSearchParams(location.search)
++const param = (name: string): Nullable<string> => query.get(name)
++
++export namespace WealthGap {
++    export const exportUrl = (): Nullable<string> => param("export")
++
++    // A build (?v=) already opened in this browser is not loaded again, so a second click on the dashboard
++    // button does not replace the edits made since.
++    export const openBundleFromQuery = async (service: StudioService): Promise<void> => {
++        const url = param("bundle")
++        if (!isDefined(url)) {return}
++        const key = `wg-bundle:${url.split("?")[0]}`
++        const build = new URL(url, location.href).searchParams.get("v") ?? ""
++        const stored = tryCatch(() => localStorage.getItem(key))
++        if (build !== "" && stored.status === "success" && stored.value === build) {
++            RuntimeNotifier.notify({message: "This build is already open here: use File > Open... for your saved project.", icon: "Info"})
++            return
++        }
++        const dialog = RuntimeNotifier.progress({headline: "Loading video project..."})
++        const {status, value: arrayBuffer, error} = await Promises.tryCatch(fetch(url).then(response => {
++            if (!response.ok) {throw new Error(`${response.status} ${response.statusText}`)}
++            return response.arrayBuffer()
++        }))
++        if (status === "rejected") {
++            dialog.terminate()
++            return RuntimeNotifier.info({headline: "Could not load the video project", message: String(error)})
++        }
++        const decoded = await Promises.tryCatch(ProjectBundle.decode(service, arrayBuffer))
++        dialog.terminate()
++        if (decoded.status === "rejected") {
++            return RuntimeNotifier.info({headline: "Could not decode the video project", message: String(decoded.error)})
++        }
++        service.projectProfileService.setValue(Option.wrap(decoded.value))
++        if (build !== "") {tryCatch(() => localStorage.setItem(key, build))}
++    }
++
++    const renderAndSend = async (service: StudioService, url: string): Promise<void> => {
++        const profile = service.projectProfileService.getValue().unwrapOrUndefined()
++        if (!isDefined(profile)) {return}
++        const project = profile.project.copy()
++        const section = MixdownSection.find(MixdownSection.collect(project), "song")
++        const abortController = new AbortController()
++        const progress = new DefaultObservableValue(0.0)
++        const dialog = RuntimeNotifier.progress({headline: "Rendering the mix for the video...", progress, cancel: () => abortController.abort()})
++        const rendered = await Promises.tryCatch(Mixdowns.render(project, Option.None, section, progress, abortController.signal, 48_000))
++        dialog.terminate()
++        if (rendered.status === "rejected") {
++            if (Errors.isAbort(rendered.error)) {return}
++            throw rendered.error
++        }
++        const wav = WavFile.encodeInts24(rendered.value)
++        const upload = RuntimeNotifier.progress({headline: "Sending the mix to the video pipeline..."})
++        const response = await Promises.tryCatch(fetch(url, {method: "POST", headers: {"x-wg": "1", "content-type": "audio/wav"}, body: wav}))
++        upload.terminate()
++        if (response.status === "rejected" || !response.value.ok) {
++            const why = response.status === "rejected" ? String(response.error) : `${response.value.status} ${await response.value.text()}`
++            RuntimeNotifier.info({headline: "Could not send the mix", message: `${why} (is the dashboard still running?)`})
++            return
++        }
++        RuntimeNotifier.notify({message: `Mix sent to the video (${(wav.byteLength / 1e6).toFixed(0)} MB). The next render uses it.`, icon: "Checkbox"})
++    }
++
++    export const exportToVideo = async (service: StudioService): Promise<void> => {
++        const url = exportUrl()
++        if (!isDefined(url)) {return}
++        await service.audioContext.suspend()
++        const {status, error} = await Promises.tryCatch(renderAndSend(service, url))
++        if (status === "rejected") {
++            console.warn(error)
++            RuntimeNotifier.notify({message: "Export to video failed.", icon: "Warning"})
++        }
++        AudioContexts.resume(service.audioContext).then()
++    }
++}
+diff --git a/packages/config/typescript/base.json b/packages/config/typescript/base.json
+index ec7f93db0..872323811 100644
+--- a/packages/config/typescript/base.json
++++ b/packages/config/typescript/base.json
+@@ -23,6 +23,7 @@
+     "preserveWatchOutput": true,
+     "skipLibCheck": true,
+     "strict": true,
++    "typeRoots": ["../../../node_modules/@types"],
+     "baseUrl": ".",
+     "paths": {
+       "@test-files/*": [
