@@ -48,7 +48,7 @@ function Block({ b, index }: { b: BlockDef; index: number }) {
           {(b.desc || a?.help) && <p className="m-0 mt-0.5 text-xs text-muted-foreground">{b.desc ?? a?.help}</p>}
         </div>
         <div className="flex items-center gap-3 text-[11.5px] text-muted-foreground max-sm:order-3 max-sm:w-full">
-          {last ? <span>last run {ago(last.end)} · {dur(last.ms)}</span> : <span>never run here</span>}
+          {last && <span>last run {ago(last.end)} · {dur(last.ms)}</span>}
           {cost && cost.cost > 0 && <span className="text-foreground/80">{money(cost.cost)}</span>}
         </div>
         {b.action && <RunButton primary={!a?.paid} running={status === "running"} disabled={!!busy} onClick={() => runSaved(b.action!, b.act)} />}

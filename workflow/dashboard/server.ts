@@ -314,6 +314,12 @@ interface Action {
 }
 const styles = () => ls(path.join(REPO, "workflow/styles")).filter((d) => exists(path.join(REPO, "workflow/styles", d, "STYLE.md")));
 
+/** Final render: resolution (upscaled above 1080p) and which audio goes in the file. */
+const FINAL_OPTS: Opt[] = [
+  { key: "res", label: "Resolution", help: "1440p and 4K are upscaled from the 1080p render", type: "select", choices: ["1080", "1440", "2160"], def: "1080", flag: "--res" },
+  { key: "audio", label: "Audio", help: "mix = voice + foley (+ music if mixed in); none skips QC's loudness check", type: "select", choices: ["mix", "voice", "none"], def: "mix", flag: "--audio" },
+];
+
 const ACTIONS: Record<string, Action> = {
   "script.write": {
     step: "script", label: "Write script", help: "Turns your draft (idea.md) into a chunked, hook-scored script with on-screen hints. With feedback.md newer than the script, it revises instead.",
@@ -448,11 +454,13 @@ const ACTIONS: Record<string, Action> = {
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
   "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min",
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws)] },
-  "render.final": { step: "render", label: "Final render", help: "1080p H.264 with grain + QC.", long: "~5–10 min",
-    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render final" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
+  "render.final": { step: "render", label: "Final render", help: "H.264 with grain + QC. Acts are drawn at 1080p: 1440p and 4K are a sharp upscale (YouTube streams 4K uploads at a higher bitrate).", long: "~5–10 min (4K: longer)",
+    opts: FINAL_OPTS,
+    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render final" }, { label: "QC", action: "render.qc" }], build: (ws, o) => [B("assemble", "--video", ws), B("render", "--video", ws, ...args(o, "render.final")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws)])] },
   "render.all": { step: "render", label: "Render all", help: "Assemble, draft render, final render, QC.", long: "~8–15 min",
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "Render final" }, { label: "QC", action: "render.qc" }],
-    build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("render", "--video", ws), B("qc", "--video", ws)] },
+    opts: FINAL_OPTS,
+    build: (ws, o) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("render", "--video", ws, ...args(o, "render.all")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws)])] },
   "render.qc": { step: "render", label: "QC", help: "Hard checks: placeholders, loudness, duration.", build: (ws) => [B("qc", "--video", ws)] },
   "timings.run": { step: "timings", label: "Time & cost report", help: "Prints timings.json.", build: (ws) => [B("timings", "--video", ws)] },
 };

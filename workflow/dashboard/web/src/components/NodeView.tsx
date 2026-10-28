@@ -22,7 +22,8 @@ function Cost({ action }: { action?: string }) {
   return a.paid ? <Badge tone="warning" className="px-1.5 py-0 text-[10px]">Paid</Badge> : <Badge tone="success" className="px-1.5 py-0 text-[10px]">Free</Badge>;
 }
 
-const lastText = (c: CardData) => (c.last ? `${ago(c.last.end)} · ${dur(c.last.ms)}${c.cost > 0 ? ` · ${money(c.cost)}` : ""}` : "never run here");
+/** "4 h ago · 19 s · $0.21"; empty when the dashboard never ran it (e.g. it ran from the terminal) and nothing was recorded. */
+const lastText = (c: CardData) => [c.last && `${ago(c.last.end)} · ${dur(c.last.ms)}`, c.cost > 0 && money(c.cost)].filter(Boolean).join(" · ");
 
 /** Sockets: in/out left-right (cross-column and act rows), bin/bout top-bottom (inside a column), loop sockets on the free side. */
 const Card = memo(function Card({ data, selected }: NodeProps<Node<CardData, "card">>) {
@@ -47,7 +48,7 @@ const Card = memo(function Card({ data, selected }: NodeProps<Node<CardData, "ca
         <span className={cn(data.status === "done" && "text-success", data.status === "running" && "text-warning", data.status === "failed" && "text-destructive", data.status === "todo" && "text-muted-foreground")}>{STATUS_TXT[data.status]}</span>
       </div>
       {data.extra && <div className="truncate text-[10.5px] text-foreground/80">{data.extra}</div>}
-      {data.action && <div className="truncate text-[10.5px] text-muted-foreground">{lastText(data)}</div>}
+      {lastText(data) && <div className="truncate text-[10.5px] text-muted-foreground">{lastText(data)}</div>}
     </div>
   );
 });
@@ -93,7 +94,7 @@ function Inspector({ n, onClose }: { n: Node<CardData, "card">; onClose: () => v
       {(c.desc || a?.help) && <p className="m-0 mt-2 text-muted-foreground">{c.desc ?? a?.help}</p>}
       {c.extra && <p className="m-0 mt-2">{c.extra}</p>}
       <div className="mt-2 flex items-center gap-3 text-[11.5px] text-muted-foreground">
-        <span>{c.last ? `last run ${ago(c.last.end)} · ${dur(c.last.ms)}` : c.action ? "never run here" : "no run of its own"}</span>
+        {c.last && <span>last run {ago(c.last.end)} · {dur(c.last.ms)}</span>}
         {c.cost > 0 && <span className="text-foreground/80">{money(c.cost)}</span>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
