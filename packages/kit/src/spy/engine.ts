@@ -95,10 +95,20 @@ export function rough(pts: Pt[], seed = 1, amp = 1.3, step = 10, closed = true):
   return out;
 }
 const cache = new Map<string, Pt[]>();
-/** Cached rough(): cut once in local space, keyed by piece id, so the edge travels with the piece and never "boils". */
+/**
+ * Cached rough(): cut once in local space, so the edge travels with the piece and never "boils". Keyed by the piece id
+ * AND its geometry and cut settings: the cache is shared by every act on the page, so in the full render two acts that
+ * both call a piece "house" used to get whichever house was drawn first (A05's house came out as A02's).
+ */
 export function roughC(key: string, fn: () => Pt[], seed?: number, amp?: number, step?: number): Pt[] {
-  let r = cache.get(key);
-  if (!r) { r = rough(fn(), seed, amp, step); cache.set(key, r); }
+  const pts = fn();
+  let sig = `${key}|${seed}|${amp}|${step}|`;
+  for (const p of pts) sig += `${Math.round(p[0] * 10)},${Math.round(p[1] * 10)};`;
+  let r = cache.get(sig);
+  if (!r) {
+    if (cache.size > 50_000) cache.clear();
+    r = rough(pts, seed, amp, step); cache.set(sig, r);
+  }
   return r;
 }
 export function pathPoly(g: G, pts: Pt[]): void {
