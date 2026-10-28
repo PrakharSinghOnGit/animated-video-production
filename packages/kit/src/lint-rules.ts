@@ -78,19 +78,20 @@ export function lintSceneCode(code: string, filename: string = "S01_scene.tsx", 
     }
   }
 
-  // 2. Check Hooks usage
-  if (!code.includes("useCurrentFrame")) {
+  // 2. Check Hooks usage. Briefing acts draw through SpyCanvas/drawAct with ctx.t instead of Remotion hooks.
+  const canvasAct = /\b(SpyCanvas|drawAct)\b/.test(code);
+  if (!canvasAct && !code.includes("useCurrentFrame")) {
     errors.push({
       severity: "error",
       code: "MISSING_USE_CURRENT_FRAME",
-      message: "Scene component must use useCurrentFrame() for frame-driven animation.",
+      message: "Scene component must be frame-driven: use useCurrentFrame() (or SpyCanvas/drawAct with ctx.t).",
     });
   }
-  if (!code.includes("useScene")) {
+  if (!canvasAct && !code.includes("useScene")) {
     errors.push({
       severity: "error",
       code: "MISSING_USE_SCENE",
-      message: "Scene component must use useScene() to access scene timing, words, and dimensions.",
+      message: "Scene component must use useScene() to access scene timing, words, and dimensions (not needed with SpyCanvas/drawAct).",
     });
   }
 

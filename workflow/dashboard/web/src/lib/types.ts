@@ -28,6 +28,8 @@ export interface ActRow {
   id: string; title: string; status: St; scene: FileInfo | null; thumbs: FileInfo[]; sheet: FileInfo | null;
   critic: { file: string; score: number; pass: boolean; issues: { time: string; problem: string; fix: string }[] } | null;
   notes: string; preview: FileInfo | null; reviews: Review[]; start: number; end: number; idea?: string; notesMtime: number; meta: StepMeta | null;
+  /** explicit human approval, valid only while the scene file is the one approved */
+  approval: { at: string; sceneMtime: number } | null;
 }
 export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number }
 export interface Details {
@@ -39,7 +41,7 @@ export interface Details {
   plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
   sound: { files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
-  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null };
+  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];
 }
 export interface WsSummary { id: string; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }

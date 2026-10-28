@@ -43,6 +43,9 @@ export const api = {
   saveText: (ws: string, which: "idea" | "feedback", text: string) => call<unknown>(`${w(ws)}/text/${which}`, { method: "PUT", body: text }),
   saveNotes: (ws: string, act: string, text: string) => call<unknown>(`${w(ws)}/notes/${act}`, { method: "PUT", body: text }),
 
+  approveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "POST", body: {} }),
+  unapproveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "DELETE" }),
+
   fileUrl: (ws: string, rel: string) => `${w(ws)}/file?path=${encodeURIComponent(rel)}`,
   logUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}`,
   logPlainUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}?plain=1`,

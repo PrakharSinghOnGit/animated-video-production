@@ -563,6 +563,33 @@ function sceneFiles(ws: string): Record<string, string> {
   return out;
 }
 
+/** Hash of one act's own entry in acts.json (so editing another act's plan does not make this one stale). */
+const planHash = (ws: string, id: string): string => {
+  const a = (readJson<any>(path.join(wsDir(ws), "05-video/acts.json"))?.acts ?? []).find((x: any) => x.id === id);
+  return new Bun.CryptoHasher("sha256").update(JSON.stringify(a ?? null)).digest("hex");
+};
+const planHashPath = (ws: string, id: string) => path.join(wsDir(ws), `05-video/review/${id}/plan.hash`);
+/** Stale = this act's plan entry changed since its scene was written. The hash is (re)recorded when missing or older than the scene (authored/fixed since), so unrecorded = fresh. */
+function actStale(ws: string, id: string, sceneMs: number): boolean {
+  const f = planHashPath(ws, id), cur = planHash(ws, id);
+  const rec = exists(f) && mtime(f) >= sceneMs ? readText(f).trim() : "";
+  if (rec) return rec !== cur;
+  try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, cur); } catch {}
+  return false;
+}
+const approvalPath = (ws: string, id: string) => path.join(wsDir(ws), `05-video/review/${id}/approved.json`);
+/** Explicit human approval; valid only while the scene is the one that was approved. */
+function actApproval(ws: string, id: string, sceneMs: number): { at: string; sceneMtime: number } | null {
+  const a = readJson<any>(approvalPath(ws, id));
+  return a && sceneMs && a.sceneMtime === sceneMs ? { at: a.at, sceneMtime: a.sceneMtime } : null;
+}
+/** Status of one act's scene file against the plan (approval overrides stale). */
+function sceneStatus(ws: string, id: string, rel: string | undefined): St {
+  if (!rel) return "none";
+  const ms = mtime(path.join(wsDir(ws), rel));
+  return actStale(ws, id, ms) && !actApproval(ws, id, ms) ? "stale" : "done";
+}
+
 function overlay(ws: string, key: string, st: St, outputs: string[]): St {
   const run = runningJob(ws);
   if (run && (run.step === key || run.step.startsWith(key + ":"))) return "running";
@@ -574,6 +601,13 @@ function overlay(ws: string, key: string, st: St, outputs: string[]): St {
   return st;
 }
 
+/** draft / final file against the mix, timeline and scenes (current = nothing newer than the file). */
+function renderStates(ws: string): { draft: St; final: St } {
+  const sceneMax = Math.max(0, ...Object.values(sceneFiles(ws)).map((r) => mtime(path.join(wsDir(ws), r))));
+  const ins = ["06-audio/mix.wav", "05-video/timeline.json"];
+  return { draft: derive(ws, ins, ["05-video/draft.mp4"], sceneMax), final: derive(ws, ins, ["05-video/final.mp4"], sceneMax) };
+}
+
 function stepStatuses(ws: string): Record<string, St> {
   const S = (key: string, inputs: string[], outputs: string[], extra = 0) => overlay(ws, key, derive(ws, inputs, outputs, extra), outputs);
   const scenes = sceneFiles(ws);
@@ -582,14 +616,12 @@ function stepStatuses(ws: string): Record<string, St> {
   let acts: St = "none";
   if (ids.length) {
     const have = ids.filter((i) => scenes[i]);
-    const actsMs = mtime(path.join(wsDir(ws), "05-video/acts.json"));
-    acts = have.length === 0 ? "none" : have.length < ids.length ? "partial" : have.some((i) => mtime(path.join(wsDir(ws), scenes[i])) + 1000 < actsMs) ? "stale" : "done";
+    acts = have.length === 0 ? "none" : have.length < ids.length ? "partial" : have.some((i) => sceneStatus(ws, i, scenes[i]) === "stale") ? "stale" : "done";
   }
   const run = runningJob(ws);
   if (run && /^(acts|act:|fix:|frames:)/.test(run.step)) acts = "running";
   const render = (() => {
-    const draft = derive(ws, ["06-audio/mix.wav", "05-video/timeline.json"], ["05-video/draft.mp4"], sceneMax);
-    const fin = derive(ws, ["06-audio/mix.wav", "05-video/timeline.json"], ["05-video/final.mp4"], sceneMax);
+    const { draft, final: fin } = renderStates(ws);
     const st: St = fin !== "none" ? fin : draft;
     return overlay(ws, "render", st, ["05-video/draft.mp4", "05-video/final.mp4", "05-video/review/qc-report.md"]);
   })();
@@ -677,7 +709,6 @@ function details(ws: string) {
 
   // acts
   const scenes = sceneFiles(ws);
-  const actsMs = mtime(path.join(d, "05-video/acts.json"));
   const last = lastRuns(ws);
   const actRows = acts.map((a: any) => {
     const rdir = `05-video/review/${a.id}`;
@@ -686,7 +717,7 @@ function details(ws: string) {
     const critic = critics.length ? readJson(path.join(abs, critics[critics.length - 1])) : null;
     const notesPath = path.join(d, notesRel(a.id));
     const scene = scenes[a.id] ? fileInfo(ws, scenes[a.id]) : null;
-    let status: St = !scene ? "none" : scene.mtime + 1000 < actsMs ? "stale" : "done";
+    let status: St = sceneStatus(ws, a.id, scenes[a.id]);
     if (run && [`act:${a.id}`, `fix:${a.id}`, `frames:${a.id}`].includes(run.step)) status = "running";
     else for (const k of [`act:${a.id}`, `fix:${a.id}`]) if (last[k] && last[k].exit !== "0" && last[k].end >= (scene?.mtime ?? 0)) status = "failed";
     return {
@@ -702,6 +733,7 @@ function details(ws: string) {
       }).filter(Boolean),
       start: a.startMs, end: a.endMs, idea: a.idea,
       notesMtime: mtime(notesPath),
+      approval: scene ? actApproval(ws, a.id, scene.mtime) : null,
       meta: stepMeta(rows, new RegExp(`\\b${a.id}\\b`)),
     };
   });
@@ -738,7 +770,7 @@ function details(ws: string) {
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, acts, unverified },
     acts: actRows,
     sound: { files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
-    render: { videos, qc, manifest },
+    render: { videos, qc, manifest, ...renderStates(ws) },
     timings: rows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),
     lastRuns: last,
@@ -1065,6 +1097,18 @@ const server = Bun.serve({
       const f = path.join(wsDir(ws), notesRel(nm[1]));
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, text, "utf-8");
+      return json({ ok: true });
+    }
+
+    const am = rest.match(/^\/approve\/(A\d{2,3})$/);
+    if (am && (req.method === "POST" || req.method === "DELETE")) {
+      if (!actIds(ws).includes(am[1])) return bad("unknown act");
+      const f = approvalPath(ws, am[1]);
+      if (req.method === "DELETE") { fs.rmSync(f, { force: true }); return json({ ok: true }); }
+      const sc = sceneFiles(ws)[am[1]];
+      if (!sc) return bad("act has no scene file yet");
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, JSON.stringify({ at: new Date().toISOString(), sceneMtime: mtime(path.join(wsDir(ws), sc)) }));
       return json({ ok: true });
     }
 

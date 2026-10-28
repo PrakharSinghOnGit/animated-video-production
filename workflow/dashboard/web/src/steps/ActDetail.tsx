@@ -23,6 +23,8 @@ export function ActFlow({ a }: { a: ActRow }) {
   const video = useRef<HTMLVideoElement>(null);
   const [lb, setLb] = useState<number | null>(null);
   const notes = useDraft(a.notes);
+  const [busy, setBusy] = useState(false);
+  const act = async (f: () => Promise<unknown>) => { setBusy(true); try { await f(); await refresh(); } finally { setBusy(false); } };
   if (!d) return null;
   const thumbs = a.thumbs.map((t) => ({ src: file(t.path), t: parseFloat(t.path.match(/t_([\d.]+)\.jpg/)?.[1] ?? "0") }));
   const noteAt = (t: number) => { notes.append(`${t.toFixed(1)} s: `); setLb(null); };
@@ -67,6 +69,14 @@ export function ActFlow({ a }: { a: ActRow }) {
     notes: <TextEditor title="Review notes" sub={`review/${a.id}/director_notes.md`} rows={10} draft={notes}
       onSave={async (t) => { await api.saveNotes(ws!, a.id, t); await refresh(); }}
       placeholder={'12.3 s: the IPO strip lands after "jargon"; it should be complete on the word.\n20–23 s: strips cut off at the top.'} />,
+    approved: a.scene ? (
+      <div className="flex flex-wrap items-center gap-2.5">
+        {a.approval
+          ? <><span className="text-xs text-muted-foreground">You approved this version {ago(Date.parse(a.approval.at))}. Editing the act cancels it.</span>
+              <Button size="sm" disabled={busy} onClick={() => act(() => api.unapproveAct(ws!, a.id))}>Remove approval</Button></>
+          : <><Button size="sm" disabled={busy} onClick={() => act(() => api.approveAct(ws!, a.id))}>Approve act</Button>
+              <span className="text-xs text-muted-foreground">Marks this version done, even without a review or with old notes.</span></>}
+      </div>) : undefined,
   };
 
   return (

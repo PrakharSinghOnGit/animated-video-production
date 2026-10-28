@@ -112,20 +112,29 @@ export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
         blocks: [
           { id: "asm", title: "Assemble", action: "render.assemble", label: "Assemble", done: ok(d, "Assemble") || !!draft },
           { id: "draft", title: "Draft render", desc: "Assemble, draft render, QC.", action: "render.draft", label: "Draft render", done: !!draft, outAt: draft?.mtime, costRe: /^render draft/i },
-          { id: "watch", title: "Watch & approve draft", desc: "Gate G3: watch the draft, then go on or loop back and re-render.", done: !!draft },
-          { id: "final", title: "Final render", desc: "1080p H.264 with grain, then QC.", action: "render.final", label: "Final render", done: !!fin, outAt: fin?.mtime, costRe: /^render final/i },
-          { id: "qc", title: "QC", action: "render.qc", label: "QC", done: !!r.qc, outAt: r.qc?.mtime, costRe: /^qc\b/i },
+          { id: "watch", title: "Watch & approve draft", desc: "Gate G3: watch the draft, then go on or loop back and re-render. Done once a current draft exists (the file is not older than the mix, timeline or scenes).", done: !!draft && r.draft === "done" },
+          { id: "final", title: "Final render", desc: "1080p H.264 with grain, then QC.", action: "render.final", label: "Final render", done: !!fin && r.final === "done", outAt: fin?.mtime, costRe: /^render final/i },
+          { id: "qc", title: "QC", desc: "Reads the final file, else the draft. Done when a report exists.", action: "render.qc", label: "QC", done: !!r.qc, outAt: r.qc?.mtime, costRe: /^qc\b/i },
         ],
       };
     }
   }
 }
 
-/** One act: author -> frames -> preview -> review -> notes -> fix (loops back to preview) -> approved. */
+/** Notes are open only when written after the last successful "Fix with notes" run (a fix applies them; the file is kept). */
+export const notesOpen = (a: ActRow, d: Details) => {
+  const fix = lastRun(d, `Fix with notes ${a.id}`);
+  return !!a.notes.trim() && !(fix?.status === "done" && fix.end >= a.notesMtime);
+};
+
+/**
+ * One act: author -> frames -> preview -> review -> notes -> fix (loops back to preview) -> approved. */
 export function actSpec(a: ActRow, d: Details): Spec {
   const pv = a.preview, pvStale = !!pv && !!a.scene && a.scene.mtime > pv.mtime;
   const fixLabel = `Fix with notes ${a.id}`;
-  const approved = !!a.scene && !!pv && !pvStale && a.reviews.length > 0 && !a.notes.trim();
+  const open = notesOpen(a, d);
+  // approved = you approved this exact scene file, or (automatic) a current preview and no open notes
+  const approved = !!a.scene && (!!a.approval || (!!pv && !pvStale && !open));
   return {
     loops: [{ from: "fix", to: "preview", label: "fix → re-preview, re-review", ran: runsFor(d, fixLabel).length }],
     blocks: [
@@ -134,8 +143,8 @@ export function actSpec(a: ActRow, d: Details): Spec {
       { id: "preview", title: "Preview", action: "acts.preview", act: a.id, label: `Render preview ${a.id}`, done: !!pv && !pvStale, outAt: pv?.mtime, costRe: new RegExp(`^preview ${a.id}\\b`, "i") },
       { id: "review", title: "Review", action: "acts.review", act: a.id, label: `Review ${a.id}`, done: a.reviews.length > 0, costRe: new RegExp(`^review ${a.id}\\b`, "i") },
       { id: "notes", title: "Notes for the author", desc: "Your gate: one line per problem, starting with the time in the act. Reviews can append findings here.", done: !!a.notes.trim() },
-      { id: "fix", title: "Fix with notes", desc: "Sends the notes to the act's author for one revision (resumes the author's session: the biggest cost).", action: "acts.fix", act: a.id, label: fixLabel, done: ok(d, fixLabel) && !a.notes.trim() },
-      { id: "approved", title: "Approved", desc: "Done when the preview is current, a review exists, and no notes are left open.", done: approved },
+      { id: "fix", title: "Fix with notes", desc: "Sends the notes to the act's author for one revision (resumes the author's session: the biggest cost).", action: "acts.fix", act: a.id, label: fixLabel, done: ok(d, fixLabel) && !open },
+      { id: "approved", title: "Approved", desc: "Done when you approve the act (valid while its file is unchanged), or its preview is current and no notes are open.", done: approved },
     ],
   };
 }
