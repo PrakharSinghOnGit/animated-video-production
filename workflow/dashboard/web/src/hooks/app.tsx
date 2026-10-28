@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import type { Details, Job, Limits, Schema, StudioState, SystemInfo, UsageReport, WsSummary } from "@/lib/types";
 import { useRoute, type Route } from "./useRoute";
 import { usePoll } from "./usePoll";
+import { useStored } from "@/lib/storage";
 
 interface Toast { id: number; msg: string }
 interface App {
@@ -24,7 +25,10 @@ interface App {
   file: (rel: string) => string;
   logTab: string | null; showLog: (jobId: string | null) => void;
   logRequest: number;
+  /** workspace page mode: step list or node graph (shared by the top bar toggle and the page) */
+  mode: Mode; setMode: (m: Mode) => void;
 }
+export type Mode = "list" | "nodes";
 
 const Ctx = createContext<App | null>(null);
 export const useApp = () => { const c = useContext(Ctx); if (!c) throw new Error("no AppProvider"); return c; };
@@ -44,6 +48,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [logTab, setLogTab] = useState<string | null>(null);
   const [logRequest, setLogRequest] = useState(0);
+  const [mode, setMode] = useStored<Mode>("ws.mode", "list");
   const seq = useRef(0);
 
   const toast = useCallback((msg: string) => {
@@ -104,6 +109,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const file = useCallback((rel: string) => api.fileUrl(ws ?? "", rel), [ws]);
 
-  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest };
+  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest, mode, setMode };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -6,6 +6,11 @@ export const lastRun = (d: Details, label: string): Run | null => runsFor(d, lab
 /** How many times a step actually ran (finished runs plus one that is running now): used to light a loop-back arrow. */
 export const ranCount = (d: Details, labels: string[]): number => labels.reduce((n, l) => n + runsFor(d, l).length + (d.jobs.some((j) => j.label === l && j.status === "running") ? 1 : 0), 0);
 
+/** A step's last run finished OK. */
+export const ok = (d: Details, label: string) => lastRun(d, label)?.status === "done";
+/** Re-runs of a step = runs beyond the first: that is what a loop-back arrow means. */
+export const reruns = (d: Details, ...labels: string[]) => Math.max(0, ranCount(d, labels) - 1);
+
 /** Cost and time the pipeline recorded (timings.json) for rows whose step matches. */
 export function costOf(d: Details, re: RegExp | null): { ms: number; cost: number; at?: string; n: number } | null {
   if (!re) return null;

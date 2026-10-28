@@ -1,4 +1,4 @@
-import { BarChart3, Menu, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
+import { BarChart3, List, Menu, Workflow, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
 import { StatusDot } from "@/components/Status";
@@ -12,7 +12,7 @@ const PAGE: Record<string, string> = { overview: "Overview", usage: "Claude usag
 
 /** Thin menu bar: brand, breadcrumb, state pill, Remotion Studio for the open video, theme. No machine stats. */
 export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; showStats: boolean; onMenu: () => void; onStats: () => void }) {
-  const { route, ws, d, runningAnywhere, activity, showLog, go, studio, toast, reloadList } = useApp();
+  const { route, ws, d, runningAnywhere, activity, showLog, go, studio, toast, reloadList, mode, setMode } = useApp();
   const [theme, toggle] = useTheme();
   const job = runningAnywhere[0];
   const last = activity.find((j) => j.status !== "running");
@@ -39,6 +39,16 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
           </span>
         ))}
       </nav>
+      {route.view === "ws" && (
+        <div role="group" aria-label="Workspace view" className="flex shrink-0 rounded-md border p-0.5">
+          {([["list", List, "List"], ["nodes", Workflow, "Nodes"]] as const).map(([m, Icon, text]) => (
+            <button key={m} onClick={() => setMode(m)} aria-pressed={mode === m} aria-label={`${text} view`}
+              className={cn("flex h-6 items-center gap-1 rounded-[5px] px-1.5 text-xs [&_svg]:size-3.5", mode === m ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              <Icon />{!phone && text}
+            </button>
+          ))}
+        </div>
+      )}
       <Tip label={full}>
         <button disabled={!target} onClick={() => { if (target) { go({ view: "ws", ws: target.ws }); showLog(target.id); } }}
           className={cn("flex h-7 w-[104px] shrink-0 items-center gap-1.5 overflow-hidden rounded-full border px-2.5 text-xs sm:w-[250px] disabled:cursor-default", state === "failed" && "border-destructive/50", state === "running" && "border-warning/50")} aria-label={full}>

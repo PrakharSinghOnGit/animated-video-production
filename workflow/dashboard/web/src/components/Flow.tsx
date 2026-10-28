@@ -9,41 +9,22 @@ import { useHighlight } from "@/components/highlight";
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { costOf, lastRun, type BlockStatus } from "@/lib/flow";
+import { blockStatus, type BlockSpec, type LoopDef } from "@/lib/pipeline";
 import { useMedia } from "@/lib/storage";
 import { ago, cn, dur, money } from "@/lib/utils";
 
-export interface BlockDef {
-  id: string;
-  title: string;
-  desc?: string;
-  /** schema action key whose Run button this block carries */
-  action?: string;
-  act?: string;
-  /** job label the dashboard records for this action ("Write script", "Author A01") */
-  label?: string;
-  done: boolean;
-  /** mtime of the block's output: a failed run older than it is not shown as failed */
-  outAt?: number;
-  costRe?: RegExp | null;
-  /** extra note shown under the title (e.g. what is missing) */
-  note?: string;
-  hint?: string;
-  children?: React.ReactNode;
-  /** options of the action (collapsed) */
-  options?: boolean;
-}
-export interface LoopDef { from: string; to: string; label: string; ran: number }
+export type { LoopDef };
+export interface BlockDef extends BlockSpec { children?: React.ReactNode }
+/** Attach each block's content (by block id) to the shared spec. */
+export const withKids = (blocks: BlockSpec[], kids: Record<string, React.ReactNode>): BlockDef[] => blocks.map((b) => ({ ...b, children: kids[b.id] }));
 
 const STATUS_TXT: Record<BlockStatus, string> = { done: "Done", running: "Running", failed: "Failed", todo: "To do" };
 const TONE = { done: "success", running: "warning", failed: "danger", todo: "neutral" } as const;
 
-function useStatus(b: BlockDef): { status: BlockStatus; last: ReturnType<typeof lastRun>; cost: ReturnType<typeof costOf> } {
+function useStatus(b: BlockSpec): { status: BlockStatus; last: ReturnType<typeof lastRun>; cost: ReturnType<typeof costOf> } {
   const { d, busy } = useApp();
   const last = d && b.label ? lastRun(d, b.label) : null;
-  const running = !!b.label && busy?.label === b.label;
-  const failed = !!last && last.status !== "done" && (!b.outAt || last.end > b.outAt);
-  const status: BlockStatus = running ? "running" : failed ? "failed" : b.done ? "done" : "todo";
-  return { status, last, cost: d ? costOf(d, b.costRe ?? null) : null };
+  return { status: blockStatus(d, busy, b), last, cost: d ? costOf(d, b.costRe ?? null) : null };
 }
 
 function Block({ b, index }: { b: BlockDef; index: number }) {

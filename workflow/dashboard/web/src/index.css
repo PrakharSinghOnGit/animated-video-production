@@ -121,3 +121,31 @@
 @keyframes wg-pulse { 50% { opacity: .35; } }
 .pulse { animation: wg-pulse 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
+
+/* Node view (React Flow) in the dashboard palette; light and dark come from the theme variables. */
+.wg-flow {
+  --xy-background-color: var(--background);
+  --xy-background-pattern-dots-color-default: var(--border);
+  --xy-edge-stroke-default: var(--muted-foreground);
+  --xy-edge-label-color-default: var(--muted-foreground);
+  --xy-handle-background-color-default: var(--muted-foreground);
+  --xy-handle-border-color-default: var(--card);
+  --xy-controls-button-background-color-default: var(--card);
+  --xy-controls-button-background-color-hover-default: var(--accent);
+  --xy-controls-button-color-default: var(--foreground);
+  --xy-controls-button-border-color-default: var(--border);
+  --xy-minimap-background-color-default: var(--card);
+  --xy-minimap-mask-background-color-default: color-mix(in srgb, var(--background) 70%, transparent);
+  --xy-minimap-mask-stroke-color-default: var(--brand);
+  --xy-minimap-mask-stroke-width-default: 1.5;
+  --xy-attribution-background-color-default: transparent;
+  --xy-node-boxshadow-selected-default: none;
+  font-family: inherit;
+}
+.wg-flow .react-flow__node { cursor: default; }
+.wg-flow .react-flow__node-card { cursor: pointer; }
+.wg-flow .react-flow__controls { box-shadow: none; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.wg-flow .react-flow__minimap { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+/* a loop that ran flows in the brand colour: long dashes read as solid */
+.wg-flow .react-flow__edge.wg-loop-on path { stroke-dasharray: 14 3; }
+@media (prefers-reduced-motion: reduce) { .wg-flow .react-flow__edge.animated path { animation: none; } }

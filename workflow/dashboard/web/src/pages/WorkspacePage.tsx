@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { useApp } from "@/hooks/app";
 import { STEPS, stepStates, todoText } from "@/lib/steps";
 import { dur, money } from "@/lib/utils";
@@ -14,6 +14,8 @@ import { ActsStep } from "@/steps/ActsStep";
 import { SoundStep } from "@/steps/SoundStep";
 import { RenderStep } from "@/steps/RenderStep";
 import { HistoryStep } from "@/steps/HistoryStep";
+
+const NodeView = lazy(() => import("@/components/NodeView"));
 
 const VIEWS: Record<StepKey, React.ComponentType> = { script: ScriptStep, voice: VoiceStep, align: AlignStep, plan: PlanStep, acts: ActsStep, sound: SoundStep, render: RenderStep };
 
@@ -48,9 +50,10 @@ function stats(k: StepKey, d: Details): React.ReactNode {
 
 /** Workflow mode: the step bar on top, one step page below (the next step to do opens by default). */
 export function WorkspacePage() {
-  const { d, route, go } = useApp();
+  const { d, route, go, mode } = useApp();
   const states = useMemo(() => stepStates(d?.statuses), [d?.statuses]);
   if (!d) return <div className="p-6 text-muted-foreground">Loading…</div>;
+  if (mode === "nodes") return <Suspense fallback={<div className="p-6 text-muted-foreground">Loading…</div>}><NodeView /></Suspense>;
   const nextKey = STEPS.find((s) => states[s.key] === "next" || states[s.key] === "running")?.key ?? STEPS[0].key;
   const cur = route.step === "runs" || STEPS.some((s) => s.key === route.step) ? route.step! : nextKey;
   const body = cur === "runs" ? (
