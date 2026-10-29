@@ -53,14 +53,17 @@ async function main() {
 
   const videoPath = path.join(paths.outputDir, "final.mp4");
   const draftPath = path.join(paths.outputDir, "draft.mp4");
-  const testVideo = fs.existsSync(videoPath) ? videoPath : (fs.existsSync(draftPath) ? draftPath : null);
+  // --final / --draft pick the file; otherwise check the newer render (a fresh draft must not be judged by an old final)
+  const mtime = (p: string) => (fs.existsSync(p) ? fs.statSync(p).mtimeMs : -1);
+  const pick = explicitFinal === true ? videoPath : explicitFinal === false ? draftPath : mtime(videoPath) >= mtime(draftPath) ? videoPath : draftPath;
+  const testVideo = fs.existsSync(pick) ? pick : null;
 
   // 1. Output file check
   if (!testVideo) {
     issues.push({
       type: "ERROR",
       rule: "file_exists",
-      message: `Rendered output video not found at ${videoPath} or ${draftPath}. Run render first.`,
+      message: `Rendered output video not found at ${pick}. Run render first.`,
     });
   } else {
     const stats = fs.statSync(testVideo);
@@ -150,7 +153,8 @@ async function main() {
           issues.push({
             type: "ERROR",
             rule: "duration_drift",
-            message: `Video duration (${videoDurationSec.toFixed(2)}s) differs from expected (${expectedDurationSec.toFixed(2)}s) by ${diff.toFixed(2)}s (> 0.5s).`,
+            message: `Video duration (${videoDurationSec.toFixed(2)}s) differs from expected (${expectedDurationSec.toFixed(2)}s) by ${diff.toFixed(2)}s (> 0.5s).` +
+              (Math.abs(expectedDurationSec - videoDurationSec - END_HOLD_S) < 0.5 ? ` The gap is the ${END_HOLD_S}s end-card hold: ${path.basename(testVideo)} was rendered before the hold existed; re-render it.` : ""),
           });
         } else {
           issues.push({
