@@ -126,6 +126,6 @@ export function buildGraph(d: Details, busy: Job | null): { nodes: GNode[]; edge
   if (actEnds.length) {
     for (const e of actEnds) { link(c, last.get("plan")!, e.first, { sh: "out", th: "in", trunk: trunk("plan") }); link(c, e.last, first.get("sound")!, { sh: "out", th: "in", trunk: trunk("acts") }); }
   } else cross("plan", "sound");
-  cross("sound", "render");
+  cross("sound", "render"); cross("render", "publish");
   return { nodes: c.nodes, edges: c.edges };
 }

@@ -13,14 +13,15 @@ import { PlanStep } from "@/steps/PlanStep";
 import { ActsStep } from "@/steps/ActsStep";
 import { SoundStep } from "@/steps/SoundStep";
 import { RenderStep } from "@/steps/RenderStep";
+import { PublishStep } from "@/steps/PublishStep";
 import { HistoryStep } from "@/steps/HistoryStep";
 
 const NodeView = lazy(() => import("@/components/NodeView"));
 
-const VIEWS: Record<StepKey, React.ComponentType> = { script: ScriptStep, voice: VoiceStep, align: AlignStep, plan: PlanStep, acts: ActsStep, sound: SoundStep, render: RenderStep };
+const VIEWS: Record<StepKey, React.ComponentType> = { script: ScriptStep, voice: VoiceStep, align: AlignStep, plan: PlanStep, acts: ActsStep, sound: SoundStep, render: RenderStep, publish: PublishStep };
 
 /** The step's one "Run all": the master chain where the schema has one, else the step's main action. */
-const RUN_ALL: Record<StepKey, string> = { script: "script.write", voice: "voice.run", align: "align.all", plan: "plan.run", acts: "acts.all", sound: "sound.all", render: "render.all" };
+const RUN_ALL: Record<StepKey, string> = { script: "script.write", voice: "voice.run", align: "align.all", plan: "plan.run", acts: "acts.all", sound: "sound.all", render: "render.all", publish: "publish.all" };
 
 const DESC: Record<StepKey, string> = {
   script: "Write your idea in plain text. Claude turns it into a spoken, chunked script with a scored hook and on-screen hints (yt-script method). You review and edit it, then approve it; nothing is voiced before that. Approval is a human gate and is never part of Run all.",
@@ -29,6 +30,7 @@ const DESC: Record<StepKey, string> = {
   plan: "The director (Claude) splits the narration into acts: beats, the hits that must land on spoken words, BPM, and the data shown on screen with its source.",
   acts: "Each act is drawn in code by Claude in the plan's house style. Preview it, ask a reviewer, collect notes, send them to the act's author, and review again.",
   sound: "Foley events come from each act's code. The music bed is a separate stem for your editor; the mix is voice + foley only unless you include music.",
+  publish: "YouTube packaging: three packages for Test & Compare (a Briefing-style thumbnail with its title), the description with computed chapters, sources and credits, tags. A vision critic checks the thumbnails against the guide (workflow/07-publish/GUIDE.md); you review, fix with notes, edit the text and approve. Approval is a human gate and goes stale if anything changes afterwards.",
   render: "Assemble every act, render a draft, watch it, render the final 1080p H.264, then run QC (placeholders, loudness, duration).",
 };
 
@@ -38,6 +40,7 @@ function stats(k: StepKey, d: Details): React.ReactNode {
     script: [d.script.words ? String(d.script.words) : "—", "spoken words"], voice: [d.voice.sectionCount ? String(d.voice.sectionCount) : "—", "sections"],
     align: [d.align.durationMs ? dur(d.align.durationMs) : "—", "narration"], plan: [d.plan.acts.length ? String(d.plan.acts.length) : "—", "acts"],
     acts: [`${d.acts.filter((a) => a.scene).length}/${d.acts.length}`, "drawn"], sound: [d.sound.events != null ? String(d.sound.events) : "—", "foley events"], render: [d.render.videos.length ? String(d.render.videos.length) : "—", "videos"],
+    publish: [`${d.publish.thumbs.filter((t) => t.file).length}/3`, "thumbnails"],
   };
   return (
     <>

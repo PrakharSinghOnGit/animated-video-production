@@ -1,5 +1,5 @@
 export type St = "none" | "done" | "stale" | "partial" | "running" | "failed";
-export type StepKey = "script" | "voice" | "align" | "plan" | "acts" | "sound" | "render";
+export type StepKey = "script" | "voice" | "align" | "plan" | "acts" | "sound" | "render" | "publish";
 
 export interface OptDef {
   key: string; label: string; help?: string; type: "select" | "number" | "bool" | "text" | "multi";
@@ -32,6 +32,26 @@ export interface ActRow {
   approval: { at: string; sceneMtime: number } | null;
 }
 export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number }
+export type Variant = "A" | "B" | "C";
+export interface PubPackage { title: string; type: string; rationale: string; thumbnail: string; hypothesis: string }
+export interface PubChecks { errors: string[]; warnings: string[] }
+export interface PubMeta {
+  video: string; at: string; model: string; durationS: number; titles: Record<Variant, PubPackage>; description: string;
+  chapters: { ms: number; time: string; title: string }[]; tags: string[]; hashtags: string[]; checks: PubChecks; edited?: boolean;
+}
+export interface PubThumb {
+  id: Variant; file: FileInfo | null; source: FileInfo | null; notes: string; notesMtime: number; checks: PubChecks | null;
+  info: { concept: string; text: string; numbers: string[]; focal: string; hypothesis: string; clear: string } | null;
+}
+export interface PubIssue { kind: string; severity: string; seen: string; fix: string }
+export interface PubReview { file: string; agent: string; at: string; overall: number; summary?: string; all: PubIssue[]; variants: Record<string, { score: number; issues: PubIssue[] }>; costUsd: number; ms: number }
+export interface PublishInfo {
+  metadata: PubMeta | null; metaFile: FileInfo | null; metaNotes: string; metaNotesMtime: number;
+  thumbs: PubThumb[]; preview: FileInfo | null; previewSmall: FileInfo | null;
+  reviews: PubReview[]; review: (FileInfo & { text: string }) | null;
+  /** your approval of these exact thumbnails + metadata; valid = nothing changed since */
+  approval: { at: string; valid: boolean } | null; stale: string[]; exported: FileInfo[]; badge: string;
+}
 export interface Details {
   id: string; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
   script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
@@ -40,6 +60,7 @@ export interface Details {
   align: { master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
   plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
+  publish: PublishInfo;
   sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];

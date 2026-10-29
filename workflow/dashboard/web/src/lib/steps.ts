@@ -8,6 +8,7 @@ export const STEPS: { key: StepKey; label: string; hint: string }[] = [
   { key: "acts", label: "Acts", hint: "Draw, preview, review" },
   { key: "sound", label: "Sound", hint: "Foley and mix" },
   { key: "render", label: "Render", hint: "Draft, final, QC" },
+  { key: "publish", label: "Publish", hint: "Titles, thumbnails, description" },
 ];
 
 /** done: finished. next: the first step that is not done. blocked: later step with nothing yet. todo: later step with stale or partial output. */
@@ -52,6 +53,15 @@ export function todoText(key: StepKey, st: St, d: Details): string {
     }
     case "sound": return st === "done" ? "Foley, music stem and mix are ready." : pre + "Build sound: cues, music stem, mix.";
     case "render": return st === "done" ? "Rendered." : pre + "Assemble and render a draft, then the final.";
+    case "publish": {
+      const p = d.publish, n = p.thumbs.filter((t) => t.file).length;
+      if (st === "done") return "Packages approved: export them and run Test & Compare.";
+      if (st === "stale") return pre + (p.stale[0] ? `${p.stale[0]}: ` : "") + "check it, then approve again.";
+      if (!p.metadata && !n) return pre + "Run Publish all: titles + description, three thumbnails, review.";
+      if (!p.metadata) return pre + "Write the titles and description.";
+      if (n < 3) return pre + `${n}/3 thumbnails: design the rest.`;
+      return pre + "Review the three packages (thumbnail + title), fix with notes if needed, then approve.";
+    }
   }
 }
 

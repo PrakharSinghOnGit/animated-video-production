@@ -3,8 +3,9 @@
  * the opening of the description and the tags; this script computes everything that has rules (chapters, sources, credits,
  * disclaimer, limits, numbers) and writes 07-publish/metadata.json + description.txt.
  *
- * Usage: bun run meta --video <ID> [--model sonnet|opus|haiku] [--notes]
+ * Usage: bun run meta --video <ID> [--model sonnet|opus|haiku] [--notes] [--force]
  *   --notes  revise the current metadata with your notes (07-publish/notes/meta.md) instead of writing from scratch
+ *   --force  overwrite metadata you edited in the dashboard (otherwise it is kept)
  * The brief is workflow/prompts/META.md; the rules are workflow/07-publish/GUIDE.md.
  */
 import fs from "node:fs";
@@ -35,8 +36,13 @@ if (args.includes("--notes") && (!notes || !old)) {
   process.exit(1);
 }
 
+if (old?.edited && !notes && !args.includes("--force")) {
+  console.log("⏩ the metadata was edited in the dashboard: kept (--force overwrites it, --notes revises it)");
+  process.exit(0);
+}
+
 const plan = readJson<any>(path.join(ws, "05-video/acts.json"));
-const pn = planNumbers(plan);
+const pn =planNumbers(plan);
 const durationS = videoSeconds(videoId);
 
 /** The model's opening paragraph of an existing description: everything before the first chapter line. */

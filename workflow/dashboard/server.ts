@@ -17,6 +17,7 @@ import os from "node:os";
 import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./system";
 import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
+import * as pub from "../07-publish/lib";
 import { atomicWrite, helpFor, parseEnv, removeEnv, serializeEnv, setEnv, KEY_RE } from "./envfile";
 
 const REPO = path.resolve(import.meta.dir, "../..");
@@ -307,6 +308,7 @@ interface Action {
   step: string; label: string; help: string;
   paid?: string;           // e.g. "~$3"
   perAct?: boolean;        // needs an act id
+  variant?: boolean;       // needs a thumbnail variant (A/B/C), passed as the act
   long?: string;           // typical duration
   opts?: Opt[];
   /** Master buttons: the commands this action runs, in order (same order as build()). `action` = another button that runs that command alone. */
@@ -320,6 +322,8 @@ const FINAL_OPTS: Opt[] = [
   { key: "res", label: "Resolution", help: "1440p and 4K are upscaled from the 1080p render", type: "select", choices: ["1080", "1440", "2160"], def: "1080", flag: "--res" },
   { key: "audio", label: "Audio", help: "mix = voice + foley (+ music if mixed in); none skips QC's loudness check", type: "select", choices: ["mix", "voice", "none"], def: "mix", flag: "--audio" },
 ];
+
+const PUB_MODEL: Opt = { key: "model", label: "Model", help: "sonnet by default; opus designs better and costs more", type: "select", choices: ["sonnet", "opus", "haiku"], def: "sonnet", flag: "--model" };
 
 const ACTIONS: Record<string, Action> = {
   "script.write": {
@@ -469,6 +473,55 @@ const ACTIONS: Record<string, Action> = {
     opts: FINAL_OPTS,
     build: (ws, o) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("render", "--video", ws, ...args(o, "render.all")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws, "--final")])] },
   "render.qc": { step: "render", label: "QC", help: "Hard checks: placeholders, loudness, duration.", build: (ws) => [B("qc", "--video", ws)] },
+  "publish.all": {
+    step: "publish", label: "Publish all", help: "Titles + description, the three thumbnails, then the thumbnail review. Titles you edited are kept (the metadata step skips them); thumbnails that exist are kept.", paid: "~$1–3", long: "~8–15 min",
+    chain: [{ label: "Titles & description", action: "publish.meta" }, { label: "Thumbnails", action: "publish.thumbs" }, { label: "Review", action: "publish.review" }],
+    opts: [PUB_MODEL, { key: "agent", label: "Reviewer", type: "select", choices: ["haiku", "sonnet", "opus", "agy"], def: "haiku", flag: "--agent", help: "agy = Gemini Flash (free)" }],
+    build: (ws, o) => {
+      const m = args(o, "publish.all"), pick = (k: string) => (m.includes(k) ? [k, m[m.indexOf(k) + 1]] : []);
+      return [B("meta", "--video", ws, ...pick("--model")), B("thumbs", "--video", ws, ...pick("--model")), B("thumbs:review", "--video", ws, ...pick("--agent"), "--to-notes")];
+    },
+  },
+  "publish.meta": {
+    step: "publish", label: "Titles & description", help: "Three titles (one per package A/B/C, each with the brief of its thumbnail), the description opening, tags and hashtags. Chapters, sources, credits and limits are computed in code.", paid: "~$0.2–0.5", long: "~30 s",
+    opts: [
+      PUB_MODEL,
+      { key: "notes", label: "Revise with my notes", help: "uses notes/meta.md and keeps what you did not mention", type: "bool", def: false, flag: "--notes" },
+      { key: "force", label: "Overwrite my edits", help: "otherwise metadata you edited in the dashboard is kept", type: "bool", def: false, flag: "--force" },
+    ],
+    build: (ws, o) => [B("meta", "--video", ws, ...args(o, "publish.meta"))],
+  },
+  "publish.thumbs": {
+    step: "publish", label: "Thumbnails", help: "The author designs the three thumbnails as Briefing-kit stills, looks at its own renders, and the images and preview sheets are rendered.", paid: "~$1–3", long: "~5–10 min",
+    opts: [
+      PUB_MODEL,
+      { key: "variant", label: "Variant", type: "select", choices: ["all", "A", "B", "C"], def: "all", map: (v) => (v === "all" ? [] : ["--variant", v]) },
+      { key: "force", label: "Redo variants that exist", type: "bool", def: true, flag: "--force" },
+    ],
+    build: (ws, o) => [B("thumbs", "--video", ws, ...args(o, "publish.thumbs"))],
+  },
+  "publish.render": {
+    step: "publish", label: "Render thumbnails", help: "Renders the images and the preview sheets from the thumbnail files (after you edited one by hand). No model.", long: "~1 min",
+    opts: [{ key: "variant", label: "Variant", type: "select", choices: ["all", "A", "B", "C"], def: "all", map: (v) => (v === "all" ? [] : ["--variant", v]) }],
+    build: (ws, o) => [B("thumbs:render", "--video", ws, ...args(o, "publish.render"))],
+  },
+  "publish.review": {
+    step: "publish", label: "Review thumbnails", help: "A vision critic checks each thumbnail and the preview sheets against the guide's checklist (168 px legibility, words, focal point, contrast, badge zone, truth, distinctness).", paid: "~$0.1–0.3", long: "~1–3 min",
+    opts: [
+      { key: "agent", label: "Reviewer", type: "select", choices: ["haiku", "sonnet", "opus", "agy"], def: "haiku", flag: "--agent", help: "agy = Gemini Flash (free); others are Claude (paid)" },
+      { key: "toNotes", label: "Append findings to each variant's notes", type: "bool", def: true, flag: "--to-notes" },
+    ],
+    build: (ws, o) => [B("thumbs:review", "--video", ws, ...args(o, "publish.review"))],
+  },
+  "publish.fix": {
+    step: "publish", variant: true, label: "Fix with notes", help: "Sends this variant's notes to the thumbnail author for one revision (resumes its session).", paid: "~$0.5–2", long: "~3–6 min",
+    opts: [PUB_MODEL],
+    build: (ws, o, v) => {
+      if (!pub.readText(pub.pubFile(ws, `notes/${v}.md`)).trim()) return "save notes for this variant first";
+      return [B("thumbs", "--video", ws, "--variant", v!, "--notes", ...args(o, "publish.fix"))];
+    },
+  },
+  "publish.export": { step: "publish", label: "Export", help: "Copies the thumbnails, titles.txt (A: ...), description, tags and the .srt into 07-publish/export/.", long: "seconds", build: (ws) => [B("publish:export", "--video", ws)] },
   "timings.run": { step: "timings", label: "Time & cost report", help: "Prints timings.json.", build: (ws) => [B("timings", "--video", ws)] },
 };
 
@@ -521,12 +574,13 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
   let cmds: string[][] | string;
   try { cmds = a.build(ws, opts ?? {}, act); } catch (e: any) { return e.message; }
   if (typeof cmds === "string") return cmds;
-  const jobKey = a.perAct ? `${key.split(".")[1]}:${act}` : a.step;
-  return { key: jobKey, label: a.perAct ? `${a.label} ${act}` : a.label, cmds };
+  if (a.variant && !(act && /^[ABC]$/.test(act))) return "unknown variant";
+  const jobKey = a.variant ? `${a.step}:${act}` : a.perAct ? `${key.split(".")[1]}:${act}` : a.step;
+  return { key: jobKey, label: a.perAct || a.variant ? `${a.label} ${act}` : a.label, cmds };
 }
 
 function schema() {
-  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
+  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct || !!a.variant, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
 }
 
 // ───────────────────────────── status from disk ─────────────────────────────
@@ -615,6 +669,55 @@ function renderStates(ws: string): { draft: St; final: St } {
   return { draft: derive(ws, ins, ["05-video/draft.mp4"], sceneMax), final: derive(ws, ins, ["05-video/final.mp4"], sceneMax) };
 }
 
+// ── publish: titles + thumbnails (workspace/<ID>/07-publish) ──
+
+const PUB_FILES = (ws: string) => pub.VARIANTS.map((v) => pub.thumbPath(ws, v));
+const approvalFile = (ws: string) => pub.pubFile(ws, "approval.json");
+const hashCache = new Map<string, { stamp: string; hash: string }>();
+/** sha256 over the three thumbnails and the metadata fields a viewer sees: what an approval stands for. Cached by file times. */
+function publishHash(ws: string): string {
+  const files = [...PUB_FILES(ws), pub.pubFile(ws, "metadata.json")];
+  const stamp = files.map((p) => (p ? `${p}:${mtime(p)}` : "none")).join("|");
+  const c = hashCache.get(ws);
+  if (c?.stamp === stamp) return c.hash;
+  const h = new Bun.CryptoHasher("sha256");
+  for (const p of PUB_FILES(ws)) h.update(p ? fs.readFileSync(p) : "none");
+  const m = readJson<any>(pub.pubFile(ws, "metadata.json"));
+  h.update(JSON.stringify({ t: m?.titles && pub.VARIANTS.map((v) => m.titles[v]?.title), d: m?.description, g: m?.tags, h: m?.hashtags }));
+  const hash = h.digest("hex");
+  hashCache.set(ws, { stamp, hash });
+  return hash;
+}
+/** The human approval of the packages; valid only while the thumbnails and the metadata are the ones approved. */
+function publishApproval(ws: string): { at: string; valid: boolean } | null {
+  const a = readJson<any>(approvalFile(ws));
+  return a?.hash ? { at: a.at, valid: a.hash === publishHash(ws) } : null;
+}
+/** Why the step's outputs are out of date (empty = current): a thumbnail older than its source, metadata older than the script, an approval that no longer matches. */
+function publishStaleReasons(ws: string): string[] {
+  const out: string[] = [];
+  for (const v of pub.VARIANTS) {
+    const p = pub.thumbPath(ws, v), src = pub.pubFile(ws, `remotion/thumbs/${v}.tsx`);
+    if (p && mtime(src) > mtime(p) + 1000) out.push(`${v}: the thumbnail file changed after its render`);
+  }
+  const meta = pub.pubFile(ws, "metadata.json");
+  if (exists(meta) && mtime(path.join(wsDir(ws), "02-scripting/script_raw.md")) > mtime(meta) + 1000) out.push("the script changed after the titles and description were written");
+  const ap = publishApproval(ws);
+  if (ap && !ap.valid) out.push("the thumbnails or the metadata changed after you approved them");
+  return out;
+}
+function publishStatus(ws: string): St {
+  const thumbs = PUB_FILES(ws);
+  const outs = ["07-publish/metadata.json", ...pub.VARIANTS.map((v, i) => (thumbs[i] ? path.relative(wsDir(ws), thumbs[i]!) : `07-publish/thumbnails/${v}.png`)), "07-publish/preview.png"];
+  const have = outs.filter((o) => exists(path.join(wsDir(ws), o)));
+  let st: St = !have.length ? "none" : have.length < outs.length ? "partial" : "done";
+  if (st === "done") {
+    if (publishStaleReasons(ws).length) st = "stale";
+    else if (!publishApproval(ws)?.valid) st = "partial";   // complete but waiting for your approval, like an unapproved script
+  }
+  return overlay(ws, "publish", st, outs);
+}
+
 function stepStatuses(ws: string): Record<string, St> {
   const S = (key: string, inputs: string[], outputs: string[], extra = 0) => overlay(ws, key, derive(ws, inputs, outputs, extra), outputs);
   const scenes = sceneFiles(ws);
@@ -642,6 +745,7 @@ function stepStatuses(ws: string): Record<string, St> {
     acts,
     sound: S("sound", ["06-audio/voiceover_master.wav"], ["05-video/events.json", "06-audio/music_plan.json", "06-audio/music.wav", "06-audio/mix.wav"], sceneMax),
     render,
+    publish: publishStatus(ws),
     timings: S("timings", [], ["timings.json"]),
   };
 }
@@ -660,6 +764,7 @@ const TIMING_MATCH: Record<string, RegExp> = {
   acts: /^(act|critic|frames|review|preview) A\d+/i,
   sound: /^(cues|music|mix|sound)\b/i,
   render: /^(render|qc)\b/i,
+  publish: /^(meta|thumbs)\b/i,
 };
 
 function stepMeta(rows: any[], re: RegExp) {
@@ -679,6 +784,30 @@ function approvalState(ws: string): string {
   if (!exists(f)) return "no script";
   if (!a) return exists(path.join(d, "02-scripting/idea.md")) ? "not approved" : "legacy";
   return a.sha256 === new Bun.CryptoHasher("sha256").update(fs.readFileSync(f)).digest("hex") ? "approved" : "changed since approval";
+}
+
+function publishDetails(ws: string) {
+  const d = wsDir(ws);
+  const meta = readJson<any>(pub.pubFile(ws, "metadata.json"));
+  const info = readJson<Record<string, any>>(pub.pubFile(ws, "thumbnails.json")) ?? {};
+  const checks = readJson<Record<string, any>>(pub.pubFile(ws, "thumbnails.checks.json")) ?? {};
+  const rev = ls(pub.pubFile(ws, "reviews"), /\.json$/).reverse().slice(0, 8).map((f) => {
+    const r = readJson<any>(pub.pubFile(ws, `reviews/${f}`));
+    return r ? { file: `07-publish/reviews/${f}`, agent: r.agent, at: r.at, overall: r.overall, summary: r.summary, all: r.all ?? [], variants: r.variants ?? {}, costUsd: r.costUsd ?? 0, ms: r.ms ?? 0 } : null;
+  }).filter(Boolean);
+  return {
+    metadata: meta, metaFile: fileInfo(ws, "07-publish/metadata.json"),
+    metaNotes: pub.readText(pub.pubFile(ws, "notes/meta.md")), metaNotesMtime: mtime(pub.pubFile(ws, "notes/meta.md")),
+    thumbs: pub.VARIANTS.map((v) => {
+      const p = pub.thumbPath(ws, v), notes = pub.pubFile(ws, `notes/${v}.md`);
+      return { id: v, file: p ? fileInfo(ws, path.relative(d, p)) : null, source: fileInfo(ws, `07-publish/remotion/thumbs/${v}.tsx`), info: info[v] ?? null, checks: checks[v] ?? null, notes: pub.readText(notes), notesMtime: mtime(notes) };
+    }),
+    preview: fileInfo(ws, "07-publish/preview.png"), previewSmall: fileInfo(ws, "07-publish/preview_small.png"),
+    reviews: rev, review: exists(pub.pubFile(ws, "review.md")) ? { ...fileInfo(ws, "07-publish/review.md"), text: pub.readText(pub.pubFile(ws, "review.md")).slice(0, 20000) } : null,
+    approval: publishApproval(ws), stale: publishStaleReasons(ws),
+    exported: ls(pub.pubFile(ws, "export")).map((f) => fileInfo(ws, `07-publish/export/${f}`)).filter(Boolean),
+    badge: pub.badgeTime(meta?.durationS ?? 0),
+  };
 }
 
 function details(ws: string) {
@@ -781,6 +910,7 @@ function details(ws: string) {
     timings: rows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),
     lastRuns: last,
+    publish: publishDetails(ws),
     studio: studioState(),
   };
 }
@@ -1099,6 +1229,43 @@ const server = Bun.serve({
         fs.writeFileSync(f, text, "utf-8");
         return json({ ok: true, file: fileInfo(ws, "02-scripting/script_raw.md") });
       }
+    }
+
+    const pnm = rest.match(/^\/publish\/notes\/([ABC]|meta)$/);
+    if (pnm && req.method === "PUT") {
+      const text = await req.text();
+      if (text.length > 100_000) return bad("notes too large");
+      const f = pub.pubFile(ws, `notes/${pnm[1]}.md`);
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      fs.writeFileSync(f, text, "utf-8");
+      return json({ ok: true });
+    }
+
+    // titles / description / tags edited in the dashboard: saved to metadata.json (and description.txt), checks re-run
+    if (rest === "/publish/metadata" && req.method === "PUT") {
+      const meta = readJson<any>(pub.pubFile(ws, "metadata.json"));
+      if (!meta) return bad("no metadata yet: run Titles & description first");
+      if (runningJob(ws)?.step === "publish") return bad("a publish job is running", 409);
+      const b = await body(req);
+      if (b.titles && typeof b.titles === "object") for (const v of pub.VARIANTS) if (b.titles[v] !== undefined) {
+        if (typeof b.titles[v] !== "string" || b.titles[v].length > 300) return bad(`title ${v}: text up to 300 characters`);
+        meta.titles[v].title = b.titles[v].trim();
+      }
+      if (b.description !== undefined) { if (typeof b.description !== "string" || b.description.length > 20000) return bad("description: text up to 20000 characters"); meta.description = b.description.replace(/\r\n/g, "\n"); }
+      if (b.tags !== undefined) { if (!Array.isArray(b.tags) || b.tags.some((t: unknown) => typeof t !== "string")) return bad("tags: a list of text"); meta.tags = b.tags.map((t: string) => t.trim()).filter(Boolean); }
+      if (b.hashtags !== undefined) { if (!Array.isArray(b.hashtags) || b.hashtags.some((t: unknown) => typeof t !== "string")) return bad("hashtags: a list of text"); meta.hashtags = b.hashtags.map((t: string) => t.trim()).filter(Boolean); }
+      meta.edited = true;
+      meta.checks = pub.recheck(ws, meta);
+      atomicWrite(pub.pubFile(ws, "metadata.json"), JSON.stringify(meta, null, 2));
+      atomicWrite(pub.pubFile(ws, "description.txt"), meta.description);
+      return json({ ok: true, checks: meta.checks });
+    }
+
+    if (rest === "/publish/approve" && (req.method === "POST" || req.method === "DELETE")) {
+      if (req.method === "DELETE") { fs.rmSync(approvalFile(ws), { force: true }); return json({ ok: true }); }
+      if (!exists(pub.pubFile(ws, "metadata.json")) || PUB_FILES(ws).some((p) => !p)) return bad("needs the metadata and all three thumbnails first");
+      fs.writeFileSync(approvalFile(ws), JSON.stringify({ at: new Date().toISOString(), hash: publishHash(ws) }));
+      return json({ ok: true });
     }
 
     const nm = rest.match(/^\/notes\/(A\d{2,3})$/);

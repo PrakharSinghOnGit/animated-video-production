@@ -49,6 +49,11 @@ export const api = {
   approveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "POST", body: {} }),
   unapproveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "DELETE" }),
 
+  saveMetadata: (ws: string, body: { titles?: Record<string, string>; description?: string; tags?: string[]; hashtags?: string[] }) => call<{ ok: true; checks: { errors: string[]; warnings: string[] } }>(`${w(ws)}/publish/metadata`, { method: "PUT", body }),
+  savePublishNotes: (ws: string, which: string, text: string) => call<unknown>(`${w(ws)}/publish/notes/${which}`, { method: "PUT", body: text }),
+  approvePublish: (ws: string) => call<unknown>(`${w(ws)}/publish/approve`, { method: "POST", body: {} }),
+  unapprovePublish: (ws: string) => call<unknown>(`${w(ws)}/publish/approve`, { method: "DELETE" }),
+
   fileUrl: (ws: string, rel: string) => `${w(ws)}/file?path=${encodeURIComponent(rel)}`,
   logUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}`,
   logPlainUrl: (ws: string, jobId: string) => `${w(ws)}/log/${jobId}?plain=1`,
