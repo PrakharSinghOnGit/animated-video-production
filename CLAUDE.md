@@ -9,7 +9,7 @@ in the **Briefing** style (Remotion + canvas, `packages/kit/src/spy/`) → foley
 - `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `paper/{lib,engine,transitions,
   CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template.
 - `workflow/`: `styles/briefing/` (STYLE.md + ACT.md), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
-  `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `dashboard/`.
+  `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export), `dashboard/`.
 - `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files
   `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`.
 

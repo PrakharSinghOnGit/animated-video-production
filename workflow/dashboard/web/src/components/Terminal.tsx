@@ -8,7 +8,7 @@ import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
 import { cn, dur } from "@/lib/utils";
 
-const STEPS_WITH_LOG = ["script", "voice", "align", "plan", "acts", "sound", "render"];
+const STEPS_WITH_LOG = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish"];
 const MIN = 120;
 
 /** Plain terminal at the bottom of the center panel: drag the top edge to resize, collapse to a bar, one tab per job. On a phone it is a bottom drawer. */

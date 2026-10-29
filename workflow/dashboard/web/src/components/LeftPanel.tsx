@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { cn, dur, money, shortId } from "@/lib/utils";
 import type { View } from "@/hooks/useRoute";
 
-const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render"];
+const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish"];
 const NAV: { v: View; label: string; icon: typeof Cpu }[] = [{ v: "overview", label: "Overview", icon: LayoutDashboard }, { v: "usage", label: "Claude usage", icon: BarChart3 }, { v: "machine", label: "Machine", icon: Cpu }];
 
 const Head = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (

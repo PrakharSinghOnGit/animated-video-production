@@ -1,4 +1,4 @@
-import type { ActRow, Details, Job, StepKey } from "./types";
+import type { ActRow, Details, Job, PubThumb, StepKey } from "./types";
 import { lastRun, ok, reruns, runsFor, type BlockStatus } from "./flow";
 
 /** One sub-step of a step: everything but what it shows inside (the list view adds `children`). */
@@ -104,6 +104,24 @@ export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
         ],
       };
     }
+    case "publish": {
+      const p = d.publish, files = p.thumbs.flatMap((t) => (t.file ? [t.file] : []));
+      const prevStale = !!p.preview && files.some((f) => f.mtime > p.preview!.mtime + 1000);
+      const open = p.thumbs.some((t) => pubNotesOpen(t, d)) || (!!p.metaNotes.trim() && !pubMetaApplied(d, p.metaNotesMtime));
+      return {
+        loops: [{ from: "fix", to: "preview", label: "fix → re-render, re-review", ran: d.runs.filter((r) => /^Fix with notes [ABC]$/.test(r.label)).length }],
+        blocks: [
+          { id: "meta", title: "Titles & description", desc: "One title per package (A, B, C) with the brief of its thumbnail; chapters, sources, credits and limits are computed.", action: "publish.meta", label: "Titles & description", done: !!p.metadata, outAt: p.metaFile?.mtime, costRe: /^meta\b/i },
+          { id: "thumbs", title: "Thumbnails", desc: "Three Briefing-kit stills that differ in concept, each paired with its title.", action: "publish.thumbs", label: "Thumbnails", done: files.length === 3, outAt: files[0]?.mtime, costRe: /^thumbs (?!review)/i },
+          { id: "preview", title: "Preview", desc: "Renders the images and the preview sheets after a hand edit; a live mock of the home feed is below.", action: "publish.render", label: "Render thumbnails", done: !!p.preview && !prevStale, outAt: p.preview?.mtime },
+          { id: "review", title: "Review", action: "publish.review", label: "Review thumbnails", done: p.reviews.length > 0, costRe: /^thumbs review/i },
+          { id: "notes", title: "Notes", desc: "Your gate: one line per problem, per variant (and one box for the titles and description). Reviews can append findings here.", done: p.thumbs.some((t) => !!t.notes.trim()) || !!p.metaNotes.trim() },
+          { id: "fix", title: "Fix with notes", desc: "Sends a variant's notes to the thumbnail author (resumes its session), or revises the titles with notes/meta.md.", done: (ok(d, "Fix with notes A") || ok(d, "Fix with notes B") || ok(d, "Fix with notes C") || ok(d, "Titles & description")) && !open },
+          { id: "approved", title: "Approved", desc: "Gate: you approve these three thumbnails and this metadata. It goes stale if either changes afterwards.", done: !!p.approval?.valid, note: p.approval && !p.approval.valid ? "Changed since you approved: approve again." : undefined },
+          { id: "export", title: "Export", desc: "Copies what you upload into 07-publish/export/.", action: "publish.export", label: "Export", done: p.exported.length > 0, outAt: p.exported[0]?.mtime },
+        ],
+      };
+    }
     case "render": {
       const r = d.render;
       const draft = r.videos.find((v) => v.path.endsWith("draft.mp4")), fin = r.videos.find((v) => v.path.endsWith("final.mp4"));
@@ -123,6 +141,14 @@ export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
     }
   }
 }
+
+/** Variant notes are open only when written after the last successful "Fix with notes" run for that variant. */
+export const pubNotesOpen = (t: PubThumb, d: Details) => {
+  const fix = lastRun(d, `Fix with notes ${t.id}`);
+  return !!t.notes.trim() && !(fix?.status === "done" && fix.end >= t.notesMtime);
+};
+/** The titles notes (notes/meta.md) are applied once a successful "Titles & description" run is newer than them. */
+export const pubMetaApplied = (d: Details, notesMtime: number) => { const r = lastRun(d, "Titles & description"); return r?.status === "done" && r.end >= notesMtime; };
 
 /** Notes are open only when written after the last successful "Fix with notes" run (a fix applies them; the file is kept). */
 export const notesOpen = (a: ActRow, d: Details) => {

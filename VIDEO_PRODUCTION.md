@@ -16,7 +16,7 @@ Everything else is this pipeline. Read this whole file before running anything.
   and a paid licence). CC BY sound effects need the credits from `06-audio/credits.txt` in the video description.
 - **Money:** steps marked 💲 call Claude through `claude -p` and cost real money (amounts below). Don't re-run them
   speculatively; fix small things by editing the code yourself (cheap) instead of a paid fix round.
-- **Gates:** stop and wait for the user at **G1a script approval** (only the user approves a script), **G1 plan**, **G2 first act**, **G3 draft**. Never author all acts before
+- **Gates:** stop and wait for the user at **G1a script approval** (only the user approves a script), **G1 plan**, **G2 first act**, **G3 draft**, **G4 publish packages**. Never author all acts before
   the user has approved the first one.
 - **Cheap helper:** `agy` (Antigravity CLI, Gemini Flash, free) may do boring read-only work (the frame critic already
   uses it). Always use `--mode plan`; never give it a decision or a write.
@@ -26,12 +26,13 @@ Everything else is this pipeline. Read this whole file before running anything.
 
 | Path | What |
 |---|---|
-| `workspace/<ID>/` | one video: `02-scripting/script_raw.md`, `03-voiceover/`, `04-transcription/`, `05-video/` (acts.json, act files `src/scenes/A01_*.tsx`, `review/<act>/` frames), `06-audio/`, `07-assembly/export/` (.srt), `timings.json` |
+| `workspace/<ID>/` | one video: `02-scripting/script_raw.md`, `03-voiceover/`, `04-transcription/`, `05-video/` (acts.json, act files `src/scenes/A01_*.tsx`, `review/<act>/` frames), `06-audio/`, `07-assembly/export/` (.srt), `07-publish/` (metadata, thumbnails, review, export), `timings.json` |
 | `workflow/styles/briefing/` | the house style: `STYLE.md` (the look, sound, camera) + `ACT.md` (engine contract for act authors) |
 | `workflow/prompts/` | `DIRECTOR.md` (plans acts), `ACT.md` (authors one act); both take `{{STYLE}}` |
 | `packages/kit/src/spy/` | the Briefing drawing engine (`README.md` = API); `paper/` = shared canvas helpers it imports |
 | `workflow/05-video/scripts/` | pipeline commands (see `package.json` scripts) |
 | `workflow/06-audio/` | mastering, procedural music/foley, mix |
+| `workflow/07-publish/` | YouTube packaging: `GUIDE.md`, meta/thumbs/review/export scripts, thumbnail template |
 | `workflow/dashboard/` | local dashboard (`bun run dashboard`) |
 
 ## 2. Setup check (once per machine)
@@ -105,8 +106,38 @@ dashboard's openDAW button); their export `06-audio/mix_daw.wav` replaces `mix.w
 `bun run render --video <ID>` → `bun run qc --video <ID>` (hard fails on placeholders, loudness, duration).
 Hand over: the final mp4, the `.srt`, `06-audio/music.wav` (stem), `06-audio/credits.txt`, the timings table.
 
-`bun run build --video <ID>` chains steps 3–7 with confirmation prompts at the gates; use it once the act
+`bun run build --video <ID>` chains steps 3–7 (Publish is separate) with confirmation prompts at the gates; use it once the act
 pipeline needs no hand-holding.
+
+### Step 8: Publish 💲 (~10 min, ~$1–3 with Sonnet) → **G4 packages**
+YouTube Test & Compare runs up to 3 packages (thumbnail + title); the winner is chosen by watch-time share. This step makes
+three **packages A/B/C**. The rules (thumbnail, title, description, A/B, the critic checklist) are in
+`workflow/07-publish/GUIDE.md`; every prompt reads it. Needs a rendered video (the duration badge and chapters use it).
+1. `bun run meta --video <ID> [--model sonnet|opus|haiku] [--notes] [--force]` → `07-publish/metadata.json` + `description.txt`:
+   one title per package (one searchable, one curiosity; each with the brief of its thumbnail), the description opening, tags,
+   3 hashtags. **Computed in code, not by the model:** chapters (from `chapters.json`: first at 0:00, ascending, >= 3, each >= 10 s;
+   VID03-style duplicate 0:00 entries are merged), sources (sources.md, else the plan), credits (06-audio/credits.txt), the
+   disclaimer, and the checks: title <= 100 (warn past 60), description <= 5000, tags <= 500 chars, 3 hashtags, no get-rich wording,
+   **no number that is not in the plan's `data`** (and a warning for numbers sourced only from the narration).
+   `--notes` revises with `notes/meta.md`; metadata you edited in the dashboard is kept unless `--force`.
+2. `bun run thumbs --video <ID> [--variant A|B|C] [--notes] [--model sonnet|opus] [--force]`: an author agent designs 3 meaningfully
+   different 1920x1080 stills with the Briefing kit (<= 3 words of text, bottom-right and bottom edge clear, defined edge, sourced
+   numbers only), renders them, **looks at its own renders** and the preview sheet, and fixes. Files:
+   `07-publish/remotion/thumbs/A.tsx` -> `thumbnails/A.png` (a high-quality `.jpg` when a PNG would pass 2 MB; the paper texture usually does),
+   `preview.png` (large, 320 px, 168 px, mock home-feed cards in light and dark with each title), `preview_small.png`,
+   `thumbnails.json` (concept, text, numbers), `thumbnails.checks.json` (size, words, numbers, title overlap).
+   `bun run thumbs:render --video <ID> [--variant A] [--no-preview]` re-renders from the TSX for free (use it after a hand edit).
+   The thumbnails live in their own Remotion project under `07-publish/remotion/` (entry and registry generated, Root and Preview synced
+   from `workflow/07-publish/template/`), so `assemble` never touches them. No logo (STYLE.md: the brand is the end card only).
+3. `bun run thumbs:review --video <ID> [--agent haiku|sonnet|opus|agy] [--to-notes]` (~$0.1–0.2): a vision critic checks the PNGs and
+   preview sheets against the guide checklist (168 px legibility, words, one focal point, contrast, badge zone, edge, truthfulness,
+   distinctness, pairing) -> `review.md` (same shape as an act review). `--to-notes` appends the findings to `notes/<V>.md`.
+4. **G4**: in the dashboard (Publish): see the packages, edit titles and description (saved to metadata.json), write notes per variant,
+   **Fix with notes** (`thumbs --variant A --notes`, resumes the author), **Approve**. The approval is a hash of the three images and the
+   metadata: any later change makes it stale. Check the facts first: figures from the narration alone are flagged.
+5. `bun run publish:export --video <ID>` -> `07-publish/export/`: thumb_A/B/C, titles.txt ("A: ..."), description.txt, tags.txt, the .srt.
+   Upload the three thumbnails with their paired titles in Studio (Test & Compare) and do not edit them while the test runs.
+Dashboard "Publish all" = meta, thumbs, review.
 
 ## Dashboard
 `bun run dashboard` → http://127.0.0.1:4600. Every step above with all its options as form controls, live logs,

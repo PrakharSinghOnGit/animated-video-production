@@ -23,7 +23,7 @@
     "audio:mix": "bun run workflow/06-audio/mix.ts",
     "daw": "bun run workflow/06-audio/opendaw/build.ts",
     "daw:setup": "bun run workflow/06-audio/opendaw/setup.ts",
-    "audio:music":"bun run workflow/06-audio/music.ts",
+    "audio:music": "bun run workflow/06-audio/music.ts",
     "music:search": "bun run workflow/06-audio/music_search.ts",
     "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
     "transcribe": "bun run workflow/04-transcription/transcribe.ts",
@@ -46,7 +46,12 @@
     "srt": "bun run workflow/05-video/scripts/srt.ts",
     "write": "bun run workflow/02-scripting/write_script.ts",
     "review": "bun run workflow/05-video/scripts/review.ts",
-    "preview": "bun run workflow/05-video/scripts/preview.ts"
+    "preview": "bun run workflow/05-video/scripts/preview.ts",
+    "meta": "bun run workflow/07-publish/meta.ts",
+    "thumbs": "bun run workflow/07-publish/thumbs.ts",
+    "thumbs:render": "bun run workflow/07-publish/thumbs.ts --render-only",
+    "thumbs:review": "bun run workflow/07-publish/review.ts",
+    "publish:export": "bun run workflow/07-publish/export.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",
