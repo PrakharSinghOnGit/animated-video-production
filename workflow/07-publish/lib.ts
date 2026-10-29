@@ -242,12 +242,19 @@ export function sourceLines(id: string): { lines: string[]; verified: boolean; w
   const rows = md.split("\n").filter((l) => /^\|\s*\*\*/.test(l)).map((l) => l.split("|").map((c) => c.trim())[4]).filter(Boolean);
   const plan = readJson<any>(path.join(d, "acts.json"));
   const src = rows.length ? rows : (plan?.acts ?? []).flatMap((a: any) => (a.beats ?? []).flatMap((b: any) => (b.data ?? []).map((x: any) => String(x.source ?? ""))));
-  const clean = [...new Set(src.map((s: string) => s.replace(/^narration \(unverified\);?\s*/i, "").replace(/^likely\s+/i, "").trim()).filter((s: string) => s && !/^(derived|narration|check|writer)/i.test(s)))] as string[];
+  // keep the citation, drop the planner's working notes ("; check …", "(my check …)", "writer's model …") that must never reach the description
+  const cite = (s: string) => s.replace(/^narration \(unverified\);?\s*/i, "").replace(/^likely\s+/i, "").replace(/;\s*check\b.*$/i, "").replace(/\s*\(my check[^)]*\)/i, "").trim();
+  const seenKey = new Set<string>();
+  const clean = src.map(cite).filter((s: string) => {
+    const k = s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!s || /^(derived|narration|check|writer)/i.test(s) || /^\w+, latest year$/i.test(s) || seenKey.has(k)) return false;
+    seenKey.add(k); return true;
+  }) as string[];
   const unver = src.some((s: string) => /unverified/i.test(s));
   const warnings: string[] = [];
   if (!clean.length) warnings.push("no sources in sources.md or the plan: add the Sources section by hand");
   else if (unver) warnings.push("the sources come from a plan whose figures are marked unverified: check each one before publishing");
-  return { lines: clean.slice(0, 14), verified: !unver && clean.length > 0, warnings };
+  return { lines: clean.slice(0, 20), verified: !unver && clean.length > 0, warnings };
 }
 
 /** The attribution-required block of 06-audio/credits.txt (what the licences ask to be pasted in the description). */
