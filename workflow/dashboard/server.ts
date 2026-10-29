@@ -570,11 +570,11 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
   const a = ACTIONS[key];
   if (!a) return "unknown action";
   if (a.perAct && (!act || !ACT_ID.test(act) || !actIds(ws).includes(act))) return "unknown act";
+  if (a.variant && !(act && /^[ABC]$/.test(act))) return "unknown variant";
   currentOpts = { __acts: actIds(ws) };
   let cmds: string[][] | string;
   try { cmds = a.build(ws, opts ?? {}, act); } catch (e: any) { return e.message; }
   if (typeof cmds === "string") return cmds;
-  if (a.variant && !(act && /^[ABC]$/.test(act))) return "unknown variant";
   const jobKey = a.variant ? `${a.step}:${act}` : a.perAct ? `${key.split(".")[1]}:${act}` : a.step;
   return { key: jobKey, label: a.perAct || a.variant ? `${a.label} ${act}` : a.label, cmds };
 }
@@ -1246,6 +1246,7 @@ const server = Bun.serve({
       const meta = readJson<any>(pub.pubFile(ws, "metadata.json"));
       if (!meta) return bad("no metadata yet: run Titles & description first");
       if (runningJob(ws)?.step === "publish") return bad("a publish job is running", 409);
+      const before = JSON.stringify([meta.titles, meta.description, meta.tags, meta.hashtags]);
       const b = await body(req);
       if (b.titles && typeof b.titles === "object") for (const v of pub.VARIANTS) if (b.titles[v] !== undefined) {
         if (typeof b.titles[v] !== "string" || b.titles[v].length > 300) return bad(`title ${v}: text up to 300 characters`);
@@ -1254,7 +1255,7 @@ const server = Bun.serve({
       if (b.description !== undefined) { if (typeof b.description !== "string" || b.description.length > 20000) return bad("description: text up to 20000 characters"); meta.description = b.description.replace(/\r\n/g, "\n"); }
       if (b.tags !== undefined) { if (!Array.isArray(b.tags) || b.tags.some((t: unknown) => typeof t !== "string")) return bad("tags: a list of text"); meta.tags = b.tags.map((t: string) => t.trim()).filter(Boolean); }
       if (b.hashtags !== undefined) { if (!Array.isArray(b.hashtags) || b.hashtags.some((t: unknown) => typeof t !== "string")) return bad("hashtags: a list of text"); meta.hashtags = b.hashtags.map((t: string) => t.trim()).filter(Boolean); }
-      meta.edited = true;
+      if (JSON.stringify([meta.titles, meta.description, meta.tags, meta.hashtags]) !== before) meta.edited = true;
       meta.checks = pub.recheck(ws, meta);
       atomicWrite(pub.pubFile(ws, "metadata.json"), JSON.stringify(meta, null, 2));
       atomicWrite(pub.pubFile(ws, "description.txt"), meta.description);

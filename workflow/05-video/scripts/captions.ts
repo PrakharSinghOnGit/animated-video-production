@@ -96,8 +96,9 @@ async function writeChapters(outputDir: string, transcript: any): Promise<void> 
   }
   fs.writeFileSync(path.join(outputDir, "chapters.json"), JSON.stringify(chapters, null, 2), "utf-8");
   const stamp = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
-  const lines = chapters.map((c, i) => `${stamp(i === 0 ? 0 : c.pauseStartMs)} ${c.title}`);
-  if (chapters.length && chapters[0].pauseStartMs > 0) lines.unshift("0:00 Intro");
+  const intro = chapters.length > 0 && chapters[0].pauseStartMs > 0;   // YouTube wants the first chapter at 0:00: an Intro, else the first chapter itself
+  const lines = chapters.map((c, i) => `${stamp(i === 0 && !intro ? 0 : c.pauseStartMs)} ${c.title}`);
+  if (intro) lines.unshift("0:00 Intro");
   fs.writeFileSync(path.join(outputDir, "chapters.txt"), lines.join("\n") + "\n", "utf-8");
   console.log(`✓ ${chapters.length} chapters → chapters.json, chapters.txt (YouTube description format)`);
 }
