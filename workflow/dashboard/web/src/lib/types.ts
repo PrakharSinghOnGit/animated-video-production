@@ -1,9 +1,9 @@
 export type St = "none" | "done" | "stale" | "partial" | "running" | "failed";
-export type StepKey = "script" | "voice" | "align" | "plan" | "acts" | "sound" | "render" | "publish";
+export type StepKey = "script" | "voice" | "align" | "plan" | "acts" | "sound" | "render" | "publish" | "shorts";
 
 export interface OptDef {
   key: string; label: string; help?: string; type: "select" | "number" | "bool" | "text" | "multi";
-  choices?: string[]; def?: string | number | boolean | string[]; min?: number; max?: number; step?: number;
+  choices?: string[]; def?: string | number | boolean | string[]; min?: number; max?: number; step?: number; volatile?: boolean;
 }
 export interface ChainLink { label: string; action?: string }
 export interface ActionDef {
@@ -52,6 +52,24 @@ export interface PublishInfo {
   /** your approval of these exact thumbnails + metadata; valid = nothing changed since */
   approval: { at: string; valid: boolean } | null; stale: string[]; exported: FileInfo[]; badge: string;
 }
+export interface ShortFiles { draft: FileInfo | null; final: FileInfo | null; sheet: FileInfo | null; preview: FileInfo | null; mix: FileInfo | null; voice: FileInfo | null; srt: FileInfo | null }
+export const SHORT_STAGES = ["script", "approved", "voice", "align", "plan", "act", "sound", "render", "qc", "exported"] as const;
+export type ShortProgress = Record<(typeof SHORT_STAGES)[number], boolean>;
+export interface ShortItem {
+  id: string;
+  entry: { kind?: string; title?: string; hook?: string; payoff?: string; loop?: string; why?: string; words?: number; description?: string; hashtags?: string[]; data?: { label: string; value: number | string; unit?: string; source: string }[] };
+  checks: PubChecks | null; progress: ShortProgress;
+  /** approved | changed since approval | not approved | no script */
+  approval: string; approvedAt: string | null;
+  script: string; scriptMtime: number; words: number;
+  feedback: string; feedbackMtime: number; notes: string; notesMtime: number;
+  files: ShortFiles; thumbs: FileInfo[]; qc: (FileInfo & { text: string }) | null;
+  timings: { runs: number; ms: number; costUsd: number };
+}
+export interface CompactEntry { at: string; bytes: number; deep: boolean; daw: boolean; final: boolean; items: { why: string; n: number; bytes: number }[] }
+export interface ShortsInfo {
+  items: ShortItem[]; notes: string | null; indexFile: FileInfo | null; feedback: string; feedbackMtime: number; exported: FileInfo[]; compact: CompactEntry[];
+}
 export interface Details {
   id: string; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
   script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
@@ -61,6 +79,7 @@ export interface Details {
   plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
   publish: PublishInfo;
+  shorts: ShortsInfo;
   sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];
@@ -90,3 +109,13 @@ export interface LimitWindow { used_percentage: number; resets_at: number | null
 export interface Limits { five_hour: LimitWindow | null; seven_day: LimitWindow | null; updatedAt: number | null }
 export interface EnvEntry { key: string; secret: boolean; set: boolean; value: string | null; help: string }
 export interface EnvView { file: string; exists: boolean; entries: EnvEntry[]; suggested: string[] }
+
+export interface DeliverItem { key: string; group: string; label: string; file: string; bytes: number; present: boolean; note?: string }
+export interface DeliverInfo { builtAt: number; items: DeliverItem[] }
+/** Disk size and the downloads of the long video and of each short (GET /overview). */
+export interface Overview { bytes: { total: number; shorts: Record<string, number> }; deliver: { video: DeliverInfo | null; shorts: Record<string, DeliverInfo | null> } }
+/** One foley event of events_all.json (the user's edits annotated). */
+export interface SfxEvent { key: string; t: number; type: string; act: string; d?: number; gain?: number; pan?: number; off?: boolean; gainDb?: number }
+export interface SfxClip { key: string; file: string; type: string; act: string; t: number; dur: number }
+export interface SfxEdits { off: string[]; gainDb: Record<string, number> }
+export interface SfxInfo { events: SfxEvent[] | null; eventsAt: number; edits: SfxEdits; clips: SfxClip[] | null; clipsMissing: number | null; draft: FileInfo | null }

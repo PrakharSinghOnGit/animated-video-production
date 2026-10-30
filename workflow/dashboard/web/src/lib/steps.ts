@@ -1,6 +1,7 @@
 import type { Details, St, StepKey } from "./types";
 
-export const STEPS: { key: StepKey; label: string; hint: string }[] = [
+/** The long-video flow (the Video section). Shorts and Packaging are sections of their own. */
+export const STEPS: { key: Exclude<StepKey, "publish" | "shorts">; label: string; hint: string }[] = [
   { key: "script", label: "Script", hint: "Draft → script → approval" },
   { key: "voice", label: "Voice", hint: "Local voice clone" },
   { key: "align", label: "Align", hint: "Timings, master, captions" },
@@ -8,7 +9,12 @@ export const STEPS: { key: StepKey; label: string; hint: string }[] = [
   { key: "acts", label: "Acts", hint: "Draw, preview, review" },
   { key: "sound", label: "Sound", hint: "Foley and mix" },
   { key: "render", label: "Render", hint: "Draft, final, QC" },
-  { key: "publish", label: "Publish", hint: "Titles, thumbnails, description" },
+];
+
+/** The two other sections of a project, listed after the video steps where a whole project is summarised. */
+export const SECTIONS: { key: "shorts" | "publish"; label: string; hint: string }[] = [
+  { key: "shorts", label: "Shorts", hint: "9:16 shorts from this video" },
+  { key: "publish", label: "Packaging", hint: "Thumbnails, titles, description" },
 ];
 
 /** done: finished. next: the first step that is not done. blocked: later step with nothing yet. todo: later step with stale or partial output. */
@@ -53,6 +59,14 @@ export function todoText(key: StepKey, st: St, d: Details): string {
     }
     case "sound": return st === "done" ? "Foley, music stem and mix are ready." : pre + "Build sound: cues, music stem, mix.";
     case "render": return st === "done" ? "Rendered." : pre + "Assemble and render a draft, then the final.";
+    case "shorts": {
+      const it = d.shorts.items, ex = it.filter((s) => s.progress.exported).length;
+      if (!it.length) return pre + "Run Write shorts: 2–3 standalone 9:16 scripts from this video's script and data.";
+      if (st === "done") return `All ${it.length} shorts exported: upload them from shorts/export.`;
+      const todo = it.find((s) => !s.progress.exported);
+      const where = !todo ? "" : todo.approval !== "approved" ? `${todo.id}: review and approve the script.` : !todo.progress.render ? `${todo.id}: run it to the draft, review, then render the final.` : !todo.progress.qc ? `${todo.id}: QC has not passed on the final.` : `${todo.id}: export it.`;
+      return pre + `${ex}/${it.length} exported. ${where}`;
+    }
     case "publish": {
       const p = d.publish, n = p.thumbs.filter((t) => t.file).length;
       if (st === "done") return "Packages approved: export them and run Test & Compare.";
@@ -68,3 +82,13 @@ export function todoText(key: StepKey, st: St, d: Details): string {
 /** Ask the workspace page to open and scroll to a step (step bar, "open act"). */
 export const GOTO = "wg:goto";
 export const gotoStep = (k: string) => window.dispatchEvent(new CustomEvent(GOTO, { detail: k }));
+
+/** The Video section's one status, from its steps (shorts and packaging have their own: statuses.shorts / statuses.publish). */
+export function videoStatus(statuses: Record<string, St> | undefined): St {
+  const v = STEPS.map((s) => statuses?.[s.key] ?? "none");
+  if (v.includes("running")) return "running";
+  if (v.every((s) => s === "done")) return "done";
+  if (v.includes("failed")) return "failed";
+  if (v.includes("stale")) return "stale";
+  return v.some((s) => s !== "none") ? "partial" : "none";
+}

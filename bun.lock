@@ -107,8 +107,36 @@
         "@wealthgap/kit": "workspace:*",
       },
     },
+    "workspace/VID03_Pseudo_Rich/shorts/S1/05-video": {
+      "name": "@wealthgap-video/vid03_pseudo_rich-shorts-s1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
+    "workspace/VID03_Pseudo_Rich/shorts/S2/05-video": {
+      "name": "@wealthgap-video/vid03_pseudo_rich-shorts-s2",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
+    "workspace/VID03_Pseudo_Rich/shorts/S3/05-video": {
+      "name": "@wealthgap-video/vid03_pseudo_rich-shorts-s3",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
     "workspace/_FX_shadow_clip/05-video": {
       "name": "@wealthgap-video/_fx_shadow_clip",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
+    "workspace/_FX_shorts/shorts/S1/05-video": {
+      "name": "@wealthgap-video/_fx_shorts-shorts-s1",
       "version": "1.0.0",
       "dependencies": {
         "@wealthgap/kit": "workspace:*",
@@ -668,11 +696,19 @@
 
     "@wealthgap-video/_fx_shadow_clip": ["@wealthgap-video/_fx_shadow_clip@workspace:workspace/_FX_shadow_clip/05-video"],
 
+    "@wealthgap-video/_fx_shorts-shorts-s1": ["@wealthgap-video/_fx_shorts-shorts-s1@workspace:workspace/_FX_shorts/shorts/S1/05-video"],
+
     "@wealthgap-video/vid01_currency_market": ["@wealthgap-video/vid01_currency_market@workspace:workspace/VID01_Currency_Market/05-video"],
 
     "@wealthgap-video/vid02-map-of-stock-market": ["@wealthgap-video/vid02-map-of-stock-market@workspace:workspace/VID02_Map_Of_Stock_Market/05-video"],
 
     "@wealthgap-video/vid03_pseudo_rich": ["@wealthgap-video/vid03_pseudo_rich@workspace:workspace/VID03_Pseudo_Rich/05-video"],
+
+    "@wealthgap-video/vid03_pseudo_rich-shorts-s1": ["@wealthgap-video/vid03_pseudo_rich-shorts-s1@workspace:workspace/VID03_Pseudo_Rich/shorts/S1/05-video"],
+
+    "@wealthgap-video/vid03_pseudo_rich-shorts-s2": ["@wealthgap-video/vid03_pseudo_rich-shorts-s2@workspace:workspace/VID03_Pseudo_Rich/shorts/S2/05-video"],
+
+    "@wealthgap-video/vid03_pseudo_rich-shorts-s3": ["@wealthgap-video/vid03_pseudo_rich-shorts-s3@workspace:workspace/VID03_Pseudo_Rich/shorts/S3/05-video"],
 
     "@wealthgap/dashboard-web": ["@wealthgap/dashboard-web@workspace:workflow/dashboard/web"],
 

@@ -89,13 +89,15 @@ for (const t of sorted) {
 // Contact sheet, 4 columns, each tile labelled with its time (Pillow: Homebrew ffmpeg lacks drawtext)
 const sheet = path.join(outDir, "sheet.jpg");
 const python = process.env.WG_PYTHON ?? path.resolve(process.cwd(), ".venv/bin/python");
+// 9:16 shorts: narrower tiles, more columns, the Shorts safe area for the layout report
+const vertical = timeline.height > timeline.width, cols = vertical ? 6 : 4;
 const layoutOut = execFileSync(
   python,
-  [path.join(import.meta.dir, "contact_sheet.py"), sheet, ...files, "--cols", "4", "--w", "480", "--report", path.join(outDir, "layout.json"), "--dur", durSec.toFixed(2), ...(subtitles ? [] : ["--no-band"])],
+  [path.join(import.meta.dir, "contact_sheet.py"), sheet, ...files, "--cols", String(cols), "--w", vertical ? "300" : "480", "--report", path.join(outDir, "layout.json"), "--dur", durSec.toFixed(2), ...(subtitles ? [] : ["--no-band"]), ...(vertical ? ["--vertical"] : [])],
   { encoding: "utf-8" }
 );
 process.stdout.write(layoutOut);
-const rows = Math.ceil(files.length / 4);
+const rows = Math.ceil(files.length / cols);
 
 const ms = Date.now() - t0;
 recordTiming(wsDir, { step: `frames ${sceneId} (${files.length})`, ms });

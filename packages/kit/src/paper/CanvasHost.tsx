@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
 import { useScene } from "../scene";
 import { hash } from "./lib";
-import { W, H, type G } from "./engine";
+import { W, H, setFrameSize, type G } from "./engine";
 
 export interface PaperCtx {
   /** seconds since this sequence started (frame / fps) */
@@ -29,12 +29,13 @@ function useSceneSafe() {
 }
 
 /**
- * Shared canvas stage: waits for `ensureFonts`, then calls `draw` every frame with a cleared 1920x1080 canvas
+ * Shared canvas stage: waits for `ensureFonts`, then calls `draw` every frame with a cleared canvas of the composition's size
  * and a PaperCtx (t, word(), words...). PaperCanvas and SpyCanvas are thin wrappers that pick the fonts loader.
  */
 export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureFonts: () => Promise<void>; label?: string }> = ({ draw, ensureFonts, label = "fonts" }) => {
   const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
+  const { fps, durationInFrames, width, height } = useVideoConfig();
+  setFrameSize(width, height);   // 1920x1080 video or 1080x1920 short: the engine draws in this composition's pixels
   const scene = useSceneSafe();
   const ref = useRef<HTMLCanvasElement>(null);
   const [handle] = useState(() => delayRender(`Loading ${label}`));
@@ -54,7 +55,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     if (!canvas || !g) return;
     const duration = (scene ? scene.durationFrames : durationInFrames) / fps;
     const ctx: PaperCtx = {
-      t: frame / fps, frame, fps, W, H, duration,
+      t: frame / fps, frame, fps, W: width, H: height, duration,
       voiceStart: scene ? scene.voiceStart / fps : 0,
       words: (scene?.words ?? []).map((w: any) => ({ w: w.text, t: w.startFrame / fps, t1: w.endFrame / fps })),
       word: (text, occurrence = 1) => {
@@ -69,6 +70,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     };
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.filter = "none";
+    setFrameSize(width, height);
     g.clearRect(0, 0, W, H);
     draw(g, ctx);
     if (!released.current) { released.current = true; continueRender(handle); }
@@ -76,7 +78,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
 
   return (
     <AbsoluteFill>
-      <canvas ref={ref} width={W} height={H} style={{ width: "100%", height: "100%", display: "block" }} />
+      <canvas ref={ref} width={width} height={height} style={{ width: "100%", height: "100%", display: "block" }} />
     </AbsoluteFill>
   );
 };

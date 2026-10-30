@@ -131,9 +131,12 @@ export function drawAct(g: G, ctx: { t: number; fps?: number }, o: ActOpts, scen
     const ex = kind === "iris" ? o.iris : undefined;
     if (wOpen) (f as any)(g, clamp(u), other, mine, ex ?? {}); else (f as any)(g, 1 - clamp(u), mine, other, ex ?? {});
   } else {
-    const dx = (open === "whip" || close === "whip") ? actOffset(t, o.dur, dir) : 0;
+    // only the seams that are whips move the frame (an act may whip in and hold at the end, or the reverse)
+    const off = (x: number) => actOut(x, o.dur) > 0 ? (close === "whip" ? actOffset(x, o.dur, dir) : 0)
+      : actIn(x) < 1 ? (open === "whip" ? actOffset(x, o.dur, dir) : 0) : 0;
+    const dx = off(t);
     const cv = o.cam ? camVelocity(o.cam, t, fps) : ([0, 0] as Pt);
-    const fv = (actOffset(t + 0.5 / fps, o.dur, dir) - actOffset(t - 0.5 / fps, o.dur, dir)) || 0;
+    const fv = (off(t + 0.5 / fps) - off(t - 0.5 / fps)) || 0;
     const v: Pt = [cv[0] + fv, cv[1]];
     if (dx === 0 && Math.hypot(v[0], v[1]) < 66) run(g);
     else {

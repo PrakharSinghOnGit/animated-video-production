@@ -5,6 +5,7 @@ Cut-paper canvas engine (four flat inks, scissor edges, silhouette puppets, Leag
 Rules (same as the Ledger): everything is a pure function of `ctx.t`; no `Math.random`, `Date`, timers or state between frames; hits come from spoken words (`ctx.word(text, n)`) and are complete at the word's start; numbers come from the plan's sourced data. Drawing is `piece(g, ...)`: never fill shapes directly, or they lose the cut gap and shadow. Flat inks only: no gradients, no fades, no dissolves.
 
 Coordinates: world px with a camera (`applyCam(g, cam)`); screen px 1920x1080 for everything drawn in `overlay`. Safe area `SAFE` = x 96..1824, y 72..890 (below 890 is the subtitle strip).
+**Shorts (9:16):** the canvas takes the composition's size, so in a 1080x1920 short `W`/`H` are 1080/1920 and `SAFE` = x 64..930, y 220..1440 (YouTube's buttons and title overlay). `W`, `H` and `SAFE` are live: read them (or `ctx.W`, `ctx.H`) inside `draw`, never copy them into module-level constants. `setFrameSize(w, h)` is called by the canvas host; `isVertical()`.
 
 ## Frame skeleton
 `SpyCanvas draw(g, ctx)` -> `drawAct(g, ctx, opts, scene)`; `scene(g)` does `clear(g, ground)`, `applyCam`, then draws the set, type and puppets. `drawAct` adds the whip in/out (with blur), `overlay`, and `paperFinish` (do not call `paperFinish` yourself inside an act). Fonts are loaded before the first draw; `layout()` throws if called before that (module top level).
@@ -32,7 +33,7 @@ One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = bet
 - `onTwos(t)`: stepped to 12 fps. Sample puppet poses and puppet x with `onTwos(t)`; keep the camera and the type on ones.
 
 ## Camera (camera.ts)
-- `focusCam(t, focus, opts?)`, `focusCamFn(focus, opts)`: `focus = [{t0, t1, rect, fill?}]`, one entry per action (something being cut, placed, assembled or acted in world `rect` from t0 to t1). The camera frames the active action, never leaves a rect before `t1 + hold` (opts `hold` .6 s), arrives by the next action's `t0` (moves start earlier, never later), each move takes at least `moveTime()` (1.1-2.8 s, in-out ease), drifts <= 2% / 10 s while holding. Actions too close for a move (or overlapping) are merged into one union frame, so give each action its real `t0`/`t1` and let the plan decide. `planFocus(focus, opts)` shows the merged plan (`dwells`, `moves`).
+- `focusCam(t, focus, opts?)`, `focusCamFn(focus, opts)`: `focus = [{t0, t1, rect, fill?}]`, one entry per action (something being cut, placed, assembled or acted in world `rect` from t0 to t1). The camera frames the active action, never leaves a rect before `t1 + hold` (opts `hold` .6 s), arrives by the next action's `t0` (moves start earlier, never later), each move takes at least `moveTime()` (1.1-2.8 s, in-out ease), drifts <= 2% / 10 s while holding. Actions too close for a move (or overlapping) are merged into one union frame, so give each action its real `t0`/`t1` and let the plan decide. `pace` scales the move time (shorts: `{ pace: 0.45, hold: 0.3, snap: true }`). `planFocus(focus, opts)` shows the merged plan (`dwells`, `moves`).
 - `pushIn(cam, rect, u, fill=.55)`: eased push-in toward a world rect. `spotlight(g, screenRect, amount, color)`: flat dark paper with a scissor-cut window (the one number to remember); `rectToScreen(cam, worldRect)` maps the rect. Draw it in `overlay` or after the scene.
 - `whip(a, b, u)`: camera interpolation with a fast-in/fast-out curve (`whipEase`), 0.4-0.7 s. Pass `cam` to `drawAct` and the blur is automatic.
 - `motionBlur(g, src, vel, {dx, dy, dead, max})`, `camVelocity(camFn, t, fps)`, `scratchCanvas(i)`: the blur is a directional average of copies along the velocity (px/frame), zero below ~60 px/frame so ordinary moves stay sharp.
@@ -46,6 +47,10 @@ One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = bet
 ## Title and subtitles
 - `drawTitle(g, "THE GAP", x, y, H, {col, align, split, shatter, strips, each})`: hand-cut letterforms A-Z (own glyphs, not League Gothic), `split` slides two halves apart along the 30 deg diagonal (px), `shatter` 0..1 breaks it into strips that slide off. `titleBox`, `titleLayout`, `drawGlyph`, `TITLE_GLYPHS`. Use for a video or chapter title that splits; use `drawLine` for everything else.
 - `autoSubtitle(g, ctx, {ground, inks, maxWords})`: scissor-cut strip bottom-left, tilted -1 deg, League Spartan 600 44 px, cut bullet, <= 2 lines, never above y 900; light strip on dark grounds, dark on light; chunks are sentences or <= 12 words timed from word starts; slides in over 0.18 s. Call in `drawAct`'s `overlay` with the act's ground.
+
+## Shorts (shorts.ts)
+- `shortCaption(g, ctx, { inks, y?, size?, maxWords?, active?, hideAt? })`: kinetic captions for 9:16 shorts (screen space, in `drawAct`'s overlay): 1–3 spoken words at a time in cut League Gothic on a scissor-cut paper strip at ~74% height, stamping in on each chunk's first word, the spoken word in `active` (default `inks.hot`); shrinks to the safe width. `hideAt(t)` hides it while a giant impact number says the same thing.
+- `shortChunks(words, maxWords, gap)`, `capText(word)`, `vertical()`.
 
 ## Brand (brand.ts)
 - `brandEndCard(g, t, at, { tag? })`: the channel end card in screen space, complete on the act-relative second `at` (the spoken "subscribe"). Uses `brand-assets/Logo.png` (loaded with the fonts). `BRAND` = the logo's colours, `BRAND_TAGLINE`.

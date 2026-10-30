@@ -88,10 +88,12 @@ export function findWord(captions: Caption[], word: string, occurrence: number, 
   return undefined;
 }
 
-export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter[] = []): string[] {
+/** opts.short: a 9:16 short is exactly one act of 10–75 s (narration ≤ 60 s plus tail) at 70–130 BPM. */
+export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter[] = [], opts: { short?: boolean } = {}): string[] {
   const errors: string[] = [];
   const acts = plan.acts ?? [];
   if (acts.length === 0) return ["acts: no acts"];
+  if (opts.short && acts.length !== 1) errors.push(`a short is one act; got ${acts.length}`);
   // Every chapter opens an act exactly at its narration pause (the act begins with the chapter card)
   for (const ch of chapters) {
     const act = acts.find((a) => Math.abs(a.startMs - ch.pauseStartMs) <= 800);
@@ -114,12 +116,13 @@ export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter
       if (!act[k] || String(act[k]).trim() === "") errors.push(`${where}: missing "${k}"`);
     }
     const len = act.endMs - act.startMs;
-    const min = i === 0 ? COLD_OPEN_MIN_MS : ACT_MIN_MS;
-    if (len < min || len > ACT_MAX_MS) errors.push(`${where}: ${Math.round(len / 1000)} s long; ${i === 0 ? "the cold open" : "acts"} must be ${min / 1000}-${ACT_MAX_MS / 1000} s`);
+    const min = opts.short ? 10_000 : i === 0 ? COLD_OPEN_MIN_MS : ACT_MIN_MS, max = opts.short ? 75_000 : ACT_MAX_MS;
+    if (len < min || len > max) errors.push(`${where}: ${Math.round(len / 1000)} s long; ${opts.short ? "a short's act" : i === 0 ? "the cold open" : "acts"} must be ${min / 1000}-${max / 1000} s`);
     if (i > 0 && Math.abs(act.startMs - acts[i - 1].endMs) > SLACK_MS) {
       errors.push(`${where}: starts at ${act.startMs} ms but ${acts[i - 1].id} ends at ${acts[i - 1].endMs} ms (acts must be contiguous)`);
     }
-    if (!(act.bpm >= 70 && act.bpm <= 110)) errors.push(`${where}: bpm ${act.bpm} outside 70-110`);
+    const bpmMax = opts.short ? 130 : 110;
+    if (!(act.bpm >= 70 && act.bpm <= bpmMax)) errors.push(`${where}: bpm ${act.bpm} outside 70-${bpmMax}`);
     if (!(act.intensity >= 0 && act.intensity <= 1)) errors.push(`${where}: intensity must be 0-1`);
 
     for (const s of act.silence ?? []) {

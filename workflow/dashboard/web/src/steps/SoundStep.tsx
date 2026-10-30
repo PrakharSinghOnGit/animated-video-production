@@ -3,6 +3,7 @@ import { Flow, withKids } from "@/components/Flow";
 import { stepSpec } from "@/lib/pipeline";
 import { MediaPlayer } from "@/components/MediaPlayer";
 import { Prose } from "@/components/FileLine";
+import { SfxReview } from "@/components/SfxReview";
 
 export function SoundStep() {
   const { d } = useApp();
@@ -17,6 +18,7 @@ export function SoundStep() {
     mix: <>{mix && <MediaPlayer f={mix} kind="audio" label="06-audio/mix.wav" />}{s.credits && <div><div className="mb-1 text-xs font-medium">Credits for the description</div><Prose>{s.credits}</Prose></div>}</>,
   };
   const b = s.daw.build;
+  kids.foley = <SfxReview />;
   kids.daw = b ? <div className="text-xs text-muted-foreground">{b.regions} clips on {b.tracks.length} tracks, {(b.bytes / 1e6).toFixed(0)} MB. Rebuilding replaces the project.</div> : undefined;
   kids.edited = dawMix ? (
     <>

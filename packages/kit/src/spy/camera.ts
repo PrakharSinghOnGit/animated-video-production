@@ -2,9 +2,9 @@
 // smooth eased moves, push-ins with a spotlight freeze, whip-pans with directional motion blur. See CREDITS.md.
 // Everything is a pure function of time.
 import { breathe } from "../paper/engine";
-import { frameRect, moveTime } from "../paper/transitions";
+import { frameRect, moveTime as moveTime1 } from "../paper/transitions";
 import { clamp, lerp, inOutCubic, seg } from "../paper/lib";
-import { W, H, w2s, rough, type G, type Cam, type Rect, type Pt } from "./engine";
+import { W, H, frameCanvas, w2s, rough, type G, type Cam, type Rect, type Pt } from "./engine";
 
 // ---------- focusCam: follow the action ----------
 /** One action of the act: something cut, placed, assembled or acted in world rect `rect` from t0 to t1 (seconds). */
@@ -18,6 +18,12 @@ export interface FocusOpts {
   lead?: number;
   /** slow hand-held drift while holding, fraction (default 0.012; 0.02 = 2% over 10 s) */
   drift?: number;
+  /** move-time multiplier (default 1 = 1.1–2.8 s moves). Shorts use ~0.45 (0.5–1.3 s): snappier, still eased and still never
+   *  leaving unfinished work; actions closer than a (scaled) move still merge into one frame. */
+  pace?: number;
+  /** shorts: actions too close for a full move get a quicker move (down to 0.3 s, cutting into the hold) instead of merging into
+   *  one wide frame; only overlapping actions still merge. Keeps every action framed tight at short-form tempo. */
+  snap?: boolean;
 }
 export interface FocusPlan {
   /** the actions after merging (actions too close for a move share one wider frame) */
@@ -33,14 +39,15 @@ const union = (a: Rect, b: Rect): Rect => [Math.min(a[0], b[0]), Math.min(a[1], 
  * move (or overlap), they are merged into one union frame instead of rushing.
  */
 export function planFocus(focus: Focus[], o: FocusOpts = {}): FocusPlan {
-  const hold = o.hold ?? 0.6, lead = o.lead ?? 0.25, fill0 = o.fill ?? 0.85;
+  const hold = o.hold ?? 0.6, lead = o.lead ?? 0.25, fill0 = o.fill ?? 0.85, pace = o.pace ?? 1;
+  const moveTime = (a: Cam, b: Cam) => moveTime1(a, b) * pace;
   let acts = [...focus].sort((a, b) => a.t0 - b.t0).map((f) => ({ t0: f.t0, t1: Math.max(f.t0, f.t1), rect: f.rect, fill: f.fill ?? fill0 }));
   const cam = (a: { rect: Rect; fill: number }) => frameRect(a.rect, a.fill);
   for (let again = true; again && acts.length > 1;) {
     again = false;
     for (let i = 0; i < acts.length - 1; i++) {
       const a = acts[i], b = acts[i + 1];
-      if (b.t0 - (a.t1 + hold) < moveTime(cam(a), cam(b))) {
+      if (o.snap ? b.t0 < a.t1 : b.t0 - (a.t1 + hold) < moveTime(cam(a), cam(b))) {
         acts.splice(i, 2, { t0: Math.min(a.t0, b.t0), t1: Math.max(a.t1, b.t1), rect: union(a.rect, b.rect), fill: Math.min(a.fill, b.fill) });
         again = true; break;
       }
@@ -49,8 +56,9 @@ export function planFocus(focus: Focus[], o: FocusOpts = {}): FocusPlan {
   const dwells = acts.map((a) => ({ t0: a.t0, t1: a.t1, leave: a.t1 + hold, rect: a.rect, cam: cam(a) }));
   const moves: FocusPlan["moves"] = [];
   for (let i = 0; i < dwells.length - 1; i++) {
-    const a = dwells[i], b = dwells[i + 1], need = moveTime(a.cam, b.cam);
-    const start = Math.max(a.leave, b.t0 - need - lead);
+    const a = dwells[i], b = dwells[i + 1];
+    let need = moveTime(a.cam, b.cam), start = Math.max(a.leave, b.t0 - need - lead);
+    if (o.snap && start + need > b.t0) { need = Math.max(0.3, Math.min(need, b.t0 - a.t1)); start = b.t0 - need; }
     moves.push({ start, end: start + need, from: a.cam, to: b.cam });
   }
   return { dwells, moves };
@@ -117,7 +125,7 @@ export function camVelocity(cam: (t: number) => Cam, t: number, fps: number): Pt
 let scratch: OffscreenCanvas[] = [];
 /** Reusable full-frame offscreen canvas (index 0 and 1 are used by drawAct and the wipes; never hold one across calls). */
 export function scratchCanvas(i = 0): { c: OffscreenCanvas; g: G } {
-  const c = (scratch[i] ??= new OffscreenCanvas(W, H));
+  const c = (scratch[i] = frameCanvas(scratch[i] ?? null));
   const g = c.getContext("2d") as unknown as G;
   g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.filter = "none"; g.shadowColor = "transparent"; g.clearRect(0, 0, W, H);
   return { c, g };

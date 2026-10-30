@@ -9,7 +9,16 @@ export type Pt = [number, number];
 export interface Cam { x: number; y: number; zoom: number; roll?: number; sx?: number; sy?: number }
 export type Rect = [number, number, number, number];
 
-export const W = 1920, H = 1080;
+/** Frame size in px: 1920x1080 for the long-form video, 1080x1920 for shorts. Live bindings: the canvas host sets them per
+ *  composition (setFrameSize) before every draw, so read W/H inside functions, never cache them at module top level. */
+export let W = 1920, H = 1080;
+export function setFrameSize(w: number, h: number): void { W = w; H = h; }
+/** True for a vertical (9:16) frame. */
+export const isVertical = (): boolean => H > W;
+/** An offscreen canvas of the current frame size, recreated when the size changed. */
+export function frameCanvas(c: OffscreenCanvas | null): OffscreenCanvas {
+  return c && c.width === W && c.height === H ? c : new OffscreenCanvas(W, H);
+}
 
 // ---------- palette (Ledger, STYLE.md section 3) ----------
 export const P = {
@@ -370,7 +379,7 @@ export interface PencilOpts { tip: Pt; s?: number; lift?: number; flip?: number;
 export function drawPencil(g: G, o: PencilOpts): void {
   const { tip, s = 1, lift = 0, flip = 0, blur = 0, ang = 0.62, alpha = 1, focus = 1 } = o;
   if (alpha <= 0) return;
-  if (!_pc || !_pb) { _pc = new OffscreenCanvas(W, H); _pb = new OffscreenCanvas(W, H); }
+  _pc = frameCanvas(_pc); _pb = frameCanvas(_pb);
   const pc = _pc, pb = _pb;
   const axisScale = Math.cos(clamp(flip) * Math.PI), end = axisScale >= 0 ? "lead" : "red", as = Math.max(0.04, Math.abs(axisScale));
   const lz = 1 + lift * 0.35;                                          // closer to camera = bigger

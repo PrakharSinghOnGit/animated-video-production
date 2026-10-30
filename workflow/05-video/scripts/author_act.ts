@@ -16,6 +16,7 @@ import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { type ActsPlan, type Act } from "../src/lib/acts";
 import { runAgentAsync, runAgy, runAgyJson, extractJson, type AgentResult } from "../src/lib/agent";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { isShortWorkspace } from "../src/lib/format";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {
@@ -50,7 +51,9 @@ if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`
   console.error(`❌ style "${style}" has no workflow/styles/${style}/ACT.md`);
   process.exit(1);
 }
-const actPrompt = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/ACT.md"), "utf-8").replace(/{{STYLE}}/g, style);
+// 9:16 shorts (config.json format "short") get their own brief: one act, hook on frame 1, loop, captions
+const short = isShortWorkspace(wsDir);
+const actPrompt = fs.readFileSync(path.resolve(process.cwd(), `workflow/prompts/${short ? "SHORT_ACT" : "ACT"}.md`), "utf-8").replace(/{{STYLE}}/g, style);
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
 
 // Timeline + registry must exist before any act can be previewed
@@ -89,7 +92,7 @@ function account(step: string, m: string, r: AgentResult): void {
 async function critique(act: Act, round: number): Promise<{ pass: boolean; notes: string; layout?: boolean }> {
   const reviewDir = path.join(paths.outputDir, "review", act.id);
   const sheet = path.join(reviewDir, "sheet.jpg");
-  const frames = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", act.id, "--every", "4", "--words"], { encoding: "utf-8" });
+  const frames = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", act.id, "--every", short ? "2" : "4", "--words"], { encoding: "utf-8" });
   if (frames.status !== 0 || !fs.existsSync(sheet)) return { pass: false, layout: true, notes: `Frames failed to render:\n${(frames.stderr || frames.stdout).slice(-2000)}` };
   // Free gate first: measured layout problems go straight back to the author, no critic call
   try {

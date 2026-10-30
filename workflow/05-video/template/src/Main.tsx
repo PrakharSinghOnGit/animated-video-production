@@ -22,6 +22,10 @@ export interface MainProps {
     height: number;
     durationFrames: number;
     leadMs?: number;
+    /** seconds the last frame holds after the narration (default END_HOLD_S; shorts use 0 so they loop) */
+    endHoldS?: number;
+    /** frames of fade to black at the very end (default 15; shorts use 0) */
+    fadeOutFrames?: number;
     audioFile?: string;
     scenes: TimelineScene[];
   };
@@ -113,12 +117,12 @@ export const Main: React.FC<MainProps> = ({ timeline, showVoiceOver = false }) =
         </AbsoluteFill>
       ) : (
         <>
-          {scenes.map((sceneData) => sceneData === lastScene ? renderScene(sceneData, lastDur + Math.round(fps * END_HOLD_S), lastDur - 1) : renderScene(sceneData))}
+          {scenes.map((sceneData) => sceneData === lastScene ? renderScene(sceneData, lastDur + Math.round(fps * (timeline?.endHoldS ?? END_HOLD_S)), lastDur - 1) : renderScene(sceneData))}
         </>
       )}
 
       {/* 4. Video Finish Fadeout */}
-      <Finish fadeFrames={15} />
+      {(timeline?.fadeOutFrames ?? 15) > 0 && <Finish fadeFrames={timeline?.fadeOutFrames ?? 15} />}
     </AbsoluteFill>
   );
 };

@@ -374,7 +374,9 @@ DEFAULTS = [("felt", "D", "major"), ("kalimba", "A", "major"), ("arp", "B", "min
 
 
 STYLE_DEFAULTS = {"briefing": [("spy", "D", "minor"), ("spy_noir", "A", "minor"), ("spy", "E", "dorian"), ("spy", "G", "minor"),
-                                ("spy_noir", "D", "dorian"), ("spy", "B", "minor"), ("spy", "A", "dorian")]}
+                                ("spy_noir", "D", "dorian"), ("spy", "B", "minor"), ("spy", "A", "dorian")],
+                  # shorts: one section, the full spy combo (cues gives it 100 bpm, intensity 0.7, so the bongos play)
+                  "shorts": [("spy", "D", "minor")]}
 
 
 def default_source(idx, bpm, intensity, style=None):

@@ -167,7 +167,9 @@ Example:
 
   // Approval gate for scripts written by `bun run write`: no voice until the creator approved this exact text
   const approvedPath = path.join(videoDir, "02-scripting", "approved.json");
-  if (fs.existsSync(path.join(videoDir, "02-scripting", "idea.md")) && !args.includes("--unapproved")) {
+  // (shorts carry short.json instead of idea.md: same gate)
+  const gated = ["idea.md", "short.json"].some((f) => fs.existsSync(path.join(videoDir, "02-scripting", f)));
+  if (gated && !args.includes("--unapproved")) {
     const hash = createHash("sha256").update(fs.readFileSync(scriptRawPath)).digest("hex");
     let ok = false;
     try { ok = JSON.parse(fs.readFileSync(approvedPath, "utf-8")).sha256 === hash; } catch {}

@@ -96,7 +96,13 @@ export function autoCaption(
  * Screen-space safe area: content must stay inside it. The bottom band (y > 890)
  * belongs to the caption slip.
  */
-export const SAFE = { x0: 96, y0: 72, x1: W - 96, y1: 890 };
+export const SAFE = {
+  // 9:16 shorts: YouTube's title/channel overlay covers the bottom ~22%, the action buttons the right ~12%, the top bar ~11%
+  get x0() { return H > W ? 64 : 96; },
+  get y0() { return H > W ? 220 : 72; },
+  get x1() { return H > W ? W - 150 : W - 96; },
+  get y1() { return H > W ? 1440 : 890; },
+};
 
 /**
  * Camera that fits a world-space rect inside the safe area. `fill` is how much of the

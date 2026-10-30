@@ -16,7 +16,7 @@ Everything else is this pipeline. Read this whole file before running anything.
   and a paid licence). CC BY sound effects need the credits from `06-audio/credits.txt` in the video description.
 - **Money:** steps marked 💲 call Claude through `claude -p` and cost real money (amounts below). Don't re-run them
   speculatively; fix small things by editing the code yourself (cheap) instead of a paid fix round.
-- **Gates:** stop and wait for the user at **G1a script approval** (only the user approves a script), **G1 plan**, **G2 first act**, **G3 draft**, **G4 publish packages**. Never author all acts before
+- **Gates:** stop and wait for the user at **G1a script approval** (only the user approves a script), **G1 plan**, **G2 first act**, **G3 draft**, **G4 publish packages**, and for shorts **SG1 short scripts** and **SG2 short drafts**. Never author all acts before
   the user has approved the first one.
 - **Cheap helper:** `agy` (Antigravity CLI, Gemini Flash, free) may do boring read-only work (the frame critic already
   uses it). Always use `--mode plan`; never give it a decision or a write.
@@ -33,6 +33,8 @@ Everything else is this pipeline. Read this whole file before running anything.
 | `workflow/05-video/scripts/` | pipeline commands (see `package.json` scripts) |
 | `workflow/06-audio/` | mastering, procedural music/foley, mix |
 | `workflow/07-publish/` | YouTube packaging: `GUIDE.md`, meta/thumbs/review/export scripts, thumbnail template |
+| `workflow/08-shorts/` | shorts: writer, stage runner, export (`lib.ts` header = the folder layout) |
+| `workspace/<ID>/shorts/S1/` | one short: a nested workspace with the same layout as a video, plus `config.json` (format short, 1080x1920) |
 | `workflow/dashboard/` | local dashboard (`bun run dashboard`) |
 
 ## 2. Setup check (once per machine)
@@ -138,6 +140,57 @@ three **packages A/B/C**. The rules (thumbnail, title, description, A/B, the cri
 5. `bun run publish:export --video <ID>` -> `07-publish/export/`: thumb_A/B/C, titles.txt ("A: ..."), description.txt, tags.txt, the .srt.
    Upload the three thumbnails with their paired titles in Studio (Test & Compare) and do not edit them while the test runs.
 Dashboard "Publish all" = meta, thumbs, review.
+
+### Step 9: Shorts 💲 (~$3–5 per short) → **SG1 scripts**, **SG2 drafts**
+2–3 standalone 9:16 shorts (≤ 60 s) per video: a fact, a myth, a teaser, a quick math or a story cut from the video, each
+with its own script, voice and one-act vertical animation, so the shorts bring views and point at the long video. A short is
+a nested workspace `workspace/<ID>/shorts/S1/`; every command above runs on it with `--video <ID>/shorts/S1`.
+Style: `workflow/styles/shorts/` (Briefing re-staged for 9:16: hook on frame 1, faster tempo, kinetic captions via
+`shortCaption`, a loop ending, no end card). Kit: the canvas follows the composition size (1080x1920), `SAFE` becomes
+the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overlay cover the rest).
+1. `bun run shorts:write --video <ID> [--count 3] [--model opus|sonnet]` (~$0.5–1.5) → `shorts/shorts.json` + `S<n>/02-scripting/
+   script_raw.md` + `short.json` (kind, title, hook, payoff, loop, data, description, hashtags, checks). Checked in code: 70–140
+   spoken words (≤ 60 s), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
+   3 hashtags with #Shorts. Needs the long video's `acts.json` for the figures.
+2. **SG1:** the user reads each script (edit + `--check`, or `S2/02-scripting/feedback.md` + `--short S2` to revise one, or
+   `shorts/feedback.md` + `--force` to redo all), then `bun run shorts:write --video <ID> --approve S1|all` (only the user decides).
+3. `bun run shorts --video <ID> --short S1|all` runs voice → align → plan (Sonnet, one act, ~$0.3) → act (Opus, ~$2–4) → sound →
+   draft, then stops. Voice is quicker than the long video (pace 1.0, short gaps); `--tts "..."` passes extra voice flags,
+   `--from/--to/--step <stage>` run part of it. Unlike the long video, the short's mix **includes music**: the procedural spy
+   bed (100 bpm, our own, no claims) about 14 LU under the voice. `--no-music` leaves it out (to add a sound in the YouTube
+   app); to use a downloaded track, set the short's `06-audio/music.json` source to
+   `{"type":"file","path":"assets/music/shorts/x.mp3","credit":"…"}` (`"attribution":false` if none is needed) and rerun `--step sound`.
+4. **SG2:** the user watches `S1/05-video/draft.mp4` (dashboard: Shorts). Fix cheaply by hand, or notes in
+   `review/A01/director_notes.md` + `bun run act --video <ID>/shorts/S1 --act A01 --fix <notes>` (paid), then
+   `bun run shorts --video <ID> --short S1 --step sound` if the act's events changed.
+5. `bun run shorts --video <ID> --short S1 --step render` (final 1080x1920 + QC: ≤ 60 s, 9:16, loudness), then
+   `bun run shorts:export --video <ID>` → `shorts/export/`: S1.mp4, S1.txt (title, description with sources, credits,
+   disclaimer, hashtags), S1.srt, upload.md. In Studio set each short's **Related video** to the long video.
+
+## Downloads, SFX review and Final Cut Pro
+- **SFX review** (dashboard Sound / Shorts → Sound): every SFX the acts declare, with play, remove/restore and gain. Edits
+  live in `05-video/sfx_edits.json` (`{"off":[key],"gainDb":{key:dB}}`, key `A01@12.40:card_slap`); `bun run cues` applies
+  them (`events_all.json` = everything + edits, `events.json` = what the mix plays) and they survive re-running cues as long
+  as the act keeps that hit's time. Each event keeps its own seed, so removing one never changes the others' sounds.
+  `bun run sfx:clips --video <ID>` renders one preview WAV per event (`06-audio/sfx_clips/`). Then mix (+ draft/render).
+- **Downloads:** `bun run deliver --video <ID | ID/shorts/S1> [--only keys]` → `08-deliver/` + `deliver.json`: the final as
+  rendered, picture only, picture + {voice+SFX+music, voice+SFX, voice+music, voice}, the same four as WAV, stems (voice,
+  SFX, ducked music), every SFX clip (zip) and the music bed. ~10 s for a short, a few minutes for a long video.
+- **Final Cut Pro:** `bun run fcp --video <ID> [--open]` → `08-deliver/fcp/<ID>.fcpxml` (FCPXML 1.11, checked against
+  Apple's DTD): the picture, the voice (role Dialogue), every SFX as its own clip (role Effects, subrole per type, its gain
+  on the clip) and the ducked music stem (role Music), act markers. It sounds like the auto mix out of the box; then fade,
+  EQ, move, swap music in FCP (or File → Import → Timeline in DaVinci Resolve). The project uses files in `08-deliver/`
+  and `06-audio/`: keep them while editing.
+
+## Housekeeping: compact a finished video
+`bun run compact --video <ID>` (dry run: lists what it would delete and the space freed) → `--yes` deletes. Default removes only
+caches and previews (05-video/node_modules with Remotion's cache and Chrome, review frames/sheets/previews, draft.mp4,
+public/voiceover.wav, TTS takes, audition clips, the openDAW raw export); the final can still be re-rendered. `--deep` also drops
+the regenerable audio (voice, master, mix, music stem, sfx caches), `--daw` the openDAW session and the Final Cut Pro
+project's media, `--final` final.mp4. Downloads and SFX previews go by default (rebuildable). Scripts,
+plans, act code, notes, reviews, metadata, thumbnails, exports and `mix_daw.wav` are always kept; shorts are compacted with their
+video; unfinished workspaces (no final.mp4) are skipped unless `--force`. Run `bun install` before working on it again.
+Never run it with `--yes` unless the user asked.
 
 ## Dashboard
 `bun run dashboard` → http://127.0.0.1:4600. Every step above with all its options as form controls, live logs,

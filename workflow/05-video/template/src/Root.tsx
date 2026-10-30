@@ -29,7 +29,7 @@ export const RemotionRoot: React.FC = () => {
   const fps = timelineData.fps || 30;
   const width = timelineData.width || 1920;
   const height = timelineData.height || 1080;
-  const durationInFrames = Math.max(1, timelineData.durationFrames || 150) + Math.round(fps * END_HOLD_S);   // + end-card hold (see Main)
+  const durationInFrames = Math.max(1, timelineData.durationFrames || 150) + Math.round(fps * (timelineData.endHoldS ?? END_HOLD_S));   // + end-card hold (see Main); 0 for shorts
 
   return (
     <>

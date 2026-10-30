@@ -8,3 +8,4 @@ export * from "./transitions";
 export * from "./subtitle";
 export * from "./brand";
 export { SpyCanvas, type SpyCtx } from "./SpyCanvas";
+export * from "./shorts";

@@ -168,7 +168,8 @@ export function resolveJobPaths(targetId: string, baseDir: string = process.cwd(
   const assetsDir = path.join(inputDir, "assets");
 
   return {
-    jobId: path.basename(baseJobDir),
+    // workspace jobs keep their path below workspace/ so nested shorts ("VID03_X/shorts/S1") round-trip through --video
+    jobId: isWorkspace ? path.relative(path.join(rootStudioDir, "workspace"), baseJobDir).split(path.sep).join("/") : path.basename(baseJobDir),
     isWorkspace,
     inputDir,
     outputDir,

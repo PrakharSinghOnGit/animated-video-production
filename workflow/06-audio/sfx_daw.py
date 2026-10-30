@@ -3,7 +3,7 @@
 
 Usage: sfx_daw.py --events events.json --out-dir DIR [--no-lib]
 
-mix.py renders event i with sfx.seed(1234 + i) -> sfx.render_event_ex(type, d), scales it by the type's level
+mix.py renders event i with sfx.seed(1234 + e.get("seed", i)) -> sfx.render_event_ex(type, d), scales it by the type's level
 (sfx.FOLEY[type][2] dB, /0.8) and by the event's own `gain`, and pans it. Here the type level and the pan are baked
 into the WAV (same seed, same level), while the event's own `gain` is NOT: bun run daw puts it on the region
 (in dB) so it can be changed in openDAW. At every region gain 0 dB, mix.py's foley and this are sample-identical.
@@ -42,7 +42,7 @@ def main():
     evs = json.load(open(a.events)); out = []; seen = {}; skipped = 0
     for i, e in enumerate(evs):
         if e["type"] not in sfx.FOLEY: skipped += 1; continue
-        sfx.seed(1234 + i)
+        sfx.seed(1234 + e.get("seed", i))
         x, ent = sfx.render_event_ex(e["type"], e.get("d"), not a.no_lib)
         x = x.astype(np.float64) * 10 ** (sfx.FOLEY[e["type"]][2] / 20) / .8
         pan = float(e.get("pan", 0))
@@ -53,7 +53,7 @@ def main():
         digest = write_f32(path, x)
         if digest in seen: os.remove(path); name = seen[digest]
         else: seen[digest] = name
-        out.append({"i": i, "file": name, "type": e["type"], "act": e.get("act"), "t": float(e["t"]), "d": e.get("d"),
+        out.append({"i": i, "key": e.get("key"), "off": bool(e.get("off")), "file": name, "type": e["type"], "act": e.get("act"), "t": float(e["t"]), "d": e.get("d"),
                     "gain": float(e.get("gain", 1)), "pan": pan, "dur": len(x) / SR, "sourceId": ent["id"] if ent else "proc:" + e["type"]})
     json.dump(out, open(os.path.join(a.out_dir, "manifest.json"), "w"), indent=1)
     print(f"[sfx_daw] {len(out)} events -> {len(seen)} files in {a.out_dir}" + (f" ({skipped} unknown types skipped)" if skipped else ""))

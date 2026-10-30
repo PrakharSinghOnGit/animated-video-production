@@ -3,9 +3,9 @@
 // See CREDITS.md. Differences: TypeScript, the 2D context is passed explicitly (no module-level "current g"), per-context state
 // lives in a WeakMap, textures are generated once from a fixed seed (deterministic), palettes are ink sets (INKS).
 import { hash, vnoise, clamp } from "../paper/lib";
-import { W, H, type G, type Pt } from "../paper/engine";
+import { W, H, frameCanvas, type G, type Pt } from "../paper/engine";
 
-export { W, H, applyCam, w2s, s2w, viewRect, type G, type Pt, type Cam, type Rect } from "../paper/engine";
+export { W, H, setFrameSize, isVertical, frameCanvas, applyCam, w2s, s2w, viewRect, type G, type Pt, type Cam, type Rect } from "../paper/engine";
 export { frameRect, moveTime, SAFE } from "../paper/transitions";
 export { clamp, lerp, seg, TAU, inOutCubic, inOutSine, outCubic, outBack, outExpo, hash, vnoise, mulberry } from "../paper/lib";
 export { smooth as smoothstep } from "../paper/lib";
@@ -189,10 +189,9 @@ export function xf(pts: Pt[], x = 0, y = 0, s = 1, r = 0): Pt[] {
 }
 
 // ---------- paper texture ----------
-const mk = () => new OffscreenCanvas(W, H);
 let tex: OffscreenCanvas | null = null, speck: OffscreenCanvas | null = null;
 function makeTex(): void {
-  tex = mk();
+  tex = frameCanvas(null);
   const t = tex.getContext("2d")!, im = t.createImageData(W, H), d = im.data;
   let sd = 12345; const rnd = () => (sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296;   // fixed-seed LCG: identical every run
   const lw = W / 8 + 2, low = new Float32Array(lw * (H / 8 + 2));
@@ -209,7 +208,7 @@ function makeTex(): void {
     const x = rnd() * W, y = rnd() * H, a = rnd() * 6.28, l = 6 + rnd() * 22;
     t.beginPath(); t.moveTo(x, y); t.quadraticCurveTo(x + Math.cos(a + 0.6) * l * 0.5, y + Math.sin(a + 0.6) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l); t.stroke();
   }
-  speck = mk();                                                           // specks where the ink missed the paper (screen blend: visible on dark inks)
+  speck = frameCanvas(null);                                                           // specks where the ink missed the paper (screen blend: visible on dark inks)
   const s2 = speck.getContext("2d")!; s2.fillStyle = "#000"; s2.fillRect(0, 0, W, H);
   for (let i = 0; i < 9000; i++) {
     const x = rnd() * W, y = rnd() * H, r = rnd() < 0.9 ? 0.6 + rnd() * 0.9 : 1.5 + rnd() * 1.5;
@@ -219,7 +218,7 @@ function makeTex(): void {
 }
 /** Paper texture multiplied over the finished frame. Static (screen-locked), generated once from a fixed seed. Call last. */
 export function paperFinish(g: G, amt = 1): void {
-  if (!tex) makeTex();
+  if (!tex || tex.width !== W || tex.height !== H) makeTex();
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = amt; g.globalCompositeOperation = "multiply"; g.drawImage(tex!, 0, 0);
   g.globalAlpha = 0.55 * amt; g.globalCompositeOperation = "screen"; g.drawImage(speck!, 0, 0);
@@ -243,7 +242,7 @@ export interface SilOpts { outline?: number; outlineCol?: string; shadow?: boole
  */
 export function silhouette(g: G, fn: (L: G) => void, opt: SilOpts = {}): void {
   if (isLayer(g)) { fn(g); return; }
-  if (!LC) { LC = mk(); LT = mk(); }
+  LC = frameCanvas(LC); LT = frameCanvas(LT);
   const L = LC.getContext("2d")! as unknown as G, T2 = LT!.getContext("2d")!;
   layers.add(L);
   L.setTransform(1, 0, 0, 1, 0, 0); L.globalAlpha = 1; L.globalCompositeOperation = "source-over"; L.clearRect(0, 0, W, H); L.setTransform(g.getTransform());

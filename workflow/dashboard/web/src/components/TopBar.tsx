@@ -23,8 +23,9 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
   const full = job ? `${job.ws}: ${job.label}` : failed ? `${last!.ws}: ${last!.label} failed` : "Nothing running";
   const target = job ?? (failed ? last : null);
 
-  const stepLabel = route.step === "runs" ? "Runs" : STEPS.find((s) => s.key === route.step)?.label;
-  const crumbs = route.view === "ws" ? [d?.id ?? ws ?? "", stepLabel ?? ""].filter(Boolean) : [PAGE[route.view]];
+  const SEC = { video: "Video", shorts: "Shorts", packaging: "Packaging" } as const;
+  const stepLabel = route.sec === "video" ? (route.step === "runs" ? "Runs" : STEPS.find((s) => s.key === route.step)?.label) : route.sec === "shorts" ? route.short : undefined;
+  const crumbs = route.view === "ws" ? [d?.id ?? ws ?? "", route.sec ? SEC[route.sec] : "Overview", stepLabel ?? ""].filter(Boolean) : [PAGE[route.view]];
   const mine = studio?.running && studio.ws === ws;
 
   return (
@@ -51,7 +52,7 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
         </div>
       )}
       <Tip label={full}>
-        <button disabled={!target} onClick={() => { if (target) { go({ view: "ws", ws: target.ws }); showLog(target.id); } }}
+        <button disabled={!target} onClick={() => { if (target) { go({ view: "ws", ws: target.ws, sec: null, step: null, short: null }); showLog(target.id); } }}
           className={cn("flex h-7 w-[104px] shrink-0 items-center gap-1.5 overflow-hidden rounded-full border px-2.5 text-xs sm:w-[250px] disabled:cursor-default", state === "failed" && "border-destructive/50", state === "running" && "border-warning/50")} aria-label={full}>
           <StatusDot s={state} />
           <span className={cn("min-w-0 flex-1 truncate text-left", state === "none" ? "text-muted-foreground" : "text-foreground")}>{text}</span>

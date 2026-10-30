@@ -31,7 +31,7 @@ export function StepBar({ current, onPick }: { current: string; onPick: (k: stri
       })}
       <button onClick={() => onPick("runs")} aria-current={current === "runs" ? "step" : undefined}
         className={cn("flex min-h-[58px] min-w-[92px] flex-1 basis-0 flex-col items-start gap-0.5 border-b-2 border-b-transparent px-2.5 py-2 text-left text-muted-foreground hover:bg-accent hover:text-foreground", current === "runs" && "border-b-brand bg-background text-foreground")}>
-        <span className="text-[11px] text-muted-foreground">8 · History</span>
+        <span className="text-[11px] text-muted-foreground">{STEPS.length + 1} · History</span>
         <span className="text-[13px] font-semibold">Runs</span>
         <span className="text-[11px] text-muted-foreground">{dur(d.totals.ms)} · {money(d.totals.costUsd)}</span>
       </button>

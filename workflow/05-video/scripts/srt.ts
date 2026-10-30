@@ -27,7 +27,7 @@ if (!fs.existsSync(captionsFile)) {
   console.error(`❌ Missing ${captionsFile}. Run "bun run captions --video ${paths.jobId}" first.`);
   process.exit(1);
 }
-const out = flag("--out") ?? path.join(path.dirname(paths.outputDir), "07-assembly", "export", `${paths.jobId}.srt`);
+const out = flag("--out") ?? path.join(path.dirname(paths.outputDir), "07-assembly", "export", `${paths.jobId.replace(/\//g, "_")}.srt`);
 
 type Word = { text: string; startMs: number; endMs: number };
 const words: Word[] = JSON.parse(fs.readFileSync(captionsFile, "utf-8"))

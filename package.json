@@ -8,7 +8,8 @@
     "packages/*",
     "workflow/05-video",
     "workflow/dashboard/web",
-    "workspace/*/05-video"
+    "workspace/*/05-video",
+    "workspace/*/shorts/*/05-video"
   ],
   "scripts": {
     "new-video": "bun run scripts/new_video.ts",
@@ -26,6 +27,10 @@
     "audio:music": "bun run workflow/06-audio/music.ts",
     "music:search": "bun run workflow/06-audio/music_search.ts",
     "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
+    "sfx:check": "bun run workflow/06-audio/sfx_fetch.ts --check",
+    "sfx:clips": "bun run workflow/06-audio/sfx_clips.ts",
+    "deliver": "bun run workflow/deliver/deliver.ts",
+    "fcp": "bun run workflow/deliver/deliver.ts --only fcp",
     "transcribe": "bun run workflow/04-transcription/transcribe.ts",
     "timeline": "bun run workflow/05-video/scripts/timeline.ts",
     "assemble": "bun run workflow/05-video/scripts/assemble.ts",
@@ -51,7 +56,11 @@
     "thumbs": "bun run workflow/07-publish/thumbs.ts",
     "thumbs:render": "bun run workflow/07-publish/thumbs.ts --render-only",
     "thumbs:review": "bun run workflow/07-publish/review.ts",
-    "publish:export": "bun run workflow/07-publish/export.ts"
+    "publish:export": "bun run workflow/07-publish/export.ts",
+    "shorts:write": "bun run workflow/08-shorts/write.ts",
+    "shorts": "bun run workflow/08-shorts/run.ts",
+    "shorts:export": "bun run workflow/08-shorts/export.ts",
+    "compact": "bun run scripts/compact.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",

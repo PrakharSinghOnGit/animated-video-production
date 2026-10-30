@@ -24,7 +24,8 @@ export function resolveWorkspace(videoId?: string): VideoWorkspacePaths {
   const available = listAvailableVideos();
   let target = videoId || CONFIG.defaultVideo;
 
-  if (!available.includes(target)) {
+  // nested workspaces (shorts: "VID03_X/shorts/S1") are not in the top-level list
+  if (!available.includes(target) && !fs.existsSync(path.join(CONFIG.workspaceDir, target))) {
     if (available.length === 1) {
       target = available[0];
     } else if (available.length > 0) {

@@ -4,7 +4,7 @@ import type { OptDef } from "@/lib/types";
 export type OptValue = string | boolean | string[];
 
 export const initialValue = (o: OptDef, saved: Record<string, unknown>): OptValue => {
-  const v = saved[o.key] ?? o.def;
+  const v = o.volatile ? o.def : (saved[o.key] ?? o.def);
   if (o.type === "bool") return !!v;
   if (o.type === "multi") return Array.isArray(v) ? (v as string[]) : [];
   return v == null ? "" : String(v);

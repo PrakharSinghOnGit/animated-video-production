@@ -18,6 +18,7 @@ ap.add_argument("--w", type=int, default=480)
 ap.add_argument("--report")
 ap.add_argument("--dur", type=float, default=0)
 ap.add_argument("--no-band", action="store_true", help="style has no subtitle band: check edges over the full height, skip the band check")
+ap.add_argument("--vertical", action="store_true", help="9:16 short: Shorts safe area (YouTube overlays on the right and bottom)")
 a = ap.parse_args()
 
 
@@ -54,7 +55,10 @@ def layout_flags(path, t):
 
     ink[drop_thin(ink.mean(axis=1) > 0.6), :] = False
     ink[:, drop_thin(ink.mean(axis=0) > 0.6)] = False
-    sx0, sx1, sy0, sy1 = int(w * 0.05), int(w * 0.95), int(h * 0.067), int(h * 0.824)
+    if a.vertical:   # SAFE in packages/kit/src/paper/transitions.ts: x 64..930, y 220..1440 of 1080x1920
+        sx0, sx1, sy0, sy1 = int(w * 0.06), int(w * 0.86), int(h * 0.115), int(h * 0.75)
+    else:
+        sx0, sx1, sy0, sy1 = int(w * 0.05), int(w * 0.95), int(h * 0.067), int(h * 0.824)
     safe = ink[sy0:sy1, sx0:sx1]
     flags = []
     cov = float(safe.mean())
@@ -73,6 +77,11 @@ def layout_flags(path, t):
         flags.append("content clipped at the left edge")
     if ink[:body, w - e:].mean() > 0.10:
         flags.append("content clipped at the right edge (ignore if it is only the pencil)")
+    if a.vertical:
+        if ink[sy0:sy1, int(w * 0.88):].mean() > 0.10:
+            flags.append("content under the Shorts action buttons (right 12%): keep key content left of x 930")
+        if ink[int(h * 0.79):int(h * 0.95), sx0:sx1].mean() > 0.25:
+            flags.append("content under the Shorts title overlay (bottom 22%); fine if it is only the floor/ground")
     band = ink[int(h * 0.815):int(h * 0.828), sx0:sx1]   # just under the safe area, above any subtitle strip
     if not a.no_band and band.mean() > 0.08:
         flags.append("content runs into the subtitle band")

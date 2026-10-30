@@ -4,8 +4,9 @@
  *
  * Usage: bun run dashboard [--port 4600] [--host 0.0.0.0]
  *   binds 127.0.0.1 unless --host is given; --host 0.0.0.0 opens it to the local network (no login: home network only)
- *   NTFY_TOPIC=<topic> sends a phone notification (ntfy.sh app) when a job ends
+ *   NTFY_TOPIC=<topic> sends a phone notification (ntfy.sh app) when a job ends (PHONE_NOTIFY=0 turns it off)
  *   on macOS a desktop notification is shown too (MAC_NOTIFY=0 turns it off)
+ *   Both switches live in Settings → Notifications and are re-read from .env at every job end (no restart needed).
  *
  * Commands are allowlisted: the client sends a step key, the server builds the argv and runs it
  * with Bun.spawn (no shell) from the repo root. One job per workspace. Logs live in memory and
@@ -18,6 +19,7 @@ import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./s
 import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import * as pub from "../07-publish/lib";
+import * as sh from "../08-shorts/lib";
 import { atomicWrite, helpFor, parseEnv, removeEnv, serializeEnv, setEnv, KEY_RE } from "./envfile";
 
 const REPO = path.resolve(import.meta.dir, "../..");
@@ -33,8 +35,6 @@ const arg = (name: string) => {
 const argPort = parseInt(arg("--port") ?? "", 10);
 const PORT = Number.isFinite(argPort) ? argPort : 4600;
 const HOST = arg("--host") ?? "127.0.0.1";
-const NTFY_TOPIC = process.env.NTFY_TOPIC ?? "";
-const MAC_NOTIFY = process.platform === "darwin" && process.env.MAC_NOTIFY !== "0";
 /** This machine's own IPv4 addresses on the network (the Host a phone at home uses with --host). */
 const lanIps = () => Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === "IPv4" && !n.internal).map((n) => n!.address);
 
@@ -144,23 +144,32 @@ function recordRun(j: Job) {
   try { fs.writeFileSync(f, JSON.stringify(all.slice(-500), null, 1)); } catch {}
 }
 
-/** When a job ends: a macOS notification (unless MAC_NOTIFY=0) and a phone one through ntfy.sh (if NTFY_TOPIC is set). Best effort, never throws. */
-function notifyEnd(j: Job) {
-  const min = Math.round(((j.endedAt ?? Date.now()) - j.startedAt) / 60000);
-  const title = `${j.ws}: ${j.label} ${j.status}`;
-  const body = `${j.step} ${j.status} after ${min} min${j.status === "failed" ? ` (exit ${j.exitCode})` : ""}`;
-  if (MAC_NOTIFY) {
+/** Notification switches, read from .env each time (Settings → Notifications edits it), falling back to the process env. */
+function notifyCfg() {
+  const env = new Map(readEnvLines().map((l) => [l.key, l.value ?? ""]));
+  const get = (k: string) => env.get(k) ?? process.env[k] ?? "";
+  const topic = get("NTFY_TOPIC");
+  return { macAvailable: process.platform === "darwin", mac: process.platform === "darwin" && get("MAC_NOTIFY") !== "0", phone: !!topic && get("PHONE_NOTIFY") !== "0", topic };
+}
+
+/** Send to the enabled channels (or only `only`). Best effort, never throws. */
+function notify(title: string, body: string, ok: boolean, icon: string, only?: "mac" | "phone") {
+  const c = notifyCfg();
+  if (c.mac && only !== "phone") {
     // title/body go in as argv, so no AppleScript quoting is needed
-    const sound = j.status === "done" ? "Glass" : "Basso";
     try {
-      Bun.spawn(["osascript", "-e", "on run argv", "-e", `display notification (item 2 of argv) with title (item 1 of argv) sound name "${sound}"`, "-e", "end run", title, body],
+      Bun.spawn(["osascript", "-e", "on run argv", "-e", `display notification (item 2 of argv) with title (item 1 of argv) sound name "${ok ? "Glass" : "Basso"}"`, "-e", "end run", title, body],
         { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
     } catch {}
   }
-  if (NTFY_TOPIC) {
-    const icon = j.status === "done" ? "white_check_mark" : j.status === "stopped" ? "stop_sign" : "x";
-    fetch(`https://ntfy.sh/${encodeURIComponent(NTFY_TOPIC)}`, { method: "POST", headers: { Title: title, Tags: icon }, body }).catch(() => {});
-  }
+  if (c.phone && only !== "mac") fetch(`https://ntfy.sh/${encodeURIComponent(c.topic)}`, { method: "POST", headers: { Title: title, Tags: icon }, body }).catch(() => {});
+}
+
+/** When a job ends: a macOS notification and a phone one through ntfy.sh, each if switched on. */
+function notifyEnd(j: Job) {
+  const min = Math.round(((j.endedAt ?? Date.now()) - j.startedAt) / 60000);
+  const icon = j.status === "done" ? "white_check_mark" : j.status === "stopped" ? "stop_sign" : "x";
+  notify(`${j.ws}: ${j.label} ${j.status}`, `${j.step} ${j.status} after ${min} min${j.status === "failed" ? ` (exit ${j.exitCode})` : ""}`, j.status === "done", icon);
 }
 
 /** Sample the machine every 2 s while the page is open or a job runs; attribute CPU/memory to each job's process tree. */
@@ -301,6 +310,8 @@ interface Opt {
   type: "select" | "number" | "bool" | "text" | "multi";
   choices?: string[]; def?: string | number | boolean | string[];
   min?: number; max?: number; step?: number;
+  /** never remembered between sessions: always starts at its default (destructive switches) */
+  volatile?: boolean;
   /** argv for a value (bool: only when true) */
   flag?: string; map?: (v: any) => string[];
 }
@@ -308,6 +319,7 @@ interface Action {
   step: string; label: string; help: string;
   paid?: string;           // e.g. "~$3"
   perAct?: boolean;        // needs an act id
+  perShort?: boolean;      // needs a short id (S1..), passed as the act; must be in the video's shorts
   variant?: boolean;       // needs a thumbnail variant (A/B/C), passed as the act
   long?: string;           // typical duration
   opts?: Opt[];
@@ -324,6 +336,17 @@ const FINAL_OPTS: Opt[] = [
 ];
 
 const PUB_MODEL: Opt = { key: "model", label: "Model", help: "sonnet by default; opus designs better and costs more", type: "select", choices: ["sonnet", "opus", "haiku"], def: "sonnet", flag: "--model" };
+
+/** Mix options shared by Mix and Apply SFX edits (long video). */
+const SOUND_MIX_OPTS: Opt[] = [
+  { key: "withMusic", label: "Include music", type: "bool", def: false, flag: "--with-music" },
+  { key: "duckDb", label: "Music duck (dB)", type: "number", min: -30, max: 0, step: 1, flag: "--duck-db" },
+  { key: "musicDb", label: "Music level (dB)", type: "number", min: -30, max: 6, step: 1, flag: "--music-db" },
+  { key: "foleyDb", label: "Foley level (dB)", type: "number", min: -20, max: 10, step: 1, flag: "--foley-db" },
+  { key: "noLib", label: "Procedural foley only", type: "bool", def: false, flag: "--no-lib" },
+];
+
+const SHORT_STAGES = ["voice", "align", "plan", "act", "sound", "draft", "render"] as const;
 
 const ACTIONS: Record<string, Action> = {
   "script.write": {
@@ -447,15 +470,16 @@ const ACTIONS: Record<string, Action> = {
   },
   "sound.mix": {
     step: "sound", label: "Mix", help: "Voice + foley at −14 LUFS (music is added in post).",
-    opts: [
-      { key: "withMusic", label: "Include music", type: "bool", def: false, flag: "--with-music" },
-      { key: "duckDb", label: "Music duck (dB)", type: "number", min: -30, max: 0, step: 1, flag: "--duck-db" },
-      { key: "musicDb", label: "Music level (dB)", type: "number", min: -30, max: 6, step: 1, flag: "--music-db" },
-      { key: "foleyDb", label: "Foley level (dB)", type: "number", min: -20, max: 10, step: 1, flag: "--foley-db" },
-      { key: "noLib", label: "Procedural foley only", type: "bool", def: false, flag: "--no-lib" },
-    ],
+    opts: SOUND_MIX_OPTS,
     build: (ws, o) => [B("audio:mix", "--video", ws, ...args(o, "sound.mix"))],
   },
+  "sound.apply": {
+    step: "sound", label: "Apply SFX edits", help: "Re-reads the foley edits (sfx_edits.json): cues, then the mix, then a new draft render so you can watch it.", long: "~2–4 min",
+    opts: SOUND_MIX_OPTS,
+    build: (ws, o) => [B("cues", "--video", ws), B("audio:mix", "--video", ws, ...args(o, "sound.apply")), B("draft", "--video", ws)],
+  },
+  "sfx.clips": { step: "sound", label: "Build clip previews", help: "One short WAV per foley event (including removed ones) in 06-audio/sfx_clips, so each can be played in the review table.", long: "seconds", build: (ws) => [B("sfx:clips", "--video", ws)] },
+  "sfx.clips.short": { step: "shorts", perShort: true, label: "Build clip previews", help: "One short WAV per foley event (including removed ones) of this short, to play in the review table.", long: "seconds", build: (ws, _o, s) => [B("sfx:clips", "--video", sh.shortVideoId(ws, s!))] },
   "daw.build": { step: "sound", label: "Build openDAW project", help: "Voice, every foley event on its own clip and the music stem as one openDAW project (06-audio/daw/project.odb). Rebuilding replaces the project: edits not exported to the video are lost.", long: "~10 s",
     opts: [
       { key: "noMusic", label: "Leave the music stem out", type: "bool", def: false, flag: "--no-music" },
@@ -522,8 +546,134 @@ const ACTIONS: Record<string, Action> = {
     },
   },
   "publish.export": { step: "publish", label: "Export", help: "Copies the thumbnails, titles.txt (A: ...), description, tags and the .srt into 07-publish/export/.", long: "seconds", build: (ws) => [B("publish:export", "--video", ws)] },
+  // ── shorts: 2–3 standalone 9:16 shorts per video (workspace/<ID>/shorts/S1.., CLI in workflow/08-shorts) ──
+  "shorts.write": {
+    step: "shorts", label: "Write shorts", help: "Turns the approved long script and its sourced figures into standalone short scripts (≤ 60 s each, one nested workspace per short). Existing shorts are kept unless you tick Overwrite. shorts/feedback.md is read on a full rewrite. Each script still needs your approval before any voice.",
+    paid: "~$0.5–1.5", long: "~2–5 min",
+    opts: [
+      { key: "count", label: "How many", type: "number", min: 1, max: 5, step: 1, def: 3, flag: "--count" },
+      { key: "model", label: "Writer model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
+      { key: "force", label: "Overwrite existing shorts", help: "rewrites every short script, including ones you edited", type: "bool", def: false, flag: "--force" },
+    ],
+    build: (ws, o) => [B("shorts:write", "--video", ws, ...args(o, "shorts.write"))],
+  },
+  "shorts.check": { step: "shorts", label: "Check scripts", help: "Re-runs the checks (word count, numbers against the plan's data, banned phrases) after a hand edit. No model.", long: "seconds", build: (ws) => [B("shorts:write", "--video", ws, "--check")] },
+  "shorts.revise": {
+    step: "shorts", perShort: true, label: "Revise", help: "Rewrites this one short from its feedback (shorts/<S>/02-scripting/feedback.md). Save the feedback first; the new script needs approval again.", paid: "~$0.3–0.8", long: "~1–2 min",
+    opts: [{ key: "model", label: "Writer model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" }],
+    build: (ws, o, s) => {
+      if (!readText(path.join(sh.shortWs(ws, s!), "02-scripting/feedback.md")).trim()) return "save feedback for this short first";
+      return [B("shorts:write", "--video", ws, "--short", s!, ...args(o, "shorts.revise"))];
+    },
+  },
+  "shorts.approve": { step: "shorts", perShort: true, label: "Approve", help: "Locks this exact script for voice generation (any edit afterwards needs a new approval).", build: (ws, _o, s) => [B("shorts:write", "--video", ws, "--approve", s!)] },
+  "shorts.run": {
+    step: "shorts", perShort: true, label: "Run", help: "Runs the short through the stages from → to (default: voice to draft, which stops for your review). Plan and act call Claude (~$0.2–0.5 and ~$2–4); the rest is free.",
+    paid: "plan ~$0.2–0.5, act ~$2–4", long: "~10–30 min",
+    opts: [
+      { key: "from", label: "From stage", type: "select", choices: [...SHORT_STAGES], def: "voice", flag: "--from" },
+      { key: "to", label: "To stage", help: "draft stops for review; render makes the final + QC", type: "select", choices: [...SHORT_STAGES], def: "draft", flag: "--to" },
+      { key: "directorModel", label: "Director model", type: "select", choices: ["sonnet", "opus"], def: "sonnet", flag: "--director-model" },
+      { key: "actModel", label: "Act author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--act-model" },
+      { key: "force", label: "Redo stages that exist", type: "bool", def: false, flag: "--force" },
+      { key: "noMusic", label: "No music bed", help: "sound stage: voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" },
+    ],
+    build: (ws, o, s) => {
+      const from = String(o.from ?? "voice"), to = String(o.to ?? "draft");
+      if (SHORT_STAGES.includes(from as any) && SHORT_STAGES.includes(to as any) && SHORT_STAGES.indexOf(from as any) > SHORT_STAGES.indexOf(to as any)) return "From stage comes after To stage";
+      if (from === "voice" && sh.approvalState(sh.shortWs(ws, s!)) !== "approved") return "approve this short's script first (the voice reads the approved script)";
+      return [B("shorts", "--video", ws, "--short", s!, ...args(o, "shorts.run"))];
+    },
+  },
+  "shorts.frames": {
+    step: "shorts", perShort: true, label: "Render frames", help: "Stills every N s + at each hit word, a contact sheet and a layout report for the short's act A01.", long: "~1 min",
+    opts: [
+      { key: "every", label: "Every (s)", type: "number", min: 0.5, max: 10, step: 0.5, def: 2, flag: "--every" },
+      { key: "words", label: "Also at hit words", type: "bool", def: true, flag: "--words" },
+    ],
+    build: (ws, o, s) => [B("frames", "--video", sh.shortVideoId(ws, s!), "--scene", "A01", ...args(o, "shorts.frames"))],
+  },
+  "shorts.review": {
+    step: "shorts", perShort: true, label: "Review", help: "An agent checks that the visuals match the voice at each moment and appends fixes to the short's review notes.", long: "2–6 min",
+    opts: [
+      { key: "agent", label: "Reviewer", type: "select", choices: ["agy", "haiku", "sonnet", "opus"], def: "agy", flag: "--agent", help: "agy = Gemini Flash (free); others are Claude (paid)" },
+      { key: "toNotes", label: "Append findings to review notes", type: "bool", def: true, flag: "--to-notes" },
+    ],
+    build: (ws, o, s) => [B("review", "--video", sh.shortVideoId(ws, s!), "--act", "A01", ...args(o, "shorts.review"))],
+  },
+  "shorts.fix": {
+    step: "shorts", perShort: true, label: "Fix act with notes", help: "Sends the review notes to the act's author for one revision (resumes its session). Save the notes first.", paid: "~$3–6", long: "~3–15 min",
+    opts: [{ key: "model", label: "Author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" }],
+    build: (ws, o, s) => {
+      const rel = path.join("workspace", ws, "shorts", s!, notesRel("A01"));
+      if (!readText(path.join(REPO, rel)).trim()) return "save review notes for this short first";
+      return [B("act", "--video", sh.shortVideoId(ws, s!), "--act", "A01", "--fix", rel, ...args(o, "shorts.fix"))];
+    },
+  },
+  "shorts.export": {
+    step: "shorts", label: "Export shorts", help: "Copies each QC-passed short into shorts/export/: S1.mp4, S1.txt (title, description, hashtags), S1.srt and upload.md.", long: "seconds",
+    opts: [{ key: "force", label: "Export even if QC has not passed", type: "bool", def: false, flag: "--force" }],
+    build: (ws, o) => [B("shorts:export", "--video", ws, ...args(o, "shorts.export"))],
+  },
+  // ── downloads + Final Cut Pro (long video and per short) ──
+  "deliver.build": {
+    step: "deliver", label: "Build downloads", help: "Collects the video, the audio mixes, the stems, the SFX pack and the Final Cut Pro project in 08-deliver, ready to download.", long: "~1 min",
+    opts: [{ key: "only", label: "Only these items", help: "comma-separated keys, e.g. video_full,stem_voice (empty = all)", type: "text", flag: "--only" }],
+    build: (ws, o) => [B("deliver", "--video", ws, ...args(o, "deliver.build"))],
+  },
+  "deliver.short": {
+    step: "deliver", perShort: true, label: "Build downloads", help: "Collects this short's video, audio mixes, stems, SFX pack and Final Cut Pro project in its 08-deliver folder.", long: "~1 min",
+    opts: [{ key: "only", label: "Only these items", help: "comma-separated keys, e.g. video_full,stem_voice (empty = all)", type: "text", flag: "--only" }],
+    build: (ws, o, s) => [B("deliver", "--video", sh.shortVideoId(ws, s!), ...args(o, "deliver.short"))],
+  },
+  "fcp.open": { step: "deliver", label: "Open in Final Cut Pro", help: "Writes the Final Cut Pro project (video, voice, every SFX on its own clip, music) and opens it.", long: "seconds", build: (ws) => [B("fcp", "--video", ws, "--open")] },
+  "fcp.short": { step: "deliver", perShort: true, label: "Open in Final Cut Pro", help: "Writes this short's Final Cut Pro project and opens it.", long: "seconds", build: (ws, _o, s) => [B("fcp", "--video", sh.shortVideoId(ws, s!), "--open")] },
+  "shorts.qc": { step: "shorts", perShort: true, label: "QC", help: "Hard checks on this short: placeholders, loudness, duration (≤ 60 s), 9:16.", long: "seconds", build: (ws, _o, s) => [B("qc", "--video", sh.shortVideoId(ws, s!))] },
+  "shorts.sound.apply": {
+    step: "shorts", perShort: true, label: "Apply SFX edits", help: "Re-reads this short's foley edits: sound stage (cues + mix), then a new draft render.", long: "~2–3 min",
+    opts: [{ key: "noMusic", label: "No music bed", help: "voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" }],
+    build: (ws, o, s) => [B("shorts", "--video", ws, "--short", s!, "--step", "sound", ...args(o, "shorts.sound.apply")), B("shorts", "--video", ws, "--short", s!, "--step", "draft")],
+  },
+  "history.compact": {
+    step: "history", label: "Compact workspace", help: "Frees disk space of a finished video (and its shorts): caches, review frames, previews, draft, TTS takes. Scripts, plans, act code, notes, metadata and final.mp4 are kept. DRY RUN unless you tick \"Delete for real\": it only lists what would go.", long: "seconds",
+    opts: [
+      { key: "deep", label: "Deep: also the regenerable audio", help: "combined voice, master, mix, music, sfx (re-run voice/align/sound to rebuild)", type: "bool", def: false, flag: "--deep" },
+      { key: "daw", label: "Also the openDAW project", help: "only needed to re-edit the mix", type: "bool", def: false, flag: "--daw" },
+      { key: "final", label: "Also final.mp4", help: "only once it is uploaded or backed up", type: "bool", def: false, flag: "--final" },
+      { key: "noShorts", label: "Leave the shorts alone", type: "bool", def: false, flag: "--no-shorts" },
+      { key: "yes", label: "DELETE FOR REAL (off = dry run)", help: "maps to --yes; deleted files cannot be restored", type: "bool", def: false, flag: "--yes", volatile: true },
+    ],
+    build: (ws, o) => [B("compact", "--video", ws, ...args(o, "history.compact"))],
+  },
   "timings.run": { step: "timings", label: "Time & cost report", help: "Prints timings.json.", build: (ws) => [B("timings", "--video", ws)] },
 };
+
+/** One button per short stage (bun run shorts --step <stage>): the Shorts page runs them one at a time or "from here". */
+const SHORT_STAGE_ACTIONS: Record<string, Partial<Action> & { label: string; help: string }> = {
+  voice: { label: "Voice", help: "tts:format + the local voice clone with the shorts settings (reads the approved script).", long: "~3–5 min" },
+  align: { label: "Align", help: "Transcribe, master the voice, captions and the .srt.", long: "~1 min" },
+  plan: { label: "Plan", help: "The director splits the short into its one act (Claude).", paid: "~$0.2–0.5", long: "~1 min", opts: [{ key: "directorModel", label: "Director model", type: "select", choices: ["sonnet", "opus"], def: "sonnet", flag: "--director-model" }] },
+  act: {
+    label: "Act", help: "The act author draws the short in code, then renders its frames (Claude).", paid: "~$2–4", long: "~5–15 min",
+    opts: [{ key: "actModel", label: "Act author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--act-model" }, { key: "force", label: "Redo the act if it exists", type: "bool", def: false, flag: "--force" }],
+  },
+  sound: {
+    label: "Sound", help: "Cues, the music bed and the mix (voice + foley + bed). Foley edits from the review table are read here.", long: "~1 min",
+    opts: [{ key: "noMusic", label: "No music bed", help: "voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" }],
+  },
+  draft: { label: "Draft", help: "Renders the draft 1080x1920 to watch.", long: "~1–2 min" },
+  render: { label: "Render final", help: "Final 1080x1920 render, then QC (≤ 60 s, 9:16, loudness).", long: "~2–4 min" },
+};
+for (const [stage, def] of Object.entries(SHORT_STAGE_ACTIONS)) {
+  const key = `shorts.${stage}`;
+  ACTIONS[key] = {
+    step: "shorts", perShort: true, ...def,
+    build: (ws, o, s) => {
+      if (stage === "voice" && sh.approvalState(sh.shortWs(ws, s!)) !== "approved") return "approve this short's script first (the voice reads the approved script)";
+      return [B("shorts", "--video", ws, "--short", s!, "--step", stage, ...args(o, key))];
+    },
+  };
+}
 
 /** Validate client options against an action's schema and turn them into argv. Unknown keys are ignored. */
 let currentOpts: Record<string, any> = {};
@@ -557,6 +707,7 @@ function args(o: Record<string, any>, key: string): string[] {
         if (!s) continue;
         if (s.length > 300 || s.startsWith("-") || /[\0\n\r]/.test(s)) throw new Error(`${opt.label}: invalid text`);
         if (opt.key === "at" && !/^[\d.,\s]+$/.test(s)) throw new Error("Extra times: numbers separated by commas");
+        if (opt.key === "only" && !/^[\w,]+$/.test(s)) throw new Error("Items: keys separated by commas");
         if (opt.key === "section" && !/^[\w-]+$/.test(s)) throw new Error("Section id: letters, digits, _ and -");
         out.push(opt.flag!, s);
       }
@@ -571,16 +722,17 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
   if (!a) return "unknown action";
   if (a.perAct && (!act || !ACT_ID.test(act) || !actIds(ws).includes(act))) return "unknown act";
   if (a.variant && !(act && /^[ABC]$/.test(act))) return "unknown variant";
+  if (a.perShort && (!act || !sh.SHORT_ID.test(act) || !sh.listShorts(ws).includes(act))) return "unknown short";
   currentOpts = { __acts: actIds(ws) };
   let cmds: string[][] | string;
   try { cmds = a.build(ws, opts ?? {}, act); } catch (e: any) { return e.message; }
   if (typeof cmds === "string") return cmds;
-  const jobKey = a.variant ? `${a.step}:${act}` : a.perAct ? `${key.split(".")[1]}:${act}` : a.step;
-  return { key: jobKey, label: a.perAct || a.variant ? `${a.label} ${act}` : a.label, cmds };
+  const jobKey = a.variant ? `${a.step}:${act}` : a.perAct ? `${key.split(".")[1]}:${act}` : a.step;   // shorts jobs all use the step key "shorts"
+  return { key: jobKey, label: a.perAct || a.variant || a.perShort ? `${a.label} ${act}` : a.label, cmds };
 }
 
 function schema() {
-  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct || !!a.variant, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
+  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct || !!a.variant || !!a.perShort, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
 }
 
 // ───────────────────────────── status from disk ─────────────────────────────
@@ -718,6 +870,17 @@ function publishStatus(ws: string): St {
   return overlay(ws, "publish", st, outs);
 }
 
+/** none: no shorts. done: every short exported. partial: some. running/failed from the shorts jobs (step key "shorts"). */
+function shortsStatus(ws: string): St {
+  const ids = sh.listShorts(ws);
+  let st: St = "none";
+  if (ids.length) {
+    const ex = ids.filter((id) => sh.shortProgress(ws, id).exported).length;
+    st = ex === ids.length ? "done" : "partial";
+  }
+  return overlay(ws, "shorts", st, ids.map((id) => `shorts/${id}/05-video/final.mp4`));
+}
+
 function stepStatuses(ws: string): Record<string, St> {
   const S = (key: string, inputs: string[], outputs: string[], extra = 0) => overlay(ws, key, derive(ws, inputs, outputs, extra), outputs);
   const scenes = sceneFiles(ws);
@@ -746,6 +909,7 @@ function stepStatuses(ws: string): Record<string, St> {
     sound: S("sound", ["06-audio/voiceover_master.wav"], ["05-video/events.json", "06-audio/music_plan.json", "06-audio/music.wav", "06-audio/mix.wav"], sceneMax),
     render,
     publish: publishStatus(ws),
+    shorts: shortsStatus(ws),
     timings: S("timings", [], ["timings.json"]),
   };
 }
@@ -754,6 +918,13 @@ function stepStatuses(ws: string): Record<string, St> {
 
 function timingsFor(ws: string) {
   return (readJson<any[]>(path.join(wsDir(ws), "timings.json")) ?? []).filter((r) => r && typeof r.step === "string");
+}
+/** The video's own rows plus each short's (each short's own timings.json), the short's rows labelled "S1 · step". For totals, the usage view and the history table. */
+function timingsAll(ws: string) {
+  const own = timingsFor(ws);
+  const extra = sh.listShorts(ws).flatMap((sid) =>
+    (readJson<any[]>(path.join(sh.shortWs(ws, sid), "timings.json")) ?? []).filter((r) => r && typeof r.step === "string").map((r) => ({ ...r, step: `${sid} · ${r.step}` })));
+  return extra.length ? [...own, ...extra].sort((a, b) => String(a.at ?? "").localeCompare(String(b.at ?? ""))) : own;
 }
 
 const TIMING_MATCH: Record<string, RegExp> = {
@@ -765,6 +936,7 @@ const TIMING_MATCH: Record<string, RegExp> = {
   sound: /^(cues|music|mix|sound)\b/i,
   render: /^(render|qc)\b/i,
   publish: /^(meta|thumbs)\b/i,
+  shorts: /^(shorts\b|S\d+ · )/i,
 };
 
 function stepMeta(rows: any[], re: RegExp) {
@@ -810,11 +982,48 @@ function publishDetails(ws: string) {
   };
 }
 
+const SHORT_NOTES = "05-video/review/A01/director_notes.md";
+/** One folder of shorts: the index merged with each short's short.json (+ checks), progress, approval, texts, files, the export folder and compact history. */
+function shortsDetails(ws: string) {
+  const d = wsDir(ws), index = readJson<any>(sh.indexPath(ws));
+  const items = sh.listShorts(ws).map((id) => {
+    const sw = sh.shortWs(ws, id), rel = (r: string) => `shorts/${id}/${r}`;
+    const entry = { ...(index?.shorts ?? []).find((e: any) => e.id === id), ...(readJson<any>(path.join(sw, "02-scripting/short.json")) ?? {}) };
+    const script = readText(path.join(sw, "02-scripting/script_raw.md"));
+    const rdir = rel("05-video/review/A01"), abs = path.join(d, rdir);
+    const qcP = path.join(sw, "05-video/review/qc-report.md");
+    const feedbackP = path.join(sw, "02-scripting/feedback.md"), notesP = path.join(sw, SHORT_NOTES);
+    const timings = (readJson<any[]>(path.join(sw, "timings.json")) ?? []).filter((r) => r && typeof r.step === "string");
+    return {
+      id, entry, checks: entry.checks ?? null, progress: sh.shortProgress(ws, id),
+      approval: sh.approvalState(sw), approvedAt: readJson<any>(path.join(sw, "02-scripting/approved.json"))?.at ?? null,
+      script, scriptMtime: mtime(path.join(sw, "02-scripting/script_raw.md")), words: sh.spokenWords(script),
+      feedback: readText(feedbackP), feedbackMtime: mtime(feedbackP),
+      notes: readText(notesP), notesMtime: mtime(notesP),
+      files: {
+        draft: fileInfo(ws, rel("05-video/draft.mp4")), final: fileInfo(ws, rel("05-video/final.mp4")),
+        sheet: fileInfo(ws, `${rdir}/sheet.jpg`), preview: fileInfo(ws, `${rdir}/preview.mp4`),
+        mix: fileInfo(ws, rel("06-audio/mix.wav")), voice: fileInfo(ws, rel("03-voiceover/audio/combined/full_voiceover.wav")),
+        srt: ls(path.join(sw, "07-assembly/export"), /\.srt$/).map((f) => fileInfo(ws, rel(`07-assembly/export/${f}`))).filter(Boolean)[0] ?? null,
+      },
+      thumbs: ls(abs, /^t_.*\.jpg$/).map((f) => fileInfo(ws, `${rdir}/${f}`)).filter(Boolean),
+      qc: exists(qcP) ? { ...fileInfo(ws, rel("05-video/review/qc-report.md")), text: readText(qcP).slice(0, 20000) } : null,
+      timings: { runs: timings.length, ms: timings.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: timings.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
+    };
+  });
+  return {
+    items, notes: index?.notes ?? null, indexFile: fileInfo(ws, "shorts/shorts.json"),
+    feedback: readText(path.join(sh.shortsDir(ws), "feedback.md")), feedbackMtime: mtime(path.join(sh.shortsDir(ws), "feedback.md")),
+    exported: ls(path.join(sh.shortsDir(ws), "export")).map((f) => fileInfo(ws, `shorts/export/${f}`)).filter(Boolean),
+    compact: readJson<any[]>(path.join(d, "compact.json")) ?? [],
+  };
+}
+
 function details(ws: string) {
   const d = wsDir(ws);
-  const rows = timingsFor(ws);
+  const rows = timingsFor(ws), allRows = timingsAll(ws);
   const meta: Record<string, any> = {};
-  for (const [k, re] of Object.entries(TIMING_MATCH)) meta[k] = stepMeta(rows, re);
+  for (const [k, re] of Object.entries(TIMING_MATCH)) meta[k] = stepMeta(k === "shorts" ? allRows : rows, re);
 
   // script
   const scriptInfo = fileInfo(ws, "02-scripting/script_raw.md");
@@ -900,17 +1109,18 @@ function details(ws: string) {
       words: spokenWords(readText(path.join(d, "02-scripting/script_raw.md"))),
     },
     runs: (readJson<any[]>(path.join(d, "dashboard_runs.json")) ?? []).slice(-80),
-    totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
+    totals: { ms: allRows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: allRows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
     voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince },
     align: { master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, acts, unverified },
     acts: actRows,
     sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
     render: { videos, qc, manifest, ...renderStates(ws) },
-    timings: rows,
+    timings: allRows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),
     lastRuns: last,
     publish: publishDetails(ws),
+    shorts: shortsDetails(ws),
     studio: studioState(),
   };
 }
@@ -929,6 +1139,61 @@ function safePath(ws: string, rel: string | null): string | null {
   try { real = fs.realpathSync(abs); } catch { return null; }
   if (!real.startsWith(root + path.sep)) return null;
   return real;
+}
+
+// ───────────────────────────── project overview: downloads, size, foley edits ─────────────────────────────
+
+/** The folder of the long video (short = null) or of one of its shorts. */
+const subWs = (ws: string, short: string | null) => (short ? sh.shortWs(ws, short) : wsDir(ws));
+/** ?short=S1 → "S1" | null; a Response when it names a short that does not exist. */
+function shortParam(ws: string, url: URL): string | null | Response {
+  const sid = url.searchParams.get("short");
+  if (!sid) return null;
+  return sh.SHORT_ID.test(sid) && sh.listShorts(ws).includes(sid) ? sid : bad("unknown short");
+}
+
+const sizeCache = new Map<string, { at: number; bytes: number }>();
+/** Disk size of a folder (du), cached for a minute: the overview polls it. */
+async function dirBytes(dir: string): Promise<number> {
+  const c = sizeCache.get(dir);
+  if (c && Date.now() - c.at < 60_000) return c.bytes;
+  let bytes = c?.bytes ?? 0;
+  try {
+    const proc = Bun.spawn(["du", "-sk", dir], { stdout: "pipe", stderr: "ignore" });
+    const out = await new Response(proc.stdout).text();
+    const kb = parseInt(out.split(/\s+/)[0], 10);
+    if (Number.isFinite(kb)) bytes = kb * 1024;
+  } catch {}
+  sizeCache.set(dir, { at: Date.now(), bytes });
+  return bytes;
+}
+
+/** 08-deliver/deliver.json with every item checked against the disk (a missing file is flagged, a path that leaves the folder is dropped). */
+function deliverInfo(dir: string) {
+  const j = readJson<any>(path.join(dir, "08-deliver/deliver.json"));
+  if (!j || !Array.isArray(j.items)) return null;
+  const items = j.items.flatMap((it: any) => {
+    if (!it || typeof it.key !== "string" || typeof it.file !== "string" || path.isAbsolute(it.file) || it.file.split(/[\\/]+/).includes("..")) return [];
+    let bytes = 0, present = false;
+    try { const st = fs.statSync(path.join(dir, it.file)); present = st.isFile(); bytes = st.size; } catch {}
+    return [{ key: it.key, group: String(it.group ?? "other"), label: String(it.label ?? it.key), file: it.file, bytes, present, note: typeof it.note === "string" ? it.note : undefined }];
+  });
+  return { builtAt: Number(j.builtAt) || 0, items };
+}
+
+const FOLEY_KEY = /^[^\0\r\n]{1,200}$/;
+/** sfx_edits.json: { off: [key], gainDb: { key: -24..6 } }; anything else is refused. */
+function validSfxEdits(b: any): { off: string[]; gainDb: Record<string, number> } | string {
+  if (!b || typeof b !== "object" || Array.isArray(b)) return "body must be an object";
+  const off = b.off ?? [], gain = b.gainDb ?? {};
+  if (!Array.isArray(off) || off.length > 20000 || off.some((k: unknown) => typeof k !== "string" || !FOLEY_KEY.test(k))) return "off: a list of event keys";
+  if (!gain || typeof gain !== "object" || Array.isArray(gain)) return "gainDb: an object of key → dB";
+  const g: Record<string, number> = {};
+  for (const [k, v] of Object.entries(gain)) {
+    if (!FOLEY_KEY.test(k) || typeof v !== "number" || !Number.isFinite(v) || v < -24 || v > 6) return `gainDb ${k.slice(0, 40)}: a number from -24 to 6`;
+    if (v !== 0) g[k] = Math.round(v * 10) / 10;
+  }
+  return { off: [...new Set<string>(off)], gainDb: g };
 }
 
 function serveFile(req: Request, abs: string): Response {
@@ -1026,7 +1291,7 @@ function listWorkspaces() {
   return ls(WS_ROOT)
     .filter((f) => WS_ID.test(f) && fs.statSync(path.join(WS_ROOT, f)).isDirectory())
     .map((id) => {
-      const rows = timingsFor(id);
+      const rows = timingsAll(id);
       return { id, statuses: stepStatuses(id), running: runningJob(id) ? jobSummary(runningJob(id)!) : null, title: readJson(path.join(wsDir(id), "05-video/acts.json"))?.video?.title ?? null,
         totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) } };
     });
@@ -1104,7 +1369,7 @@ const server = Bun.serve({
       return json({ jobs: all, studio: studioState() });
     }
     if (p === "/api/usage" && req.method === "GET") {
-      const rows = listWorkspaces().flatMap((w) => timingsFor(w.id).map((r) => ({ ws: w.id, ...r })));
+      const rows = listWorkspaces().flatMap((w) => timingsAll(w.id).map((r) => ({ ws: w.id, ...r })));
       await refreshUsage(url.searchParams.has("refresh"));
       return json(usageReport(rows));
     }
@@ -1131,6 +1396,14 @@ const server = Bun.serve({
       }
     }
 
+    if (p === "/api/settings/notify" && req.method === "GET") { const { topic, ...c } = notifyCfg(); return json({ ...c, topicSet: !!topic }); }
+    if (p === "/api/settings/notify/test" && req.method === "POST") {
+      const b = await body(req);
+      const only = b.only === "mac" || b.only === "phone" ? b.only : undefined;
+      notify("WealthGap dashboard", "Test notification: this channel works.", true, "bell", only);
+      const { topic, ...c } = notifyCfg();
+      return json({ ok: true, sent: { mac: c.mac && only !== "phone", phone: c.phone && only !== "mac" } });
+    }
     if (p === "/api/settings/files" && req.method === "GET") return json({ files: settingsFiles().map((f) => ({ path: f, mtime: mtime(path.join(REPO, f)) })) });
     if (p === "/api/settings/file") {
       const abs = settingsPath(url.searchParams.get("path"));
@@ -1269,6 +1542,22 @@ const server = Bun.serve({
       return json({ ok: true });
     }
 
+    // shorts: allowlisted text files only (a short's script, feedback, director notes; the folder's feedback)
+    const ssm = rest.match(/^\/shorts\/(?:(S\d{1,2})\/(script|feedback|notes)|(feedback))$/);
+    if (ssm && req.method === "PUT") {
+      const sid = ssm[1];
+      if (sid && !sh.listShorts(ws).includes(sid)) return bad("unknown short");
+      const text = await req.text();
+      if (text.length > 1_000_000) return bad("too large");
+      const rel = sid ? { script: "02-scripting/script_raw.md", feedback: "02-scripting/feedback.md", notes: SHORT_NOTES }[ssm[2] as "script" | "feedback" | "notes"] : null;
+      const f = sid ? path.join(sh.shortWs(ws, sid), rel!) : path.join(sh.shortsDir(ws), "feedback.md");
+      if (sid && ssm[2] === "script" && runningJob(ws)?.step === "shorts") return bad("a shorts job is running", 409);
+      fs.mkdirSync(path.dirname(f), { recursive: true });
+      if (sid && ssm[2] === "script" && exists(f)) fs.copyFileSync(f, f.replace(/\.md$/, ".prev.md"));
+      fs.writeFileSync(f, text, "utf-8");
+      return json({ ok: true });
+    }
+
     const nm = rest.match(/^\/notes\/(A\d{2,3})$/);
     if (nm && req.method === "PUT") {
       if (!actIds(ws).includes(nm[1])) return bad("unknown act");
@@ -1298,6 +1587,49 @@ const server = Bun.serve({
       return json({ studio: (startStudio(ws), studioState()) });
     }
 
+    if (rest === "/overview" && req.method === "GET") {
+      const ids = sh.listShorts(ws);
+      const [total, ...per] = await Promise.all([dirBytes(wsDir(ws)), ...ids.map((id) => dirBytes(sh.shortWs(ws, id)))]);
+      return json({
+        bytes: { total, shorts: Object.fromEntries(ids.map((id, i) => [id, per[i]])) },
+        deliver: { video: deliverInfo(wsDir(ws)), shorts: Object.fromEntries(ids.map((id) => [id, deliverInfo(sh.shortWs(ws, id))])) },
+      });
+    }
+
+    // a file as a download (attachment); same path rules as /file
+    if (rest === "/download" && req.method === "GET") {
+      const abs = safePath(ws, url.searchParams.get("path"));
+      if (!abs) return bad("path rejected", 403);
+      if (!fs.statSync(abs).isFile()) return bad("not a file", 404);
+      const res = serveFile(req, abs), name = path.basename(abs);
+      res.headers.set("content-disposition", `attachment; filename="${name.replace(/[^\w.-]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(name)}`);
+      return res;
+    }
+
+    // foley review: every event the acts declare, the user's edits and the playable clips
+    if (rest === "/sfx" && (req.method === "GET" || req.method === "PUT")) {
+      const sid = shortParam(ws, url);
+      if (sid instanceof Response) return sid;
+      const dir = subWs(ws, sid), editsF = path.join(dir, "05-video/sfx_edits.json");
+      if (req.method === "GET") {
+        const edits = readJson<any>(editsF) ?? {};
+        const events = readJson<any[]>(path.join(dir, "05-video/events_all.json"));
+        const clips = readJson<any[]>(path.join(dir, "06-audio/sfx_clips/manifest.json"));
+        const have = new Set((clips ?? []).map((c) => c?.key));
+        return json({
+          events: Array.isArray(events) ? events : null, eventsAt: mtime(path.join(dir, "05-video/events_all.json")),
+          edits: { off: Array.isArray(edits.off) ? edits.off : [], gainDb: edits.gainDb && typeof edits.gainDb === "object" ? edits.gainDb : {} },
+          clips: Array.isArray(clips) ? clips : null, clipsMissing: Array.isArray(events) && Array.isArray(clips) ? events.filter((e) => !have.has(e.key)).length : null,
+          draft: fileInfo(ws, sid ? `shorts/${sid}/05-video/draft.mp4` : "05-video/draft.mp4"),
+        });
+      }
+      const v = validSfxEdits(await body(req));
+      if (typeof v === "string") return bad(v);
+      fs.mkdirSync(path.dirname(editsF), { recursive: true });
+      atomicWrite(editsF, JSON.stringify(v, null, 1));
+      return json({ ok: true, edits: v });
+    }
+
     if (rest === "/file" && (req.method === "GET" || req.method === "HEAD")) {
       const abs = safePath(ws, url.searchParams.get("path"));
       if (!abs) return bad("path rejected", 403);
@@ -1313,8 +1645,7 @@ console.log(`🎛  WealthGap dashboard on http://${HOST}:${server.port}`);
 if (HOST !== "127.0.0.1") {
   for (const ip of lanIps()) console.log(`   on your network: http://${ip}:${server.port}  (no login: home network only)`);
 }
-if (NTFY_TOPIC) console.log(`   notifications: ntfy.sh/${NTFY_TOPIC}`);
-if (MAC_NOTIFY) console.log(`   notifications: this Mac (MAC_NOTIFY=0 to turn off)`);
+{ const c = notifyCfg(); console.log(`   notifications: Mac ${c.mac ? "on" : "off"}, phone ${c.phone ? "on" : c.topic ? "off" : "off (no NTFY_TOPIC)"} (Settings → Notifications)`); }
 
 function shutdown() {
   if (studio?.pid) killTree(studio.pid);

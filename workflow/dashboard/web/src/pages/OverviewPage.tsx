@@ -1,5 +1,5 @@
 import { useApp } from "@/hooks/app";
-import { STEPS, stepStates } from "@/lib/steps";
+import { SECTIONS, STEPS, stepStates, videoStatus } from "@/lib/steps";
 import { dur, money, cn, STATUS_LABEL } from "@/lib/utils";
 import { StatusDot } from "@/components/Status";
 import { StatTile } from "@/components/StatTile";
@@ -27,18 +27,18 @@ export function OverviewPage() {
           const cur = STEPS.find((s) => states[s.key] === "next" || states[s.key] === "running");
           const done = !cur;
           return (
-            <button key={w.id} onClick={() => go({ view: "ws", ws: w.id, step: cur?.key ?? "render", act: null })}
+            <button key={w.id} onClick={() => go({ view: "ws", ws: w.id, sec: cur ? "video" : null, step: cur?.key ?? null, act: null, short: null })}
               className="grid w-full gap-x-3 gap-y-2 border-b bg-background px-3.5 py-3 text-left last:border-b-0 hover:bg-accent lg:grid-cols-[minmax(170px,1.2fr)_minmax(220px,2fr)_150px_84px_72px] lg:items-center">
               <span className="min-w-0"><span className="block truncate font-mono text-xs">{w.id}</span><span className="block truncate text-[13px] text-muted-foreground">{w.title ?? "No plan yet"}</span></span>
               <span className="flex flex-wrap gap-x-3 gap-y-1">
-                {STEPS.map((s) => (
+                {[...STEPS, ...SECTIONS].map((s) => (
                   <span key={s.key} className={cn("flex items-center gap-1.5 text-[11px]", states[s.key] === "next" || states[s.key] === "running" ? "font-semibold text-foreground" : "text-muted-foreground")} title={`${s.label}: ${STATUS_LABEL[w.statuses[s.key] ?? "none"]}`}>
                     <StatusDot s={w.statuses[s.key]} />{s.label}
                   </span>
                 ))}
               </span>
               <span className="flex items-center gap-2 text-[13px]">
-                {w.running ? <Badge tone="warning"><StatusDot s="running" />{w.running.label}</Badge> : done ? <Badge tone="success">All steps done</Badge> : <><Badge tone="solid">Next</Badge>{cur!.label}</>}
+                {w.running ? <Badge tone="warning"><StatusDot s="running" />{w.running.label}</Badge> : done ? <Badge tone={videoStatus(w.statuses) === "done" ? "success" : "neutral"}>Video steps done</Badge> : <><Badge tone="solid">Next</Badge>{cur!.label}</>}
               </span>
               <span className="text-xs text-muted-foreground lg:text-right">{dur(w.totals.ms)}</span>
               <span className="text-xs lg:text-right">{money(w.totals.costUsd)}</span>

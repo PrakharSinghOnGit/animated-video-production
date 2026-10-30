@@ -41,11 +41,13 @@ async function main() {
 
   let tailPaddingMs = 1100;
   let failOnWarnings = false;
+  let shortFormat = false;
   if (paths.configFile && fs.existsSync(paths.configFile)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(paths.configFile, "utf-8"));
       if (typeof cfg.tailPaddingMs === "number") tailPaddingMs = cfg.tailPaddingMs;
       if (typeof cfg.qc?.failOnWarnings === "boolean") failOnWarnings = cfg.qc.failOnWarnings;
+      if (cfg.format === "short") shortFormat = true;
     } catch {
       // ignore
     }
@@ -133,6 +135,14 @@ async function main() {
         });
       }
 
+      // Shorts (config.json format "short"): 9:16 and at most 60 s (the creator's limit for the channel's shorts)
+      if (shortFormat && vStream) {
+        const dur = parseFloat(data.format?.duration || "0");
+        if (vStream.width !== 1080 || vStream.height !== 1920) issues.push({ type: "ERROR", rule: "short_format", message: `A short must be 1080x1920, got ${vStream.width}x${vStream.height}.` });
+        if (dur > 60.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; the limit is 60 s. Tighten the script (shorts:write --short <S> with notes).` });
+        else issues.push({ type: "INFO", rule: "short_duration", message: `Short runs ${dur.toFixed(1)} s (<= 60 s).` });
+      }
+
       // Check duration match against original audio or timeline specification
       if (paths.audioFile && fs.existsSync(paths.audioFile)) {
         const originalAudio = await probeAudio(paths.audioFile);
@@ -144,7 +154,7 @@ async function main() {
             const tl = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
             if (typeof tl.durationFrames === "number") {
               const tlFps = tl.fps || 30;
-              expectedDurationSec = tl.durationFrames / tlFps + END_HOLD_S;
+              expectedDurationSec = tl.durationFrames / tlFps + (tl.endHoldS ?? END_HOLD_S);
             }
           } catch {}
         }

@@ -1,14 +1,17 @@
 /**
  * Shared foley library from Openverse (anonymous API, commercial-safe licences only: cc0, pdm, by).
  * Usage: bun run sfx:fetch [--types pop,whoosh] [--per-type 5] [--force]
+ *        bun run sfx:check   (scan the library for clips with spoken words and remove them)
  * Writes assets/sfx/<type>/<n>.wav (48 kHz mono, leading silence trimmed, peak -3 dBFS) and assets/sfx/manifest.json.
  * Openverse anonymous limits: 20 requests/min, 200/day -> one request every ~3.2 s. Candidates are Freesound preview MP3s.
  * NC / ND / SA licences are never requested. CC0/PDM are ranked before CC BY.
+ * Freesound only: Openverse also indexes Wikimedia audio, whose "rubber stamp" hit was a person saying the words
+ * (a Lingua Libre pronunciation recording). Every new clip also passes a local Whisper speech check (sfx_speech.py).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { REPO_ROOT } from "./py";
+import { REPO_ROOT, findPython } from "./py";
 
 const API = "https://api.openverse.org/v1/audio/";
 const OUT = path.join(REPO_ROOT, "assets/sfx");
@@ -35,6 +38,9 @@ const KW: Record<string, RegExp> = {
   adding_clack: /adding|calculator|ticker|register|typewriter|key|button|till/i, pop: /pop|bubble/i, whoosh: /whoosh|swoosh|swosh|swish|air|whip|swing/i,
   coin_drop: /coin|money|change/i, cash_register: /cash|register|till|ching/i, typewriter: /typewriter|typing|keyboard|type\b/i,
 };
+// pronunciation / voice recordings, by title, tags or creator ("Speaker: …")
+const SPEECH = /^LL-Q|pronunciation|\bspeaker\b|\bspoken\b|\bvoice\b|\bsaying\b|\bword\b|\bvocal/i;
+const meta = (e: any) => `${e.title} ${(e.tags ?? []).map((t: any) => t.name ?? t).join(" ")} ${e.creator ?? ""}`;
 const args = process.argv.slice(2);
 const opt = (n: string, d = "") => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const perType = Number(opt("--per-type", "5"));
@@ -47,7 +53,7 @@ async function throttle() { const w = 3300 - (Date.now() - last); if (w > 0) awa
 let requests = 0;
 async function search(q: string, category: boolean): Promise<any[]> {
   const u = new URL(API);
-  u.search = new URLSearchParams({ q, license: "cc0,pdm,by", page_size: "20", ...(category ? { category: "sound_effect" } : {}) }).toString();
+  u.search = new URLSearchParams({ q, license: "cc0,pdm,by", source: "freesound", page_size: "20", ...(category ? { category: "sound_effect" } : {}) }).toString();
   for (let attempt = 0; attempt < 2; attempt++) {
     await throttle(); requests++;
     const r = await fetch(u, { headers: UA });
@@ -76,9 +82,33 @@ function prepare(mp3: string, wav: string, crop: number): number | null {
   return secs;
 }
 
+/** Files (relative to OUT) in which Whisper hears spoken words. */
+function speechIn(files: string[]): Map<string, string> {
+  const hits = new Map<string, string>();
+  if (!files.length) return hits;
+  const r = spawnSync(findPython(), [path.join(import.meta.dir, "sfx_speech.py"), ...files.map((f) => path.join(OUT, f))], { encoding: "utf-8", cwd: REPO_ROOT });
+  if (r.status !== 0) { console.error(`  speech check failed (exit ${r.status}): ${r.stderr.trim().split("\n").pop()}`); process.exit(1); }
+  for (const line of r.stdout.split("\n").filter((l) => l.startsWith("{"))) {
+    const j = JSON.parse(line);
+    if (j.speech) hits.set(path.relative(OUT, j.file), j.text);
+  }
+  return hits;
+}
+function drop(e: any, why: string) { fs.rmSync(path.join(OUT, e.file), { force: true }); console.log(`  dropping ${why} ${e.type}: ${e.title} (${e.file})`); }
+
 let manifest: any[] = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, "utf-8")) : [];
-for (const e of manifest.filter((e) => !KW[e.type]?.test(e.title + " " + (e.tags ?? [])))) { fs.rmSync(path.join(OUT, e.file), { force: true }); console.log(`  dropping off-topic ${e.type}: ${e.title}`); }
-manifest = manifest.filter((e) => KW[e.type]?.test(e.title + " " + (e.tags ?? [])));
+for (const e of manifest.filter((e) => !KW[e.type]?.test(e.title + " " + (e.tags ?? [])))) drop(e, "off-topic");
+for (const e of manifest.filter((e) => SPEECH.test(meta(e)))) drop(e, "speech recording");
+manifest = manifest.filter((e) => KW[e.type]?.test(e.title + " " + (e.tags ?? [])) && !SPEECH.test(meta(e)));
+if (args.includes("--check")) {
+  console.log(`[sfx:check] listening to ${manifest.length} clips for spoken words (local Whisper)…`);
+  const hits = speechIn(manifest.map((e) => e.file));
+  for (const e of manifest.filter((e) => hits.has(e.file))) drop(e, `speech ("${hits.get(e.file)}")`);
+  manifest = manifest.filter((e) => !hits.has(e.file));
+  fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2));
+  console.log(hits.size ? `[sfx:check] removed ${hits.size}; refill with bun run sfx:fetch` : "[sfx:check] no speech found");
+  process.exit(0);
+}
 const t0 = Date.now();
 fs.mkdirSync(OUT, { recursive: true });
 for (const [type, [queries, maxDur, crop]] of Object.entries(TYPES)) {
@@ -88,7 +118,7 @@ for (const [type, [queries, maxDur, crop]] of Object.entries(TYPES)) {
   const rank = (l: string) => (l === "cc0" || l === "pdm" ? 0 : 1);
   let cands: any[] = [];
   for (const q of queries) {
-    const res = (await search(q, false)).filter((r) => r.url && r.duration >= 50 && r.duration <= maxDur * 1000 && !cands.some((c) => c.id === r.id) && KW[type].test(r.title + " " + (r.tags ?? []).map((t: any) => t.name).join(" ")) && ["cc0", "pdm", "by"].includes(r.license));
+    const res = (await search(q, false)).filter((r) => r.url && r.duration >= 50 && r.duration <= maxDur * 1000 && !cands.some((c) => c.id === r.id) && KW[type].test(r.title + " " + (r.tags ?? []).map((t: any) => t.name).join(" ")) && !SPEECH.test(meta(r)) && ["cc0", "pdm", "by"].includes(r.license));
     cands = cands.concat(res);
     if (cands.length >= perType + 2) break;
   }
@@ -114,6 +144,11 @@ for (const [type, [queries, maxDur, crop]] of Object.entries(TYPES)) {
     });
     n++;
   }
+  const fresh = manifest.filter((e) => e.type === type && !have.includes(e));
+  const hits = speechIn(fresh.map((e) => e.file));
+  for (const e of fresh.filter((e) => hits.has(e.file))) drop(e, `speech ("${hits.get(e.file)}")`);
+  manifest = manifest.filter((e) => !hits.has(e.file));
+  n -= hits.size;
   fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2));
   console.log(`${type}: ${n} samples (${manifest.filter((e) => e.type === type).map((e) => e.license).join(",")})`);
 }

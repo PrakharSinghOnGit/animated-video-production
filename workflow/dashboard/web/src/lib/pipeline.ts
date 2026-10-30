@@ -1,4 +1,4 @@
-import type { ActRow, Details, Job, PubThumb, StepKey } from "./types";
+import type { ActRow, Details, Job, PubThumb, ShortItem, StepKey } from "./types";
 import { lastRun, ok, reruns, runsFor, type BlockStatus } from "./flow";
 
 /** One sub-step of a step: everything but what it shows inside (the list view adds `children`). */
@@ -36,8 +36,8 @@ export function blockStatus(d: Details | null, busy: Job | null, b: BlockSpec): 
 /** Script approval counts as given for approved and legacy videos. */
 export const scriptApproved = (d: Details) => d.script.approval === "approved" || d.script.approval === "legacy";
 
-/** Blocks and loops of the five single-flow steps (the Acts step has one flow per act: `actSpec`). */
-export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
+/** Blocks and loops of the single-flow steps (script ... render, and the Packaging section as "publish"; Shorts: `shortSpec`) (the Acts step has one flow per act: `actSpec`). */
+export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Spec {
   switch (k) {
     case "script": {
       const s = d.script, approved = scriptApproved(d);
@@ -96,6 +96,7 @@ export function stepSpec(k: Exclude<StepKey, "acts">, d: Details): Spec {
         loops: [],
         blocks: [
           { id: "cues", title: "Cues", action: "sound.cues", label: "Cues", done: s.events != null, costRe: /^cues\b/i },
+          { id: "foley", title: "Review foley", desc: "Every foley event the acts declare: play it, switch it off, change its level, then apply (cues, mix, new draft).", done: s.events != null },
           { id: "music", title: "Music stem", action: "sound.music", label: "Music stem", done: !!music, outAt: music?.mtime, costRe: /^music\b/i },
           { id: "mix", title: "Mix", action: "sound.mix", label: "Mix", done: !!mix, outAt: mix?.mtime, costRe: /^mix\b/i },
           { id: "daw", title: "openDAW project", desc: "Voice, every foley event on its own clip, the music stem: one project to edit.", action: "daw.build", label: "Build openDAW project", done: !!daw.bundle, outAt: daw.bundle?.mtime, costRe: /^build opendaw\b/i,
@@ -174,6 +175,35 @@ export function actSpec(a: ActRow, d: Details): Spec {
       { id: "notes", title: "Notes for the author", desc: "Your gate: one line per problem, starting with the time in the act. Reviews can append findings here.", done: !!a.notes.trim() },
       { id: "fix", title: "Fix with notes", desc: "Sends the notes to the act's author for one revision (resumes the author's session: the biggest cost).", action: "acts.fix", act: a.id, label: fixLabel, done: ok(d, fixLabel) && !open },
       { id: "approved", title: "Approved", desc: "Done when you approve the act (valid while its file is unchanged), or its preview is current and no notes are open.", done: approved },
+    ],
+  };
+}
+
+
+/**
+ * One short, stage by stage: script (gate) -> voice -> align -> plan -> act -> sound -> draft -> render -> export.
+ * Review at the draft sends work back to the act (fix with notes) or to the sound stage (foley edits).
+ */
+export function shortSpec(s: ShortItem, d: Details): Spec {
+  const p = s.progress, f = s.files, id = s.id, approved = s.approval === "approved";
+  const draftStale = !!f.draft && !!f.mix && f.mix.mtime > f.draft.mtime + 1000;
+  return {
+    loops: [
+      { from: "draft", to: "act", label: "review → fix act", ran: runsFor(d, `Fix act with notes ${id}`).length },
+      { from: "draft", to: "sound", label: "foley edits → apply", ran: runsFor(d, `Apply SFX edits ${id}`).length },
+    ],
+    blocks: [
+      { id: "script", title: "Script", desc: "Write, check, revise and approve: the voice reads the approved script only. Your gate, per short.", done: approved,
+        note: s.approval === "changed since approval" ? "Edited after approval: approve again." : undefined },
+      { id: "voice", title: "Voice", action: "shorts.voice", act: id, label: `Voice ${id}`, done: p.voice, outAt: f.voice?.mtime, note: approved ? undefined : "Approve the script first." },
+      { id: "align", title: "Align", action: "shorts.align", act: id, label: `Align ${id}`, done: p.align },
+      { id: "plan", title: "Plan", action: "shorts.plan", act: id, label: `Plan ${id}`, done: p.plan },
+      { id: "act", title: "Act", desc: "The one act of the short, drawn in code; frames and a reviewer; notes go back to its author.", action: "shorts.act", act: id, label: `Act ${id}`, done: p.act },
+      { id: "sound", title: "Sound", desc: "Foley review, the music bed on or off, the mix.", action: "shorts.sound", act: id, label: `Sound ${id}`, done: p.sound, outAt: f.mix?.mtime },
+      { id: "draft", title: "Draft", desc: "Watch the draft; loop back to the act or to the sound stage until it is right.", action: "shorts.draft", act: id, label: `Draft ${id}`, done: !!f.draft && !draftStale, outAt: f.draft?.mtime,
+        note: draftStale ? "The mix is newer than the draft: render the draft again." : undefined },
+      { id: "render", title: "Render + QC", action: "shorts.render", act: id, label: `Render final ${id}`, done: p.render && p.qc, outAt: f.final?.mtime },
+      { id: "export", title: "Export", desc: "shorts/export: mp4, title + description + hashtags, srt (all shorts at once).", action: "shorts.export", label: "Export shorts", done: p.exported },
     ],
   };
 }

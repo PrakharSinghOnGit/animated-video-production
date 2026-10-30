@@ -50,6 +50,7 @@ async function main() {
   const crf = isDraft ? "26" : "16";
 
   let renderArgs: string[] = [];
+  let vertical = false;   // a 9:16 short (timeline 1080x1920)
 
   if (isKitWorkspace) {
     // -------------------------------------------------------------
@@ -83,6 +84,7 @@ async function main() {
     const entryFile = path.join(paths.outputDir, "src", "index.ts");
     const timelinePath = path.join(paths.outputDir, "timeline.json");
     const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
+    vertical = timeline.height > timeline.width;
 
     // Check voiceover file in public and keep it synchronized with master audio
     const publicVo = path.join(paths.outputDir, "public", "voiceover.wav");
@@ -157,7 +159,7 @@ async function main() {
     logStream.end();
 
     if (code === 0) {
-      finishAudio(outFilePath, paths.outputDir, isDraft, isDraft ? 1080 : res, isDraft ? "mix" : audio);
+      finishAudio(outFilePath, paths.outputDir, isDraft, isDraft ? 1080 : res, isDraft ? "mix" : audio, vertical);
       recordTiming(path.dirname(paths.outputDir), { step: isDraft ? "render draft" : "render final", ms: Date.now() - startTime });
       const stats = fs.statSync(outFilePath);
       const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
@@ -192,11 +194,11 @@ function pickMixFile(audioDir: string): string {
  * drop audio; upscale finals to 1440p/2160p (lanczos) and add film grain: grain drawn per frame would make every frame
  * slow and incompressible. Drafts keep the voice-only track if there is no mix, and get no grain.
  */
-function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res = 1080, audio: AudioMode = "mix"): void {
+function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res = 1080, audio: AudioMode = "mix", vertical = false): void {
   const mixFile = pickMixFile(path.join(path.dirname(outputDir), "06-audio"));
   const mix = audio === "mix" && fs.existsSync(mixFile);
   const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "3");
-  const vf = [res > 1080 ? `scale=-2:${res}:flags=lanczos` : "", grain > 0 ? `noise=alls=${grain}:allf=t` : ""].filter(Boolean);
+  const vf = [res > 1080 ? (vertical ? `scale=${res}:-2:flags=lanczos` : `scale=-2:${res}:flags=lanczos`) : "", grain > 0 ? `noise=alls=${grain}:allf=t` : ""].filter(Boolean);
   if (!mix && !vf.length && audio !== "none") return;
   const tmp = videoPath.replace(/\.mp4$/, ".mux.mp4");
   const ff = ["-v", "error", "-y", "-i", videoPath];

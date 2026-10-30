@@ -5,6 +5,11 @@
  * Usage: bun run cues --video <ID>
  * Writes: <ws>/05-video/events.json and <ws>/06-audio/music_plan.json
  *
+ * SFX edits (dashboard SFX review): <ws>/05-video/sfx_edits.json = { "off": [key], "gainDb": { key: dB } }, where
+ * key = `${act}@${t.toFixed(2)}:${type}`. events_all.json lists every event with its key and edits (off / gainDb);
+ * events.json (what the mix renders) keeps only the events that are on, gain scaled. Each event carries `seed` = its
+ * index in events_all, so removing one SFX never changes which library sample the others get.
+ *
  * Act contract: `export const events = (word) => [{ t, type, d?, gain?, pan? }]`
  * where `word(text, occurrence?)` returns that word's start in act-relative seconds
  * and every `t` is act-relative seconds.
@@ -81,12 +86,28 @@ for (const act of plan.acts) {
 }
 
 events.sort((a, b) => a.t - b.t);
-fs.writeFileSync(path.join(paths.outputDir, "events.json"), JSON.stringify(events, null, 1), "utf-8");
+const editsPath = path.join(paths.outputDir, "sfx_edits.json");
+const edits: { off?: string[]; gainDb?: Record<string, number> } = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
+const off = new Set(edits.off ?? []);
+const seen = new Map<string, number>();
+const all = events.map((e, i) => {
+  let key = `${e.act}@${e.t.toFixed(2)}:${e.type}`;
+  const n = (seen.get(key) ?? 0) + 1; seen.set(key, n);
+  if (n > 1) key += `#${n}`;
+  const db = edits.gainDb?.[key];
+  return { key, ...e, seed: i, ...(off.has(key) ? { off: true } : {}), ...(db ? { gainDb: db } : {}) };
+});
+const on = all.filter((e) => !e.off).map(({ key, off: _o, gainDb, ...e }) =>
+  gainDb ? { ...e, gain: Math.round((e.gain ?? 1) * 10 ** (gainDb / 20) * 1000) / 1000 } : e);
+const stale = [...off, ...Object.keys(edits.gainDb ?? {})].filter((k) => !all.some((e) => e.key === k));
+fs.writeFileSync(path.join(paths.outputDir, "events_all.json"), JSON.stringify(all, null, 1), "utf-8");
+fs.writeFileSync(path.join(paths.outputDir, "events.json"), JSON.stringify(on, null, 1), "utf-8");
 const audioDir = path.join(wsDir, "06-audio");
 fs.mkdirSync(audioDir, { recursive: true });
 const duration = timeline.durationFrames / fps;
 fs.writeFileSync(path.join(audioDir, "music_plan.json"), JSON.stringify({ sr: 48000, duration, style: plan.style, sections, hits }, null, 2), "utf-8");
 
-console.log(`✅ ${events.length} foley events → 05-video/events.json`);
+console.log(`✅ ${on.length} foley events → 05-video/events.json${on.length < all.length ? ` (${all.length - on.length} removed in sfx_edits.json)` : ""}`);
+if (stale.length) console.log(`   ⚠️  ${stale.length} SFX edit(s) no longer match an event (the act's timing changed): ${stale.join(", ")}`);
 console.log(`✅ ${sections.length} music sections, ${hits.length} hits → 06-audio/music_plan.json`);
 for (const m of missing) console.log(`   ⚠️  ${m}`);

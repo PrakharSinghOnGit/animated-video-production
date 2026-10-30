@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 import { cn, dur, money, shortId } from "@/lib/utils";
 import type { View } from "@/hooks/useRoute";
 
-const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish"];
+const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish", "shorts"];
 const NAV: { v: View; label: string; icon: typeof Cpu }[] = [{ v: "overview", label: "Overview", icon: LayoutDashboard }, { v: "usage", label: "Claude usage", icon: BarChart3 }, { v: "machine", label: "Machine", icon: Cpu }];
 
 const Head = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
@@ -30,7 +30,7 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
     try {
       await api.createWorkspace(v);
       toast(`Creating ${v}…`); setId("");
-      setTimeout(async () => { await reloadList(); go({ view: "ws", ws: v, step: "script", act: null }); }, 2500);
+      setTimeout(async () => { await reloadList(); go({ view: "ws", ws: v, sec: "video", step: "script", act: null, short: null }); }, 2500);
     } catch (e) { toast((e as Error).message); }
   };
 
@@ -63,14 +63,14 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
             if (rail) {
               return (
                 <Tip key={w.id} label={`${w.id}${w.title ? ` · ${w.title}` : ""}`} side="right">
-                  <button onClick={() => pick({ view: "ws", ws: w.id, act: null, step: null })} aria-label={w.id} className={cn("relative flex size-9 items-center justify-center rounded-md font-mono text-[11px] hover:bg-accent", on && "bg-accent")}>
+                  <button onClick={() => pick({ view: "ws", ws: w.id, sec: null, act: null, step: null, short: null })} aria-label={w.id} className={cn("relative flex size-9 items-center justify-center rounded-md font-mono text-[11px] hover:bg-accent", on && "bg-accent")}>
                     {shortId(w.id).replace("VID", "")}{w.running && <StatusDot s="running" className="absolute right-1 top-1" />}
                   </button>
                 </Tip>
               );
             }
             return (
-              <button key={w.id} onClick={() => pick({ view: "ws", ws: w.id, act: null, step: null })} aria-current={on}
+              <button key={w.id} onClick={() => pick({ view: "ws", ws: w.id, sec: null, act: null, step: null, short: null })} aria-current={on}
                 className={cn("grid min-h-14 w-full gap-1 border-l-2 border-transparent px-3 py-2 text-left text-muted-foreground hover:bg-accent hover:text-foreground", on && "border-l-brand bg-accent text-foreground")}>
                 <span className="truncate font-mono text-xs text-foreground">{w.id}</span>
                 {w.title && <span className="truncate text-xs">{w.title}</span>}

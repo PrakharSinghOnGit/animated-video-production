@@ -133,7 +133,7 @@ def main():
         for i, e in enumerate(evs):
             if e["type"] not in sfx.FOLEY: skipped += 1; continue
             if e["t"] >= N / SR or (a.trim and e["t"] > a.trim): continue
-            sfx.seed(1234 + i)
+            sfx.seed(1234 + e.get("seed", i))
             x, ent = sfx.render_event_ex(e["type"], e.get("d"), not a.no_lib)
             x = x.astype(np.float64); used_sfx[ent["id"] if ent else "proc:" + e["type"]] = ent or e["type"]
             lvl = 10 ** ((sfx.FOLEY[e["type"]][2] + a.foley_db) / 20) / .8

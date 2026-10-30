@@ -43,15 +43,16 @@ async function main() {
   const captions = JSON.parse(fs.readFileSync(captionsFile, "utf-8"));
   const storyboard = JSON.parse(fs.readFileSync(storyboardFile, "utf-8"));
 
-  let fps = 30;
+  // <ws>/config.json sets the format: shorts are { "format": "short", "width": 1080, "height": 1920, "endHoldS": 0, "fadeOutFrames": 0 }
+  let cfg: any = {};
   if (paths.configFile && fs.existsSync(paths.configFile)) {
-    try {
-      const cfg = JSON.parse(fs.readFileSync(paths.configFile, "utf-8"));
-      if (cfg.fps) fps = cfg.fps;
-    } catch {}
+    try { cfg = JSON.parse(fs.readFileSync(paths.configFile, "utf-8")); } catch {}
   }
+  const fps = cfg.fps ?? 30;
 
-  const timeline = buildTimeline(captions, storyboard, { fps, leadMs: 200 });
+  const timeline: any = buildTimeline(captions, storyboard, { fps, leadMs: 200, width: cfg.width, height: cfg.height });
+  if (typeof cfg.endHoldS === "number") timeline.endHoldS = cfg.endHoldS;
+  if (typeof cfg.fadeOutFrames === "number") timeline.fadeOutFrames = cfg.fadeOutFrames;
   fs.writeFileSync(path.join(paths.outputDir, "timeline.json"), JSON.stringify(timeline, null, 2), "utf-8");
 
   // 1b. Ensure workspace has Remotion template structure (Root.tsx, Main.tsx, index.ts, configs)

@@ -8,7 +8,7 @@ import { RunButton } from "@/components/RunButton";
 import { StatusDot } from "@/components/Status";
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
-import { buildGraph, STATE_LABEL, stateColor, W, H, type CardData, type FrameData, type GNode, type RowData } from "@/lib/graph";
+import { buildGraph, STATE_LABEL, stateColor, W, H, type CardData, type FrameData, type GNode, type RootData, type RowData } from "@/lib/graph";
 import { useMedia } from "@/lib/storage";
 import { ago, cn, dur, money } from "@/lib/utils";
 
@@ -72,7 +72,18 @@ const Row = memo(function Row({ data }: NodeProps<Node<RowData, "row">>) {
   return <div className="pointer-events-none whitespace-nowrap text-[11.5px] text-muted-foreground"><span className="font-mono text-foreground">{data.id}</span> · {data.title}</div>;
 });
 
-const nodeTypes = { card: Card, frame: Frame, row: Row };
+/** The Idea: the root every branch (Video, Shorts, Packaging) grows from. Click = the project overview. */
+const Root = memo(function Root({ data }: NodeProps<Node<RootData, "root">>) {
+  return (
+    <div style={{ width: W, height: H }} className="flex cursor-pointer flex-col justify-center gap-0.5 rounded-lg border-2 border-brand bg-card px-3 py-1.5 shadow-sm hover:bg-accent">
+      <Handle id="out" type="source" position={Position.Right} className="!size-2 !border-0 !opacity-0" />
+      <div className="flex items-center gap-1.5"><StatusDot s={data.done ? "done" : "none"} /><b className="text-[13px] font-semibold tracking-tight">Idea</b></div>
+      <div className="line-clamp-2 text-[11px] leading-snug text-muted-foreground" title={data.sub}>{data.sub}</div>
+    </div>
+  );
+});
+
+const nodeTypes = { card: Card, frame: Frame, row: Row, root: Root };
 
 /** Selected card: what it is, its state, the Run button, and a jump back to the list view. */
 function Inspector({ n, onClose }: { n: Node<CardData, "card">; onClose: () => void }) {
@@ -99,7 +110,7 @@ function Inspector({ n, onClose }: { n: Node<CardData, "card">; onClose: () => v
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {c.action && <RunButton primary={!a?.paid} running={c.status === "running"} disabled={!!busy} onClick={() => runSaved(c.action!, c.act)} />}
-        <Button variant="secondary" onClick={() => { setMode("list"); go({ step: c.step, act: c.act ?? null }); }}><ExternalLink />Open in list</Button>
+        <Button variant="secondary" onClick={() => { setMode("list"); go({ view: "ws", ...c.nav }); }}><ExternalLink />Open page</Button>
       </div>
     </div>
   );
@@ -120,7 +131,7 @@ function useDark() {
 const fit = { padding: 0.06, minZoom: 0.45 };
 
 function Canvas() {
-  const { d, ws, busy } = useApp();
+  const { d, ws, busy, go, setMode } = useApp();
   const [sel, setSel] = useState<string | null>(null);
   const dark = useDark(), phone = useMedia("(max-width: 639px)");
   const graph = useMemo(() => (d ? buildGraph(d, busy) : { nodes: [] as GNode[], edges: [] }), [d, busy]);
@@ -140,7 +151,8 @@ function Canvas() {
     <ReactFlow nodes={nodes} edges={graph.edges} nodeTypes={nodeTypes} colorMode={dark ? "dark" : "light"} className="wg-flow"
       fitView fitViewOptions={fit} minZoom={0.1} maxZoom={1.5}
       nodesDraggable={false} nodesConnectable={false} edgesFocusable={false} proOptions={{ hideAttribution: true }}
-      onNodeClick={(_, n) => { if (n.type === "card") setSel(n.id); }} onPaneClick={() => setSel(null)}>
+      onNodeClick={(_, n) => { if (n.type === "card") setSel(n.id); else if (n.type === "root") { setMode("list"); go({ view: "ws", sec: null, step: null, act: null, short: null }); } }}
+      onNodeDoubleClick={(_, n) => { if (n.type === "card") { setMode("list"); go({ view: "ws", ...(n.data as CardData).nav }); } }} onPaneClick={() => setSel(null)}>
       <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} />
       <Controls showInteractive={false} />
       {!phone && <MiniMap pannable zoomable nodeColor={(n) => (n.type === "frame" ? "var(--muted)" : n.type === "card" ? "var(--input)" : "transparent")} nodeStrokeWidth={0} />}
@@ -149,7 +161,7 @@ function Canvas() {
   );
 }
 
-/** Blender-style node view of the open video: every step, sub-step, act row and loop-back at once. Live: derived from the polled details. */
+/** Blender-style node view of the open project: the Idea, then Video, Shorts and Packaging with every step, sub-step, act row and loop-back. Click a card to inspect it, double-click (or "Open page") to go to its page. Live: derived from the polled details. */
 export default function NodeView() {
   const { ws } = useApp();
   return <div className="min-h-0 flex-1"><ReactFlowProvider key={ws}><Canvas /></ReactFlowProvider></div>;

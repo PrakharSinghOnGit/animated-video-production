@@ -13,6 +13,7 @@ import { compactTranscript } from "../src/lib/transcript";
 import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
 import { runAgent } from "../src/lib/agent";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { isShortWorkspace } from "../src/lib/format";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -20,9 +21,11 @@ const flag = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const videoId = flag("--video") ?? flag("-v") ?? args.find((a) => !a.startsWith("-"));
-const model = flag("--model") ?? process.env.DIRECTOR_MODEL ?? "opus";
+// A 9:16 short (workspace/<VID>/shorts/S1, config.json format "short"): one act, SHORT_DIRECTOR.md, Sonnet and the shorts style by default
+const short = !!videoId && isShortWorkspace(path.dirname(resolveJobPaths(videoId).outputDir));
+const model = flag("--model") ?? process.env.DIRECTOR_MODEL ?? (short ? "sonnet" : "opus");
 // House style: workflow/styles/<style>/ (STYLE.md + ACT.md). Saved in acts.json for the act authors.
-const style = flag("--style") ?? process.env.WG_STYLE ?? "briefing";
+const style = flag("--style") ?? (short ? "shorts" : process.env.WG_STYLE ?? "briefing");
 if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/STYLE.md`))) {
   console.error(`❌ unknown style "${style}" (no workflow/styles/${style}/STYLE.md)`);
   process.exit(1);
@@ -55,7 +58,7 @@ function validate(): string[] {
   } catch (e: any) {
     return [`acts.json is not valid JSON: ${e.message}`];
   }
-  return checkActs(plan, captions, chapters);
+  return checkActs(plan, captions, chapters, { short });
 }
 
 function finish(): void {
@@ -95,12 +98,17 @@ if (checkOnly) {
 
 const scriptFile = path.join(wsDir, "02-scripting", "script_raw.md");
 const scriptHints = fs.existsSync(scriptFile) && /\*\*\[ON SCREEN\]:\*\*/i.test(fs.readFileSync(scriptFile, "utf-8")) ? scriptFile : "";
-const director = fs.readFileSync(path.resolve(process.cwd(), "workflow/prompts/DIRECTOR.md"), "utf-8").replace(/{{STYLE}}/g, style);
+const director = fs.readFileSync(path.resolve(process.cwd(), `workflow/prompts/${short ? "SHORT_DIRECTOR" : "DIRECTOR"}.md`), "utf-8").replace(/{{STYLE}}/g, style);
+// A short's sourced figures come from its short.json (copied by shorts:write from the long video's plan)
+const shortInfo = short ? (() => { try { return JSON.parse(fs.readFileSync(path.join(wsDir, "02-scripting", "short.json"), "utf-8")); } catch { return null; } })() : null;
+const shortFigures = shortInfo?.data?.length
+  ? `- The short's sourced figures (the only numbers allowed on screen; copy label/value/unit/source into beat data):\n${shortInfo.data.map((d: any) => `  - ${d.label}: ${d.value}${d.unit ? " " + d.unit : ""} [source: ${d.source}]`).join("\n")}\n`
+  : short ? "- The short has no sourced figures: show no numbers that the narration does not say, and mark those \"narration (unverified)\".\n" : "";
 const prompt = `${director}
 
 # Inputs for ${paths.jobId}
 - Style (Read it first): workflow/styles/${style}/STYLE.md
-${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
+${shortFigures}${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
 
 ${compactTranscript(captions)}
 ${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}
