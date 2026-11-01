@@ -1101,7 +1101,11 @@ function details(ws: string) {
   const unverified: string[] = [];
   const acts = (plan?.acts ?? []).map((a: any) => {
     for (const b of a.beats ?? []) for (const x of b.data ?? []) if (/unverified|narration/i.test(String(x.source ?? ""))) unverified.push(`${a.id}: ${x.label} = ${x.value}${x.unit ? " " + x.unit : ""}`);
-    return { id: a.id, slug: a.slug, title: a.title, startMs: a.startMs, endMs: a.endMs, bpm: a.bpm, chapter: a.chapter ?? null, idea: a.idea ?? "", beats: (a.beats ?? []).length };
+    const beats = (a.beats ?? []).map((b: any) => ({ startMs: b.startMs, endMs: b.endMs, vo: b.vo ?? "", visual: b.visual ?? "", camera: b.camera ?? "",
+      hits: (b.hits ?? []).map((h: any) => ({ word: h.word, occurrence: h.occurrence ?? 1, what: h.what ?? "" })),
+      data: (b.data ?? []).map((x: any) => ({ label: x.label, value: x.value, unit: x.unit ?? "", source: x.source ?? "" })) }));
+    return { id: a.id, slug: a.slug, title: a.title, startMs: a.startMs, endMs: a.endMs, bpm: a.bpm, chapter: a.chapter ?? null, idea: a.idea ?? "", beats: beats.length,
+      detail: { sheet: a.sheet ?? "", signature: a.signature ?? "", camera: a.camera ?? "", transitionIn: a.transitionIn ?? "", sound: a.sound ?? "", intensity: a.intensity ?? null, beats } };
   });
 
   // acts
@@ -1164,7 +1168,9 @@ function details(ws: string) {
     totals: { ms: allRows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: allRows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
     voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince },
     align: { voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap }) => ({ speed, gap, chapterGap }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
-    plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, acts, unverified },
+    plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, style: plan?.style ?? null,
+      treatment: plan?.treatment ? Object.fromEntries(Object.entries(plan.treatment).filter(([k, v]) => k !== "logline" && (typeof v === "string" || Array.isArray(v))).map(([k, v]) => [k, Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" · ") : v])) : {},
+      acts, unverified },
     acts: actRows,
     sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
     render: { videos, qc, manifest, ...renderStates(ws) },

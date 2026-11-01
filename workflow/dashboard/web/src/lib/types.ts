@@ -33,7 +33,9 @@ export interface ActRow {
   /** explicit human approval, valid only while the scene file is the one approved */
   approval: { at: string; sceneMtime: number } | null;
 }
-export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number }
+export interface PlanBeat { startMs: number; endMs: number; vo: string; visual: string; camera: string; hits: { word: string; occurrence: number; what: string }[]; data: { label: string; value: number | string; unit: string; source: string }[] }
+export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number;
+  detail: { sheet: string; signature: string; camera: string; transitionIn: string; sound: string; intensity: number | null; beats: PlanBeat[] } }
 export type Variant = "A" | "B" | "C";
 export interface PubPackage { title: string; type: string; rationale: string; thumbnail: string; hypothesis: string }
 export interface PubChecks { errors: string[]; warnings: string[] }
@@ -78,7 +80,7 @@ export interface Details {
   runs: Run[]; totals: { ms: number; costUsd: number };
   voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean };
   align: { voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number } | null; master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
-  plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
+  plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
   publish: PublishInfo;
   shorts: ShortsInfo;

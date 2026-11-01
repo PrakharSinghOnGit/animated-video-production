@@ -3,8 +3,8 @@ import type { Details, St, StepKey } from "./types";
 /** The long-video flow (the Video section). Shorts and Packaging are sections of their own. */
 export const STEPS: { key: Exclude<StepKey, "publish" | "shorts">; label: string; hint: string }[] = [
   { key: "script", label: "Script", hint: "Draft → script → approval" },
-  { key: "voice", label: "Voice", hint: "Local voice clone" },
-  { key: "align", label: "Align", hint: "Timings, master, captions" },
+  { key: "voice", label: "Voice", hint: "Narration (Gemini or local)" },
+  { key: "align", label: "Align", hint: "Speed, gaps, timings, captions" },
   { key: "plan", label: "Plan", hint: "Acts and beats" },
   { key: "acts", label: "Acts", hint: "Draw, preview, review" },
   { key: "sound", label: "Sound", hint: "Foley and mix" },
@@ -51,7 +51,7 @@ export function todoText(key: StepKey, st: St, d: Details): string {
       return pre + "Review and edit the script, then approve it.";
     }
     case "voice": return st === "done" ? "Full voiceover generated." : pre + `Generate the voiceover (${d.voice.sectionCount || "no"} sections).`;
-    case "align": return st === "done" ? "Timings, master and captions exist." : pre + "Run Align all: transcribe, master, captions, .srt.";
+    case "align": return st === "done" ? "Speed & gaps, timings, master and captions exist." : pre + "Run Align all: speed & gaps, transcribe, master, captions, .srt.";
     case "plan": return st === "done" ? `${d.plan.acts.length} acts planned.` : pre + "Run the director to split the narration into acts.";
     case "acts": {
       const n = d.acts.length, done = d.acts.filter((a) => a.scene).length;
