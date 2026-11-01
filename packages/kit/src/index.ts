@@ -1,6 +1,6 @@
 /**
  * @wealthgap/kit
- * Design tokens, backdrop/finish, motion helpers and the Briefing (spy) engine for The Wealth Gap.
+ * Design tokens, backdrop/finish, motion helpers, the Briefing (spy) engine and the Drafting (draft) engine for The Wealth Gap.
  */
 
 // Tokens & Design System
@@ -33,3 +33,4 @@ export * from "./lint-rules";
 
 export * as paper from "./paper";
 export * as spy from "./spy";
+export * as draft from "./draft";

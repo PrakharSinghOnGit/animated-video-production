@@ -78,8 +78,8 @@ export function lintSceneCode(code: string, filename: string = "S01_scene.tsx", 
     }
   }
 
-  // 2. Check Hooks usage. Briefing acts draw through SpyCanvas/drawAct with ctx.t instead of Remotion hooks.
-  const canvasAct = /\b(SpyCanvas|drawAct)\b/.test(code);
+  // 2. Check Hooks usage. Briefing/Drafting acts draw through SpyCanvas/DraftCanvas/drawAct with ctx.t instead of Remotion hooks.
+  const canvasAct = /\b(SpyCanvas|DraftCanvas|drawAct)\b/.test(code);
   if (!canvasAct && !code.includes("useCurrentFrame")) {
     errors.push({
       severity: "error",

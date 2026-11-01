@@ -10,18 +10,19 @@ Don't explore the rest of the repo; everything you need is there.
 ## Rules
 - **Pure and deterministic.** Everything is a function of `ctx.t`. Use `seg(t, t0, t1)` + easing for every motion; seeded noise only. No `Math.random`, `Date`, timers or state between frames.
 - **Timing from words.** Resolve every hit with `ctx.word(text, n)` (act-relative seconds). A hit is **complete at the word's start**: begin the motion 0.25–0.6 s earlier (anticipation, then action). Never hard-code times that should follow the voice.
-- **One take, framed by regions.** No cuts inside the act. Lay the world out as named regions (one per beat or idea) and let the camera frame regions, never raw coordinates (the engine's framing helpers keep everything inside the safe area and large). Something is always moving: an element being built, a figure acting, or the camera breathing.
-- **The camera never leaves unfinished work.** It arrives at a region before that region's action starts and stays until the action is complete and has been held. Moves are calm (the engine enforces a minimum move time); leave room for them.
+- **One take, no cuts.** Something is always moving: an element being built, a figure acting, a shape turning into the next one. How the frame is composed comes from the style's ACT.md:
+  - *Briefing*: a world of named regions framed by a moving camera (never raw coordinates); the camera never leaves unfinished work, arrives before a region's action and stays until it is complete and held; moves are calm.
+  - *Drafting*: a locked camera; each beat is made out of the previous one's shapes (morph, press, unfold, extrude), centred inside the border.
 - **Long-form pace.** One idea at a time; build it while it is explained, then hold while the narrator finishes. No move or reveal shorter than 0.4 s except a deliberate punch-in, whip or stop-time.
-- **Layout.** Each beat's drawing stays inside its region. Text must be ≥ 30 px on screen (world size × camera zoom); headline numbers ≥ 90 px. A region holds one idea; if it is crowded, split it. Follow the style's text rule (STYLE.md §4): in Briefing there are no running subtitles, only impact text staged in the scene; the whole frame is usable.
+- **Layout.** Each beat's drawing stays inside its region (Briefing) or the border (Drafting). Text must be ≥ 30 px on screen (world size × camera zoom); headline numbers ≥ 90 px. One idea at a time; if it is crowded, split it. Follow the style's text rule (STYLE.md §4): no running subtitles in either style, only impact text staged in the scene.
 - **Data honesty.** Only the plan's `data` numbers, with their units; show the source as a small note beside the figure. Never invent a number to fill a chart: draw the empty slot.
 - **No boxes with text in them.** If a frame looks like a slide, restage it in the style's own terms (STYLE.md §8).
 - **Sound.** Export `events(word)` with foley for every visible action (types listed in the style's ACT.md), act-relative seconds.
 - Keep the file readable: small helper functions per beat, < ~800 lines.
 
 ## Process
-1. Plan the world layout and the camera/actions for every beat (a short comment block at the top of the file).
+1. Plan the layout and the actions for every beat (a short comment block at the top of the file).
 2. Write the file.
 3. `bun run assemble --video <ID>` (it must pass), then `bun run frames --video <ID> --scene <ACT> --every 4 --words`. It prints a **layout report** (measured, free): near-empty frames, content clipped at an edge, content in the subtitle band (ignore that flag when the style has no subtitles), subjects too small. **Fix every flag**, then **Read the contact sheet** `review/<ACT>/sheet.jpg` for what numbers can't see.
-4. Fix what you see: tiny text, overlaps, a hit that is not complete at its word, colour on the same colour, a camera that leaves too early, anything that looks like a slide. Repeat step 3 at most 3 times.
+4. Fix what you see: tiny text, overlaps, a hit that is not complete at its word, colour on the same colour, a camera that leaves too early (Briefing), a frame with nothing changing for more than 1.5 s (Drafting), anything that looks like a slide. Repeat step 3 at most 3 times.
 5. Stop when the layout report is clean and the sheet reads as a polished film strip. Reply with 3 lines: what the act shows, what you are least sure about, and the frames to check.

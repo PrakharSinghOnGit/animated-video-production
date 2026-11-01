@@ -338,6 +338,9 @@ FOLEY = {
     "coin_drop": (coin_drop, .7, -17), "cash_register": (cash_register, 1.1, -16), "typewriter": (typewriter, .9, -22),
     "card_slap": (card_slap, None, -18), "paper_cut": (paper_cut, .5, -24), "tear": (tear, .6, -20),
     "metal_click": (metal_click, None, -20), "tape_click": (tape_click, None, -22), "whip": (whip, .4, -22),
+    # Drafting style (workflow/styles/drafting/ACT.md): stand-ins from the synths above until its own foley set exists
+    "tick": (lambda: click(1.7, .7), None, -26), "ratchet": (adding_clack, None, -22), "click": (click, None, -23),
+    "sweep": (whoosh, .45, -28), "press": (stamp_thud, None, -17), "step": (step, None, -27),
 }
 
 
