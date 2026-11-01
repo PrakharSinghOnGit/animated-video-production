@@ -24,7 +24,9 @@ if (video) {
   const pub = path.join(out, "public");
   if (fs.existsSync(pub)) extra.push(`--public-dir=${pub}`);
 } else {
-  entry = path.resolve(process.cwd(), "packages/kit/src/spy/preview/Root.tsx");
+  // no video: the style's engine demo (--style drafting | briefing)
+  const si = process.argv.indexOf("--style"), st = si >= 0 ? process.argv[si + 1] : "briefing";
+  entry = path.resolve(process.cwd(), st === "drafting" ? "packages/kit/src/draft/preview/Root.tsx" : "packages/kit/src/spy/preview/Root.tsx");
 }
 console.log(`🎛  Remotion Studio: ${path.relative(process.cwd(), entry)} (Ctrl+C to stop)`);
 spawn("bunx", ["remotion", "studio", entry, ...extra], { stdio: "inherit" }).on("close", (c) => process.exit(c ?? 0));

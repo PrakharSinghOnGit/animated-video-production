@@ -10,15 +10,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runAgentAsync, runAgyJson, extractJson } from "../05-video/src/lib/agent";
+import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { REPO, VARIANTS, GUIDE, wsDir, pubFile, readJson, readText, planNumbers, thumbPath, type Metadata } from "./lib";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const videoId = flag("--video") ?? flag("-v");
-const agent = (flag("--agent") ?? "haiku").toLowerCase();
-if (!videoId || !["agy", "haiku", "sonnet", "opus"].includes(agent)) {
-  console.error("Usage: bun run thumbs:review --video <ID> [--agent haiku|sonnet|opus|agy] [--to-notes]");
+const agent = roleModel("thumbsReview", flag("--agent"));
+const agentSlug = specSlug(agent);
+if (!videoId) {
+  console.error("Usage: bun run thumbs:review --video <ID> [--agent <provider:model>] [--to-notes]");
   process.exit(1);
 }
 const ws = wsDir(videoId);
@@ -56,19 +58,19 @@ ${JSON.stringify(checks, null, 1)}
 Acts: ${(plan?.acts ?? []).map((a: any) => `${a.id} ${a.title}: ${a.idea}`).join(" | ")}
 Sourced figures:
 ${pn.lines.join("\n")}
-${agent === "agy" ? "\nDo not create or edit any file." : ""}`;
+${isAgy(agent) ? "\nDo not create or edit any file." : ""}`;
 
 console.log(`🔎 Reviewing the thumbnails with ${agent}...`);
 const t0 = Date.now();
 const out = pubFile(videoId, "reviews");
 fs.mkdirSync(out, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-const logPath = path.join(out, `${stamp}_${agent}.log`);
+const logPath = path.join(out, `${stamp}_${agentSlug}.log`);
 let result: any = null, costUsd = 0, ms = 0;
-if (agent === "agy") {
-  const r = await runAgyJson({ prompt, logPath }).catch(() => ({ r: null as any, json: null }));
+if (isAgy(agent)) {
+  const r = await runAgyJson({ prompt, model: agyModel(agent), logPath }).catch(() => ({ r: null as any, json: null }));
   result = r.json; ms = r.r?.durationMs ?? Date.now() - t0;
-  recordTiming(ws, { step: "thumbs review (agy)", ms, model: "agy", costUsd: 0 });
+  recordTiming(ws, { step: `thumbs review (${agent})`, ms, model: agent, costUsd: 0 });
 } else {
   const r = await runAgentAsync({ prompt, model: agent, tools: ["Read"], maxTurns: 30, logPath, cwd: REPO });
   try { result = extractJson(r.text); } catch {}
@@ -80,7 +82,7 @@ if (!result?.variants) {
   process.exit(1);
 }
 result = { agent, at: new Date().toISOString(), costUsd, ms, ...result };
-fs.writeFileSync(path.join(out, `${stamp}_${agent}.json`), JSON.stringify(result, null, 2), "utf-8");
+fs.writeFileSync(path.join(out, `${stamp}_${agentSlug}.json`), JSON.stringify(result, null, 2), "utf-8");
 
 const line = (i: any) => `- [${i.kind}, ${i.severity}]: seen: ${i.seen}. Fix: ${i.fix}`;
 const sections: Record<string, string[]> = Object.fromEntries(VARIANTS.map((v) => [v, (result.variants[v]?.issues ?? []).map(line)]));

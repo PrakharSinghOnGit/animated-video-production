@@ -20,19 +20,21 @@ import { spawnSync } from "node:child_process";
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import { runAgentAsync } from "../05-video/src/lib/agent";
+import { roleModel } from "../lib/models";
+import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { REPO, VARIANTS, GUIDE, THUMB_MAX_BYTES, THUMB_MAX_WORDS, THUMB_W, THUMB_H, wsDir, pubDir, pubFile, readJson, readText, videoSeconds, badgeTime, planNumbers, numberProblems, thumbPath, type Metadata, type ThumbInfo, type Variant } from "./lib";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const videoId = flag("--video") ?? flag("-v");
-const model = flag("--model") ?? "sonnet";
+const model = roleModel("thumbs", flag("--model"));
 const only = flag("--variant")?.toUpperCase();
 const renderOnly = args.includes("--render-only");
 const fixMode = args.includes("--notes");
 const force = args.includes("--force");
 const noPreview = args.includes("--no-preview");
-if (!videoId || !["sonnet", "opus", "haiku"].includes(model) || (only && !VARIANTS.includes(only as Variant))) {
+if (!videoId || (only && !VARIANTS.includes(only as Variant))) {
   console.error("Usage: bun run thumbs --video <ID> [--variant A|B|C] [--notes] [--model sonnet|opus|haiku] [--force]\n       bun run thumbs:render --video <ID> [--variant A] [--no-preview]");
   process.exit(1);
 }
@@ -196,7 +198,7 @@ function lastSession(): string | undefined {
 }
 const n = fs.readdirSync(pubFile(videoId, "logs")).filter((f) => /^thumbs_\d+\.log$/.test(f)).length;
 
-const brief = fs.readFileSync(path.join(REPO, "workflow/prompts/THUMBS.md"), "utf-8").replace(/<ID>/g, videoId);
+const brief = loadPrompt("THUMBS", { video: videoId }).replace(/<ID>/g, videoId);
 const packages = VARIANTS.map((v) => meta?.titles?.[v] ? `- ${v}: title "${meta.titles[v].title}" [${meta.titles[v].type}]. Thumbnail brief: ${meta.titles[v].thumbnail}. Tests: ${meta.titles[v].hypothesis}` : `- ${v}: no title yet (metadata.json missing): pick the concept yourself`).join("\n");
 const context = `# This video
 Video: ${videoId}. Working title: ${plan?.video?.title ?? "(none)"}. Read first: ${GUIDE}

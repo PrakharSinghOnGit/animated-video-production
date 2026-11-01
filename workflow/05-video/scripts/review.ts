@@ -4,7 +4,7 @@
  * timed narration (word-aligned voiceover), and saves its findings. Separate from the author's critic: you
  * pick the agent and the context.
  *
- * Usage: bun run review --video <ID> --act A01 [--agent agy|haiku|sonnet|opus] [--give transcript,plan,script,code]
+ * Usage: bun run review --video <ID> --act A01 [--agent <provider:model>] [--give transcript,plan,script,code]
  *                       [--every 2] [--focus "text"] [--to-notes] [--no-frames]
  *   --agent     agy = Gemini Flash via Antigravity (free, default); haiku/sonnet/opus = Claude (paid)
  *   --give      context besides the frames (default transcript,plan): transcript = the voiceover's words with
@@ -21,6 +21,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { runAgentAsync, runAgyJson, extractJson } from "../src/lib/agent";
+import { roleModel, isAgy, agyModel, specSlug } from "../../lib/models";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 
 const args = process.argv.slice(2);
@@ -30,11 +31,12 @@ const flag = (n: string) => {
 };
 const videoId = flag("--video") ?? flag("-v");
 const actId = (flag("--act") ?? flag("--scene"))?.toUpperCase();
-const agent = (flag("--agent") ?? "agy").toLowerCase();
+const agent = roleModel("actReview", flag("--agent"));
+const agentSlug = specSlug(agent);
 const give = new Set((flag("--give") ?? "transcript,plan").split(",").map((s) => s.trim()).filter(Boolean));
 const every = flag("--every") ?? "2";
 const focus = flag("--focus");
-if (!videoId || !actId || !["agy", "haiku", "sonnet", "opus"].includes(agent)) {
+if (!videoId || !actId || !agent) {
   console.error("Usage: bun run review --video <ID> --act A01 [--agent agy|haiku|sonnet|opus] [--give transcript,plan,script,code] [--every 2] [--focus text] [--to-notes] [--no-frames]");
   process.exit(1);
 }
@@ -97,7 +99,7 @@ if (give.has("code") && code) ctx.push(`## The act's source: ${path.join(sceneDi
 const out = path.join(reviewDir, "reviews");
 fs.mkdirSync(out, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-const jsonOut = path.join(out, `${stamp}_${agent}.json`);
+const jsonOut = path.join(out, `${stamp}_${agentSlug}.json`);
 
 const prompt = `You review one act (${actId}, ${durS.toFixed(1)} s) of a narrated finance explainer. Your main job is SYNC: does what is on screen match what the voice says, at the moment it says it?
 
@@ -113,16 +115,16 @@ Check, sentence by sentence:
 3. CLARITY: would a first-time viewer understand what the picture means while hearing the line?
 Only report what you can see in the frames; quote the words with their times. Never guess about frames you did not look at.
 
-${agent === "agy" ? "Do not create or edit any file. Reply ONLY with" : "Reply ONLY with"} this JSON (no prose around it):
+${isAgy(agent) ? "Do not create or edit any file. Reply ONLY with" : "Reply ONLY with"} this JSON (no prose around it):
 {"sync_score": 1-10, "overall": 1-10, "summary": "two sentences", "issues": [{"time": "12.3 s", "kind": "sync|layout|clarity", "severity": "high|medium|low", "said": "the words at that time", "seen": "what the frame shows", "fix": "what should change"}]}
 Most important first, max 15 issues.`;
 
 // 3. run
 console.log(`🔎 Reviewing ${actId} with ${agent} (${frames.length} frames; context: ${[...give].join(", ") || "frames only"})...`);
-const logPath = path.join(out, `${stamp}_${agent}.log`);
+const logPath = path.join(out, `${stamp}_${agentSlug}.log`);
 let result: any = null, costUsd = 0, ms = 0;
-if (agent === "agy") {
-  const r = await runAgyJson({ prompt, logPath }).catch((e) => ({ r: null as any, json: null, e }));
+if (isAgy(agent)) {
+  const r = await runAgyJson({ prompt, model: agyModel(agent), logPath }).catch((e) => ({ r: null as any, json: null, e }));
   result = r.json; ms = r.r?.durationMs ?? Date.now() - t0;
 } else {
   const r = await runAgentAsync({ prompt, model: agent, tools: ["Read"], maxTurns: 40, logPath, cwd: path.resolve(import.meta.dir, "../../..") });
@@ -130,7 +132,7 @@ if (agent === "agy") {
   costUsd = r.costUsd; ms = r.durationMs;
   recordTiming(ws, { step: `review ${actId} (${agent})`, ms, model: agent, costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 }
-if (agent === "agy") recordTiming(ws, { step: `review ${actId} (agy)`, ms, model: "agy", costUsd: 0 });
+if (isAgy(agent)) recordTiming(ws, { step: `review ${actId} (${agent})`, ms, model: agent, costUsd: 0 });
 if (!result?.issues) {
   console.error(`❌ the reviewer returned no usable JSON (log: ${path.relative(process.cwd(), logPath)})`);
   process.exit(1);

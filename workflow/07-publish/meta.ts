@@ -11,15 +11,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { runAgentAsync, extractJson } from "../05-video/src/lib/agent";
+import { roleModel } from "../lib/models";
+import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { REPO, VARIANTS, GUIDE, wsDir, pubDir, pubFile, readJson, readText, videoSeconds, buildChapters, sourceLines, creditLines, buildDescription, fitTags, planNumbers, checkTitles, checkTags, checkDescription, type Metadata, type Package, type Variant } from "./lib";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const videoId = flag("--video") ?? flag("-v");
-const model = flag("--model") ?? "sonnet";
-if (!videoId || !["sonnet", "opus", "haiku"].includes(model)) {
-  console.error("Usage: bun run meta --video <ID> [--model sonnet|opus|haiku] [--notes]");
+const model = roleModel("meta", flag("--model"));
+if (!videoId) {
+  console.error("Usage: bun run meta --video <ID> [--model <provider:model>] [--notes]");
   process.exit(1);
 }
 const ws = wsDir(videoId);
@@ -51,7 +53,7 @@ function bodyOf(m: Metadata): string {
   return (i > 0 ? m.description.slice(0, i) : m.description).trim();
 }
 
-const brief = fs.readFileSync(path.join(REPO, "workflow/prompts/META.md"), "utf-8");
+const brief = loadPrompt("META", { video: videoId });
 const task = `${brief}
 
 # This video

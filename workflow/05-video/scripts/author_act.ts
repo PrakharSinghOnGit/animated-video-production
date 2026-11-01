@@ -15,6 +15,8 @@ import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { type ActsPlan, type Act } from "../src/lib/acts";
 import { runAgentAsync, runAgy, runAgyJson, extractJson, type AgentResult } from "../src/lib/agent";
+import { roleModel, isAgy, agyModel } from "../../lib/models";
+import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 
@@ -26,8 +28,7 @@ const flag = (n: string) => {
 const videoId = flag("--video") ?? flag("-v");
 const only = flag("--act")?.toUpperCase().split(",");
 const parallel = Math.max(1, parseInt(flag("--parallel") ?? "2", 10));
-const model = flag("--model") ?? process.env.ACT_MODEL ?? "opus";
-const criticModel = flag("--critic") ?? process.env.CRITIC_MODEL ?? "agy";
+const criticModel = roleModel("critic", flag("--critic"));
 const useCritic = !args.includes("--no-critic");
 const force = args.includes("--force");
 const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round
@@ -53,7 +54,8 @@ if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`
 }
 // 9:16 shorts (config.json format "short") get their own brief: one act, hook on frame 1, loop, captions
 const short = isShortWorkspace(wsDir);
-const actPrompt = fs.readFileSync(path.resolve(process.cwd(), `workflow/prompts/${short ? "SHORT_ACT" : "ACT"}.md`), "utf-8").replace(/{{STYLE}}/g, style);
+const model = roleModel(short ? "shortsAct" : "actAuthor", flag("--model"));
+const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style);
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
 
 // Timeline + registry must exist before any act can be previewed
@@ -106,7 +108,7 @@ async function critique(act: Act, round: number): Promise<{ pass: boolean; notes
     }
   } catch {}
   const out = path.join(reviewDir, `critic_${round}.json`);
-  const free = criticModel === "agy";
+  const free = isAgy(criticModel);
   const plan_ = JSON.stringify({ idea: act.idea, sheet: act.sheet, signature: act.signature, camera: act.camera, hits: act.beats.flatMap((b) => b.hits ?? []) });
   const prompt = `You are a strict motion-design critic. You have never seen this project's code. Read the style guide ${path.resolve(styleGuide)}, then look at the contact sheet image ${sheet} (one frame every few seconds plus frames at the narration's hit words; each tile is labelled with its act-relative time).
 
@@ -117,11 +119,11 @@ The measured layout report (free pixel checks) is in ${path.join(reviewDir, "lay
 Judge: (1) does it follow the style guide and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the subtitle band except the subtitle; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data. Look at individual frames in ${reviewDir} if a tile is unclear.
 
 ${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} with the Write tool`} this JSON: {"pass": boolean, "score": 1-10, "issues": [{"time": "12.0s", "problem": "...", "fix": "..."}]}. pass = score >= 7 and no issue that a viewer would notice. Max 8 issues, most important first.${free ? "" : ' Then reply "done".'}`;
-  const agy = free ? await runAgyJson({ prompt, logPath: path.join(reviewDir, `critic_${round}.log`) }).catch(() => null) : null;
+  const agy = free ? await runAgyJson({ prompt, model: agyModel(criticModel), logPath: path.join(reviewDir, `critic_${round}.log`) }).catch(() => null) : null;
   const r = agy ? agy.r : free
-    ? await runAgy({ prompt, logPath: path.join(reviewDir, `critic_${round}.log`) })
+    ? await runAgy({ prompt, model: agyModel(criticModel), logPath: path.join(reviewDir, `critic_${round}.log`) })
     : await runAgentAsync({ prompt, model: criticModel, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `critic_${round}.log`) });
-  account(`critic ${act.id} r${round}`, free ? "agy" : criticModel, r);
+  account(`critic ${act.id} r${round}`, criticModel, r);
   try {
     if (free) fs.writeFileSync(out, JSON.stringify(agy ? agy.json : extractJson(r.text), null, 2), "utf-8");
     const v = JSON.parse(fs.readFileSync(out, "utf-8"));

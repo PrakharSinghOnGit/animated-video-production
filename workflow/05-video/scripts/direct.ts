@@ -3,7 +3,7 @@
  * enforces DIRECTOR.md's rules (errors fed back, max 3 attempts), and a storyboard
  * view (one scene per act) is written so timeline/assemble/render work unchanged.
  *
- * Usage: bun run direct --video <ID> [--model opus] [--style briefing] [--check]
+ * Usage: bun run direct --video <ID> [--model opus] [--style briefing|drafting] [--check]
  *   --check   validate an existing acts.json without calling the model
  */
 import fs from "node:fs";
@@ -12,6 +12,8 @@ import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { compactTranscript } from "../src/lib/transcript";
 import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
 import { runAgent } from "../src/lib/agent";
+import { roleModel } from "../../lib/models";
+import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 
@@ -23,7 +25,7 @@ const flag = (name: string) => {
 const videoId = flag("--video") ?? flag("-v") ?? args.find((a) => !a.startsWith("-"));
 // A 9:16 short (workspace/<VID>/shorts/S1, config.json format "short"): one act, SHORT_DIRECTOR.md, Sonnet and the shorts style by default
 const short = !!videoId && isShortWorkspace(path.dirname(resolveJobPaths(videoId).outputDir));
-const model = flag("--model") ?? process.env.DIRECTOR_MODEL ?? (short ? "sonnet" : "opus");
+const model = roleModel(short ? "shortsDirector" : "director", flag("--model"));
 // House style: workflow/styles/<style>/ (STYLE.md + ACT.md). Saved in acts.json for the act authors.
 const style = flag("--style") ?? (short ? "shorts" : process.env.WG_STYLE ?? "briefing");
 if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/STYLE.md`))) {
@@ -32,7 +34,7 @@ if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/STYLE.m
 }
 const checkOnly = args.includes("--check");
 if (!videoId) {
-  console.error("Usage: bun run direct --video <ID> [--model opus] [--style briefing] [--check]");
+  console.error("Usage: bun run direct --video <ID> [--model opus] [--style briefing|drafting] [--check]");
   process.exit(1);
 }
 
@@ -98,7 +100,7 @@ if (checkOnly) {
 
 const scriptFile = path.join(wsDir, "02-scripting", "script_raw.md");
 const scriptHints = fs.existsSync(scriptFile) && /\*\*\[ON SCREEN\]:\*\*/i.test(fs.readFileSync(scriptFile, "utf-8")) ? scriptFile : "";
-const director = fs.readFileSync(path.resolve(process.cwd(), `workflow/prompts/${short ? "SHORT_DIRECTOR" : "DIRECTOR"}.md`), "utf-8").replace(/{{STYLE}}/g, style);
+const director = loadPrompt(short ? "SHORT_DIRECTOR" : "DIRECTOR", { video: wsDir }).replace(/{{STYLE}}/g, style);
 // A short's sourced figures come from its short.json (copied by shorts:write from the long video's plan)
 const shortInfo = short ? (() => { try { return JSON.parse(fs.readFileSync(path.join(wsDir, "02-scripting", "short.json"), "utf-8")); } catch { return null; } })() : null;
 const shortFigures = shortInfo?.data?.length
