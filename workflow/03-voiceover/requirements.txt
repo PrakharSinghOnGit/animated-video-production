@@ -1,8 +1,13 @@
-# Local voice stack (repo .venv, Python 3.11):
+# One Python env for the repo (.venv, Python 3.11, Apple Silicon):
 #   uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r workflow/03-voiceover/requirements.txt
-chatterbox-tts==0.1.7
+# Voice: Qwen3-TTS on MLX (models download on first use: 1.7B Base ~4.5 GB, 1.7B VoiceDesign ~4.5 GB for voice:design)
+mlx-audio
+# take scoring + 04-transcription
 faster-whisper
 soxr
 soundfile
-# chatterbox's watermarker (resemble-perth) still imports pkg_resources
-setuptools<81
+# 06-audio (filters), 05-video frames (contact sheets)
+scipy
+pillow
+# Gemini TTS (cloud, optional)
+google-genai>=2.25

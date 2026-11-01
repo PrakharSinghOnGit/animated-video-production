@@ -22,7 +22,7 @@ export const SHORT_ID = /^S\d{1,2}$/;
 /** Spoken words per short: the voice runs ~130–155 wpm at pace 1.0, so 140 words stays under 60 s with the pauses. */
 export const MIN_WORDS = 70, MAX_WORDS = 140;
 /** Voice settings for shorts: quicker than the long video (pace 0.9, 0.9 s between beats) without sounding rushed. */
-export const SHORT_TTS = ["--pace", "1.0", "--sentence-gap", "0.3", "--section-gap", "0.35", "--exaggeration", "0.6"];
+export const SHORT_TTS = ["--pace", "1.0", "--sentence-gap", "0.3", "--section-gap", "0.35"];
 
 export const shortsDir = (vid: string) => path.join(WS_ROOT, vid, "shorts");
 export const shortWs = (vid: string, sid: string) => path.join(shortsDir(vid), sid);

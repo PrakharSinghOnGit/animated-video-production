@@ -1,0 +1,23 @@
+{
+  "name": "warm_lively",
+  "describe": "Male, late 30s, warm baritone with a slight husk, neutral American accent. A confident documentary narrator letting the listener in on a secret, but genuinely excited about it: lively, animated intonation, varied pitch, natural pauses, a smile in the voice, crisp diction.",
+  "text": "Every single day, trillions of dollars move through markets you will never see. Most people believe the game is fair. It isn't. And once you understand who actually writes the rules, you will never look at your savings the same way again.",
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+  "takes": [
+    {
+      "take": 1,
+      "file": "take1.wav",
+      "seconds": 16.32
+    },
+    {
+      "take": 2,
+      "file": "take2.wav",
+      "seconds": 16.96
+    },
+    {
+      "take": 3,
+      "file": "take3.wav",
+      "seconds": 16.8
+    }
+  ]
+}

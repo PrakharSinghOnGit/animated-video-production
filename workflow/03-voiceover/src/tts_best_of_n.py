@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Best-of-N TTS synthesis: chunk -> N seeded takes -> ASR score -> pick best -> join into one WAV.
+"""Best-of-N TTS synthesis: passage -> N takes -> ASR score -> keep the first good one -> join into one WAV.
 
-Engines: "chatterbox" (default; Resemble AI Chatterbox, zero-shot cloning from ref_audio) or "f5" (F5-TTS).
-Job JSON: {engine, pace, ref_audio, ref_text, speed, exaggeration, cfg_weight, temperature,
-           chunks: [{id, text}], takes, asr_model, out_path, pause_ms, report_path}
+Engines: "qwen" (default; Qwen3-TTS 1.7B Base on MLX, clones the voice's reference clip + transcript) or "gemini"
+(Google Gemini TTS, cloud; job adds voice, style, gemini_model).
+Job JSON: {engine, pace, ref_audio, ref_text, temperature, takes, asr_model, pause_ms, items: [{chunks: [{id, text}],
+           out_path, report_path, tail_ms, style?}]}
+
+Natural delivery: a chunk is a whole passage (several sentences of one script block), so the model phrases sentences
+together and places its own pauses and breaths; only passages are joined with pause_ms. Edges are trimmed with a
+generous pad (breaths stay). Takes are judged only for misread words, broken speed and voice drift, and the first take
+that passes is kept, so an expressive take is not traded for a flatter one. Loudness is set once per section, not per
+sentence, so the rise and fall inside a section survives. Gemini gets a per-section style (item.style).
+Consistency (Qwen): one reference clip and one speaker embedding for every passage; language fixed to English; seeded takes.
 Also: --check-ref <ref_audio> <ref_text_file> transcribes the reference clip and prints WER (JSON on stdout).
 """
 import sys
@@ -14,11 +22,16 @@ import time
 import argparse
 
 SR = 24000
+# Gemini's inline vocal/pause tags (<short pause>, <breath>, <sigh>...): performed, not spoken words
+DELIVERY_TAG = re.compile(r"<[a-z][a-z -]{0,24}>", re.I)
 SILENCE_DB = -45.0
-PAD_MS = 40
-WPS_MIN, WPS_MAX = 1.8, 4.2
+PAD_MS = 150             # silence kept around a take: room for the in-breath and the tail of the last word
+WPS_MIN, WPS_MAX = 1.4, 4.8   # only catches broken takes (rushed or stalled), not deliberate pace changes
 WPS_PENALTY = 0.25
 FLAG_WER = 0.15
+TARGET_RMS_DB = -20.0     # every section is levelled to this once (mastering does the final loudness)
+MIN_SPK_SIM = 0.95        # takes less similar than this to the reference voice are penalised (gross drift only)
+SPK_PENALTY = 0.5
 
 
 _ONES = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
@@ -50,7 +63,8 @@ def _num_sub(m):
 
 
 def norm_words(text):
-    """Lowercase, spell out digits (ASR emits '10,000'), drop punctuation."""
+    """Lowercase, spell out digits (ASR emits '10,000'), drop punctuation and inline delivery tags (<short pause>)."""
+    text = DELIVERY_TAG.sub(" ", text)
     text = text.lower().replace("&", " and ").replace("%", " percent ")
     text = re.sub(r"\$(\d[\d,]*(?:\.\d+)?)(\s*(?:thousand|million|billion|trillion))?", r"\1\2 dollars", text)
     text = re.sub(r"(\d[\d,]*)(?:\.(\d+))?", _num_sub, text)
@@ -144,114 +158,322 @@ def check_ref(args):
     print(json.dumps({"wer": wer(ref_text, heard), "heard": heard, "expected": ref_text, "asrModel": used}))
 
 
-class F5Engine:
+def _decode_audio(data, mime):
+    """Gemini returns WAV (RIFF) or raw 16-bit PCM ("audio/l16; rate=24000"); both -> float32 mono, sr."""
+    import io
+    import numpy as np
+    import soundfile as sf
+    if data[:4] == b"RIFF":
+        wav, sr = sf.read(io.BytesIO(data), dtype="float32")
+    else:
+        m = re.search(r"rate=(\d+)", mime or "")
+        sr = int(m.group(1)) if m else SR
+        wav = np.frombuffer(data, dtype="<i2").astype("float32") / 32768.0
+    if wav.ndim > 1:
+        wav = wav.mean(axis=1)
+    return wav, sr
+
+
+class GeminiEngine:
+    """Google Gemini TTS (cloud, prebuilt voices; no cloning). Auth: the API key in GEMINI_TTS (or GEMINI_API_KEY /
+    GOOGLE_API_KEY) through the Gemini API; if that is missing or its project has the Gemini API disabled, Vertex AI
+    with Application Default Credentials (gcloud auth application-default login) and GOOGLE_CLOUD_PROJECT.
+    Delivery is steered by a natural-language style line; takes differ because sampling is not seeded."""
+
+    RETRIES = 6
+
     def __init__(self, job):
-        from concurrent.futures import ThreadPoolExecutor
-        from f5_tts.infer import utils_infer
-        _orig = ThreadPoolExecutor.__init__
-        def _safe(self, max_workers=None, *a, **k):  # MPS needs sequential dispatch
-            _orig(self, max_workers=1, *a, **k)
-        utils_infer.ThreadPoolExecutor.__init__ = _safe
-        from f5_tts.api import F5TTS
-        self.model = F5TTS()
+        from google import genai
+        from google.genai import types
+        self.types = types
         self.job = job
+        self.model = job.get("gemini_model") or "gemini-3.8-flash-tts"
+        self.voice = job.get("voice") or "Algenib"
+        # a designed voice (bun run voice:design:gemini) is referred to by its folder name
+        designed = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "voices", self.voice, "gemini.json")
+        if os.path.exists(designed):
+            self.voice = json.load(open(designed))["id"]
+        self.style = (job.get("style") or "").strip()
         self.sr = SR
+        self._warned = False
+        key = os.environ.get("GEMINI_TTS") or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        self.vertex = None
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT") or _gcloud_project()
+        if project:
+            self.vertex = genai.Client(vertexai=True, project=project, location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"))
+        self.client = genai.Client(api_key=key) if key else self.vertex
+        if self.client is None:
+            raise SystemExit("Gemini TTS: set GEMINI_TTS in .env, or run `gcloud auth application-default login` and set GOOGLE_CLOUD_PROJECT")
+        print(f"  Gemini TTS: {self.model}, voice {self.voice}, via {'API key' if key else 'Vertex AI (' + project + ')'}", flush=True)
+
+    def use_style(self, style):
+        """Delivery direction for the next passages (the channel style + this section's tone note)."""
+        self.style = (style or "").strip()
+
+    def _verbatim(self):
+        """gemini-3.8 TTS models read generate_content text word for word (a style prefix gets spoken); older ones take
+        "<style>: <text>". 3.8 gets its style through the Interactions API, which only the Gemini API (key) serves."""
+        return self.model.startswith("gemini-3.8")
+
+    def _call(self, client, text, style=None):
+        t = self.types
+        style = self.style if style is None else style
+        if self.voice.startswith("voice"):
+            if client is self.vertex:
+                raise SystemExit("Designed Gemini voices only work through the Gemini API key (GEMINI_TTS), not Vertex AI")
+        if (self._verbatim() or self.voice.startswith("voice")) and client is not self.vertex:
+            content = {"type": "text", "text": text}
+            if style:
+                content["annotations"] = [{"type": "speech_metadata", "style": style}]
+            r = client.interactions.create(model=self.model, input=[{"type": "user_input", "content": [content]}],
+                                           response_format={"type": "audio"},
+                                           generation_config={"speech_config": [{"voice": self.voice}]})
+            import base64
+            a = r.output_audio
+            data = a.data if isinstance(a.data, (bytes, bytearray)) else base64.b64decode(a.data)
+            return _decode_audio(data, f"{a.mime_type or ''}; rate={a.sample_rate or SR}")
+        if self._verbatim() and style and not self._warned:
+            print("  ! Style is ignored for gemini-3.8 on Vertex AI (it would be read aloud). Enable the Gemini API for the key's"
+                  " project, or pick gemini-2.5-pro-tts / gemini-3.1-flash-tts-preview to use a style.", flush=True)
+            self._warned = True
+        prompt = f"{style}: {text}" if style and not self._verbatim() else text
+        # Vertex and the Gemini API name the 2.5 TTS models differently
+        model = self.model.replace("-preview-tts", "-tts") if client is self.vertex and self.model.startswith("gemini-2.5") else self.model
+        if client is not self.vertex and self.model.startswith("gemini-2.5") and not self.model.endswith("-preview-tts"):
+            model = self.model.replace("-tts", "-preview-tts")
+        r = client.models.generate_content(
+            model=model, contents=prompt,
+            config=t.GenerateContentConfig(response_modalities=["AUDIO"], speech_config=t.SpeechConfig(
+                voice_config=t.VoiceConfig(prebuilt_voice_config=t.PrebuiltVoiceConfig(voice_name=self.voice)))))
+        part = r.candidates[0].content.parts[0].inline_data
+        return _decode_audio(part.data, part.mime_type)
+
+    parallel = True   # requests are independent, so run_job sends several at once
+
+    def synth(self, text, seed, style=None):
+        delay = 4.0
+        for attempt in range(self.RETRIES):
+            try:
+                wav, sr = self._call(self.client, text, style)
+                if sr != self.sr:
+                    import soxr
+                    wav = soxr.resample(wav, sr, self.sr).astype("float32")
+                return wav
+            except Exception as e:
+                msg = str(e)
+                if isinstance(e, SystemExit):
+                    raise
+                if re.search(r"per.?day|PerDay", msg, re.I):
+                    raise SystemExit("Gemini daily quota is used up (free tier: 10 requests/day per model). Turn on billing for"
+                                     " the key's project in AI Studio, or rerun tomorrow: finished sections are kept, so a rerun"
+                                     " without --force continues where this stopped.")
+                if ("SERVICE_DISABLED" in msg or "PERMISSION_DENIED" in msg) and self.vertex is not None and self.client is not self.vertex:
+                    print("  ! Gemini API is disabled for the key's project; switching to Vertex AI", flush=True)
+                    self.client = self.vertex
+                    continue
+                transient = any(s in msg for s in ("429", "RESOURCE_EXHAUSTED", "500", "503", "UNAVAILABLE", "DEADLINE", "timed out"))
+                if not transient or attempt == self.RETRIES - 1:
+                    raise
+                print(f"  ! Gemini busy ({msg[:60]}); retrying in {delay:.0f}s", flush=True)
+                time.sleep(delay)
+                delay = min(delay * 2, 60)
+
+
+def _gcloud_project():
+    """The quota project of the ADC file, else gcloud's active project; None when gcloud was never set up."""
+    adc = os.path.expanduser("~/.config/gcloud/application_default_credentials.json")
+    if not os.path.exists(adc):
+        return None
+    try:
+        p = json.load(open(adc)).get("quota_project_id")
+        if p:
+            return p
+        cfg = os.path.expanduser("~/.config/gcloud/configurations/config_default")
+        m = re.search(r"^project\s*=\s*(\S+)", open(cfg).read(), re.M)
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
+class QwenEngine:
+    """Qwen3-TTS 1.7B Base (local, Apple Silicon MLX via mlx-audio): clones ref_audio + its exact transcript.
+    The speaker embedding is taken from the reference once and pinned, so every sentence gets the same voice."""
+
+    MODEL = "mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16"
+
+    def __init__(self, job):
+        import mlx.core as mx
+        from mlx_audio.tts.utils import load_model
+        from mlx_audio.utils import load_audio
+        self.mx = mx
+        self.job = job
+        print(f"  Qwen3-TTS: {self.MODEL}", flush=True)
+        self.model = load_model(self.MODEL)
+        self.sr = int(getattr(self.model, "sample_rate", SR))
+        self.ref = load_audio(job["ref_audio"], sample_rate=self.sr)
+        self.ref_emb = self.model.extract_speaker_embedding(self.ref)
+        self._extract = self.model.extract_speaker_embedding
+        self.model.extract_speaker_embedding = lambda audio, sr=24000: self.ref_emb
+        self.temperature = job.get("temperature")
+        self._load_audio = load_audio
+        self._refs = {job["ref_audio"]: self.ref}
+        self.icl = (self.ref, job["ref_text"])
+
+    def use_reference(self, ref_audio, ref_text):
+        """In-context reference for the next sentences (a mood clip of the same voice); the speaker embedding stays
+        pinned to the main reference, so the delivery follows the clip and the voice does not move."""
+        if ref_audio not in self._refs:
+            self._refs[ref_audio] = self._load_audio(ref_audio, sample_rate=self.sr)
+        self.icl = (self._refs[ref_audio], ref_text)
 
     def synth(self, text, seed):
-        wav, _, _ = self.model.infer(ref_file=self.job["ref_audio"], ref_text=self.job["ref_text"], gen_text=text,
-                                     speed=float(self.job.get("speed", 1.0)), seed=seed, show_info=lambda *a, **k: None)
+        import numpy as np
+        self.mx.random.seed(seed)
+        kw = {"temperature": float(self.temperature)} if self.temperature is not None else {}
+        out = list(self.model.generate(text=text, ref_audio=self.icl[0], ref_text=self.icl[1], lang_code="english", **kw))
+        wav = np.concatenate([np.asarray(o.audio, dtype="float32") for o in out]) if out else np.zeros(0, dtype="float32")
+        self.mx.clear_cache()
         return wav
 
-
-class ChatterboxEngine:
-    """Chatterbox clones from the reference audio alone (no transcript needed).
-    exaggeration raises emotional intensity (and speeds delivery); lower cfg_weight slows and loosens pacing."""
-
-    def __init__(self, job):
-        import torch
-        from chatterbox.tts import ChatterboxTTS
-        device = "mps" if torch.backends.mps.is_available() else "cpu"
-        self.torch = torch
-        self.model = ChatterboxTTS.from_pretrained(device=device)
-        self.sr = self.model.sr
-        self.job = job
-        # Condition on the reference once; every take reuses it
-        self.model.prepare_conditionals(job["ref_audio"], exaggeration=float(job.get("exaggeration", 0.5)))
-
-    def synth(self, text, seed):
-        import gc
-        self.torch.manual_seed(seed)
-        with self.torch.inference_mode():
-            wav = self.model.generate(text, exaggeration=float(self.job.get("exaggeration", 0.5)),
-                                      cfg_weight=float(self.job.get("cfg_weight", 0.5)),
-                                      temperature=float(self.job.get("temperature", 0.8)))
-        out = wav.squeeze(0).detach().cpu().numpy()
-        # MPS keeps freed blocks cached; across a whole video that grows to an out-of-memory error
-        del wav
-        gc.collect()
-        if self.torch.backends.mps.is_available():
-            self.torch.mps.empty_cache()
-        return out
+    def similarity(self, wav):
+        """Cosine similarity of a take's speaker embedding to the reference's (1 = same voice)."""
+        mx = self.mx
+        if len(wav) < self.sr // 2:
+            return 1.0
+        e = self._extract(mx.array(wav))
+        a, b = e.reshape(-1), self.ref_emb.reshape(-1)
+        return float((a * b).sum() / (mx.sqrt((a * a).sum()) * mx.sqrt((b * b).sum())))
 
 
-ENGINES = {"f5": F5Engine, "chatterbox": ChatterboxEngine}
+def level(wav, target_db=TARGET_RMS_DB):
+    """One gain for the whole section: scale to the target RMS of its voiced part, never clipping."""
+    import numpy as np
+    wav = np.asarray(wav, dtype="float32")
+    voiced = wav[np.abs(wav) > 10 ** (SILENCE_DB / 20.0)]
+    if len(voiced) == 0:
+        return wav
+    rms = float(np.sqrt(np.mean(voiced ** 2)))
+    gain = 10 ** (target_db / 20.0) / max(rms, 1e-6)
+    peak = float(np.max(np.abs(wav))) * gain
+    if peak > 0.97:
+        gain *= 0.97 / peak
+    return wav * gain
+
+
+ENGINES = {"qwen": QwenEngine, "gemini": GeminiEngine}
+
+
+def score_take(engine, asr, text, wav, seed):
+    """A take's checks: words read (WER vs ASR), speed in a sane range, voice similarity (Qwen). Lower score = better."""
+    sr = engine.sr
+    dur = len(wav) / sr
+    wps = max(1, len(norm_words(text))) / max(dur, 1e-3)
+    heard, w = "", 0.0
+    if asr is not None:
+        heard = transcribe(asr, to_16k(wav, sr))
+        w = wer(text, heard)
+    sim = engine.similarity(wav) if hasattr(engine, "similarity") else 1.0
+    score = w + (WPS_PENALTY if not (WPS_MIN <= wps <= WPS_MAX) else 0.0) + (SPK_PENALTY if sim < MIN_SPK_SIM else 0.0)
+    return {"seed": seed, "wer": round(w, 4), "duration": round(dur, 3), "wps": round(wps, 2), "sim": round(sim, 4), "heard": heard, "score": round(score, 4), "wav": wav}
+
+
+def chunk_report(ch, text, cands, asr):
+    """The kept take (the first that passed, else the best scoring) and its report row."""
+    best = min(cands, key=lambda c: c["score"])
+    flagged = (asr is not None and best["wer"] > FLAG_WER) or best["sim"] < MIN_SPK_SIM
+    return best, {
+        "id": ch["id"], "text": text, "chosenSeed": best["seed"],
+        "wer": [c["wer"] for c in cands], "durations": [c["duration"] for c in cands],
+        "wps": [c["wps"] for c in cands], "voiceSim": [c["sim"] for c in cands], "heard": [c["heard"] for c in cands], "chosenWer": best["wer"], "takesUsed": len(cands), "flagged": bool(flagged),
+    }
+
+
+def write_item(engine, asr_used, item, settings, kept, report):
+    """Joins a section's kept passages with the passage gap, adds its tail pause, levels it once, writes wav + report."""
+    import numpy as np
+    import soundfile as sf
+    sr, pause_ms, pace = engine.sr, settings["pause_ms"], settings["pace"]
+    out = []
+    for i, wav in enumerate(kept):
+        out.append(stretch(wav, sr, pace))
+        if i < len(kept) - 1:
+            out.append(np.zeros(int(sr * pause_ms / 1000), dtype="float32"))
+    tail_ms = int(item.get("tail_ms", 0))  # section / chapter pause after the last passage
+    if tail_ms > 0:
+        out.append(np.zeros(int(sr * tail_ms / 1000), dtype="float32"))
+    final = level(np.concatenate(out)) if out else np.zeros(0, dtype="float32")
+    os.makedirs(os.path.dirname(item["out_path"]), exist_ok=True)
+    sf.write(item["out_path"], final, sr, subtype="PCM_16")
+    os.makedirs(os.path.dirname(item["report_path"]), exist_ok=True)
+    with open(item["report_path"], "w", encoding="utf-8") as f:
+        json.dump({"engine": settings["engine"], "voice": settings.get("voice"), "mood": item.get("mood") or "neutral", "style": item.get("style"), "pace": pace, "takes": settings["takes"], "asrModel": asr_used, "outPath": item["out_path"], "chunks": report}, f, indent=2)
 
 
 def synth_item(engine, asr, asr_used, item, settings):
-    """One section: best-of-N per chunk, joined with pauses, written with its report."""
-    import numpy as np
-    import soundfile as sf
-
-    chunks = item["chunks"]
-    takes, pause_ms, accept_wer, pace = settings["takes"], settings["pause_ms"], settings["accept_wer"], settings["pace"]
-    sr = engine.sr
-    report = []
-    pieces = []
-    for ci, ch in enumerate(chunks):
+    """One section, one passage at a time (local engines): takes until one passes, then written."""
+    takes, accept_wer, sr = settings["takes"], settings["accept_wer"], engine.sr
+    kept, report = [], []
+    for ci, ch in enumerate(item["chunks"]):
         text = ch["text"].strip()
         t0 = time.time()
         cands = []
         for seed in range(1, takes + 1):
-            wav = trim_silence(engine.synth(text, seed), sr)
-            dur = len(wav) / sr
-            n_words = max(1, len(norm_words(text)))
-            wps = n_words / max(dur, 1e-3)
-            heard = ""
-            w = 0.0
-            if asr is not None:
-                heard = transcribe(asr, to_16k(wav, sr))
-                w = wer(text, heard)
-            score = w + (WPS_PENALTY if not (WPS_MIN <= wps <= WPS_MAX) else 0.0)
-            cands.append({"seed": seed, "wer": round(w, 4), "duration": round(dur, 3), "wps": round(wps, 2), "heard": heard, "score": round(score, 4), "wav": wav})
-            # Adaptive: stop as soon as a take is good enough (score = WER + wps penalty)
-            if asr is not None and score <= accept_wer:
+            cands.append(score_take(engine, asr, text, trim_silence(engine.synth(text, seed), sr), seed))
+            if asr is not None and cands[-1]["score"] <= accept_wer:   # first take that passes is kept
                 break
-        best = min(cands, key=lambda c: c["score"])
-        pieces.append((stretch(best["wav"], sr, pace), text))
-        flagged = asr is not None and best["wer"] > FLAG_WER
-        report.append({
-            "id": ch["id"], "text": text, "chosenSeed": best["seed"],
-            "wer": [c["wer"] for c in cands], "durations": [c["duration"] for c in cands],
-            "wps": [c["wps"] for c in cands], "heard": [c["heard"] for c in cands], "chosenWer": best["wer"], "takesUsed": len(cands), "flagged": bool(flagged),
-        })
-        print(f"    chunk {ci + 1}/{len(chunks)}: seed {best['seed']} wer={best['wer']:.2f} "
-              f"({time.time() - t0:.1f}s, {len(cands)}/{takes} take(s)){'  FLAGGED' if flagged else ''}", flush=True)
+        best, row = chunk_report(ch, text, cands, asr)
+        kept.append(best["wav"]); report.append(row)
+        print(f"    chunk {ci + 1}/{len(item['chunks'])}: seed {best['seed']} wer={best['wer']:.2f} voice={best['sim']:.3f} "
+              f"({time.time() - t0:.1f}s, {len(cands)}/{takes} take(s)){'  FLAGGED' if row['flagged'] else ''}", flush=True)
+    write_item(engine, asr_used, item, settings, kept, report)
 
-    out = []
-    for i, (wav, _) in enumerate(pieces):
-        out.append(wav)
-        if i < len(pieces) - 1:
-            out.append(np.zeros(int(sr * pause_ms / 1000), dtype="float32"))
-    tail_ms = int(item.get("tail_ms", 0))  # section / chapter pause after the last sentence
-    if tail_ms > 0:
-        out.append(np.zeros(int(sr * tail_ms / 1000), dtype="float32"))
-    final = np.concatenate(out) if out else np.zeros(0, dtype="float32")
-    os.makedirs(os.path.dirname(item["out_path"]), exist_ok=True)
-    sf.write(item["out_path"], final, sr, subtype="PCM_16")
 
-    os.makedirs(os.path.dirname(item["report_path"]), exist_ok=True)
-    with open(item["report_path"], "w", encoding="utf-8") as f:
-        json.dump({"engine": settings["engine"], "pace": pace, "takes": takes, "asrModel": asr_used, "outPath": item["out_path"], "chunks": report}, f, indent=2)
+def run_parallel(engine, asr, asr_used, items, settings, workers):
+    """Cloud engines: every passage of every section is requested at once (`workers` in flight). Each round sends the
+    passages still without a passing take; a section is written as soon as all its passages are settled, so a run that
+    stops (quota) keeps the finished sections."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    takes, accept_wer, sr = settings["takes"], settings["accept_wer"], engine.sr
+    cands = {(ii, ci): [] for ii, it in enumerate(items) for ci in range(len(it["chunks"]))}
+    pending = list(cands)
+    unsettled = set(pending)   # passages that may still get another take
+    written = set()
+    print(f"  {len(pending)} passage(s) across {len(items)} section(s), {workers} request(s) at a time", flush=True)
+
+    def settle():
+        for ii, it in enumerate(items):
+            if ii in written or any(k[0] == ii for k in unsettled):
+                continue
+            kept, report = [], []
+            for ci, ch in enumerate(it["chunks"]):
+                best, row = chunk_report(ch, ch["text"].strip(), cands[(ii, ci)], asr)
+                kept.append(best["wav"]); report.append(row)
+            write_item(engine, asr_used, it, settings, kept, report)
+            written.add(ii)
+            bad = sum(r["flagged"] for r in report)
+            print(f"  ✓ {os.path.basename(it['out_path'])}{'  (' + str(bad) + ' flagged)' if bad else ''}", flush=True)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for rnd in range(1, takes + 1):
+            if not pending:
+                break
+            if rnd > 1:
+                print(f"  retake round {rnd}: {len(pending)} passage(s)", flush=True)
+            futs = {pool.submit(engine.synth, items[ii]["chunks"][ci]["text"].strip(), rnd, items[ii].get("style") or ""): (ii, ci) for ii, ci in pending}
+            still = []
+            for f in as_completed(futs):
+                ii, ci = futs[f]
+                text = items[ii]["chunks"][ci]["text"].strip()
+                c = score_take(engine, asr, text, trim_silence(f.result(), sr), rnd)
+                cands[(ii, ci)].append(c)
+                ok = asr is None or c["score"] <= accept_wer
+                print(f"    {items[ii]['chunks'][ci]['id']}: wer={c['wer']:.2f} {c['duration']:.1f}s{'' if ok else '  (retake)' if rnd < takes else '  FLAGGED'}", flush=True)
+                if not ok and rnd < takes:
+                    still.append((ii, ci))
+                else:
+                    unsettled.discard((ii, ci))
+                    settle()   # write a section the moment its last passage is settled
+            pending = still
 
 
 def run_job(job_path):
@@ -261,7 +483,8 @@ def run_job(job_path):
         job = json.load(f)
     items = job.get("items") or [job]
     settings = {
-        "engine": job.get("engine", "chatterbox"),
+        "engine": job.get("engine", "qwen"),
+        "voice": job.get("voice_name"),
         "takes": max(1, int(job.get("takes", 3))),
         "pause_ms": int(job.get("pause_ms", 250)),
         "accept_wer": float(job.get("accept_wer", 0.05)),
@@ -271,11 +494,19 @@ def run_job(job_path):
     asr, asr_used = (None, None)
     if settings["takes"] > 1:
         asr, asr_used = load_asr(job.get("asr_model", "small.en"))
+    if getattr(engine, "parallel", False):
+        t0 = time.time()
+        run_parallel(engine, asr, asr_used, items, settings, max(1, int(job.get("parallel", 4))))
+        print(f"  done in {time.time() - t0:.0f}s", flush=True)
+        return
     for n, item in enumerate(items):
         if len(items) > 1:
-            print(f"\n[{n + 1}/{len(items)}] {item.get('id', os.path.basename(item['out_path']))}: {len(item['chunks'])} chunk(s)", flush=True)
-        if "speed" in item:
-            engine.job = {**engine.job, "speed": item["speed"]}
+            print(f"\n[{n + 1}/{len(items)}] {item.get('id', os.path.basename(item['out_path']))}: {len(item['chunks'])} chunk(s)"
+                  f"{', mood ' + item['mood'] if item.get('mood') else ''}", flush=True)
+        if hasattr(engine, "use_style"):
+            engine.use_style(item.get("style") or job.get("style") or "")
+        if hasattr(engine, "use_reference"):
+            engine.use_reference(item.get("ref_audio") or job["ref_audio"], item.get("ref_text") or job["ref_text"])
         synth_item(engine, asr, asr_used, item, settings)
 
 

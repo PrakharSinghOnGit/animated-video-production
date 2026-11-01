@@ -1,4 +1,4 @@
-// Sentence-level chunking for F5-TTS: short chunks stay close to the 11 s reference clip's
+// Sentence-level chunking (originally tuned for F5-TTS): short chunks stay close to the 11 s reference clip's
 // length scale, which is where F5 is least likely to babble or hallucinate syllables.
 
 export const MAX_CHUNK_CHARS = 220;

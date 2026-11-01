@@ -1,7 +1,7 @@
 /**
  * Text normalization for TTS.
  *
- * F5-TTS garbles markdown, symbols and numerals ("**$10,000**", "5%", "S&P 500"),
+ * TTS models garble markdown, symbols and numerals ("**$10,000**", "5%", "S&P 500"),
  * so every line is rewritten into plain spoken English before synthesis.
  * Pure and deterministic: the same input always yields the same output.
  * Captions/display keep using the original `sec.text`.
@@ -139,9 +139,9 @@ function stripMarkdown(t: string): string {
     .replace(/_+/g, " ");
 }
 
-function normalizePunctuation(t: string): string {
+function normalizePunctuation(t: string, keepDashes = false): string {
   return t
-    .replace(/\s*[—–]\s*/g, ", ")
+    .replace(/\s*[—–]\s*/g, keepDashes ? " — " : ", ")
     .replace(/…/g, "...")
     .replace(/[‘’‚′]/g, "'")
     .replace(/[“”„″]/g, '"')
@@ -168,13 +168,22 @@ function speakCurrency(sym: string, amount: string, magnitude?: string): string 
 }
 
 /** Convert raw script text into plain, speakable English for the TTS engine. */
-export function normalizeForSpeech(text: string): string {
-  let t = stripMarkdown(text);
+/** Gemini's inline vocal/pause tags (`<short pause>`, `<breath>`, `<sigh>`): performed by the voice, never shown or spoken. */
+export const DELIVERY_TAG = /<[a-z][a-z -]{0,24}>/gi;
+export const stripDeliveryTags = (t: string) => t.replace(DELIVERY_TAG, " ").replace(/[ \t]{2,}/g, " ");
+
+/**
+ * Gemini reads delivery marks as performance, so for it (keepDashes, keepTags) they pass through: CAPS on a stressed
+ * word, "...", "—", "!", "?" and inline tags like <short pause>. Qwen gets dashes as commas and no tags. Captions and
+ * alignment use the default (tags stripped).
+ */
+export function normalizeForSpeech(text: string, opts: { keepDashes?: boolean; keepTags?: boolean } = {}): string {
+  let t = stripMarkdown(opts.keepTags ? text : stripDeliveryTags(text));
 
   // Ranges first (keep digits; later passes convert them): "10-20%" -> "10 to 20%"
   t = t.replace(/(?<![A-Za-z\d])(\d[\d,]*%?)\s?[-–]\s?(?=[$₹€£]?\d)/g, "$1 to ");
 
-  t = normalizePunctuation(t);
+  t = normalizePunctuation(t, opts.keepDashes);
 
   for (const [re, rep] of PHRASES) t = t.replace(re, rep);
   // Plural forms ("ETFs", "IPOs") keep a trailing "s": "E T Fs".

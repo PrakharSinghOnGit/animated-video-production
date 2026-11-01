@@ -19,7 +19,7 @@ interface ParsedPart {
   beats: ParsedBeat[];
 }
 
-// Calibrated rule-based mapping from VO tone tags to prosody fields (legacy) and F5-TTS speed
+// Calibrated rule-based mapping from VO tone tags to prosody fields (legacy, unused by Qwen)
 function deriveProsodyFromInstruction(instruction: string): {
   pace: number;
   pitch: number;
@@ -282,12 +282,11 @@ ${exportList}
   console.log(`======================================================\n`);
 
   console.log(`Next Steps:`);
-  console.log(`  1. Generate Local Cloned Voiceover (Offline, Chatterbox; add --f5 for F5-TTS):`);
+  console.log(`  1. Generate the voiceover (Qwen3-TTS, channel voice):`);
   console.log(`     bun run tts --video ${videoId}`);
   console.log(`  2. Check character count:`);
   console.log(`     bun run tts:cost --video ${videoId}`);
-  console.log(`  3. Remake or update cloned voice sample:`);
-  console.log(`     bun run voice:remake`);
+  console.log(`  3. Voices: bun run voice:list / voice:use <name>`);
   console.log(``);
 }
 

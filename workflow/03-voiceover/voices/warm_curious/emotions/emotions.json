@@ -1,0 +1,26 @@
+{
+  "excited": {
+    "seed": 4,
+    "wer": 0.0,
+    "sim": 0.9961,
+    "spread": 4.49
+  },
+  "suspense": {
+    "seed": 1,
+    "wer": 0.0,
+    "sim": 0.9945,
+    "spread": 4.75
+  },
+  "serious": {
+    "seed": 2,
+    "wer": 0.0,
+    "sim": 0.9947,
+    "spread": 3.66
+  },
+  "wry": {
+    "seed": 2,
+    "wer": 0.0,
+    "sim": 0.9938,
+    "spread": 4.32
+  }
+}

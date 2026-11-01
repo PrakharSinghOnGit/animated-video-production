@@ -8,7 +8,7 @@
  *   → 02-scripting/script_notes.md hooks + scores, numbers to verify, changes, questions, runtime
  *   → 02-scripting/approved.json  written by --approve (sha256 of script_raw.md); tts:format refuses without it
  *
- * Usage: bun run write --video <ID> [--model opus|sonnet] [--minutes 9]   write or revise the script (paid)
+ * Usage: bun run write --video <ID> [--model <provider:model>] [--minutes 9]   write or revise the script (paid)
  *        bun run write --video <ID> --approve                              approve the current script_raw.md
  *        bun run write --video <ID> --status                               show approval state
  */
@@ -16,6 +16,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { runAgent } from "../05-video/src/lib/agent";
+import { roleModel } from "../lib/models";
+import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 
 const args = process.argv.slice(2);
@@ -25,7 +27,7 @@ const flag = (name: string) => {
 };
 const videoId = flag("--video") ?? flag("-v");
 if (!videoId) {
-  console.error("Usage: bun run write --video <ID> [--model opus|sonnet] [--minutes 9] | --approve | --status");
+  console.error("Usage: bun run write --video <ID> [--model <provider:model>] [--minutes 9] | --approve | --status");
   process.exit(1);
 }
 const REPO = path.resolve(import.meta.dir, "../..");
@@ -77,7 +79,7 @@ if (!fs.existsSync(F.idea)) {
   console.error(`❌ write your draft first: ${path.relative(REPO, F.idea)} (plain text; [brackets] are instructions to the writer)`);
   process.exit(1);
 }
-const model = flag("--model") ?? process.env.WRITER_MODEL ?? "opus";
+const model = roleModel("writer", flag("--model"));
 const minutes = parseFloat(flag("--minutes") ?? "9");
 const revising = fs.existsSync(F.script) && fs.existsSync(F.feedback) && fs.statSync(F.feedback).mtimeMs > fs.statSync(F.script).mtimeMs;
 if (fs.existsSync(F.script)) fs.copyFileSync(F.script, F.script.replace(/\.md$/, `.${Date.now()}.bak.md`));
@@ -86,7 +88,7 @@ if (fs.existsSync(F.approved)) fs.rmSync(F.approved);   // a new script needs a 
 const previous = revising
   ? `4. This is a **revision**. Your previous script: \`${F.script}\`. The creator's feedback on it: \`${F.feedback}\`. Apply every point of the feedback; keep what they didn't criticise.`
   : "";
-const prompt = fs.readFileSync(path.join(REPO, "workflow/prompts/WRITER.md"), "utf-8")
+const prompt = loadPrompt("WRITER", { video: videoId })
   .replace(/{{IDEA}}/g, F.idea).replace(/{{PREVIOUS}}/g, previous)
   .replace(/{{SCRIPT}}/g, F.script).replace(/{{NOTES}}/g, F.notes).replace(/{{HOOKS}}/g, F.hooks)
   .replace(/{{MINUTES}}/g, String(minutes)).replace(/{{WORDS}}/g, `${Math.round(minutes * 140)}–${Math.round(minutes * 160)}`);

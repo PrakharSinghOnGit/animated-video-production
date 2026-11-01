@@ -47,7 +47,23 @@ Exactly this format (the voice pipeline parses it):
 
 - `### Part 1: Hook` for the cold open, then `### CHAPTER n: Title` (short title, 2–5 words) for each chapter;
   a chapter header makes a silent pause with a title card.
-- `[VO: tone]` is a delivery note for the voice (pace, mood). Vary it with the content.
+- `[VO: tone]` is a delivery note for the voice (pace, mood, energy), sent to the voice as direction for that beat.
+  Keep it to 2–6 words, specific and actable ("dry, a hint of a smile", "leaning in, quieter", "quick, building"),
+  and vary it with the content. Describe the delivery only, never the speaker (no age, gender, accent). Include one of these words where the emotion should change (the local
+  voice keys on them): suspense (tension, ominous, mysterious, dramatic), wry (sarcastic, irony, knowing, dry), excited
+  (upbeat, surprised, punchy, energetic), serious (calm, measured, careful, firm, slow).
+- **Write the VO for the ear, with delivery marks.** The voice reads punctuation as performance:
+  - **CAPS** on the one word a sentence hinges on: "You were NOT unlucky." At most one per sentence and a few per
+    beat, never a whole phrase. Acronyms (ETF, CPI) are not emphasis; leave them as they are.
+  - **`...`** for a held beat before a reveal or a trailing thought: "And then... it ran. Without you."
+  - **`—`** for an aside or a sharp turn inside a sentence: "You set a stop — the responsible thing."
+  - **`!`** for real surprise or energy, sparingly (a few per video); **`?`** for genuine rhetorical questions.
+  - **Inline tags** (angle brackets, exactly these, rarely: a few per chapter at most): `<short pause>` or
+    `<long pause>` before a reveal that needs more air than `...`; `<breath>` before a heavy line; `<sigh>`,
+    `<chuckle>` or `<tsk>` where the narrator would really make that sound; `<whispers>` before a confided aside.
+    Example: "And the stop? <short pause> It was the bait." They are performed, never shown in captions.
+  - Fragments and short sentences after a long one ("Twice. That's not luck.") set the rhythm; vary sentence length.
+  - Contractions everywhere (you're, it's, don't); no stage directions or sound words inside the VO text.
 - `**[ON SCREEN]:**` after every beat: one concrete visual idea (an object, a figure, a number landing, a
   silhouette acting), not a camera direction. Never stock footage, logos or real people's faces.
 - The subscribe line goes in the last beat, with `**[ON SCREEN]:** brand end card`.
@@ -62,3 +78,12 @@ Markdown with these sections:
 5. **Runtime**: spoken words and estimated minutes at 150 wpm.
 
 Reply with one line when done.
+
+Custom Scriptwriting Prompt
+Write the script using a conversational, slightly cynical, and narrative-driven tone that mirrors a retail trader's internal monologue. Do not use dry, corporate, or overly clinical phrasing. Speak directly to the viewer's emotional state and use irony to highlight market traps (e.g., "you entered all happy," "but you are smart... what could go wrong"). Build tension using a stream-of-consciousness flow and ask rhetorical questions that challenge assumptions (e.g., "are you unlucky?") before delivering the hard truth that they were used as liquidity. Use this approach to make the viewer feel understood before breaking down the mechanical data.
+
+this might increase the video length but its fine
+
+also keep the sarcasm little and sprinkle through out the video making a emotional bond with the viewer and try not to mention video or channel until the end of the script
+example (bad) - by the end of this video, in this video
+example (acceptable) - by the end, in 8 mins

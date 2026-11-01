@@ -2,7 +2,7 @@
  * Run a short through the pipeline: the same commands as the long video, on its nested workspace (<VID>/shorts/S1).
  *
  * Usage: bun run shorts --video <VID> --short S1|all [--step voice|align|plan|act|sound|draft|render] [--from voice] [--to draft]
- *                       [--model opus] [--director-model sonnet] [--act-model opus] [--tts "--pace 1.05 --exaggeration 0.7"] [--force]
+ *                       [--model opus] [--director-model sonnet] [--act-model opus] [--tts "--pace 1.05 --temperature 0.7"] [--force]
  *                       [--no-music]   (leave the music bed out of the mix, e.g. to add a sound in the YouTube app instead)
  *
  * Stages (in order):
@@ -43,7 +43,8 @@ const stage = (n: string | undefined, def: Stage): Stage => {
 const step = flag("--step");
 const from = stage(step ?? flag("--from"), "voice"), to = stage(step ?? flag("--to"), "draft");
 const run = STAGES.slice(STAGES.indexOf(from), STAGES.indexOf(to) + 1);
-const ttsExtra = (flag("--tts") ?? "").split(/\s+/).filter(Boolean);
+// every --tts "<flags>" is forwarded to the voice step (the dashboard sends one per option)
+const ttsExtra = args.flatMap((a, i) => (a === "--tts" ? (args[i + 1] ?? "").split(/\s+/).filter(Boolean) : []));
 const directorModel = flag("--director-model") ?? flag("--model");
 const actModel = flag("--act-model") ?? flag("--model");
 const force = args.includes("--force");

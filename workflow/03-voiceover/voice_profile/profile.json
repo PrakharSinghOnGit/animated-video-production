@@ -1,8 +1,0 @@
-{
-  "name": "wealthgap_anchor_voice",
-  "engine": "F5-TTS",
-  "baseModel": "F5TTS_v1_Base",
-  "refAudio": "reference.wav",
-  "refPrompt": "Generate the script section-by-section. This ensures consistent tone, avoids memory drift, and gives you individual audio files ready to sync with your Remotion compositions.",
-  "updatedAt": "2026-10-18T17:20:12.821Z"
-}

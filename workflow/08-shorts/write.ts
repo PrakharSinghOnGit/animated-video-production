@@ -13,6 +13,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { runAgent } from "../05-video/src/lib/agent";
+import { roleModel } from "../lib/models";
+import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
 import {
@@ -109,7 +111,7 @@ if (!plan) console.warn("⚠️  no 05-video/acts.json: there are no sourced fig
 
 const one = flag("--short")?.toUpperCase();
 const count = Math.min(5, Math.max(1, parseInt(flag("--count") ?? "3", 10)));
-const model = flag("--model") ?? process.env.SHORTS_MODEL ?? "opus";
+const model = roleModel("shortsWriter", flag("--model"));
 const existing = listShorts(vid);
 if (!one && existing.length && !args.includes("--force")) {
   console.error(`❌ ${existing.length} short(s) exist (${existing.join(", ")}). Revise one: --short S2 (reads S2/02-scripting/feedback.md), or rewrite all: --force`);
@@ -130,7 +132,7 @@ if (one) {
   previous = `6. The creator's notes for these shorts (apply them): \`${allFeedback}\`.`;
 }
 const figures = pn.lines.length ? pn.lines.map((l) => `   - ${l}`).join("\n") : "   (none: the long video has no sourced plan yet. State no numbers except ones the long script says, and list them in notes.)";
-const prompt = fs.readFileSync(path.join(REPO, "workflow/prompts/SHORTS_WRITER.md"), "utf-8")
+const prompt = loadPrompt("SHORTS_WRITER", { video: parent })
   .replace(/{{COUNT}}/g, String(one ? existing.length : count)).replace(/{{SCRIPT}}/g, parentScript)
   .replace(/{{IDEA}}/g, exists(path.join(parent, "02-scripting", "idea.md")) ? path.join(parent, "02-scripting", "idea.md") : "(none)")
   .replace(/{{FIGURES}}/g, figures).replace(/{{PREVIOUS}}/g, previous).replace(/{{SHORTS_DIR}}/g, dir).replace(/{{INDEX}}/g, indexPath(vid))

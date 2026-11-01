@@ -1,0 +1,24 @@
+{
+  "name": "warm_curious",
+  "describe": "Male, mid 30s, warm husky baritone, neutral American accent. An engaging, curious explainer with rich emotional range: intimate and confident on serious lines, bright and animated on surprising ones, expressive and natural, never flat.",
+  "text": "Every single day, trillions of dollars move through markets you will never see. Most people believe the game is fair. It isn't. And once you understand who actually writes the rules, you will never look at your savings the same way again.",
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+  "takes": [
+    {
+      "take": 1,
+      "file": "take1.wav",
+      "seconds": 12.72
+    },
+    {
+      "take": 2,
+      "file": "take2.wav",
+      "seconds": 14.0
+    },
+    {
+      "take": 3,
+      "file": "take3.wav",
+      "seconds": 15.28
+    }
+  ],
+  "picked": 1
+}

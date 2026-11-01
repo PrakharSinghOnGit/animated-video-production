@@ -1,0 +1,19 @@
+{
+  "name": "warm_insider",
+  "describe": "Male, late 30s, warm baritone with a slight husk, neutral American accent. A confident documentary narrator who speaks with quiet intensity, as if letting the listener in on a secret. Natural pauses, rich expressive intonation, crisp diction.",
+  "text": "Every single day, trillions of dollars move through markets you will never see. Most people believe the game is fair. It isn't. And once you understand who actually writes the rules, you will never look at your savings the same way again.",
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+  "takes": [
+    {
+      "take": 1,
+      "file": "take1.wav",
+      "seconds": 14.96
+    },
+    {
+      "take": 2,
+      "file": "take2.wav",
+      "seconds": 14.4
+    }
+  ],
+  "picked": 2
+}

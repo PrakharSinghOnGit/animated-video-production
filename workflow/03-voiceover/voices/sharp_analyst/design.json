@@ -1,0 +1,18 @@
+{
+  "name": "sharp_analyst",
+  "describe": "Female, early 30s, smooth low alto, neutral American accent. A composed, sharp financial journalist: confident, intriguing and slightly dramatic, crisp and warm, very natural.",
+  "text": "Every single day, trillions of dollars move through markets you will never see. Most people believe the game is fair. It isn't. And once you understand who actually writes the rules, you will never look at your savings the same way again.",
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-VoiceDesign-bf16",
+  "takes": [
+    {
+      "take": 1,
+      "file": "take1.wav",
+      "seconds": 16.4
+    },
+    {
+      "take": 2,
+      "file": "take2.wav",
+      "seconds": 16.0
+    }
+  ]
+}

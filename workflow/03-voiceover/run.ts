@@ -1,5 +1,5 @@
 import { runGenerate, printHelp } from "./src/generate";
-import type { GenerationOptions } from "./src/types";
+import { TTS_MODELS, type GenerationOptions, type TtsModel } from "./src/types";
 
 function parseArgs(): GenerationOptions {
   const args = process.argv.slice(2);
@@ -24,22 +24,30 @@ function parseArgs(): GenerationOptions {
       options.combineAll = true;
     } else if (arg === "--video" || arg === "-v") {
       options.video = args[++i];
-    } else if (arg === "--scale" || arg === "-m") {
-      options.expressionScale = parseFloat(args[++i]);
     } else if (arg === "--part" || arg === "-p") {
       options.part = parseInt(args[++i], 10);
     } else if (arg === "--section" || arg === "--id" || arg === "-s") {
       options.sectionId = args[++i];
-    } else if (arg === "--chatterbox") {
-      options.ttsModel = "chatterbox";
-    } else if (arg === "--f5") {
-      options.ttsModel = "f5";
-    } else if (arg === "--tts-model") {
-      options.ttsModel = args[++i] as "chatterbox" | "f5";
-    } else if (arg === "--exaggeration") {
-      options.exaggeration = parseFloat(args[++i]);
-    } else if (arg === "--cfg") {
-      options.cfgWeight = parseFloat(args[++i]);
+    } else if (arg === "--qwen") {
+      options.ttsModel = "qwen";
+    } else if (arg === "--gemini") {
+      options.ttsModel = "gemini";
+    } else if (arg === "--tts-model" || arg === "--engine") {
+      const m = args[++i] as TtsModel;
+      if (!TTS_MODELS.includes(m)) { console.error(`Unknown engine '${m}' (use ${TTS_MODELS.join(", ")})`); process.exit(1); }
+      options.ttsModel = m;
+    } else if (arg === "--no-moods") {
+      options.noMoods = true;
+    } else if (arg === "--voice-profile") {
+      options.voiceProfile = args[++i];
+    } else if (arg === "--voice") {
+      options.voice = args[++i];
+    } else if (arg === "--style") {
+      options.style = args[++i];
+    } else if (arg === "--parallel") {
+      options.parallel = Math.max(1, parseInt(args[++i], 10) || 4);
+    } else if (arg === "--gemini-model") {
+      options.geminiModel = args[++i];
     } else if (arg === "--pace") {
       options.pace = parseFloat(args[++i]);
     } else if (arg === "--sentence-gap") {

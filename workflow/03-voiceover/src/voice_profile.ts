@@ -1,124 +1,81 @@
 #!/usr/bin/env bun
+/**
+ * Voices: workflow/03-voiceover/voices/<name>/ holds a designed voice (bun run voice:design): takes, design.json and,
+ * once picked, reference.wav + reference.txt, the clip Qwen clones for every sentence. voices/ACTIVE names the
+ * channel's voice, used by every video and short unless --voice-profile says otherwise, so the narrator stays the
+ * same across videos. "legacy" is the old clone in voice_profile/ (voice_to_clone.wav).
+ *
+ *   bun run voice:list            designed voices, which are picked, which is active
+ *   bun run voice:use <name>      make <name> the channel voice
+ */
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
 
-// Resolve the Python that has the local TTS model: WG_PYTHON, else the repo .venv
-// (Chatterbox + faster-whisper), else the legacy DancingDuck venv that has F5-TTS.
-export function findPython(ttsModel: "chatterbox" | "f5" = "chatterbox"): string {
+export const VOICES_DIR = path.resolve(process.cwd(), "workflow/03-voiceover/voices");
+const ACTIVE_FILE = path.join(VOICES_DIR, "ACTIVE");
+const LEGACY_DIR = path.resolve(process.cwd(), "workflow/03-voiceover/voice_profile");
+
+/** The repo Python (.venv: mlx-audio + faster-whisper), or WG_PYTHON. */
+export function findPython(): string {
   if (process.env.WG_PYTHON) return process.env.WG_PYTHON;
   const repoVenv = path.resolve(process.cwd(), ".venv/bin/python");
-  const f5Venv = path.resolve(process.cwd(), "../DancingDuck/.venv/bin/python");
-  const possiblePaths = ttsModel === "f5" ? [f5Venv, repoVenv] : [repoVenv, f5Venv];
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) return p;
-  }
-  return "python3";
+  return fs.existsSync(repoVenv) ? repoVenv : "python3";
 }
 
-export function setupVoiceProfile(forceRemake = false) {
-  const voiceoverDir = path.resolve(process.cwd(), "workflow/03-voiceover");
-  const sourceWav = path.join(voiceoverDir, "voice_to_clone.wav");
-  const sourcePrompt = path.join(voiceoverDir, "voice_to_clone_prompt.txt");
-  const profileDir = path.join(voiceoverDir, "voice_profile");
-  const refWav = path.join(profileDir, "reference.wav");
-  const refTxt = path.join(profileDir, "reference.txt");
-  const metaJson = path.join(profileDir, "profile.json");
+export interface Voice { name: string; dir: string; refWav: string; refTxt: string; describe?: string }
 
-  if (!fs.existsSync(sourceWav) || !fs.existsSync(sourcePrompt)) {
-    console.error(`❌ Source voice cloning files not found in ${voiceoverDir}`);
-    console.error(`Expected:`);
-    console.error(`  - ${sourceWav}`);
-    console.error(`  - ${sourcePrompt}`);
+const voiceAt = (name: string, dir: string): Voice | null => {
+  const refWav = path.join(dir, "reference.wav"), refTxt = path.join(dir, "reference.txt");
+  if (!fs.existsSync(refWav) || !fs.existsSync(refTxt)) return null;
+  let describe: string | undefined;
+  try { describe = JSON.parse(fs.readFileSync(path.join(dir, "design.json"), "utf-8")).describe; } catch {}
+  return { name, dir, refWav, refTxt, describe };
+};
+
+/** Voices that can be cloned (have a picked reference), designed ones first. */
+export function listVoices(): Voice[] {
+  const designed = fs.existsSync(VOICES_DIR)
+    ? fs.readdirSync(VOICES_DIR).filter((d) => fs.statSync(path.join(VOICES_DIR, d)).isDirectory()).map((d) => voiceAt(d, path.join(VOICES_DIR, d))).filter((v): v is Voice => !!v)
+    : [];
+  const legacy = voiceAt("legacy", LEGACY_DIR);
+  return legacy ? [...designed, legacy] : designed;
+}
+
+export function activeVoiceName(): string | undefined {
+  try { return fs.readFileSync(ACTIVE_FILE, "utf-8").trim() || undefined; } catch { return undefined; }
+}
+
+/** The voice to clone: the named one, else the channel's active voice, else legacy. Exits with a hint when missing. */
+export function resolveVoice(name?: string): Voice {
+  const want = name || activeVoiceName() || "legacy";
+  const v = listVoices().find((x) => x.name === want);
+  if (!v) {
+    const designed = path.join(VOICES_DIR, want, "design.json");
+    console.error(fs.existsSync(designed)
+      ? `❌ voices/${want} has no picked take yet: bun run voice:design --name ${want} --pick <n>`
+      : `❌ No voice '${want}'. Available: ${listVoices().map((x) => x.name).join(", ") || "none (bun run voice:design)"}`);
     process.exit(1);
   }
+  return v;
+}
 
-  const promptText = fs.readFileSync(sourcePrompt, "utf-8").trim();
-
-  // If already set up and not forcing remake, check if profile exists
-  if (!forceRemake && fs.existsSync(metaJson) && fs.existsSync(refWav) && fs.existsSync(refTxt)) {
-    const existingMeta = JSON.parse(fs.readFileSync(metaJson, "utf-8"));
-    return {
-      profileDir,
-      refWav,
-      refTxt,
-      meta: existingMeta,
-    };
+function main() {
+  const [cmd, name] = process.argv.slice(2);
+  if (cmd === "use") {
+    if (!name) { console.error("usage: bun run voice:use <name>"); process.exit(1); }
+    const v = resolveVoice(name);
+    fs.mkdirSync(VOICES_DIR, { recursive: true });
+    fs.writeFileSync(ACTIVE_FILE, v.name + "\n");
+    console.log(`✓ Channel voice: ${v.name}${v.describe ? `\n  ${v.describe}` : ""}`);
+    return;
   }
-
-  console.log(`\n======================================================`);
-  console.log(`🎙️  F5-TTS: INITIALIZING CLONED VOICE PROFILE`);
-  console.log(`======================================================`);
-  console.log(`Source Audio:   ${sourceWav}`);
-  console.log(`Reference Text: "${promptText.slice(0, 70)}..."\n`);
-
-  fs.mkdirSync(profileDir, { recursive: true });
-  fs.copyFileSync(sourceWav, refWav);
-  fs.writeFileSync(refTxt, promptText, "utf-8");
-
-  const pythonPath = findPython();
-  console.log(`⏳ Verifying voice clone with local F5-TTS model...`);
-
-  const testWavPath = path.join(profileDir, "test_sample.wav");
-  const pyCode = `
-from f5_tts.api import F5TTS
-import os
-
-f5 = F5TTS()
-f5.infer(
-    ref_file="${refWav.replace(/\\/g, "/")}",
-    ref_text="""${promptText.replace(/"/g, '\\"')}""",
-    gen_text="Voice profile cloned successfully. The Wealth Gap motion engine is ready.",
-    file_wave="${testWavPath.replace(/\\/g, "/")}",
-    seed=42
-)
-`;
-
-  try {
-    execSync(pythonPath, {
-      input: pyCode,
-      encoding: "utf-8",
-      maxBuffer: 20 * 1024 * 1024,
-      stdio: ["pipe", "ignore", "pipe"],
-    });
-    console.log(`✓ Voice synthesis test verified: ${path.relative(process.cwd(), testWavPath)}`);
-  } catch (err: any) {
-    console.warn(`⚠️ Warning during test synthesis: ${err.message}`);
+  const active = activeVoiceName() || "legacy";
+  const picked = new Set(listVoices().map((v) => v.name));
+  const all = fs.existsSync(VOICES_DIR) ? fs.readdirSync(VOICES_DIR).filter((d) => fs.statSync(path.join(VOICES_DIR, d)).isDirectory()) : [];
+  console.log("Voices (★ = channel voice):");
+  for (const d of [...all, ...(picked.has("legacy") ? ["legacy"] : [])]) {
+    console.log(`  ${d === active ? "★" : " "} ${d.padEnd(20)} ${picked.has(d) ? "ready" : "not picked (voice:design --pick <n>)"}`);
   }
-
-  const profileMeta = {
-    name: "wealthgap_anchor_voice",
-    engine: "F5-TTS",
-    baseModel: "F5TTS_v1_Base",
-    refAudio: "reference.wav",
-    refPrompt: promptText,
-    updatedAt: new Date().toISOString(),
-  };
-
-  fs.writeFileSync(metaJson, JSON.stringify(profileMeta, null, 2), "utf-8");
-
-  console.log(`======================================================`);
-  console.log(`✅ Voice Profile Saved to:`);
-  console.log(`   ${path.relative(process.cwd(), profileDir)}`);
-  console.log(`======================================================\n`);
-
-  return {
-    profileDir,
-    refWav,
-    refTxt,
-    meta: profileMeta,
-  };
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  const isRemake = args.includes("--remake") || args.includes("-r");
-  setupVoiceProfile(isRemake);
-}
-
-if (import.meta.main) {
-  main().catch((err) => {
-    console.error("Voice profile error:", err);
-    process.exit(1);
-  });
-}
+if (import.meta.main) main();
