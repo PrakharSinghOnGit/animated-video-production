@@ -5,7 +5,7 @@ transcript, acts drawn in the Briefing style (Remotion + canvas), audio mix, ren
 
 - How to make a video (steps, costs, gates, fixes): [`VIDEO_PRODUCTION.md`](VIDEO_PRODUCTION.md)
 - Layout and rules for act code: [`CLAUDE.md`](CLAUDE.md)
-- Control room: `bun run dashboard`
+- Control room: `bun run dashboard` (on this Mac), `bun run dashboard:public` (password + link/QR for your phone, via Tailscale Funnel)
 
 ## Layout
 
@@ -14,7 +14,7 @@ packages/kit/        @wealthgap/kit: spy/ (Briefing engine), paper/ (shared canv
 workflow/
   01-ideation/       research and angle prompts
   02-scripting/      write_script.ts (bun run write), voice.md, yt-script/
-  03-voiceover/      local Chatterbox TTS (F5-TTS behind --f5); see its README
+  03-voiceover/      local Qwen3-TTS (channel voice, designed with voice:design); see its README
   04-transcription/  word-level Whisper timestamps
   05-video/          direct / act / frames / review / assemble / render / qc scripts, template/ (render scaffold)
   06-audio/          foley, mix, master

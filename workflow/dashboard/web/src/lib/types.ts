@@ -4,6 +4,8 @@ export type StepKey = "script" | "voice" | "align" | "plan" | "acts" | "sound" |
 export interface OptDef {
   key: string; label: string; help?: string; type: "select" | "number" | "bool" | "text" | "multi";
   choices?: string[]; def?: string | number | boolean | string[]; min?: number; max?: number; step?: number; volatile?: boolean;
+  /** shown only while option `key` has one of these values */
+  when?: { key: string; in: string[] };
 }
 export interface ChainLink { label: string; action?: string }
 export interface ActionDef {
@@ -75,7 +77,7 @@ export interface Details {
   script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
   runs: Run[]; totals: { ms: number; costUsd: number };
   voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean };
-  align: { master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
+  align: { voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number } | null; master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
   plan: { file: FileInfo | null; logline: string | null; acts: PlanAct[]; unverified: string[] };
   acts: ActRow[];
   publish: PublishInfo;
@@ -99,10 +101,22 @@ export interface SystemInfo {
   top: { pid: number; comm: string; cpu: number; rssMB: number }[];
 }
 export interface TokRow { day: string; model: string; kind: string; project: string; in: number; cacheWrite: number; cacheRead: number; out: number; replies: number }
+export type ProviderId = "claude" | "claude-iit" | "codex" | "opencode" | "agy" | "ollama";
+export interface Tok { in: number; cacheWrite: number; cacheRead: number; out: number; replies: number }
+/** Tokens per day and model; Claude rows also carry kind + project, OpenCode rows a reported cost. */
+export interface URow extends Tok { day: string; model: string; kind?: string; project?: string; cost?: number }
+export interface LimitBar { label: string; usedPct: number; resetsAt: number | null; windowMin?: number }
+export interface ProviderReport {
+  id: ProviderId; label: string; source: string; found: boolean; files: number;
+  costKind: "estimate" | "reported" | "subscription" | "free";
+  rows: URow[]; limits?: LimitBar[]; limitsAt?: number | null; note?: string;
+  recent: { id: string; last: string; model: string; title?: string; project?: string; kind?: string; total: Tok; cost?: number }[];
+}
 export interface UsageReport {
   scannedAt: number; scanMs: number; files: number; rows: TokRow[];
   sessions: { id: string; project: string; kind: string; last: string; models: Record<string, unknown>; total: { in: number; cacheWrite: number; cacheRead: number; out: number; replies: number } }[];
-  pipeline: (Timing & { ws: string })[];
+  pipeline: (Timing & { ws: string; provider?: ProviderId })[];
+  providers?: ProviderReport[];
 }
 
 export interface LimitWindow { used_percentage: number; resets_at: number | null }
@@ -119,3 +133,10 @@ export interface SfxEvent { key: string; t: number; type: string; act: string; d
 export interface SfxClip { key: string; file: string; type: string; act: string; t: number; dur: number }
 export interface SfxEdits { off: string[]; gainDb: Record<string, number> }
 export interface SfxInfo { events: SfxEvent[] | null; eventsAt: number; edits: SfxEdits; clips: SfxClip[] | null; clipsMissing: number | null; draft: FileInfo | null }
+
+/** Settings → Agent models (/api/models) */
+export type ProviderKey = "claude" | "claude-iit" | "codex" | "opencode" | "ollama" | "agy";
+export interface ModelEntry { id: string; label: string; free?: boolean; tools?: boolean }
+export interface ProviderState { label: string; billing: "subscription" | "free" | "local"; edits: boolean; note: string; ok: boolean; error?: string; models: ModelEntry[] }
+export interface RoleRow { key: string; label: string; group: string; edits: boolean; builtin: string; current: string; custom: boolean }
+export interface ModelsData { roles: RoleRow[]; providers: Record<ProviderKey, ProviderState> }

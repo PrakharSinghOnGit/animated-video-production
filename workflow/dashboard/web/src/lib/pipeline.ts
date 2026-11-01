@@ -58,8 +58,8 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
         loops: [{ from: "listen", to: "gen", label: "not right → regenerate", ran: reruns(d, "Generate voice") }],
         blocks: [
           { id: "sections", title: "Voice sections ready", desc: "Produced by “Split into sections” on the Script page.", done: v.sectionCount > 0 },
-          { id: "gen", title: "Generate voice", action: "voice.run", label: "Generate voice", done: v.combined.length > 0, outAt: v.combined[0]?.mtime, costRe: /^voice\b/i },
-          { id: "listen", title: "Listen & approve", desc: "Play the full voiceover and a few sections. If something is off, adjust pace or exaggeration and regenerate.", done: v.combined.length > 0 },
+          { id: "gen", title: "Generate voice", action: "voice.run", label: "Generate voice", done: v.parts.some((p) => p.files.length > 0), outAt: Math.max(0, ...v.parts.flatMap((p) => p.files.map((f) => f.mtime))) || undefined, costRe: /^voice\b/i },
+          { id: "listen", title: "Listen & approve", desc: "Play a few sections. Wrong words or delivery: regenerate that part or section, or try another voice. Speed and the gaps between sections are set in Align → Speed & gaps.", done: v.parts.some((p) => p.files.length > 0) },
         ],
       };
     }
@@ -68,6 +68,7 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
       return {
         loops: [],
         blocks: [
+          { id: "post", title: "Speed & gaps", desc: "Speed (pitch unchanged), the gap between sections and the chapter pause; builds the full voiceover.", action: "align.post", label: "Speed & gaps", done: !!a.voice, outAt: a.voice?.mtime, costRe: /^post\b/i },
           { id: "tr", title: "Transcribe", action: "align.transcribe", label: "Transcribe", done: a.words != null, costRe: /^transcribe\b/i },
           { id: "ma", title: "Master voice", action: "align.master", label: "Master voice", done: !!a.master, outAt: a.master?.mtime, costRe: /^master\b/i },
           { id: "ca", title: "Build captions", action: "align.captions", label: "Build captions", done: a.words != null, costRe: /^captions\b/i },

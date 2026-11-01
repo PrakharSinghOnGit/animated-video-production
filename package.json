@@ -14,9 +14,14 @@
   "scripts": {
     "new-video": "bun run scripts/new_video.ts",
     "tts:format": "bun run workflow/03-voiceover/src/format_sections.ts",
-    "voice:setup": "bun run workflow/03-voiceover/src/voice_profile.ts",
-    "voice:remake": "bun run workflow/03-voiceover/src/voice_profile.ts --remake",
+    "models": "bun run workflow/lib/models.ts",
+    "voice:design": ".venv/bin/python workflow/03-voiceover/src/design_voice.py",
+    "voice:emotions": ".venv/bin/python workflow/03-voiceover/src/design_voice.py --emotions",
+    "voice:use": "bun run workflow/03-voiceover/src/voice_profile.ts use",
+    "voice:list": "bun run workflow/03-voiceover/src/voice_profile.ts list",
+    "voice:design:gemini": ".venv/bin/python workflow/03-voiceover/src/design_voice_gemini.py",
     "tts": "bun run workflow/03-voiceover/run.ts",
+    "tts:post": "bun run workflow/03-voiceover/src/post.ts",
     "tts:cost": "bun run workflow/03-voiceover/run.ts --cost",
     "tts:dry-run": "bun run workflow/03-voiceover/run.ts --dry-run",
     "tts:list": "bun run workflow/03-voiceover/run.ts --list",
@@ -47,6 +52,7 @@
     "timings": "bun run workflow/05-video/scripts/timings.ts",
     "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",
     "dashboard": "bun run workflow/dashboard/ensure-build.ts && bun run workflow/dashboard/server.ts",
+    "dashboard:public": "bun run workflow/dashboard/ensure-build.ts && bun run workflow/dashboard/server.ts --public",
     "dashboard:dev": "bun --cwd workflow/dashboard/web run dev",
     "srt": "bun run workflow/05-video/scripts/srt.ts",
     "write": "bun run workflow/02-scripting/write_script.ts",
@@ -60,7 +66,11 @@
     "shorts:write": "bun run workflow/08-shorts/write.ts",
     "shorts": "bun run workflow/08-shorts/run.ts",
     "shorts:export": "bun run workflow/08-shorts/export.ts",
-    "compact": "bun run scripts/compact.ts"
+    "compact": "bun run scripts/compact.ts",
+    "yt:auth": "bun run workflow/09-analytics/auth.ts",
+    "yt:fetch": "bun run workflow/09-analytics/fetch.ts",
+    "yt:mock": "bun run workflow/09-analytics/mock.ts",
+    "yt:review": "bun run workflow/09-analytics/review.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",
@@ -75,6 +85,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.539",
+    "uqr": "0.1.2",
     "zod": "4.5.4"
   },
   "devDependencies": {

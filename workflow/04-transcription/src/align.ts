@@ -41,6 +41,7 @@ const NEAR = 0.25;
 /** Local markdown strip (the TTS normalizer's helper is private). */
 export function stripMarkdownText(t: string): string {
   return t
+    .replace(/<[a-z][a-z -]{0,24}>/gi, " ")   // Gemini delivery tags (<short pause>) are not words on screen
     .replace(/^[ \t]{0,3}(?:#{1,6}|>|[-*+])[ \t]+/gm, "")
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/`+([^`]*)`+/g, "$1")

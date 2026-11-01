@@ -14,7 +14,7 @@ export function VoiceStep() {
     gen: v.running ? <div className="text-xs text-warning">{v.freshWavs}/{v.sectionCount} sections done this run</div> : undefined,
     listen: (
       <>
-        {v.combined.length ? v.combined.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />) : <Empty>Not generated yet.</Empty>}
+        {!v.parts.some((p) => p.files.length) && <Empty>Not generated yet.</Empty>}
         {v.parts.map((p) => (
           <BlockFold key={p.part} title={`${p.part.replace("part-", "Part ")} · ${p.files.length} sections`}>
             <div className="grid gap-2 pb-3">{p.files.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" />)}</div>

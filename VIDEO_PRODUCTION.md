@@ -64,18 +64,44 @@ Times and costs are measured on VID02 (10:25 of narration, Apple-silicon Mac). E
 6. `bun run tts:format --video <ID>` → `03-voiceover/sections/`.
    Older videos without `idea.md` (VID01, VID02) skip the approval gate.
 
-### Step 2: Voice (local Chatterbox, ~5 min per minute of audio, free)
-`bun run tts --video <ID> --force --combine` (≈50 min for 10 min of audio). Tuning: `--pace 0.9` (slower),
-`--exaggeration`, `--cfg`. Ask the user to listen to a few `03-voiceover/audio/part-*/` files if anything looks off.
+### Step 2: Voice (Gemini TTS by default, ~3–6 min, free tier or ~$0.15)
+`bun run tts --video <ID> --force --combine`. Default engine: Gemini TTS (`gemini-3.8-flash-tts`, voice `--voice`,
+default Algenib; `--parallel` requests at once, default 4; ~2–4 min per video with billing; the free tier is 10
+requests/day per model, too few for a video; key `GEMINI_TTS` = an AI Studio key, free tier; else Vertex AI via gcloud ADC, paid, and 3.8 there
+ignores style). `--qwen` (or `TTS_ENGINE=qwen` in `.env`) uses the local Qwen3-TTS clone of the channel voice.
+
+How it is read (both engines), so it sounds performed, not stitched:
+- **Whole blocks per call:** each `**VO:**` beat is one call (long ones split into passages of whole sentences), so
+  the model phrases the sentences together and places its own pauses and breaths. Only passages are joined
+  (`--sentence-gap`, default 0.45 s); sections get `--section-gap`, chapters a title-card pause.
+- **Direction:** Gemini gets a short channel style (`--style`; Google warns long directions make the voice drift) plus
+  the beat's `[VO: tone]` note. The script carries delivery marks (WRITER.md): CAPS on the stressed word, `...` for a
+  beat, `—` for an aside, `!`/`?`, and rare inline tags (`<short pause>`, `<breath>`, `<sigh>`, `<chuckle>`,
+  `<whispers>`). Gemini gets all of them verbatim; Qwen gets tags stripped; captions and alignment never show tags.
+  Qwen keys its mood clips on the tone note instead (`src/mood.ts`).
+- **Takes:** the first take that ASR finds correct (WER ≤ `--accept-wer`, default 0.08) at a sane speed is kept;
+  takes are not ranked for "cleanest", which favoured flat reads. Edges keep 150 ms (breaths stay). Loudness is set
+  once per section, not per sentence.
+Ask the user to listen to a few `03-voiceover/audio/part-*/` files if anything looks off.
+
+Qwen only: one reference clip and one pinned speaker embedding (`voices/ACTIVE`); seeded takes; a take whose speaker
+similarity is below 0.95 loses. Mood clips: `bun run voice:emotions --name <slug>`; `--no-moods` turns them off.
+Voices: `bun run voice:design --name <slug> --describe "..."` → `--pick <n>` → `bun run voice:use <slug>`;
+`bun run voice:list`; `--voice-profile <slug>` for one run. `bun run voice:design:gemini` makes a designed Gemini voice (key only).
 
 ### Step 3: Align (~3 min, free)
+First `bun run tts:post --video <ID> [--speed 1.08] [--gap 0.6] [--chapter-gap 2.5]` (dashboard: Align → Speed & gaps):
+tempo of the whole voiceover with rubberband's fine engine (pitch unchanged), the silence between sections and before
+chapters, then `audio/combined/full_voiceover.wav`. It always starts from the untouched TTS output (`audio/raw/`), so
+re-running with other settings never stacks; settings left out reuse the last run's (`audio/post.json`). Files left
+over from an older script version are moved to `audio/stale/`. Then
 `bun run transcribe --video <ID>` → `bun run audio:master --video <ID>` → `bun run captions --video <ID>`
 → `bun run srt --video <ID>` (YouTube closed captions in `07-assembly/export/<ID>.srt`; the video itself shows
 no running subtitles).
 
 ### Step 4: Plan 💲 (~6 min, ~$1.5, Opus) → **G1**
-`bun run direct --video <ID>` (style defaults to `briefing`; `--style <name>` picks another folder in
-`workflow/styles/`). Writes `05-video/acts.json`: ~10 acts of 40–90 s, each with beats, BPM, data, chapter.
+`bun run direct --video <ID>` (style defaults to `briefing`, or `WG_STYLE`; `--style drafting` or another folder in
+`workflow/styles/`; the dashboard's Plan step has a House style picker). Writes `05-video/acts.json`: ~10 acts of 40–90 s, each with beats, BPM, data, chapter.
 Show the user the act list (the command prints it) and the unverified figures. Wait for approval.
 
 ### Step 5: Acts 💲 (~17 min, ~$3 per act, Opus author + free Gemini critic) → **G2 after A01**
@@ -182,6 +208,24 @@ the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overla
   EQ, move, swap music in FCP (or File → Import → Timeline in DaVinci Resolve). The project uses files in `08-deliver/`
   and `06-audio/`: keep them while editing.
 
+## Analytics and the learning loop (after upload)
+Channel numbers feed lessons back into the prompts. Dashboard → **Analytics** (global page; click a video for its own page).
+1. Once: `youtube_client.json` (Google Cloud OAuth Desktop client; YouTube Data v3 + Analytics + Reporting APIs enabled) at the
+   repo root, then `bun run yt:auth` (or **Connect YouTube**). Read-only; token in `youtube_token.json` (gitignored). Testing-mode
+   tokens expire after 7 days: reconnect.
+2. When a video is live, link it: Analytics → *Link workspaces to uploads* (writes `07-publish/youtube.json`).
+3. `bun run yt:fetch` (**Refresh**) → `workspace/_analytics/snapshot.json` (cache; ~3 Data API units). Impressions/CTR come only
+   from the Reporting API's daily reach reports: the first fetch creates the job, reports start 1-2 days later, from then on.
+4. `workflow/09-analytics/diagnose.ts` flags problems against the channel's medians (≥3 long videos) or YouTube's own references
+   (relative retention 0.5; CTR 2-10%): low CTR → THUMBS/META, weak opening → WRITER, an act losing viewers → WRITER/DIRECTOR/ACT,
+   good CTR + weak opening → META+WRITER (promise not paid off).
+5. `bun run yt:review [--video <VID>] [--agent sonnet|opus|haiku|agy]` (**Run reviewer**, brief `workflow/prompts/ANALYTICS_REVIEW.md`)
+   proposes 0-5 generic lessons into `workflow/learning/lessons.json`. **Nothing changes a prompt until the user approves it.**
+6. Approved lessons are appended by `loadPrompt()` (`workflow/learning/lessons.ts`) to `workflow/prompts/<TARGET>.md` for every
+   later run (max 10 per prompt); each video records the lessons it was made with in `lessons_used.json`. Retire = roll back;
+   Restore re-activates; every change is versioned in lessons.json (git). `bun run yt:mock` writes invented data for testing
+   (`snapshot.mock.json`, shown with a "mock data" badge, never mixed with the real snapshot).
+
 ## Housekeeping: compact a finished video
 `bun run compact --video <ID>` (dry run: lists what it would delete and the space freed) → `--yes` deletes. Default removes only
 caches and previews (05-video/node_modules with Remotion's cache and Chrome, review frames/sheets/previews, draft.mp4,
@@ -195,9 +239,16 @@ Never run it with `--yes` unless the user asked.
 ## Dashboard
 `bun run dashboard` → http://127.0.0.1:4600. Every step above with all its options as form controls, live logs,
 duration/CPU/memory/GPU per run (history in `workspace/<ID>/dashboard_runs.json`), players for every audio/video
-output, script editing and approval, per-act preview + reviews + notes, a Claude usage page (tokens from Claude
-Code's session logs, pipeline costs from `timings.json`) and a machine page. Prefer telling the user to use it for
+output, script editing and approval, per-act preview + reviews + notes, a Usage page (every provider's logs,
+pipeline costs from `timings.json`), an Analytics page (YouTube numbers, reviewer, lessons gate) and a machine page. Prefer telling the user to use it for
 reviews; you can run the same commands from the CLI.
+
+**From anywhere (phone app):** `bun run dashboard:public` also serves the dashboard behind a password (`PWA_PASS` in
+`.env`) on 127.0.0.1:4601 and publishes that port with Tailscale Funnel at a fixed https://<mac>.<tailnet>.ts.net;
+it prints the link and a QR code. Port 4600 stays login-free on the Mac. Installable as an app (manifest, icons,
+offline page in `workflow/dashboard/web/public/`). Sessions last 30 days; changing `PWA_PASS` signs every device
+out. One-time setup: `brew install --cask tailscale-app`, open it and log in; the first run prints a link to allow Funnel.
+Remotion Studio and openDAW open on the Mac only (they run on localhost).
 
 ## 4. Preview one act with sound (manual)
 ```bash
@@ -219,7 +270,14 @@ Interactive: `bun run studio --video <ID>` (Remotion Studio, scrub every act), o
   usually fine; on a held frame it is a bug. "near-empty" and "subjects small" are always worth fixing.
 - After editing an act's `events`, re-run `bun run cues` and `bun run audio:mix`.
 
-## 6. Style in one paragraph
+## 6. Styles in one paragraph each
+Drafting = one drawn line promoted through three inks: pencil on cream paper (hatching, blue grid), white wire on a
+blueprint, cyan light on black (scan-line fills). Locked camera; every shot is made out of the previous one (morph,
+press, tile, extrude, unfold), ink changes by a hard-edged flood or one scan line; Geist type; `FIG. nn — NAME` corner
+labels; data-native moves (dashboards, gears, 3D bars, globe). Penny, the channel's coin character, guides
+(`brand-assets/mascot/CHARACTER.md`, drawn only by `penny()`). Engine `packages/kit/src/draft/` (demo:
+`bun run studio --style drafting`). Full details: `workflow/styles/drafting/STYLE.md`.
+
 Briefing = 60s spy title sequence (Saul Bass) look + screen-recorder camera. Four flat inks per chapter, scissor-cut
 paper pieces with cut gaps and small shadows, League Gothic cut type for numbers, silhouette puppets on twos. Money is
 the warm colour on a black keyline. The camera follows the action and never leaves unfinished work; whip-pans between
@@ -231,3 +289,16 @@ the name) cut into the set. Full details: `workflow/styles/briefing/STYLE.md`.
 - `drawTitle` is A–Z only; `layout`/`drawLine` handle digits and symbols.
 - The director/act agents can only use what the engine draws; no stock footage or real logos.
 - Voice generation is the slowest step; run it overnight for long scripts.
+
+## Agent models (which model runs each step)
+Every agent step goes through `workflow/05-video/src/lib/agent.ts`; the model is a spec `<provider>:<model>`
+(`workflow/lib/models.ts`): `claude:opus` (default profile), `claude-iit:sonnet` (`CLAUDE_CONFIG_DIR=~/.claude-iit`),
+`codex:gpt-6-luna` (codex exec, workspace-write sandbox), `opencode:opencode/glm-5.3-flash-free` (opencode run --auto),
+`ollama:<model>` (local, through opencode with `workspace/.opencode-ollama.json`; needs a model with tool calling,
+e.g. `ollama pull qwen3`), `agy:gemini-3.8-flash-medium` (read-only: review steps only). Bare `opus`/`sonnet`/`haiku`
+= the default Claude profile.
+- Defaults per step: `workflow/models.json`, edited in the dashboard (Settings → Agent models) or
+  `bun run models --set writer codex:gpt-6-luna` / `--reset writer`; `bun run models` lists steps and found models.
+- A run's `--model` / `--agent` / `--critic` overrides for that run ("default" in the dashboard = the table).
+- Codex and OpenCode cannot restrict tools per step like Claude's `--allowedTools`; they run sandboxed to the repo.
+- Usage per provider: dashboard Usage page (Claude both profiles, Codex, OpenCode, agy logs + pipeline runs).

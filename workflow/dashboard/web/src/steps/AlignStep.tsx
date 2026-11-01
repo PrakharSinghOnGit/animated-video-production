@@ -12,6 +12,11 @@ export function AlignStep() {
   const srt = `/api/ws/${encodeURIComponent(ws)}/file?path=${encodeURIComponent(`07-assembly/export/${ws}.srt`)}`;
   const spec = stepSpec("align", d);
   const kids: Record<string, React.ReactNode> = {
+    post: a.voice ? (
+      <>
+        {a.post && <div className="text-xs text-muted-foreground">speed ×{a.post.speed} · {a.post.gap} s between sections · {a.post.chapterGap} s before chapters</div>}
+        <MediaPlayer f={a.voice} kind="audio" />
+      </>) : undefined,
     tr: a.words != null ? <div className="text-xs text-muted-foreground">{a.words} words{a.durationMs ? ` · ${dur(a.durationMs)} of narration` : ""}</div> : undefined,
     ma: a.master ? <MediaPlayer f={a.master} kind="audio" /> : undefined,
     ca: a.chapters.length ? (

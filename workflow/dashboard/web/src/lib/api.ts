@@ -1,4 +1,5 @@
-import type { DawState, Details, EnvView, Limits, Job, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { AnalyticsData, LessonStore } from "./analytics";
+import type { DawState, Details, EnvView, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -9,6 +10,8 @@ async function call<T>(path: string, init: { method?: string; body?: unknown; te
     headers: { ...(write ? { "x-wg": "1" } : {}), ...(write && init.body !== undefined && !isText ? { "content-type": "application/json" } : {}) },
     body: init.body === undefined ? undefined : isText ? (init.body as string) : JSON.stringify(init.body),
   });
+  // over the internet (bun run dashboard:public) a missing or expired session sends the page to the login screen
+  if (r.status === 401 && path !== "/api/login") { location.assign(`/login?next=${encodeURIComponent(location.pathname + location.hash)}`); return new Promise<T>(() => {}); }
   const ct = r.headers.get("content-type") ?? "";
   const data = ct.includes("json") ? await r.json() : await r.text();
   if (!r.ok) throw new Error((data as { error?: string })?.error ?? r.statusText);
@@ -24,7 +27,11 @@ export const api = {
   system: () => call<SystemInfo>("/api/system"),
   activity: () => call<{ jobs: Job[]; studio: StudioState | null }>("/api/activity"),
   usage: (refresh = false) => call<UsageReport>(`/api/usage${refresh ? "?refresh=1" : ""}`),
+  session: () => call<{ remote: boolean; publicUrl: string | null }>("/api/session"),
+  logout: () => call<{ ok: true }>("/api/logout", { method: "POST" }),
   limits: () => call<Limits>("/api/limits"),
+  models: (refresh = false) => call<ModelsData>("/api/models", refresh ? { method: "POST" } : undefined),
+  modelSet: (role: string, spec: string | null) => call<{ ok: true }>("/api/models", { method: "PUT", body: { role, spec } }),
   env: () => call<EnvView>("/api/settings/env"),
   envReveal: (key: string) => call<{ value: string }>(`/api/settings/env?reveal=${encodeURIComponent(key)}`),
   notify: () => call<{ macAvailable: boolean; mac: boolean; phone: boolean; topicSet: boolean }>("/api/settings/notify"),
@@ -61,6 +68,12 @@ export const api = {
   overview: (ws: string) => call<Overview>(`${w(ws)}/overview`),
   sfx: (ws: string, short?: string | null) => call<SfxInfo>(`${w(ws)}/sfx${short ? `?short=${short}` : ""}`),
   saveSfx: (ws: string, short: string | null | undefined, edits: SfxEdits) => call<{ ok: true; edits: SfxEdits }>(`${w(ws)}/sfx${short ? `?short=${short}` : ""}`, { method: "PUT", body: edits }),
+
+  analytics: (mock = false) => call<AnalyticsData>(`/api/analytics${mock ? "?mock=1" : ""}`),
+  analyticsRun: (action: "auth" | "fetch" | "mock" | "review", extra: { agent?: string; video?: string; mock?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
+  analyticsLink: (ws: string, id: string | null) => call<{ ok: true; id: string | null }>("/api/analytics/link", { method: "PUT", body: { ws, id } }),
+  lesson: (id: string, action: "approve" | "reject" | "retire" | "restore" | "edit", extra: { reason?: string; rule?: string } = {}) => call<{ ok: true; lessons: LessonStore }>(`/api/analytics/lessons/${id}`, { method: "POST", body: { action, ...extra } }),
+  analyticsLogUrl: (job: string) => `/api/analytics/log/${job}`,
 
   /** attachment download of any file inside the workspace (the server refuses paths that leave it) */
   downloadUrl: (ws: string, rel: string) => `${w(ws)}/download?path=${encodeURIComponent(rel)}`,

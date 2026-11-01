@@ -2,8 +2,10 @@
  * Local control room for the video pipeline: one page to pick a workspace, edit the script,
  * run each step, watch its log, and see/hear what it produced.
  *
- * Usage: bun run dashboard [--port 4600] [--host 0.0.0.0]
+ * Usage: bun run dashboard [--port 4600] [--host 0.0.0.0] [--public]
  *   binds 127.0.0.1 unless --host is given; --host 0.0.0.0 opens it to the local network (no login: home network only)
+ *   --public (bun run dashboard:public): also serves the app with a password (PWA_PASS in .env) on 127.0.0.1:<port+1>
+ *   and publishes that port on the internet with Tailscale Funnel; prints the link and a QR code (public.ts)
  *   NTFY_TOPIC=<topic> sends a phone notification (ntfy.sh app) when a job ends (PHONE_NOTIFY=0 turns it off)
  *   on macOS a desktop notification is shown too (MAC_NOTIFY=0 turns it off)
  *   Both switches live in Settings → Notifications and are re-read from .env at every job end (no restart needed).
@@ -18,8 +20,11 @@ import os from "node:os";
 import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./system";
 import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
+import { analyticsRoute, type AnalyticsCtx } from "./analytics";
+import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
 import * as pub from "../07-publish/lib";
 import * as sh from "../08-shorts/lib";
+import { publicHandler, readPass, startFunnel, stopFunnel, qr } from "./public";
 import { atomicWrite, helpFor, parseEnv, removeEnv, serializeEnv, setEnv, KEY_RE } from "./envfile";
 
 const REPO = path.resolve(import.meta.dir, "../..");
@@ -35,6 +40,11 @@ const arg = (name: string) => {
 const argPort = parseInt(arg("--port") ?? "", 10);
 const PORT = Number.isFinite(argPort) ? argPort : 4600;
 const HOST = arg("--host") ?? "127.0.0.1";
+const PUBLIC = process.argv.includes("--public");
+const PUBLIC_PORT = PORT + 1;
+/** Requests that came in through the password-protected public port (public.ts); guard() skips its Host check for them. */
+const viaPublic = new WeakSet<Request>();
+let publicUrl: string | null = null;
 /** This machine's own IPv4 addresses on the network (the Host a phone at home uses with --host). */
 const lanIps = () => Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === "IPv4" && !n.internal).map((n) => n!.address);
 
@@ -314,6 +324,10 @@ interface Opt {
   volatile?: boolean;
   /** argv for a value (bool: only when true) */
   flag?: string; map?: (v: any) => string[];
+  /** model picker for this agent step: choices = "default" + every model the step can use (dynamic) */
+  role?: RoleKey;
+  /** only shown (and only passed) while another option has one of these values, e.g. Gemini's voice while engine = gemini */
+  when?: { key: string; in: string[] };
 }
 interface Action {
   step: string; label: string; help: string;
@@ -335,7 +349,31 @@ const FINAL_OPTS: Opt[] = [
   { key: "audio", label: "Audio", help: "mix = voice + foley (+ music if mixed in); none skips QC's loudness check", type: "select", choices: ["mix", "voice", "none"], def: "mix", flag: "--audio" },
 ];
 
-const PUB_MODEL: Opt = { key: "model", label: "Model", help: "sonnet by default; opus designs better and costs more", type: "select", choices: ["sonnet", "opus", "haiku"], def: "sonnet", flag: "--model" };
+/** Voice (03-voiceover): Qwen3-TTS clones the channel voice (voices/ACTIVE) locally; Gemini is optional cloud TTS. */
+const GEMINI_VOICES = ["Algenib", "Charon", "Orus", "Iapetus", "Fenrir", "Enceladus", "Alnilam", "Schedar", "Rasalgethi", "Sadaltager", "Gacrux", "Kore", "Puck", "Zephyr", "Leda", "Aoede", "Autonoe", "Callirrhoe", "Despina", "Erinome", "Laomedeia", "Achernar", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix", "Sadachbia", "Sulafat", "Umbriel", "Algieba"];
+const GEMINI_ONLY = { key: "engine", in: ["gemini"] };
+const VOICES = path.join(REPO, "workflow/03-voiceover/voices");
+const activeVoice = () => { try { return fs.readFileSync(path.join(VOICES, "ACTIVE"), "utf-8").trim(); } catch { return ""; } };
+/** Cloneable voices (picked reference), read on every schema/run so new ones show up without a restart. */
+const voiceProfiles = () => ["channel voice", ...ls(VOICES).filter((d) => exists(path.join(VOICES, d, "reference.wav"))), ...(exists(path.join(REPO, "workflow/03-voiceover/voice_profile/reference.wav")) ? ["legacy"] : [])];
+const geminiDesigned = () => ls(VOICES).filter((d) => exists(path.join(VOICES, d, "gemini.json")));
+/** Models a step can use: write steps skip read-only providers (agy). */
+const roleChoices = (role: RoleKey) => ["default", ...allSpecs().filter((s) => !ROLES[role].edits || PROVIDERS[parseSpec(s).provider].edits), ...(role === "critic" ? ["off"] : [])];
+const dynChoices = (o: Opt) => (o.role ? roleChoices(o.role) : o.key === "voiceProfile" ? voiceProfiles() : o.key === "voice" ? [...geminiDesigned(), ...GEMINI_VOICES] : o.choices);
+const dynHelp = (o: Opt) => (o.role ? `default = ${roleModel(o.role)} (Settings → Models)` : o.help);
+const ENGINE_OPTS: Opt[] = [
+  { key: "engine", label: "Engine", help: "gemini: Google voices, each block read whole with its tone note as direction (free tier with an AI Studio key) · qwen: local, free, the cloned channel voice. Default: TTS_ENGINE in .env", type: "select", choices: ["gemini", "qwen"], def: process.env.TTS_ENGINE?.trim() === "qwen" ? "qwen" : "gemini", map: (v) => ["--engine", v] },
+  { key: "voiceProfile", label: "Voice", help: "channel voice = voices/ACTIVE (bun run voice:use); others for a test", type: "select", choices: ["channel voice"], def: "channel voice", map: (v) => (v === "channel voice" ? [] : ["--voice-profile", v]), when: { key: "engine", in: ["qwen"] } },
+  { key: "voice", label: "Gemini voice", type: "select", choices: GEMINI_VOICES, def: "Algenib", flag: "--voice", when: GEMINI_ONLY },
+  { key: "parallel", label: "Requests at once", help: "Gemini passages generated in parallel (lower it if you hit rate limits)", type: "number", min: 1, max: 12, step: 1, flag: "--parallel", when: GEMINI_ONLY },
+  { key: "geminiModel", label: "Gemini model", type: "select", choices: ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-2.5-pro-tts", "gemini-3.1-flash-tts-preview"], def: "gemini-3.8-flash-tts", flag: "--gemini-model", when: GEMINI_ONLY },
+];
+
+/** A model picker tied to an agent step (workflow/lib/models.ts): "default" = Settings → Models; every discovered model otherwise. */
+function modelOpt(role: RoleKey, label: string, flag: string, key = "model"): Opt {
+  return { key, label, type: "select", choices: ["default"], def: "default", role, map: (v) => (v === "default" ? [] : [flag, v]) };
+}
+const CRITIC_OPT: Opt = { ...modelOpt("critic", "Critic", "--critic", "critic"), map: (v) => (v === "off" ? ["--no-critic"] : v === "default" ? [] : ["--critic", v]) };
 
 /** Mix options shared by Mix and Apply SFX edits (long video). */
 const SOUND_MIX_OPTS: Opt[] = [
@@ -353,7 +391,7 @@ const ACTIONS: Record<string, Action> = {
     step: "script", label: "Write script", help: "Turns your draft (idea.md) into a chunked, hook-scored script with on-screen hints. With feedback.md newer than the script, it revises instead.",
     paid: "~$1–2", long: "3–6 min",
     opts: [
-      { key: "model", label: "Writer model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
+      modelOpt("writer", "Writer model", "--model"),
       { key: "minutes", label: "Target length (min)", type: "number", min: 3, max: 15, step: 0.5, def: 9, flag: "--minutes" },
     ],
     build: (ws, o) => [B("write", "--video", ws, ...args(o, "script.write"))],
@@ -365,27 +403,31 @@ const ACTIONS: Record<string, Action> = {
     build: (ws, o) => [B("tts:format", "--video", ws, ...args(o, "script.format"))],
   },
   "voice.run": {
-    step: "voice", label: "Generate voice", help: "Local Chatterbox voice clone, best-of-N takes scored by speech recognition.", long: "~5 min per min of audio",
+    step: "voice", label: "Generate voice", help: "Reads every script block in one call (Gemini with its tone note as direction, or the local Qwen clone); a take is kept once speech recognition finds every word. Speed, gaps and the combined file are set afterwards in Align → Speed & gaps.", long: "Gemini ~2–4 min · Qwen ~1–2 min per min of audio",
     opts: [
       { key: "force", label: "Regenerate existing sections", type: "bool", def: true, flag: "--force" },
-      { key: "combine", label: "Combine into full voiceover", type: "bool", def: true, flag: "--combine" },
-      { key: "engine", label: "Engine", type: "select", choices: ["chatterbox", "f5"], def: "chatterbox", map: (v) => (v === "f5" ? ["--f5"] : []) },
-      { key: "pace", label: "Pace", help: "1 = natural, 0.9 = slower", type: "number", min: 0.6, max: 1.3, step: 0.05, flag: "--pace" },
-      { key: "exaggeration", label: "Exaggeration", help: "emotional intensity", type: "number", min: 0, max: 2, step: 0.05, flag: "--exaggeration" },
-      { key: "cfg", label: "CFG weight", help: "lower = slower, more deliberate", type: "number", min: 0, max: 1, step: 0.05, flag: "--cfg" },
-      { key: "temperature", label: "Temperature", type: "number", min: 0.1, max: 1.5, step: 0.05, flag: "--temperature" },
-      { key: "takes", label: "Takes per chunk", type: "number", min: 1, max: 6, step: 1, flag: "--takes" },
+      ...ENGINE_OPTS,
+      { key: "style", label: "Gemini style", help: "short channel direction (empty = conversational explainer talking to one friend); each section's [VO: tone] note is added. Keep it short: long directions make the voice drift", type: "text", flag: "--style", when: GEMINI_ONLY },
+      { key: "temperature", label: "Temperature", help: "lower = steadier, higher = livelier (model default when empty)", type: "number", min: 0.3, max: 1.3, step: 0.05, flag: "--temperature", when: { key: "engine", in: ["qwen"] } },
+      { key: "takes", label: "Takes per passage", type: "number", min: 1, max: 6, step: 1, flag: "--takes" },
       { key: "acceptWer", label: "Accept WER", help: "stop early when a take is this accurate", type: "number", min: 0, max: 0.5, step: 0.01, flag: "--accept-wer" },
-      { key: "sentenceGap", label: "Sentence gap (s)", type: "number", min: 0, max: 2, step: 0.05, flag: "--sentence-gap" },
-      { key: "sectionGap", label: "Section gap (s)", type: "number", min: 0, max: 3, step: 0.05, flag: "--section-gap" },
-      { key: "chapterGap", label: "Chapter gap (s)", type: "number", min: 0, max: 6, step: 0.1, flag: "--chapter-gap" },
+      { key: "sentenceGap", label: "Passage gap (s)", help: "only between passages of one long block; inside a passage the voice paces itself", type: "number", min: 0, max: 2, step: 0.05, flag: "--sentence-gap" },
       { key: "part", label: "Only part", type: "number", min: 1, max: 30, step: 1, flag: "--part" },
       { key: "section", label: "Only section id", help: "e.g. part2_03_beat", type: "text", flag: "--section" },
     ],
     build: (ws, o) => [B("tts", "--video", ws, ...args(o, "voice.run"))],
   },
-  "align.all": { step: "align", label: "Align all", help: "Transcribe → master → captions → .srt.", long: "~3 min",
-    chain: [{ label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Export .srt", action: "align.srt" }], build: (ws) => [B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
+  "align.post": {
+    step: "align", label: "Speed & gaps", help: "Speeds the whole voiceover up or down without changing its pitch (rubberband, best quality) and sets the silence between sections and before chapters, then builds the combined voiceover. Always starts from the untouched voice files, so you can re-run with other settings. Empty = the last used setting. Run the rest of Align after it.", long: "~10–30 s",
+    opts: [
+      { key: "speed", label: "Speed", help: "1 = as generated, 1.1 = 10% faster, 0.95 = 5% slower (pitch unchanged)", type: "number", min: 0.7, max: 1.5, step: 0.01, flag: "--speed" },
+      { key: "gap", label: "Gap between sections (s)", help: "silence after each script block", type: "number", min: 0, max: 3, step: 0.05, flag: "--gap" },
+      { key: "chapterGap", label: "Chapter pause (s)", help: "silence before a chapter, while its title card shows", type: "number", min: 0, max: 8, step: 0.1, flag: "--chapter-gap" },
+    ],
+    build: (ws, o) => [B("tts:post", "--video", ws, ...args(o, "align.post"))],
+  },
+  "align.all": { step: "align", label: "Align all", help: "Speed & gaps (last used settings) → transcribe → master → captions → .srt.", long: "~3 min",
+    chain: [{ label: "Speed & gaps", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Export .srt", action: "align.srt" }], build: (ws) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
   "align.master": { step: "align", label: "Master voice", help: "EQ, de-ess, compression, loudness.", build: (ws) => [B("audio:master", "--video", ws)] },
   "align.captions": { step: "align", label: "Build captions", help: "captions.json + chapters.json for the planner.", build: (ws) => [B("captions", "--video", ws)] },
@@ -393,7 +435,7 @@ const ACTIONS: Record<string, Action> = {
   "plan.run": {
     step: "plan", label: "Plan acts", help: "The director splits the narration into ~10 acts with beats, hits and sourced data.", paid: "~$1.5", long: "~6 min",
     opts: [
-      { key: "model", label: "Director model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
+      modelOpt("director", "Director model", "--model"),
       { key: "style", label: "House style", type: "select", choices: styles(), def: "briefing", flag: "--style" },
     ],
     build: (ws, o) => [B("direct", "--video", ws, ...args(o, "plan.run"))],
@@ -405,8 +447,8 @@ const ACTIONS: Record<string, Action> = {
     opts: [
       { key: "acts", label: "Acts", help: "empty = all missing", type: "multi", choices: [], flag: "--act", map: (v: string[]) => (v.length ? ["--act", v.join(",")] : []) },
       { key: "parallel", label: "In parallel", type: "number", min: 1, max: 4, step: 1, def: 2, flag: "--parallel" },
-      { key: "model", label: "Author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
-      { key: "critic", label: "Critic", type: "select", choices: ["agy", "haiku", "sonnet", "off"], def: "agy", map: (v) => (v === "off" ? ["--no-critic"] : ["--critic", v]) },
+      modelOpt("actAuthor", "Author model", "--model"),
+      CRITIC_OPT,
       { key: "force", label: "Redo acts that exist", type: "bool", def: false, flag: "--force" },
       { key: "strict", label: "Paid fix round on a failed critic", type: "bool", def: false, flag: "--strict" },
     ],
@@ -415,15 +457,15 @@ const ACTIONS: Record<string, Action> = {
   "acts.act": {
     step: "acts", perAct: true, label: "Author", help: "Writes this act.", paid: "~$3", long: "~17 min",
     opts: [
-      { key: "model", label: "Author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
-      { key: "critic", label: "Critic", type: "select", choices: ["agy", "haiku", "sonnet", "off"], def: "agy", map: (v) => (v === "off" ? ["--no-critic"] : ["--critic", v]) },
+      modelOpt("actAuthor", "Author model", "--model"),
+      CRITIC_OPT,
       { key: "force", label: "Redo if it exists", type: "bool", def: true, flag: "--force" },
     ],
     build: (ws, o, act) => [B("act", "--video", ws, "--act", act!, ...args(o, "acts.act"))],
   },
   "acts.fix": {
     step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to the act's author for one revision.", paid: "~$5–11", long: "~3–15 min",
-    opts: [{ key: "model", label: "Author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" }],
+    opts: [modelOpt("actAuthor", "Author model", "--model")],
     build: (ws, o, act) => {
       const rel = path.join("workspace", ws, notesRel(act!));
       if (!exists(path.join(REPO, rel))) return "save review notes first";
@@ -448,7 +490,7 @@ const ACTIONS: Record<string, Action> = {
   "acts.review": {
     step: "acts", perAct: true, label: "Review", help: "An agent checks that the visuals match the voice at each moment and lists fixes.", long: "2–6 min",
     opts: [
-      { key: "agent", label: "Reviewer", type: "select", choices: ["agy", "haiku", "sonnet", "opus"], def: "agy", flag: "--agent", help: "agy = Gemini Flash (free); others are Claude (paid)" },
+      modelOpt("actReview", "Reviewer", "--agent", "agent"),
       { key: "give", label: "Give it", type: "multi", choices: ["transcript", "plan", "script", "code"], def: ["transcript", "plan"], map: (v: string[]) => (v.length ? ["--give", v.join(",")] : ["--give", "none"]) },
       { key: "every", label: "Frame every (s)", type: "number", min: 0.5, max: 6, step: 0.5, def: 2, flag: "--every" },
       { key: "focus", label: "Look hardest at", type: "text", flag: "--focus" },
@@ -500,7 +542,7 @@ const ACTIONS: Record<string, Action> = {
   "publish.all": {
     step: "publish", label: "Publish all", help: "Titles + description, the three thumbnails, then the thumbnail review. Titles you edited are kept (the metadata step skips them); thumbnails that exist are kept.", paid: "~$1–3", long: "~8–15 min",
     chain: [{ label: "Titles & description", action: "publish.meta" }, { label: "Thumbnails", action: "publish.thumbs" }, { label: "Review", action: "publish.review" }],
-    opts: [PUB_MODEL, { key: "agent", label: "Reviewer", type: "select", choices: ["haiku", "sonnet", "opus", "agy"], def: "haiku", flag: "--agent", help: "agy = Gemini Flash (free)" }],
+    opts: [modelOpt("thumbs", "Model (titles + thumbnails)", "--model"), modelOpt("thumbsReview", "Reviewer", "--agent", "agent")],
     build: (ws, o) => {
       const m = args(o, "publish.all"), pick = (k: string) => (m.includes(k) ? [k, m[m.indexOf(k) + 1]] : []);
       return [B("meta", "--video", ws, ...pick("--model")), B("thumbs", "--video", ws, ...pick("--model")), B("thumbs:review", "--video", ws, ...pick("--agent"), "--to-notes")];
@@ -509,7 +551,7 @@ const ACTIONS: Record<string, Action> = {
   "publish.meta": {
     step: "publish", label: "Titles & description", help: "Three titles (one per package A/B/C, each with the brief of its thumbnail), the description opening, tags and hashtags. Chapters, sources, credits and limits are computed in code.", paid: "~$0.2–0.5", long: "~30 s",
     opts: [
-      PUB_MODEL,
+      modelOpt("meta", "Model", "--model"),
       { key: "notes", label: "Revise with my notes", help: "uses notes/meta.md and keeps what you did not mention", type: "bool", def: false, flag: "--notes" },
       { key: "force", label: "Overwrite my edits", help: "otherwise metadata you edited in the dashboard is kept", type: "bool", def: false, flag: "--force" },
     ],
@@ -518,7 +560,7 @@ const ACTIONS: Record<string, Action> = {
   "publish.thumbs": {
     step: "publish", label: "Thumbnails", help: "The author designs the three thumbnails as Briefing-kit stills, looks at its own renders, and the images and preview sheets are rendered.", paid: "~$1–3", long: "~5–10 min",
     opts: [
-      PUB_MODEL,
+      modelOpt("thumbs", "Model", "--model"),
       { key: "variant", label: "Variant", type: "select", choices: ["all", "A", "B", "C"], def: "all", map: (v) => (v === "all" ? [] : ["--variant", v]) },
       { key: "force", label: "Redo variants that exist", type: "bool", def: true, flag: "--force" },
     ],
@@ -532,14 +574,14 @@ const ACTIONS: Record<string, Action> = {
   "publish.review": {
     step: "publish", label: "Review thumbnails", help: "A vision critic checks each thumbnail and the preview sheets against the guide's checklist (168 px legibility, words, focal point, contrast, badge zone, truth, distinctness).", paid: "~$0.1–0.3", long: "~1–3 min",
     opts: [
-      { key: "agent", label: "Reviewer", type: "select", choices: ["haiku", "sonnet", "opus", "agy"], def: "haiku", flag: "--agent", help: "agy = Gemini Flash (free); others are Claude (paid)" },
+      modelOpt("thumbsReview", "Reviewer", "--agent", "agent"),
       { key: "toNotes", label: "Append findings to each variant's notes", type: "bool", def: true, flag: "--to-notes" },
     ],
     build: (ws, o) => [B("thumbs:review", "--video", ws, ...args(o, "publish.review"))],
   },
   "publish.fix": {
     step: "publish", variant: true, label: "Fix with notes", help: "Sends this variant's notes to the thumbnail author for one revision (resumes its session).", paid: "~$0.5–2", long: "~3–6 min",
-    opts: [PUB_MODEL],
+    opts: [modelOpt("thumbs", "Model", "--model")],
     build: (ws, o, v) => {
       if (!pub.readText(pub.pubFile(ws, `notes/${v}.md`)).trim()) return "save notes for this variant first";
       return [B("thumbs", "--video", ws, "--variant", v!, "--notes", ...args(o, "publish.fix"))];
@@ -552,7 +594,7 @@ const ACTIONS: Record<string, Action> = {
     paid: "~$0.5–1.5", long: "~2–5 min",
     opts: [
       { key: "count", label: "How many", type: "number", min: 1, max: 5, step: 1, def: 3, flag: "--count" },
-      { key: "model", label: "Writer model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" },
+      modelOpt("shortsWriter", "Writer model", "--model"),
       { key: "force", label: "Overwrite existing shorts", help: "rewrites every short script, including ones you edited", type: "bool", def: false, flag: "--force" },
     ],
     build: (ws, o) => [B("shorts:write", "--video", ws, ...args(o, "shorts.write"))],
@@ -560,7 +602,7 @@ const ACTIONS: Record<string, Action> = {
   "shorts.check": { step: "shorts", label: "Check scripts", help: "Re-runs the checks (word count, numbers against the plan's data, banned phrases) after a hand edit. No model.", long: "seconds", build: (ws) => [B("shorts:write", "--video", ws, "--check")] },
   "shorts.revise": {
     step: "shorts", perShort: true, label: "Revise", help: "Rewrites this one short from its feedback (shorts/<S>/02-scripting/feedback.md). Save the feedback first; the new script needs approval again.", paid: "~$0.3–0.8", long: "~1–2 min",
-    opts: [{ key: "model", label: "Writer model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" }],
+    opts: [modelOpt("shortsWriter", "Writer model", "--model")],
     build: (ws, o, s) => {
       if (!readText(path.join(sh.shortWs(ws, s!), "02-scripting/feedback.md")).trim()) return "save feedback for this short first";
       return [B("shorts:write", "--video", ws, "--short", s!, ...args(o, "shorts.revise"))];
@@ -573,8 +615,8 @@ const ACTIONS: Record<string, Action> = {
     opts: [
       { key: "from", label: "From stage", type: "select", choices: [...SHORT_STAGES], def: "voice", flag: "--from" },
       { key: "to", label: "To stage", help: "draft stops for review; render makes the final + QC", type: "select", choices: [...SHORT_STAGES], def: "draft", flag: "--to" },
-      { key: "directorModel", label: "Director model", type: "select", choices: ["sonnet", "opus"], def: "sonnet", flag: "--director-model" },
-      { key: "actModel", label: "Act author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--act-model" },
+      modelOpt("shortsDirector", "Director model", "--director-model", "directorModel"),
+      modelOpt("shortsAct", "Act author model", "--act-model", "actModel"),
       { key: "force", label: "Redo stages that exist", type: "bool", def: false, flag: "--force" },
       { key: "noMusic", label: "No music bed", help: "sound stage: voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" },
     ],
@@ -596,14 +638,14 @@ const ACTIONS: Record<string, Action> = {
   "shorts.review": {
     step: "shorts", perShort: true, label: "Review", help: "An agent checks that the visuals match the voice at each moment and appends fixes to the short's review notes.", long: "2–6 min",
     opts: [
-      { key: "agent", label: "Reviewer", type: "select", choices: ["agy", "haiku", "sonnet", "opus"], def: "agy", flag: "--agent", help: "agy = Gemini Flash (free); others are Claude (paid)" },
+      modelOpt("actReview", "Reviewer", "--agent", "agent"),
       { key: "toNotes", label: "Append findings to review notes", type: "bool", def: true, flag: "--to-notes" },
     ],
     build: (ws, o, s) => [B("review", "--video", sh.shortVideoId(ws, s!), "--act", "A01", ...args(o, "shorts.review"))],
   },
   "shorts.fix": {
     step: "shorts", perShort: true, label: "Fix act with notes", help: "Sends the review notes to the act's author for one revision (resumes its session). Save the notes first.", paid: "~$3–6", long: "~3–15 min",
-    opts: [{ key: "model", label: "Author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--model" }],
+    opts: [modelOpt("shortsAct", "Author model", "--model")],
     build: (ws, o, s) => {
       const rel = path.join("workspace", ws, "shorts", s!, notesRel("A01"));
       if (!readText(path.join(REPO, rel)).trim()) return "save review notes for this short first";
@@ -650,12 +692,19 @@ const ACTIONS: Record<string, Action> = {
 
 /** One button per short stage (bun run shorts --step <stage>): the Shorts page runs them one at a time or "from here". */
 const SHORT_STAGE_ACTIONS: Record<string, Partial<Action> & { label: string; help: string }> = {
-  voice: { label: "Voice", help: "tts:format + the local voice clone with the shorts settings (reads the approved script).", long: "~3–5 min" },
+  voice: {
+    label: "Voice", help: "tts:format + the channel voice with the shorts settings (reads the approved script).", long: "~3–5 min",
+    opts: ENGINE_OPTS.map((o) => {
+      // shorts run.ts forwards one --tts "<flags>" string to the voice step
+      const inner = o.map ?? ((v: any) => [o.flag!, String(v)]);
+      return { ...o, flag: undefined, map: (v: any) => ["--tts", inner(v).join(" ")] };
+    }),
+  },
   align: { label: "Align", help: "Transcribe, master the voice, captions and the .srt.", long: "~1 min" },
-  plan: { label: "Plan", help: "The director splits the short into its one act (Claude).", paid: "~$0.2–0.5", long: "~1 min", opts: [{ key: "directorModel", label: "Director model", type: "select", choices: ["sonnet", "opus"], def: "sonnet", flag: "--director-model" }] },
+  plan: { label: "Plan", help: "The director splits the short into its one act (Claude).", paid: "~$0.2–0.5", long: "~1 min", opts: [modelOpt("shortsDirector", "Director model", "--director-model", "directorModel")] },
   act: {
     label: "Act", help: "The act author draws the short in code, then renders its frames (Claude).", paid: "~$2–4", long: "~5–15 min",
-    opts: [{ key: "actModel", label: "Act author model", type: "select", choices: ["opus", "sonnet"], def: "opus", flag: "--act-model" }, { key: "force", label: "Redo the act if it exists", type: "bool", def: false, flag: "--force" }],
+    opts: [modelOpt("shortsAct", "Act author model", "--act-model", "actModel"), { key: "force", label: "Redo the act if it exists", type: "bool", def: false, flag: "--force" }],
   },
   sound: {
     label: "Sound", help: "Cues, the music bed and the mix (voice + foley + bed). Foley edits from the review table are read here.", long: "~1 min",
@@ -679,7 +728,10 @@ for (const [stage, def] of Object.entries(SHORT_STAGE_ACTIONS)) {
 let currentOpts: Record<string, any> = {};
 function args(o: Record<string, any>, key: string): string[] {
   const out: string[] = [];
-  for (const opt of ACTIONS[key].opts ?? []) {
+  const defs = ACTIONS[key].opts ?? [];
+  const valueOf = (k: string) => o[k] ?? defs.find((d) => d.key === k)?.def;
+  for (const opt of defs) {
+    if (opt.when && !opt.when.in.includes(String(valueOf(opt.when.key)))) continue;
     let v = o[opt.key] ?? opt.def;
     if (v === undefined || v === null || v === "") continue;
     switch (opt.type) {
@@ -692,7 +744,7 @@ function args(o: Record<string, any>, key: string): string[] {
         continue;
       }
       case "select":
-        if (!(opt.choices ?? []).includes(String(v))) throw new Error(`${opt.label}: not one of ${opt.choices?.join(", ")}`);
+        if (!(dynChoices(opt) ?? []).includes(String(v))) throw new Error(`${opt.label}: not one of ${opt.choices?.join(", ")}`);
         out.push(...(opt.map ? opt.map(String(v)) : [opt.flag!, String(v)]));
         continue;
       case "multi": {
@@ -732,7 +784,7 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
 }
 
 function schema() {
-  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct || !!a.variant || !!a.perShort, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => o) }]));
+  return Object.fromEntries(Object.entries(ACTIONS).map(([k, a]) => [k, { step: a.step, label: a.label, help: a.help, paid: a.paid ?? null, long: a.long ?? null, perAct: !!a.perAct || !!a.variant || !!a.perShort, chain: a.chain ?? null, opts: (a.opts ?? []).map(({ map, flag, ...o }) => ({ ...o, choices: dynChoices(o as Opt), help: dynHelp(o as Opt) })) }]));
 }
 
 // ───────────────────────────── status from disk ─────────────────────────────
@@ -902,8 +954,8 @@ function stepStatuses(ws: string): Record<string, St> {
     script: exists(path.join(wsDir(ws), "02-scripting/script_raw.md"))
       ? (["not approved", "changed since approval"].includes(approvalState(ws)) ? overlay(ws, "script", "partial", []) : S("script", ["02-scripting/script_raw.md"], ["03-voiceover/sections/index.ts"]))
       : exists(path.join(wsDir(ws), "02-scripting/idea.md")) ? overlay(ws, "script", "partial", []) : "none",
-    voice: S("voice", ["03-voiceover/sections/index.ts"], ["03-voiceover/audio/combined/full_voiceover.wav"]),
-    align: S("align", ["03-voiceover/audio/combined/full_voiceover.wav"], ["04-transcription/full_transcript.json", "06-audio/voiceover_master.wav", "05-video/captions.json"]),
+    voice: S("voice", ["03-voiceover/sections/index.ts"], ["03-voiceover/audio/voice.json"]),
+    align: S("align", ["03-voiceover/audio/voice.json"], ["03-voiceover/audio/combined/full_voiceover.wav", "04-transcription/full_transcript.json", "06-audio/voiceover_master.wav", "05-video/captions.json"]),
     plan: S("plan", ["05-video/captions.json"], ["05-video/acts.json"]),
     acts,
     sound: S("sound", ["06-audio/voiceover_master.wav"], ["05-video/events.json", "06-audio/music_plan.json", "06-audio/music.wav", "06-audio/mix.wav"], sceneMax),
@@ -929,7 +981,7 @@ function timingsAll(ws: string) {
 
 const TIMING_MATCH: Record<string, RegExp> = {
   voice: /^voice\b/i,
-  align: /^(transcribe|master|captions)\b/i,
+  align: /^(post|transcribe|master|captions)\b/i,
   plan: /^direct\b/i,
   script: /^write script/i,
   acts: /^(act|critic|frames|review|preview) A\d+/i,
@@ -1111,7 +1163,7 @@ function details(ws: string) {
     runs: (readJson<any[]>(path.join(d, "dashboard_runs.json")) ?? []).slice(-80),
     totals: { ms: allRows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: allRows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
     voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince },
-    align: { master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
+    align: { voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap }) => ({ speed, gap, chapterGap }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, acts, unverified },
     acts: actRows,
     sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
@@ -1240,7 +1292,7 @@ function settingsPath(rel: string | null): string | null {
   return abs;
 }
 
-const SECRET = /KEY|TOKEN|SECRET|PASSWORD|PASSWD|API/i;
+const SECRET = /KEY|TOKEN|SECRET|PASS|API/i;
 function readEnvLines() { return parseEnv(exists(ENV_FILE) ? fs.readFileSync(ENV_FILE, "utf-8") : ""); }
 function envView() {
   const lines = readEnvLines();
@@ -1299,6 +1351,7 @@ function listWorkspaces() {
 
 /** Blocks cross-site requests and DNS rebinding: Host must be ours; writes need a custom header (forces CORS preflight). */
 function guard(req: Request): Response | null {
+  if (viaPublic.has(req)) return req.method !== "GET" && req.method !== "HEAD" && req.headers.get("x-wg") !== "1" ? bad("missing x-wg header", 403) : null;
   const host = req.headers.get("host") ?? "";
   const names = ["127.0.0.1", "localhost", ...(HOST === "127.0.0.1" ? [] : [...lanIps(), `${os.hostname().replace(/\.local$/, "")}.local`])];
   if (!names.some((n) => host.toLowerCase() === `${n.toLowerCase()}:${PORT}`)) return bad("bad host", 403);
@@ -1343,19 +1396,17 @@ function lastLogBlock(ws: string, step: string): string {
 }
 
 const dawCtx: DawCtx = { guard, json, bad, wsDir, validWs, childEnv, killTree, pump, ansi: ANSI };
+const anCtx: AnalyticsCtx = { json, bad, body, startJob, runningJob, jobSummary, getJob: (id) => jobs.get(id), logStream };
 
-const server = Bun.serve({
-  hostname: HOST,
-  port: PORT,
-  idleTimeout: 0,
-  maxRequestBodySize: 1024 * 1024 * 1024, // the mix exported from openDAW is ~150 MB
-  async fetch(req) {
+async function appFetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;
     const daw = await dawRoute(req, url, dawCtx);
     if (daw) return daw;
     const g = guard(req);
     if (g) return g;
+    const an = await analyticsRoute(req, url, anCtx);
+    if (an) return an;
 
     if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState() });
     if (p === "/api/schema" && req.method === "GET") return json(schema());
@@ -1374,6 +1425,21 @@ const server = Bun.serve({
       return json(usageReport(rows));
     }
     if (p === "/api/limits" && req.method === "GET") return json(limits());
+    if (p === "/api/session" && req.method === "GET") return json({ remote: viaPublic.has(req), publicUrl });
+    // Settings → Models: which model runs each agent step (workflow/models.json) and every model found on this machine
+    if (p === "/api/models" && (req.method === "GET" || req.method === "POST")) {
+      const cat = catalog(req.method === "POST");
+      const d = readDefaults();
+      return json({
+        roles: Object.entries(ROLES).map(([key, r]) => ({ key, label: r.label, group: r.group, edits: r.edits, builtin: r.def, current: parseSpec(d[key] ?? r.def).spec, custom: key in d })),
+        providers: Object.fromEntries(Object.entries(PROVIDERS).map(([k, v]) => [k, { ...v, ...cat[k as keyof typeof cat] }])),
+      });
+    }
+    if (p === "/api/models" && req.method === "PUT") {
+      const b = await body(req);
+      try { writeDefault(String(b.role ?? ""), b.spec ? String(b.spec) : null); } catch (e) { return bad((e as Error).message); }
+      return json({ ok: true });
+    }
 
     if (p === "/api/settings/env") {
       if (req.method === "GET") {
@@ -1638,16 +1704,34 @@ const server = Bun.serve({
     }
 
     return bad("not found", 404);
-  },
-});
+}
+
+const LIMIT_BODY = 1024 * 1024 * 1024; // the mix exported from openDAW is ~150 MB
+const server = Bun.serve({ hostname: HOST, port: PORT, idleTimeout: 0, maxRequestBodySize: LIMIT_BODY, fetch: appFetch });
 
 console.log(`🎛  WealthGap dashboard on http://${HOST}:${server.port}`);
 if (HOST !== "127.0.0.1") {
   for (const ip of lanIps()) console.log(`   on your network: http://${ip}:${server.port}  (no login: home network only)`);
 }
+if (PUBLIC) startPublic();
 { const c = notifyCfg(); console.log(`   notifications: Mac ${c.mac ? "on" : "off"}, phone ${c.phone ? "on" : c.topic ? "off" : "off (no NTFY_TOPIC)"} (Settings → Notifications)`); }
 
+function startPublic() {
+  if (!readPass(ENV_FILE)) { console.log("   ✗ internet access off: set PWA_PASS=<password> in .env first"); return; }
+  const handler = publicHandler({ repo: REPO, envFile: ENV_FILE, dist: DIST, app: appFetch, markPublic: (r) => viaPublic.add(r) });
+  Bun.serve({ hostname: "127.0.0.1", port: PUBLIC_PORT, idleTimeout: 0, maxRequestBodySize: LIMIT_BODY, fetch: handler });
+  const f = startFunnel(PUBLIC_PORT);
+  if (!f.ok) { console.log(`   ✗ internet access off: ${f.why}`); return; }
+  publicUrl = f.url;
+  // keep the Mac awake while the dashboard is published (idle sleep would take the link down; closing the lid still sleeps)
+  try { Bun.spawn(["caffeinate", "-i", "-w", String(process.pid)], { stdout: "ignore", stderr: "ignore" }); } catch {}
+  console.log(`\n   🌍 on the internet (password: PWA_PASS): ${f.url}\n`);
+  console.log(qr(f.url).split("\n").map((l) => "   " + l).join("\n"));
+  console.log("   Scan with your phone, sign in, then Share → Add to Home Screen (iPhone) or Install app (Android).\n");
+}
+
 function shutdown() {
+  if (publicUrl) stopFunnel();
   if (studio?.pid) killTree(studio.pid);
   stopDaw(dawCtx);
   process.exit(0);

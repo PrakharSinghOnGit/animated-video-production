@@ -35,7 +35,21 @@ assets/**/*.mp3
 
 # Local fixtures (keep on disk, not in git)
 workspace/_FX*
+youtube_client.json
+youtube_token.json
+.secrets/
+workspace/.secrets/
+workspace/_analytics/
 .claude/worktrees/
 
 # Local openDAW checkout (bun run daw:setup)
 tools/opendaw/
+
+# designed voices: keep design.json + the picked reference, not every take
+workflow/03-voiceover/voices/*/take*.wav
+# third-party reference material for the Drafting style (local only)
+workflow/styles/drafting/reference/
+# local runtime state in workspace/ (dashboard session key, model catalogue cache, OpenCode/Ollama config)
+workspace/.*
+# one-step undo copies written by the dashboard's Settings file editor
+*.prev
