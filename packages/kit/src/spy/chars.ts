@@ -3,7 +3,7 @@
 // styles/spy-titles/demo/chars.js (MIT, "THE AGENT"). See CREDITS.md. Origin = midpoint between the feet, y down, facing +x.
 // Scale s = 1 is about 540 px tall.
 import type { G, Pt } from "../paper/engine";
-import { roughC, rough, smooth, piece, silhouette, slit, INKS, type SilOpts } from "./engine";
+import { roughC, rough, smooth, piece, silhouette, slit, circP, INKS, type SilOpts } from "./engine";
 
 const R = Math;
 /** Puppets are stepped to 12 fps ("on twos") while the camera stays on ones: pass the result in place of t when sampling poses. */
@@ -91,6 +91,13 @@ export interface FigureOpts {
   flip?: boolean;
   eye?: "open" | "peek";
   sil?: SilOpts;
+  /**
+   * THE AGENT, the channel's recurring hero in Briefing (brand-assets/mascot/AGENT.md): three slanted cuts in his
+   * hatband (the logo's three bars) and a gold coin tie clip. Extras (other people in the story) leave it off.
+   */
+  hero?: boolean;
+  /** the coin clip's colour (default noir warm: the money colour, on a black keyline) */
+  warm?: string;
 }
 /**
  * Draw the figure in profile, feet at (x, y), facing +x (flip faces -x). Returns the near wrist in screen/world coordinates
@@ -143,7 +150,10 @@ function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: Figur
   if (e) piece(g, e === "peek" ? [[16, -52], [26, -54], [25, -50], [16, -49]] : [[15, -53], [25, -55], [24, -49], [15, -48]], paper, { gap: 0, shadow: false });
   piece(g, P("fgBrim", brim, 42, 0.9, 7), ink);
   piece(g, P("fgCrown", crown, 43, 1.0, 7), ink);
-  g.save(); g.translate(1, -71.5); g.rotate(-0.035); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000"; g.fillRect(-27, -1.1, 56, 2.2); g.restore();   // hatband slit
+  g.save(); g.translate(1, -71.5); g.rotate(-0.035); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
+  if (opt.hero) for (let i = 0; i < 3; i++) { g.save(); g.translate(-12 + i * 9, -0.5); g.rotate(-0.5); g.fillRect(-1.3, -6, 2.6, 12); g.restore(); }   // the Agent: three slanted cuts (logo bars)
+  else g.fillRect(-27, -1.1, 56, 2.2);                                                     // hatband slit
+  g.restore();
   g.restore();
   legAt(p.thF, p.knF, p.ftF, true);
   const ta = T(27, -160);                                                                  // streamer
@@ -151,6 +161,10 @@ function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: Figur
   const tp = tiePoly(p.tie, p.tph);
   piece(g, rough(tp.body, 51, 0.6, 6), accent);
   piece(g, tp.knot, accent);
+  if (opt.hero) {                                                                             // the Agent's coin tie clip
+    piece(g, circP(1, 34, 8.5), ink, { gap: 0, shadow: false });
+    piece(g, P("fgPin", () => circP(1, 34, 6.2, 18), 33, 0.4), opt.warm ?? INKS.noir.warm, { gap: 0, shadow: false });
+  }
   g.restore();
   const wr = armAt(p.shF, p.elF, true);
   g.restore();

@@ -6,7 +6,7 @@ in a house style: **Briefing** (`packages/kit/src/spy/`) or **Drafting** (`packa
 **To make a video, follow `VIDEO_PRODUCTION.md`** (steps, costs, gates, fixes). Dashboard: `bun run dashboard` (`dashboard:public` = password-protected internet access via Tailscale Funnel, `dashboard/public.ts`).
 
 ## Layout
-- `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `draft/` the Drafting engine (API in `draft/README.md`, demo `bun run studio --style drafting`); `paper/{lib,engine,transitions,
+- `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `draft/` the Drafting engine (API in `draft/README.md`, demo `bun run studio --style drafting`); characters (Penny, the Agent) in `brand-assets/mascot/`; `paper/{lib,engine,transitions,
   CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template.
 - `workflow/`: `styles/briefing/`, `styles/drafting/` (STYLE.md + ACT.md; pick per video with `direct --style`), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
   `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export),

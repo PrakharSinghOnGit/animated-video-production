@@ -20,6 +20,7 @@ It is **not**: a slide deck (no boxes with text in them, no title + bullets), fl
 - **Paper texture** multiplied over the whole frame, sparse ink voids on dark ink; film grain added at mux time.
 - **Type** is League Gothic, glyph outlines re-cut per letter (edge noise, ±0.8° rotation, ±1.5 px baseline jitter). Small set labels are League Spartan.
 - **Silhouette figures** (~7 heads tall): pieces merge into one outline with thin slits at the joints; identity by hat, coat cut, shoes and one accent that streams back when they move. Let the hat or accent stick out when a figure is behind a letter.
+- **The Agent** is the channel's recurring hero: the same silhouette with three slanted cuts in his hatband (the logo's three bars) and a gold coin tie clip (`figureSide(..., { hero: true })`). He is the viewer's stand-in (the saver, the trader, "you"); everyone else in the story is an extra without the signature. At most one Agent on screen. Spec: `brand-assets/mascot/AGENT.md`.
 - **Charts are paper too**: bars are cut strips (or letters) growing from a baseline, a line is a cut ribbon, a share of a whole is a cut circle with a wedge removed, a count is a grid of identical cut tokens. Scales stay honest: never stretch an axis to dramatise.
 
 ## 3. Colour logic
