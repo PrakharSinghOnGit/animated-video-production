@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Wealth Gap: offline</title>
+  <style>
+    :root { --bg: #f6f4f2; --card: #fbfaf9; --fg: #161514; --muted: #6b6762; --line: #e4e0dc; --btn: #161514; --btn-fg: #fbfaf9; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --card: #141414; --fg: #ededec; --muted: #9a9894; --line: #262626; --btn: #ededec; --btn-fg: #0b0b0b; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { width: 100%; max-width: 360px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 24px; }
+    img { width: 40px; height: 40px; border-radius: 8px; display: block; margin-bottom: 16px; }
+    h1 { font-size: 16px; margin: 0 0 6px; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    button { width: 100%; height: 44px; border: 0; border-radius: 8px; background: var(--btn); color: var(--btn-fg); font: inherit; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/icons/icon-192.png" alt="" />
+    <h1>Can't reach the dashboard</h1>
+    <p>The Mac may be asleep or offline, or the dashboard isn't running. Start it with <code>bun run dashboard:public</code>, then try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>
