@@ -7,5 +7,5 @@ export const Cols = ({ children, className }: { children: React.ReactNode; class
   <div className={cn("grid items-start gap-3.5 lg:grid-cols-2", className)}>{children}</div>
 );
 export const SubHead = ({ children }: { children: React.ReactNode }) => (
-  <h3 className="m-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+  <h3 className="m-0 text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground">{children}</h3>
 );

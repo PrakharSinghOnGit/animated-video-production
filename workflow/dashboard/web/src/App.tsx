@@ -15,6 +15,7 @@ import { OverviewPage } from "@/pages/OverviewPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { UsagePage } from "@/pages/UsagePage";
 import { MachinePage } from "@/pages/MachinePage";
+import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { cn } from "@/lib/utils";
 
 const LEFT = { min: 200, max: 380, def: 260, rail: 52 };
@@ -24,7 +25,7 @@ function Toasts() {
   const { toasts } = useApp();
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-16 z-[90] flex flex-col items-center gap-2 px-4">
-      {toasts.map((t) => <div key={t.id} className="max-w-md rounded-lg border bg-popover px-3.5 py-2 text-[13px] shadow-lg">{t.msg}</div>)}
+      {toasts.map((t) => <div key={t.id} className="max-w-md rounded-lg border border-border-strong bg-popover px-3.5 py-2.5 text-[13px] shadow-md animate-in fade-in-0 slide-in-from-bottom-2 duration-200">{t.msg}</div>)}
     </div>
   );
 }
@@ -48,12 +49,12 @@ function Shell() {
   const lres = useResize(lw, setLw, LEFT.min, LEFT.max, 1), rres = useResize(rw, setRw, RIGHT.min, RIGHT.max, -1);
 
   const page = route.view === "ws" ? <WorkspacePage /> : (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      {route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
+    <div key={route.view} className="wg-enter min-h-0 flex-1 overflow-y-auto">
+      {route.view === "analytics" ? <AnalyticsPage /> : route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
     </div>
   );
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)]">
       <TopBar phone={phone} showStats={!wide} onMenu={() => setLeftSheet(true)} onStats={() => setRightSheet(true)} />
       <div className="flex min-h-0 flex-1">
         {!phone && (

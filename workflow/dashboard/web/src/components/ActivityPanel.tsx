@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
 
 export function SectionHead({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
-  return <div className="flex min-h-8 items-center justify-between px-3 pb-1 pt-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><span>{children}</span>{right}</div>;
+  return <div className="flex min-h-8 items-center justify-between px-3 pb-1 pt-3.5 text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground"><span>{children}</span>{right}</div>;
 }
 
 function JobRow({ j }: { j: Job }) {

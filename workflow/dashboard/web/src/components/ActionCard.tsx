@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/tooltip";
 import { Fold } from "@/components/ui/collapsible";
 import { useApp } from "@/hooks/app";
 import { store } from "@/lib/storage";
-import { ago, cn, dur, STATUS_LABEL } from "@/lib/utils";
+import { ago, cn, dur } from "@/lib/utils";
 import { useHighlight } from "./highlight";
 import { MasterChain } from "./MasterChain";
-import { initialValue, OptionField, toOpts, type OptValue } from "./OptionField";
+import { initialValue, OptionField, toOpts, visible, type OptValue } from "./OptionField";
 import { RunButton } from "./RunButton";
 
 /** One runnable action: what it does, its options, a Run button. Master buttons also show the commands they chain. */
@@ -43,44 +44,48 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
   return (
     <div
       data-action={id}
-      className={cn("flex flex-col", !bare && "rounded-lg border bg-secondary/30 transition-[box-shadow,border-color]", !bare && isMaster && "border-l-[3px] border-l-brand", !bare && lit && "border-brand ring-2 ring-brand/60")}
+      className={cn("flex flex-col", !bare && "rounded-[10px] border bg-card shadow-sm transition-[box-shadow,border-color]", !bare && lit && "border-brand/70 ring-[3px] ring-brand/15")}
       onMouseEnter={isMaster ? () => setHot(coveredKeys) : undefined}
       onMouseLeave={isMaster ? () => setHot([]) : undefined}
       onFocus={isMaster ? () => setHot(coveredKeys) : undefined}
       onBlur={isMaster ? () => setHot([]) : undefined}
     >
-      {!bare && <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2.5">
-        <b className="text-[13px]">{title}</b>
-        {isMaster && <Badge tone="solid"><Layers className="size-3" />Master</Badge>}
-        {a.paid ? <Badge tone="warning">Paid · {a.paid}</Badge> : <Badge tone="success">Free</Badge>}
-        {a.long && <span className="ml-auto text-[11px] text-muted-foreground">{a.long}</span>}
-      </div>}
-      {!bare && <div className="px-3 pb-2 pt-1 text-xs text-muted-foreground">
-        {a.help}
-        {last && (
-          <div className="mt-0.5 text-[11.5px] opacity-80">
-            Last: {STATUS_LABEL[last.status === "done" ? "done" : "failed"]} {ago(last.end)}, {dur(last.ms)}
-            {last.cpuAvg != null ? `, CPU ${last.cpuAvg}% avg` : ""}{last.rssPeakMB ? `, ${last.rssPeakMB} MB peak` : ""}
-          </div>
+      {!bare && <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 px-4 pt-3">
+        <b className="text-[13px] font-semibold tracking-[-0.01em]">{title}</b>
+        {(a.help || covered.length > 0) && (
+          <InfoTip label={`About ${title}`}>
+            {a.help}
+            {covered.length > 0 && <div className="mt-1.5 text-subtle-foreground">Also runs inside: {covered.join(", ")}</div>}
+          </InfoTip>
         )}
-        {covered.length > 0 && <div className="mt-0.5 text-[11.5px] text-brand">Also runs inside: {covered.join(", ")}</div>}
+        {isMaster && <Badge><Layers className="size-3" />Chain</Badge>}
+        {a.paid && <Badge>{a.paid}</Badge>}
+        {a.long && <span className="ml-auto text-[11px] text-subtle-foreground">{a.long}</span>}
       </div>}
+      {!bare && last && (
+        <div className="px-4 pt-0.5 text-[11.5px] text-subtle-foreground">
+          {last.status === "done" ? "Ran" : "Failed"} {ago(last.end)} · {dur(last.ms)}{last.cpuAvg != null ? ` · CPU ${last.cpuAvg}%` : ""}{last.rssPeakMB ? ` · ${last.rssPeakMB} MB` : ""}
+        </div>
+      )}
+      {!bare && <div className="h-2" />}
       {!bare && isMaster && <MasterChain chain={a.chain!} job={running ? busy : null} />}
-      {hint && <div className="px-3 pb-2 text-xs text-warning">{hint}</div>}
+      {hint && <div className={cn("pb-2 text-xs text-warning", bare ? "px-3" : "px-4")}>{hint}</div>}
       {children}
       {defs.length > 0 && (
-        <Fold title={`Options (${defs.length})`} className={cn("px-3", !bare && "border-t")}>
-          <div className="grid gap-2 pb-3 pt-1">
-            {defs.map((o) => (
+        <Fold title={<span className="flex min-w-0 items-center gap-2">Options <span className="min-w-0 truncate font-mono text-[11px] font-normal text-subtle-foreground">{preview}</span></span>} className={cn("px-3", !bare && "border-t")}>
+          <div className="grid gap-2.5 pb-3 pt-1 sm:grid-cols-2 sm:gap-x-8">
+            {defs.filter((o) => visible(o, defs, merged)).map((o) => (
               <OptionField key={o.key} o={o} value={merged[o.key]} choices={id === "acts.all" && o.key === "acts" ? planActs : undefined} onChange={(v) => setVals((p) => { const n = { ...merged, ...p, [o.key]: v }; store.set(`opt.${id}`, toOpts(defs, n)); return n; })} />
             ))}
           </div>
         </Fold>
       )}
-      <div className={cn("mt-auto flex items-center gap-2.5 px-3", bare ? "pb-1 pt-0" : "pb-3 pt-1")}>
-        {!bare && <RunButton primary={!a.paid} running={running} disabled={!!busy} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />}
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={preview}>{preview}</span>
-      </div>
+      {!bare && (
+        <div className="mt-auto flex items-center gap-2.5 px-4 pb-4 pt-1">
+          <RunButton primary={!a.paid} running={running} disabled={!!busy} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />
+          {defs.length === 0 && <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={preview}>{preview}</span>}
+        </div>
+      )}
     </div>
   );
 }

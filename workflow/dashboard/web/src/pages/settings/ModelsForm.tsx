@@ -5,12 +5,8 @@ import { Input, NativeSelect } from "@/components/ui/fields";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 
-/** Defaults the pipeline scripts read from the environment (found with grep process.env in workflow/). Run options on a step still override them. */
+/** Non-agent defaults the pipeline scripts read from the environment (agent models live in Agent models). Run options on a step still override them. */
 const FIELDS: { key: string; label: string; used: string; def: string; choices?: string[] }[] = [
-  { key: "WRITER_MODEL", label: "Script writer model", used: "write_script.ts", def: "opus", choices: ["opus", "sonnet"] },
-  { key: "DIRECTOR_MODEL", label: "Director (plan) model", used: "direct.ts", def: "opus", choices: ["opus", "sonnet"] },
-  { key: "ACT_MODEL", label: "Act author model", used: "author_act.ts", def: "opus", choices: ["opus", "sonnet"] },
-  { key: "CRITIC_MODEL", label: "Act critic / review agent", used: "author_act.ts", def: "agy", choices: ["agy", "haiku", "sonnet", "opus"] },
   { key: "AGY_MODEL", label: "Gemini (agy) model id", used: "agent.ts", def: "gemini-3.8-flash-medium" },
   { key: "STORYBOARD_MODEL", label: "Storyboard model", used: "storyboard.ts", def: "opus" },
   { key: "AUTHOR_MODEL", label: "Legacy scene author model", used: "author.ts", def: "sonnet" },
@@ -32,7 +28,7 @@ export function ModelsForm() {
   };
   return (
     <Card>
-      <CardHeader><CardTitle>Models and defaults</CardTitle><CardSub>stored in .env · empty = the pipeline's own default</CardSub><span className="flex-1" />
+      <CardHeader><CardTitle>Other defaults</CardTitle><CardSub>stored in .env · empty = the pipeline's own default</CardSub><span className="flex-1" />
         <Button size="sm" variant="default" disabled={!changed.length} onClick={save}>Save</Button></CardHeader>
       <CardBody className="gap-0 p-0">
         {FIELDS.map((f) => (

@@ -10,10 +10,15 @@ export const initialValue = (o: OptDef, saved: Record<string, unknown>): OptValu
   return v == null ? "" : String(v);
 };
 
-/** Values in the shape server.ts validates (empty numbers/text are left out). */
+/** Whether an option applies under the current values (its `when` rule). */
+export const visible = (o: OptDef, defs: OptDef[], vals: Record<string, OptValue>) =>
+  !o.when || o.when.in.includes(String(vals[o.when.key] ?? defs.find((d) => d.key === o.when!.key)?.def ?? ""));
+
+/** Values in the shape server.ts validates (empty numbers/text and options hidden by `when` are left out). */
 export function toOpts(defs: OptDef[], vals: Record<string, OptValue>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const o of defs) {
+    if (!visible(o, defs, vals)) continue;
     const v = vals[o.key];
     if (o.type === "number") { if (v !== "" && v != null) out[o.key] = Number(v); }
     else if (o.type === "bool" || o.type === "multi") out[o.key] = v;

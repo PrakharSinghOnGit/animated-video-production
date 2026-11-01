@@ -8,7 +8,7 @@ export function DataTable({ head, children, className, maxH }: { head: { label: 
         <thead>
           <tr>
             {head.map((h, i) => (
-              <th key={i} className={cn("sticky top-0 z-[1] whitespace-nowrap border-b bg-card px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground", h.right ? "text-right" : "text-left", h.className)}>{h.label}</th>
+              <th key={i} className={cn("sticky top-0 z-[1] whitespace-nowrap border-b bg-card px-3 py-2 text-[11px] font-medium text-muted-foreground", h.right ? "text-right" : "text-left", h.className)}>{h.label}</th>
             ))}
           </tr>
         </thead>
@@ -17,4 +17,4 @@ export function DataTable({ head, children, className, maxH }: { head: { label: 
     </div>
   );
 }
-export const Td = ({ right, className, ...p }: React.ComponentProps<"td"> & { right?: boolean }) => <td className={cn("border-b border-border/60 px-2.5 py-1.5 align-top", right && "text-right", className)} {...p} />;
+export const Td = ({ right, className, ...p }: React.ComponentProps<"td"> & { right?: boolean }) => <td className={cn("border-b border-border/60 px-3 py-2 align-top", right && "text-right", className)} {...p} />;

@@ -10,10 +10,10 @@ function Big({ title, value, h, pick, max, color, unit }: { title: string; value
   const cfg = { v: { label: title, color } } satisfies ChartConfig;
   return (
     <Card>
-      <CardHeader><CardTitle>{title}</CardTitle><span className="flex-1" /><b>{value}</b></CardHeader>
+      <CardHeader><CardTitle>{title}</CardTitle><span className="flex-1" /><b className="text-[13px] font-semibold tabular-nums">{value}</b></CardHeader>
       <CardBody>
         <ChartContainer config={cfg} className="aspect-auto h-[130px] w-full">
-          <AreaChart data={data} margin={{ left: -16, right: 4, top: 4, bottom: 0 }}>
+          <AreaChart data={data} margin={{ left: 0, right: 4, top: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="i" hide />
             <YAxis domain={[0, max]} tickLine={false} axisLine={false} width={34} />
@@ -31,9 +31,9 @@ export function MachinePage() {
   if (!s) return <div className="p-6 text-muted-foreground">Loading…</div>;
   const n = s.now, H = s.history;
   return (
-    <div className="grid gap-3.5 p-4 pb-10">
+    <div className="mx-auto grid max-w-[1400px] gap-5 px-6 pb-12 pt-6 max-sm:px-4">
       <div>
-        <h2 className="m-0 text-lg font-semibold tracking-tight">Machine</h2>
+        <h1 className="m-0 text-[20px] font-semibold leading-tight tracking-[-0.02em]">Machine</h1>
         <p className="m-0 mt-1 text-muted-foreground">{s.machine.cpu} · {s.machine.cores} cores · {s.machine.memGB} GB · {s.machine.host}. Sampled every 2 s while this page is open or a job runs (last {Math.round((H.length * 2) / 60)} min).</p>
       </div>
       <div className="grid gap-3.5 md:grid-cols-2">

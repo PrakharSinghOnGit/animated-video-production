@@ -1,4 +1,5 @@
-import { AudioLines, BarChart3, List, Menu, Workflow, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
+import { AudioLines, BarChart3, ChevronRight, List, Menu, Workflow, Moon, Square, SquareArrowOutUpRight, Sun, Clapperboard } from "lucide-react";
+import { Segmented } from "@/components/ui/layout";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
@@ -9,7 +10,7 @@ import { api } from "@/lib/api";
 import { STEPS } from "@/lib/steps";
 import { cn } from "@/lib/utils";
 
-const PAGE: Record<string, string> = { overview: "Overview", usage: "Claude usage", machine: "Machine", settings: "Settings" };
+const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics" };
 
 /** Thin menu bar: brand, breadcrumb, state pill, Remotion Studio for the open video, theme. No machine stats. */
 export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; showStats: boolean; onMenu: () => void; onStats: () => void }) {
@@ -29,35 +30,34 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
   const mine = studio?.running && studio.ws === ws;
 
   return (
-    <header className="flex h-10 shrink-0 items-center gap-2 border-b bg-card px-2">
+    <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-card px-2.5">
       {phone && <Button variant="ghost" size="icon" onClick={onMenu} aria-label="Open navigation"><Menu /></Button>}
-      <img src="/brand/Logo.png" alt="" className="size-6 rounded-[4px]" />
-      <b className="hidden text-[13px] font-semibold tracking-tight sm:inline">The Wealth Gap</b>
-      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-[13px] text-muted-foreground">
-        <span className="text-border max-sm:hidden">/</span>
+      <button onClick={() => go({ view: "overview", yt: null })} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/60" aria-label="The Wealth Gap: overview">
+        <img src="/brand/Logo.png" alt="" className="size-6 rounded-[5px] ring-1 ring-border" />
+        <span className="hidden text-[13px] font-semibold tracking-[-0.01em] sm:inline">The Wealth Gap</span>
+      </button>
+      <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] text-muted-foreground">
         {crumbs.map((c, i) => (
-          <span key={i} className={cn("truncate", i === crumbs.length - 1 && "text-foreground", i === 0 && route.view === "ws" && "font-mono text-xs")}>
-            {i > 0 && <span className="mr-1.5 text-border">›</span>}{c}
+          <span key={i} className="flex min-w-0 items-center gap-1">
+            <ChevronRight className="size-3.5 shrink-0 text-subtle-foreground/70 max-sm:hidden" />
+            {i === 0 && route.view === "ws" && crumbs.length > 1
+              ? <button onClick={() => go({ sec: null, step: null, act: null, short: null })} className="truncate rounded px-1 font-mono text-xs hover:bg-accent hover:text-foreground">{c}</button>
+              : <span className={cn("truncate px-1", i === crumbs.length - 1 && "font-medium text-foreground", i === 0 && route.view === "ws" && "font-mono text-xs")}>{c}</span>}
           </span>
         ))}
       </nav>
       {route.view === "ws" && (
-        <div role="group" aria-label="Workspace view" className="flex shrink-0 rounded-md border p-0.5">
-          {([["list", List, "List"], ["nodes", Workflow, "Nodes"]] as const).map(([m, Icon, text]) => (
-            <button key={m} onClick={() => setMode(m)} aria-pressed={mode === m} aria-label={`${text} view`}
-              className={cn("flex h-6 items-center gap-1 rounded-[5px] px-1.5 text-xs [&_svg]:size-3.5", mode === m ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground")}>
-              <Icon />{!phone && text}
-            </button>
-          ))}
-        </div>
+        <Segmented label="Workspace view" value={mode} onChange={setMode} className="h-7"
+          options={[{ value: "list", label: phone ? "" : "Steps", icon: <List /> }, { value: "nodes", label: phone ? "" : "Graph", icon: <Workflow /> }]} />
       )}
       <Tip label={full}>
         <button disabled={!target} onClick={() => { if (target) { go({ view: "ws", ws: target.ws, sec: null, step: null, short: null }); showLog(target.id); } }}
-          className={cn("flex h-7 w-[104px] shrink-0 items-center gap-1.5 overflow-hidden rounded-full border px-2.5 text-xs sm:w-[250px] disabled:cursor-default", state === "failed" && "border-destructive/50", state === "running" && "border-warning/50")} aria-label={full}>
+          className={cn("flex h-7 w-[104px] shrink-0 items-center gap-2 overflow-hidden rounded-md border bg-background px-2.5 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60 enabled:hover:bg-accent disabled:cursor-default", state === "none" ? "sm:w-auto" : "sm:w-[260px]", state === "failed" && "border-destructive/40 bg-destructive/5", state === "running" && "border-warning/40 bg-warning/5")} aria-label={full}>
           <StatusDot s={state} />
           <span className={cn("min-w-0 flex-1 truncate text-left", state === "none" ? "text-muted-foreground" : "text-foreground")}>{text}</span>
         </button>
       </Tip>
+      <span aria-hidden className="mx-0.5 h-5 w-px bg-border max-sm:hidden" />
       {mine ? (
         <>
           {studio!.url

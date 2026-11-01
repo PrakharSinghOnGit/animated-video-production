@@ -1,5 +1,3 @@
-import { Layers } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { RunButton } from "@/components/RunButton";
 import { MasterChain } from "@/components/MasterChain";
 import { useHighlight } from "@/components/highlight";
@@ -21,11 +19,11 @@ export function RunAll({ action }: { action: string }) {
   const running = busy?.label === a.label;
   const covered = chain.flatMap((c) => (c.action ? [c.action] : []));
   return (
-    <div className="grid w-[190px] shrink-0 justify-items-stretch gap-1.5 max-sm:w-full" onMouseEnter={() => setHot(covered)} onMouseLeave={() => setHot([])} onFocus={() => setHot(covered)} onBlur={() => setHot([])}>
-      <RunButton primary={!a.paid} running={running} disabled={!!busy} label={`Run all · ${a.label}`} onClick={() => runSaved(action)} />
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <Badge tone="neutral"><Layers className="size-3" />{a.paid ? `Paid ${a.paid}` : "Free"}</Badge>
-        <span>{a.long ?? ""}</span>
+    <div className="grid shrink-0 justify-items-end gap-1 self-center max-sm:w-full max-sm:justify-items-stretch" onMouseEnter={() => setHot(covered)} onMouseLeave={() => setHot([])} onFocus={() => setHot(covered)} onBlur={() => setHot([])}>
+      <RunButton primary running={running} disabled={!!busy} label={chain.length > 1 ? "Run all" : a.label} onClick={() => runSaved(action)} />
+      <div className="flex items-center gap-1.5 text-[11px] text-subtle-foreground">
+        {a.paid ? <span>{a.paid}</span> : <span>Free</span>}
+        {a.long && <><span aria-hidden>·</span><span>{a.long}</span></>}
       </div>
     </div>
   );
@@ -40,7 +38,7 @@ export function RunAllChain({ action }: { action: string }) {
   const chain = a.chain ?? [{ label: a.label, action }];
   const covered = chain.flatMap((c) => (c.action ? [c.action] : []));
   return (
-    <div className="-mx-3 px-0" onMouseEnter={() => setHot(covered)} onMouseLeave={() => setHot([])}>
+    <div className="-mx-3" onMouseEnter={() => setHot(covered)} onMouseLeave={() => setHot([])}>
       <MasterChain chain={chain} job={busy?.label === a.label ? busy : null} />
     </div>
   );

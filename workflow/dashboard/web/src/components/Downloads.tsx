@@ -64,7 +64,7 @@ export function Downloads({ short, info, staleAfter }: { short?: string; info: D
         if (!its.length) return null;
         return (
           <div key={g}>
-            <div className="mb-0.5 flex items-baseline gap-2"><b className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</b><span className="text-[11px] text-muted-foreground">{sub}</span></div>
+            <div className="mb-0.5 flex items-baseline gap-2"><b className="text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground">{title}</b><span className="text-[11px] text-muted-foreground">{sub}</span></div>
             <div className="rounded-lg border px-3">{its.map((it) => <Row key={it.key} it={it} href={api.downloadUrl(ws, prefix + it.file)} />)}</div>
           </div>
         );

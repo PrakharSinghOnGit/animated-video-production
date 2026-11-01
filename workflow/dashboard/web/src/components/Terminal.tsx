@@ -38,22 +38,22 @@ export function Terminal({ phone }: { phone: boolean }) {
           onKeyDown={(e) => { if (e.key === "ArrowUp") setH(Math.min(maxH(), height + 24)); if (e.key === "ArrowDown") setH(Math.max(MIN, height - 24)); }}
         />
       )}
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b pl-1 pr-1.5">
-        <button onClick={() => setOpen(!open)} className="flex h-full items-center gap-1.5 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" aria-expanded={open}>
-          <TerminalIcon className="size-3.5" /> Terminal {open ? <ChevronDown className="size-3.5" /> : <ChevronUp className="size-3.5" />}
+      <div className="flex h-9 shrink-0 items-center gap-1 border-b pl-1 pr-1.5 max-md:h-11">
+        <button onClick={() => setOpen(!open)} className="flex h-full items-center gap-1.5 px-2 text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground" aria-expanded={open}>
+          <TerminalIcon className="size-3.5" /> Output {open ? <ChevronDown className="size-3.5 text-subtle-foreground" /> : <ChevronUp className="size-3.5 text-subtle-foreground" />}
         </button>
         <div role="tablist" className="flex min-w-0 flex-1 items-stretch self-stretch overflow-x-auto">
           {jobs.map((j) => (
             <button key={j.id} role="tab" aria-selected={j.id === active} onClick={() => { showLog(j.id); setOpen(true); }}
-              className={cn("flex max-w-[200px] shrink-0 items-center gap-1.5 border-b-2 border-transparent px-2.5 text-xs text-muted-foreground hover:text-foreground", j.id === active && "border-brand text-foreground")}>
+              className={cn("relative flex max-w-[200px] shrink-0 items-center gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground", j.id === active && "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-[2px] after:rounded-full after:bg-brand")}>
               <StatusDot s={j.status === "running" ? "running" : j.status === "done" ? "done" : "failed"} />
               <span className="truncate">{j.label}</span>
             </button>
           ))}
-          {jobs.length === 0 && <span className="self-center px-2 text-xs text-muted-foreground">No runs yet for this video</span>}
+          {jobs.length === 0 && <span className="self-center px-2 text-xs text-subtle-foreground">No runs yet</span>}
         </div>
         {open && ws && (
-          <NativeSelect aria-label="Older log of a step" className="!h-8 w-28 text-xs max-md:hidden" value="" onChange={(e) => { if (e.target.value) { showLog(`log:${e.target.value}`); } }}>
+          <NativeSelect aria-label="Older log of a step" className="!h-7 w-28 text-xs max-md:hidden" value="" onChange={(e) => { if (e.target.value) { showLog(`log:${e.target.value}`); } }}>
             <option value="">Older log…</option>
             {STEPS_WITH_LOG.map((k) => <option key={k} value={k}>{k}</option>)}
           </NativeSelect>

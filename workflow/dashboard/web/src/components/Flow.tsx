@@ -1,16 +1,16 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Layers } from "lucide-react";
+import { Check, ChevronDown, Layers, Loader2, X } from "lucide-react";
+import { InfoTip } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Fold } from "@/components/ui/collapsible";
 import { RunButton } from "@/components/RunButton";
-import { StatusDot } from "@/components/Status";
 import { ActionCard } from "@/components/ActionCard";
 import { useHighlight } from "@/components/highlight";
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { costOf, lastRun, type BlockStatus } from "@/lib/flow";
 import { blockStatus, type BlockSpec, type LoopDef } from "@/lib/pipeline";
-import { useMedia } from "@/lib/storage";
+import { useMedia, useStored } from "@/lib/storage";
 import { ago, cn, dur, money } from "@/lib/utils";
 
 export type { LoopDef };
@@ -18,8 +18,6 @@ export interface BlockDef extends BlockSpec { children?: React.ReactNode }
 /** Attach each block's content (by block id) to the shared spec. */
 export const withKids = (blocks: BlockSpec[], kids: Record<string, React.ReactNode>): BlockDef[] => blocks.map((b) => ({ ...b, children: kids[b.id] }));
 
-const STATUS_TXT: Record<BlockStatus, string> = { done: "Done", running: "Running", failed: "Failed", todo: "To do" };
-const TONE = { done: "success", running: "warning", failed: "danger", todo: "neutral" } as const;
 
 function useStatus(b: BlockSpec): { status: BlockStatus; last: ReturnType<typeof lastRun>; cost: ReturnType<typeof costOf> } {
   const { d, busy } = useApp();
@@ -27,35 +25,60 @@ function useStatus(b: BlockSpec): { status: BlockStatus; last: ReturnType<typeof
   return { status: blockStatus(d, busy, b), last, cost: d ? costOf(d, b.costRe ?? null) : null };
 }
 
+function StepMark({ status, index }: { status: BlockStatus; index: number }) {
+  return (
+    <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ring-1 ring-inset",
+      status === "done" ? "bg-success/12 text-success ring-success/30" : status === "running" ? "bg-warning/12 text-warning ring-warning/40" : status === "failed" ? "bg-destructive/12 text-destructive ring-destructive/35" : "bg-raised text-muted-foreground ring-border-strong")}>
+      {status === "done" ? <Check className="size-3.5" strokeWidth={2.5} /> : status === "running" ? <Loader2 className="size-3.5 animate-spin" /> : status === "failed" ? <X className="size-3.5" strokeWidth={2.5} /> : index + 1}
+    </span>
+  );
+}
+
 function Block({ b, index }: { b: BlockDef; index: number }) {
-  const { schema, busy } = useApp();
+  const { schema, busy, ws } = useApp();
   const { hot } = useHighlight();
   const runSaved = useRunSaved();
   const { status, last, cost } = useStatus(b);
   const a = b.action ? schema[b.action] : undefined;
   const lit = !!b.action && hot.has(b.action);
+  const hasOpts = !!(b.action && a && a.opts.length > 0 && b.options !== false);
+  const hasBody = hasOpts || !!b.children;
+  const [open, setOpen] = useStored<boolean>(`block.${ws}.${b.id}${b.act ? `.${b.act}` : ""}`, true);
+  const info = b.desc ?? a?.help;
   return (
-    <div data-block={b.id} data-status={status} className={cn("rounded-lg border bg-card transition-shadow", status === "running" && "border-warning/60", status === "failed" && "border-destructive/50", lit && "border-brand ring-2 ring-brand/50")}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3.5 py-2.5">
-        <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold", status === "done" ? "border-success/50 text-success" : status === "running" ? "border-warning bg-warning/15 text-warning" : status === "failed" ? "border-destructive/60 text-destructive" : "text-muted-foreground")}>{index + 1}</span>
+    <div data-block={b.id} data-status={status}
+      className={cn("rounded-[10px] border bg-card shadow-sm transition-[border-color,box-shadow] duration-200", status === "running" && "border-warning/50", status === "failed" && "border-destructive/45", lit && "border-brand/70 ring-[3px] ring-brand/15")}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 max-sm:px-3">
+        <StepMark status={status} index={index} />
         <div className="min-w-0 flex-1 basis-48">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="m-0 text-[14px] font-semibold tracking-tight">{b.title}</h3>
-            <Badge tone={TONE[status]}><StatusDot s={status === "todo" ? "none" : status} />{STATUS_TXT[status]}</Badge>
-            {a && (a.paid ? <Badge tone="warning">Paid · {a.paid}</Badge> : <Badge tone="success">Free</Badge>)}
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+            {hasBody
+              ? <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="group -ml-1 flex items-center gap-1 rounded px-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60">
+                  <h3 className="m-0 text-[13.5px] font-semibold tracking-[-0.01em]">{b.title}</h3>
+                  <ChevronDown className={cn("size-3.5 text-subtle-foreground transition-transform duration-200 group-hover:text-foreground", !open && "-rotate-90")} />
+                </button>
+              : <h3 className="m-0 text-[13.5px] font-semibold tracking-[-0.01em]">{b.title}</h3>}
+            {info && <InfoTip>{info}</InfoTip>}
+            {status === "failed" && <Badge tone="danger">Failed</Badge>}
+            {a?.paid && <Badge tone="neutral" title="Calls Claude">{a.paid}</Badge>}
             {a?.chain && <Badge tone="neutral"><Layers className="size-3" />Chain</Badge>}
           </div>
-          {(b.desc || a?.help) && <p className="m-0 mt-0.5 text-xs text-muted-foreground">{b.desc ?? a?.help}</p>}
+          {(last || (cost && cost.cost > 0)) && (
+            <div className="mt-0.5 flex flex-wrap gap-x-2 text-[11.5px] text-subtle-foreground">
+              {last && <span>Ran {ago(last.end)} · {dur(last.ms)}</span>}
+              {cost && cost.cost > 0 && <span>{money(cost.cost)} spent</span>}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-3 text-[11.5px] text-muted-foreground max-sm:order-3 max-sm:w-full">
-          {last && <span>last run {ago(last.end)} · {dur(last.ms)}</span>}
-          {cost && cost.cost > 0 && <span className="text-foreground/80">{money(cost.cost)}</span>}
-        </div>
-        {b.action && <RunButton primary={!a?.paid} running={status === "running"} disabled={!!busy} onClick={() => runSaved(b.action!, b.act)} />}
+        {b.action && <RunButton running={status === "running"} disabled={!!busy} onClick={() => runSaved(b.action!, b.act)} />}
       </div>
-      {b.note && <div className="px-3.5 pb-2 text-xs text-warning">{b.note}</div>}
-      {b.action && a && a.opts.length > 0 && b.options !== false && <div className="border-t"><ActionCard bare id={b.action} act={b.act} hint={b.hint} /></div>}
-      {b.children && <div className="grid gap-3 border-t p-3.5">{b.children}</div>}
+      {b.note && <div className="-mt-1 px-4 pb-3 pl-[52px] text-xs text-warning">{b.note}</div>}
+      {hasBody && open && (
+        <div className="wg-enter">
+          {hasOpts && <div className="border-t px-1"><ActionCard bare id={b.action!} act={b.act} hint={b.hint} /></div>}
+          {b.children && <div className="grid gap-3 border-t p-4 max-sm:p-2.5">{b.children}</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -93,17 +116,17 @@ export function Flow({ blocks, loops = [] }: { blocks: BlockDef[]; loops?: LoopD
   const ids = blocks.map((b) => b.id);
   const ax = G - (narrow ? 9 : 14);
   return (
-    <div ref={box} className="relative grid gap-6" style={{ paddingLeft: G }}>
+    <div ref={box} className="relative grid gap-5" style={{ paddingLeft: G }}>
       <svg aria-hidden className="pointer-events-none absolute left-0 top-0 overflow-visible" width={G} height={height || 1}>
         <defs>
-          {[["m", "var(--muted-foreground)"], ["b", "var(--brand)"]].map(([k, c]) => (
+          {[["m", "var(--border-strong)"], ["b", "var(--brand)"]].map(([k, c]) => (
             <marker key={k} id={`wg-arrow-${k}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" fill={c} /></marker>
           ))}
         </defs>
         {ids.slice(0, -1).map((id, i) => {
           const a = pos[id], b = pos[ids[i + 1]];
           if (!a || !b) return null;
-          return <line key={id} x1={ax} y1={a.top + a.h} x2={ax} y2={b.top - 1} stroke="var(--muted-foreground)" strokeOpacity={0.7} strokeWidth={1.5} markerEnd="url(#wg-arrow-m)" />;
+          return <line key={id} x1={ax} y1={a.top + a.h} x2={ax} y2={b.top - 1} stroke="var(--border-strong)" strokeWidth={1.5} markerEnd="url(#wg-arrow-m)" />;
         })}
         {loops.map((l, k) => {
           const f = pos[l.from], t = pos[l.to];

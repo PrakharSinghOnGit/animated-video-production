@@ -13,8 +13,8 @@ import { ago, dur, tok } from "@/lib/utils";
 function Section({ id, title, defaultOpen = true, children }: { id: string; title: string; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useStored<boolean>(`right.${id}`, defaultOpen);
   return (
-    <section className="border-b px-3">
-      <Fold title={<span className="text-[11px] font-semibold uppercase tracking-wider">{title}</span>} open={open} onOpenChange={setOpen} trigger="min-h-9 max-md:min-h-11">
+    <section className="border-b px-4">
+      <Fold title={<span className="text-[11px] font-medium uppercase tracking-[0.08em]">{title}</span>} open={open} onOpenChange={setOpen} trigger="min-h-10 max-md:min-h-11">
         <div className="pb-3">{children}</div>
       </Fold>
     </section>
@@ -36,7 +36,7 @@ function UsageMini() {
   if (!usage) return <div className="h-[90px] text-xs text-muted-foreground">Reading session logs…</div>;
   return (
     <div className="mt-3">
-      <div className="mb-1 text-xs font-medium">Tokens per day (input + cache write + output)</div>
+      <div className="mb-1 text-[11px] text-muted-foreground">Tokens per day, last 14 days</div>
       <ChartContainer config={cfg} className="aspect-auto h-[90px] w-full">
         <BarChart data={data} margin={{ left: -22, right: 0, top: 2, bottom: 0 }}>
           <CartesianGrid vertical={false} />
@@ -72,7 +72,7 @@ export function MonitorBody() {
   return (
     <div>
       <Section id="machine" title="Machine"><MachineBlock /></Section>
-      <Section id="usage" title="Claude usage"><LimitsMeter /><UsageMini /></Section>
+      <Section id="usage" title="Usage"><LimitsMeter /><UsageMini /></Section>
       <Section id="jobs" title="Recent jobs"><JobsBlock /></Section>
       <Section id="runs" title="Runs" defaultOpen={false}><RunsBlock /></Section>
       <Section id="perf" title="Performance"><PerformancePanel /></Section>

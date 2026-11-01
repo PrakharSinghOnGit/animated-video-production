@@ -10,8 +10,8 @@ import { StatTile } from "@/components/StatTile";
 const stepOf = (k: string) => (/^(act|fix|frames|preview|review)(:|$)/.test(k) ? "acts" : k);
 
 const timeCfg = { pipeline: { label: "Pipeline (timings.json)", color: "var(--chart-3)" }, wall: { label: "Dashboard runs", color: "var(--chart-2)" } } satisfies ChartConfig;
-const costCfg = { cost: { label: "Claude cost", color: "var(--chart-2)" } } satisfies ChartConfig;
-const actCfg = { cost: { label: "Claude cost", color: "var(--chart-4)" } } satisfies ChartConfig;
+const costCfg = { cost: { label: "Model cost", color: "var(--chart-2)" } } satisfies ChartConfig;
+const actCfg = { cost: { label: "Model cost", color: "var(--chart-4)" } } satisfies ChartConfig;
 const min1 = (m: number) => `${Math.round(m * 10) / 10} min`;
 
 /** Time and money per step for the selected video. Sources: timings.json (meta, timings) and dashboard_runs.json (runs). */
@@ -35,7 +35,7 @@ export function PerformancePanel() {
     <div>
       <div className="flex flex-wrap gap-x-5 gap-y-1 pb-2">
         <StatTile align="left" value={dur(d.totals.ms)} label="recorded time" />
-        <StatTile align="left" value={money(d.totals.costUsd)} label="Claude cost" />
+        <StatTile align="left" value={money(d.totals.costUsd)} label="Model cost" />
         <StatTile align="left" value={dur(data.wallTotal)} label="dashboard runs" />
       </div>
       {empty ? <div className="pb-3 text-xs text-muted-foreground">No timings recorded for this video yet.</div> : (

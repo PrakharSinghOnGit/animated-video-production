@@ -14,8 +14,9 @@ import { DataTable, Td } from "@/components/DataTable";
 import { Note, Prose } from "@/components/FileLine";
 import { ActionGrid, SubHead } from "@/components/Layout";
 import { RunButton } from "@/components/RunButton";
-import { StatTile } from "@/components/StatTile";
-import { StatusDot, StatusPill } from "@/components/Status";
+import { Markdown } from "@/components/ui/markdown";
+import { PageHeader, StatCard } from "@/components/ui/layout";
+import { StatusPill } from "@/components/Status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
@@ -48,37 +49,39 @@ export function ProjectOverview() {
   ];
 
   return (
-    <div className="grid gap-5 p-4 pb-10">
-      <header className="flex flex-wrap items-start gap-x-8 gap-y-3">
-        <div className="min-w-0 flex-1 basis-80">
-          <div className="font-mono text-xs text-muted-foreground">{d.id}{d.style ? ` · ${d.style}` : ""}</div>
-          <h1 className="m-0 mt-0.5 text-lg font-semibold tracking-tight">{d.title ?? (firstLine(idea) || "Untitled project")}</h1>
-          {idea && <p className="m-0 mt-1.5 line-clamp-3 max-w-3xl whitespace-pre-line text-[13px] text-muted-foreground" title={idea}>{idea.slice(0, 500)}</p>}
-          {!idea && <p className="m-0 mt-1.5 text-[13px] text-muted-foreground">No idea written yet: start in the Video section, step Script.</p>}
-        </div>
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <StatTile align="left" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} label="narration" />
-          <StatTile align="left" value={d.acts.length ? String(d.acts.length) : "—"} label="acts" />
-          <StatTile align="left" value={items.length ? `${exported}/${items.length}` : "—"} label="shorts exported" />
-          <StatTile align="left" value={dur(d.totals.ms)} label="recorded time" />
-          <StatTile align="left" value={money(d.totals.costUsd)} label="Claude cost" />
-          <StatTile align="left" value={ov ? mb(ov.bytes.total) : "…"} label="on disk" />
-        </div>
-      </header>
+    <div className="mx-auto grid max-w-[1400px] gap-7 px-6 pb-12 pt-6 max-sm:px-4">
+      <PageHeader
+        eyebrow={<span className="font-mono normal-case tracking-normal">{d.id}{d.style ? ` · ${d.style}` : ""}</span>}
+        title={d.title ?? (firstLine(idea) || "Untitled project")}
+        sub={!idea ? "No idea written yet: start with the Script step." : undefined}
+        actions={next ? <Button variant="default" onClick={() => go({ sec: "video", step: next.key, act: null, short: null })}>Continue: {next.label}<ArrowRight /></Button> : undefined}
+      />
+      {idea && (
+        <Fold title="Idea" className="-mt-3 max-w-4xl">
+          <div className="rounded-lg border bg-card px-4 py-3"><Markdown>{idea}</Markdown></div>
+        </Fold>
+      )}
+      <div className="wg-stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="Narration" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} />
+        <StatCard label="Acts" value={d.acts.length ? String(d.acts.length) : "—"} />
+        <StatCard label="Shorts exported" value={items.length ? `${exported}/${items.length}` : "—"} />
+        <StatCard label="Recorded time" value={dur(d.totals.ms)} />
+        <StatCard label="Model cost" value={money(d.totals.costUsd)} />
+        <StatCard label="On disk" value={ov ? mb(ov.bytes.total) : "…"} />
+      </div>
 
       <section aria-label="Sections" className="grid gap-3 md:grid-cols-3">
         {sections.map((s) => (
-          <Card key={s.sec} className="flex flex-col">
-            <CardHeader><CardTitle className="text-sm">{s.title}</CardTitle><span className="flex-1" /><StatusPill s={s.status} /></CardHeader>
-            <CardBody className="flex-1 content-start">
-              <div className="text-[13px]">{s.line}</div>
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {s.dots.map((x) => <span key={x.k} className="flex items-center gap-1.5 text-[11px] text-muted-foreground" title={`${x.label}: ${STATUS_LABEL[x.s] ?? x.s}`}><StatusDot s={x.s} />{x.label}</span>)}
-              </div>
-              <div className="text-[11.5px] text-muted-foreground">{s.ms ? dur(s.ms) : "no runs"}{s.cost ? ` · ${money(s.cost)}` : ""}</div>
-              <Button className="mt-auto w-fit" onClick={() => go({ sec: s.sec, step: null, act: null, short: null })}>{s.open}<ArrowRight /></Button>
-            </CardBody>
-          </Card>
+          <button key={s.sec} onClick={() => go({ sec: s.sec, step: null, act: null, short: null })}
+            className="group flex flex-col gap-3 rounded-[10px] border bg-card p-4 text-left shadow-sm outline-none transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/60">
+            <div className="flex items-center gap-2"><span className="text-[14px] font-semibold tracking-[-0.01em]">{s.title}</span><span className="flex-1" /><StatusPill s={s.status} /></div>
+            <div className="text-[13px] text-muted-foreground">{s.line}</div>
+            <span className="flex h-1 gap-[2px]">{s.dots.map((x) => <span key={x.k} title={`${x.label}: ${STATUS_LABEL[x.s] ?? x.s}`} className={`h-full flex-1 rounded-full ${x.s === "done" ? "bg-success" : x.s === "running" ? "bg-warning" : x.s === "partial" || x.s === "stale" ? "bg-warning/60" : x.s === "failed" ? "bg-destructive" : "bg-border-strong"}`} />)}</span>
+            <div className="mt-auto flex items-center justify-between text-[11.5px] text-subtle-foreground">
+              <span className="tabular-nums">{s.ms ? dur(s.ms) : "no runs"}{s.cost ? ` · ${money(s.cost)}` : ""}</span>
+              <span className="flex items-center gap-1 font-medium text-muted-foreground group-hover:text-foreground">Open<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+            </div>
+          </button>
         ))}
       </section>
 

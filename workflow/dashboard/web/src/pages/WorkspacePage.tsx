@@ -30,7 +30,7 @@ const RUN_ALL: Record<VideoKey, string> = { script: "script.write", voice: "voic
 
 const DESC: Record<VideoKey, string> = {
   script: "Write your idea in plain text. Claude turns it into a spoken, chunked script with a scored hook and on-screen hints (yt-script method). You review and edit it, then approve it; nothing is voiced before that. Approval is a human gate and is never part of Run all.",
-  voice: "Local Chatterbox voice clone. Each section is generated in several takes and the take that best matches the script (speech recognition) is kept.",
+  voice: "Qwen3-TTS reads every sentence in the channel voice. Each sentence gets several takes; the one that best matches the script and the voice is kept.",
   align: "Word-level timings from the voiceover, then mastering (EQ, de-ess, compression, −14 LUFS), the captions the planner uses, and the .srt for YouTube.",
   plan: "The director (Claude) splits the narration into acts: beats, the hits that must land on spoken words, BPM, and the data shown on screen with its source.",
   acts: "Each act is drawn in code by Claude in the plan's house style. Preview it, ask a reviewer, collect notes, send them to the act's author, and review again.",
@@ -49,7 +49,7 @@ function stats(k: VideoKey, d: Details): React.ReactNode {
     <>
       <StatTile value={own[k][0]} label={own[k][1]} />
       {m && <StatTile value={dur(m.totalMs)} label={`${m.runs} runs`} />}
-      {m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Claude cost" />}
+      {m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Model cost" />}
     </>
   );
 }

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Eye, PencilLine } from "lucide-react";
+import { Markdown } from "@/components/ui/markdown";
+import { Segmented } from "@/components/ui/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/fields";
@@ -18,6 +21,8 @@ export function TextEditor({ title, sub, rows, placeholder, hint, draft, onSave,
 }) {
   const { toast } = useApp();
   const local = useRef<HTMLTextAreaElement>(null);
+  const isMd = !!sub && /\.md\b/.test(sub);
+  const [view, setView] = useState<"write" | "preview">("write");
   const save = async () => {
     try { await onSave(draft.v); draft.saved(); toast(`${title} saved`); } catch (e) { toast((e as Error).message); }
   };
@@ -25,19 +30,24 @@ export function TextEditor({ title, sub, rows, placeholder, hint, draft, onSave,
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        {sub && <CardSub className="hidden sm:inline">{sub}</CardSub>}
+        {sub && <CardSub className="hidden font-mono text-[11px] sm:inline">{sub}</CardSub>}
         <span className="flex-1" />
-        {draft.dirty && <span className="text-xs text-warning">unsaved</span>}
+        {draft.dirty && <span className="flex items-center gap-1.5 text-xs text-warning"><span className="size-1.5 rounded-full bg-warning" />Unsaved</span>}
         {extra}
-        <Button size="sm" onClick={save} disabled={!draft.dirty}>Save</Button>
+        {isMd && <Segmented label={`${title} view`} value={view} onChange={setView} className="h-7" options={[{ value: "write", label: <span className="max-sm:sr-only">Write</span>, icon: <PencilLine /> }, { value: "preview", label: <span className="max-sm:sr-only">Preview</span>, icon: <Eye /> }]} />}
+        <Button size="sm" variant={draft.dirty ? "default" : "secondary"} onClick={save} disabled={!draft.dirty}>Save</Button>
       </CardHeader>
       <CardBody>
-        <Textarea
+        {view === "preview" && isMd ? (
+          <div className="min-h-24 overflow-auto rounded-md border bg-background px-4 py-3" style={{ maxHeight: `${Math.max(rows, 6) * 1.65 + 1.5}rem` }}>
+            {draft.v.trim() ? <Markdown>{draft.v}</Markdown> : <span className="text-xs text-subtle-foreground">Nothing written yet.</span>}
+          </div>
+        ) : <Textarea
           ref={(el) => { (local as { current: HTMLTextAreaElement | null }).current = el; if (typeof taRef === "function") taRef(el); else if (taRef) (taRef as { current: HTMLTextAreaElement | null }).current = el; }}
           rows={rows} value={draft.v} placeholder={placeholder} spellCheck={spellCheck}
           onChange={(e) => draft.set(e.target.value)}
           onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); void save(); } }}
-        />
+        />}
         {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
       </CardBody>
     </Card>
