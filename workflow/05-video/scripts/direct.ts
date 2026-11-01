@@ -16,6 +16,7 @@ import { roleModel } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
+import { requireFresh } from "../src/lib/freshness";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -40,6 +41,7 @@ if (!videoId) {
 
 const paths = resolveJobPaths(videoId);
 const wsDir = path.dirname(paths.outputDir);
+if (!process.argv.includes("--check")) requireFresh(wsDir, "plan");
 const actsFile = path.join(paths.outputDir, "acts.json");
 const storyboardFile = path.join(paths.outputDir, "storyboard.json");
 const captionsFile = path.join(paths.outputDir, "captions.json");

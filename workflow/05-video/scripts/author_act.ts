@@ -19,6 +19,7 @@ import { roleModel, isAgy, agyModel } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
+import { requireFresh } from "../src/lib/freshness";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {
@@ -43,6 +44,7 @@ if (!videoId) {
 
 const paths = resolveJobPaths(videoId);
 const wsDir = path.dirname(paths.outputDir);
+requireFresh(wsDir, "acts");
 const plan: ActsPlan = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"));
 const scenesDir = path.join(paths.outputDir, "src", "scenes");
 fs.mkdirSync(scenesDir, { recursive: true });
