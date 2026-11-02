@@ -22,6 +22,22 @@ export interface AgentResult {
   cacheReadTokens: number;
   logPath: string;
   sessionId: string;
+  /** Set when the provider refused the run for a usage limit (e.g. "You've hit your 5-hour limit · resets 1:30pm"). */
+  limit?: string;
+}
+
+/** A usage/rate limit message in a failed run's reply or log, said once on stderr so every step shows the real cause
+ *  (instead of e.g. "no usable JSON"). */
+const LIMIT = /hit your [^\n]*limit[^\n]*|usage limit[^\n]*|limit reached[^\n]*|rate.?limit(ed)?[^\n]*|quota exceeded[^\n]*|insufficient[_ ]quota[^\n]*|credit balance is too low[^\n]*/i;
+function noteLimit(opts: AgentOptions, r: AgentResult): AgentResult {
+  if (r.ok) return r;
+  let src = r.text;
+  if (!LIMIT.test(src)) { try { src = fs.readFileSync(r.logPath, "utf-8"); } catch { return r; } }
+  const m = src.match(LIMIT);
+  if (!m) return r;
+  r.limit = m[0].replace(/["}\\].*$/, "").trim();
+  console.error(`⛔ ${opts.model}: ${r.limit}. Pick another model/profile for this run (Settings → Models, or the run's model option), or wait for the reset.`);
+  return r;
 }
 
 export interface AgentOptions {
@@ -184,7 +200,7 @@ export function runAgent(opts: AgentOptions): AgentResult {
     cwd: opts.cwd ?? process.cwd(),
     env: { ...process.env, ...pl.env },
   });
-  return pl.parse(opts, res.status, res.stdout ?? "", res.stderr ?? "", res.error?.message ?? "", Date.now() - t0);
+  return noteLimit(opts, pl.parse(opts, res.status, res.stdout ?? "", res.stderr ?? "", res.error?.message ?? "", Date.now() - t0));
 }
 
 /** Same as runAgent, without blocking: several agents can run in parallel. A `resume` that can't be used falls back
@@ -219,8 +235,8 @@ function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
     let stderr = "";
     child.stdout.on("data", (d) => (stdout += d));
     child.stderr.on("data", (d) => (stderr += d));
-    child.on("error", (e) => resolve(pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0)));
-    child.on("close", (code) => resolve(pl.parse(opts, code, stdout, stderr, "", Date.now() - t0)));
+    child.on("error", (e) => resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))));
+    child.on("close", (code) => resolve(noteLimit(opts, pl.parse(opts, code, stdout, stderr, "", Date.now() - t0))));
     child.stdin.end(pl.stdin);
   });
 }

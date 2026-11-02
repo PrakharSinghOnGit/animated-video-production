@@ -122,19 +122,20 @@ Most important first, max 15 issues.`;
 // 3. run
 console.log(`🔎 Reviewing ${actId} with ${agent} (${frames.length} frames; context: ${[...give].join(", ") || "frames only"})...`);
 const logPath = path.join(out, `${stamp}_${agentSlug}.log`);
-let result: any = null, costUsd = 0, ms = 0;
+let result: any = null, costUsd = 0, ms = 0, lastText = "";
 if (isAgy(agent)) {
   const r = await runAgyJson({ prompt, model: agyModel(agent), logPath }).catch((e) => ({ r: null as any, json: null, e }));
   result = r.json; ms = r.r?.durationMs ?? Date.now() - t0;
 } else {
   const r = await runAgentAsync({ prompt, model: agent, tools: ["Read"], maxTurns: 40, logPath, cwd: path.resolve(import.meta.dir, "../../..") });
+  lastText = r.text;
   try { result = extractJson(r.text); } catch {}
   costUsd = r.costUsd; ms = r.durationMs;
   recordTiming(ws, { step: `review ${actId} (${agent})`, ms, model: agent, costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 }
 if (isAgy(agent)) recordTiming(ws, { step: `review ${actId} (${agent})`, ms, model: agent, costUsd: 0 });
 if (!result?.issues) {
-  console.error(`❌ the reviewer returned no usable JSON (log: ${path.relative(process.cwd(), logPath)})`);
+  console.error(`❌ the reviewer returned no usable JSON${lastText && !/[{]/.test(lastText) ? `: "${lastText.slice(0, 200)}"` : ""} (log: ${path.relative(process.cwd(), logPath)})`);
   process.exit(1);
 }
 result = { act: actId, agent, give: [...give], every: Number(every), focus: focus ?? null, frames: frames.length, at: new Date().toISOString(), costUsd, ms, ...result };
