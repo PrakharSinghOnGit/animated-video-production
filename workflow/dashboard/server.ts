@@ -430,7 +430,7 @@ const ACTIONS: Record<string, Action> = {
     chain: [{ label: "Speed & gaps", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Export .srt", action: "align.srt" }], build: (ws) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
   "align.master": { step: "align", label: "Master voice", help: "EQ, de-ess, compression, loudness.", build: (ws) => [B("audio:master", "--video", ws)] },
-  "align.captions": { step: "align", label: "Build captions", help: "captions.json + chapters.json for the planner.", build: (ws) => [B("captions", "--video", ws)] },
+  "align.captions": { step: "align", label: "Build captions", help: "captions.json + chapters.json for the planner; also re-exports the .srt so it always matches the voice.", build: (ws) => [B("captions", "--video", ws)] },
   "align.srt": { step: "align", label: "Export .srt", help: "YouTube closed captions.", build: (ws) => [B("srt", "--video", ws)] },
   "plan.run": {
     step: "plan", label: "Plan acts", help: "The director splits the narration into ~10 acts with beats, hits and sourced data.", paid: "~$1.5", long: "~6 min",

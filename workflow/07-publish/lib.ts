@@ -312,3 +312,11 @@ export function recheck(id: string, m: Metadata): { errors: string[]; warnings: 
   const src = sourceLines(id);
   return { errors: [...a.errors, ...b.errors, ...c.errors], warnings: [...a.warnings, ...b.warnings, ...c.warnings, ...src.warnings, ...buildChapters(id, m.durationS * 1000).warnings] };
 }
+
+/** Re-export the .srt when captions.json is newer (the voice was re-timed after the last export) or it is missing. */
+export function freshSrt(video: string, srt: string, captions: string): void {
+  const mt = (f: string) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
+  if (!mt(captions) || mt(srt) >= mt(captions)) return;
+  console.log(`↻ ${path.basename(srt)} is older than the captions: re-exporting it`);
+  Bun.spawnSync(["bun", "run", "srt", "--video", video], { stdout: "ignore", stderr: "inherit" });
+}

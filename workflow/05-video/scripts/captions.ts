@@ -58,6 +58,9 @@ async function main() {
   fs.writeFileSync(out, JSON.stringify(result.captions, null, 2), "utf-8");
   console.log(`✓ Saved ${out}`);
   await writeChapters(paths.outputDir, parsed);
+  // the .srt is made from captions.json: rebuild it now so it never keeps timings from an earlier voice (speed change, re-voice)
+  const srt = Bun.spawnSync(["bun", "run", "srt", "--video", paths.jobId], { stdout: "inherit", stderr: "inherit" });
+  if (srt.exitCode !== 0) console.warn("⚠️  .srt export failed (run: bun run srt)");
 }
 
 /**

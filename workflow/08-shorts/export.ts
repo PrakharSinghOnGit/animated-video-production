@@ -6,7 +6,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { readText } from "../07-publish/lib";
+import { readText, freshSrt } from "../07-publish/lib";
 import { WS_ROOT, shortsDir, shortWs, listShorts, readJson, exists, shortProgress, type ShortEntry } from "./lib";
 
 const args = process.argv.slice(2);
@@ -31,6 +31,7 @@ for (const sid of ids) {
   if (!p.qc && !force) { skipped.push(`${sid} (QC has not passed on the current final: bun run qc --video ${vid}/shorts/${sid}; --force to export anyway)`); continue; }
   fs.copyFileSync(path.join(ws, "05-video", "final.mp4"), path.join(out, `${sid}.mp4`));
   const srt = path.join(ws, "07-assembly", "export", `${vid}_shorts_${sid}.srt`);
+  freshSrt(`${vid}/shorts/${sid}`, srt, path.join(ws, "05-video", "captions.json"));
   if (exists(srt)) fs.copyFileSync(srt, path.join(out, `${sid}.srt`));
   const sources = [...new Set((sj.data ?? []).map((d) => d.source).filter((s) => s && !/unverified/i.test(s)))];
   // only what needs attribution (CC BY / licensed): credits.txt's first block, minus its "(none)"

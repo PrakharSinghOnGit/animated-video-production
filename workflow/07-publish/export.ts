@@ -6,7 +6,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { VARIANTS, wsDir, pubFile, readJson, thumbPath, recheck, type Metadata } from "./lib";
+import { VARIANTS, freshSrt, wsDir, pubFile, readJson, thumbPath, recheck, type Metadata } from "./lib";
 
 const args = process.argv.slice(2);
 const i = args.indexOf("--video");
@@ -32,6 +32,7 @@ put("titles.txt", VARIANTS.map((v) => `${v}: ${meta.titles[v].title}`).join("\n"
 put("description.txt", meta.description);
 put("tags.txt", meta.tags.join(", ") + "\n");
 const srt = path.join(wsDir(videoId), "07-assembly/export", `${videoId}.srt`);
+freshSrt(videoId, srt, path.join(wsDir(videoId), "05-video", "captions.json"));
 if (fs.existsSync(srt)) { fs.copyFileSync(srt, path.join(out, path.basename(srt))); made.push(path.basename(srt)); }
 else console.error("⚠ no .srt yet (bun run srt)");
 
