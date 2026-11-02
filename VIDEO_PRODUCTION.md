@@ -118,7 +118,10 @@ Show the user the act list (the command prints it) and the unverified figures. W
    Big rework: `bun run act --video <ID> --act A01 --fix workspace/<ID>/05-video/review/A01/director_notes.md`
    (resumes the author's session: **expensive**, $5–11; the usage page shows fix rounds are the biggest cost). With
    notes the critic is skipped. A session only resumes under the same model profile (a `claude-iit` author can't be
-   resumed as `claude`); otherwise the fix starts a fresh session with the full brief (dearer, still works).
+   resumed as `claude`): with the model left at default the fix follows the profile that wrote the act; an explicit
+   other profile starts a fresh session with the full brief (plan + timed narration; dearer, still works). A fix that
+   runs out of turns keeps its edits (📝: render frames and look); a fix that edits acts.json (an act boundary a note
+   asked for) keeps it only if the plan still validates.
 6. After approval: `bun run act --video <ID> --act A02,A03,... --parallel 2` (no `--act` = every act that has no file
    yet or whose plan changed since it was written). Result marks: ✅ written, 📝 written + critic notes to look at,
    ❌ not written (only ❌ fails the run). Run the free review on every act and fix obvious problems cheaply before

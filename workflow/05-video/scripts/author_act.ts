@@ -14,8 +14,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { type ActsPlan, type Act } from "../src/lib/acts";
-import { runAgentAsync, runAgy, runAgyJson, extractJson, type AgentResult } from "../src/lib/agent";
-import { roleModel, isAgy, agyModel } from "../../lib/models";
+import { runAgentAsync, runAgy, runAgyJson, extractJson, claudeHasSession, type AgentResult } from "../src/lib/agent";
+import { roleModel, isAgy, agyModel, parseSpec } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
@@ -60,6 +60,7 @@ if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`
 // 9:16 shorts (config.json format "short") get their own brief: one act, hook on frame 1, loop, captions
 const short = isShortWorkspace(wsDir);
 const model = roleModel(short ? "shortsAct" : "actAuthor", flag("--model"));
+const authorModel = model;
 const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style);
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
 
@@ -157,17 +158,7 @@ async function authorAct(act: Act): Promise<Outcome> {
     }
     console.log(`♻️  ${act.id}: its plan changed since the act was written, redoing it`);
   }
-  const brief = `${actPrompt}
-
-# This act
-Video: ${paths.jobId}. Act ${act.id}. Scene file to write: ${file}
-Previous act: ${plan.acts[plan.acts.indexOf(act) - 1]?.title ?? "(none: this opens the video)"}. Next act: ${plan.acts[plan.acts.indexOf(act) + 1]?.title ?? "(none: this ends the video)"}.
-
-Plan:
-${JSON.stringify(act, null, 1)}
-
-Narration:
-${actWords(act)}`;
+  const brief = briefFor(act, file);
 
   console.log(`✏️  ${act.id} authoring (${model})...`);
   let r = await runAgentAsync({ prompt: brief, model, tools: AUTHOR_TOOLS, maxTurns: 80, logPath: path.join(reviewDir, "author_0.log") });
@@ -189,12 +180,43 @@ ${actWords(act)}`;
     // Resume the author's own session: it already knows the style, the engine and its file
     const resume = r.sessionId || undefined;
     const fresh = `${brief}\n\n# Fix round ${round}\n${fix}`;
-    r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, resume, logPath: path.join(reviewDir, `author_${round}.log`) });
+    r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, freshMaxTurns: 80, resume, logPath: path.join(reviewDir, `author_${round}.log`) });
     account(`act ${act.id} fix r${round}`, model, r);
     console.log(`   ${act.id} fix r${round}: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
     if (r.ok) recordPlanHash(paths.outputDir, act.id);
   }
   return "notes";   // the act file is there; the last critic verdict is in review/<act>/
+}
+
+/** The full brief for an act: the act prompt, its plan and its word-timed narration (a fresh session needs all of it). */
+function briefFor(act: Act, file: string): string {
+  return `${actPrompt}
+
+# This act
+Video: ${paths.jobId}. Act ${act.id}. Scene file to write: ${file}
+Previous act: ${plan.acts[plan.acts.indexOf(act) - 1]?.title ?? "(none: this opens the video)"}. Next act: ${plan.acts[plan.acts.indexOf(act) + 1]?.title ?? "(none: this ends the video)"}.
+
+Plan:
+${JSON.stringify(act, null, 1)}
+
+Narration:
+${actWords(act)}`;
+}
+
+const ranOutOfTurns = (r: AgentResult) => { try { return /error_max_turns/.test(fs.readFileSync(r.logPath, "utf-8")); } catch { return false; } };
+
+/**
+ * After a fix run: a plan edit (an act boundary moved because a note asked for it) is kept only if the plan still
+ * validates, else acts.json and storyboard.json are restored. Returns a line to print, or "".
+ */
+function checkPlanEdit(before: { acts: string; board: string | null }): string {
+  const actsFile = path.join(paths.outputDir, "acts.json"), board = path.join(paths.outputDir, "storyboard.json");
+  if (fs.readFileSync(actsFile, "utf-8") === before.acts) return "";
+  const ok = spawnSync("bun", ["run", "direct", "--video", paths.jobId, "--check"], { encoding: "utf-8" }).status === 0;
+  if (ok) return "   ℹ️  the fix also changed acts.json (valid): the neighbouring act's plan changed, so re-check or redo it";
+  fs.writeFileSync(actsFile, before.acts);
+  if (before.board !== null) fs.writeFileSync(board, before.board);
+  return "   ⚠️  the fix changed acts.json into an invalid plan: acts.json and storyboard.json restored";
 }
 
 /** The author's latest session id (from its run logs), so a fix round reuses its context. Only a session from the
@@ -221,14 +243,35 @@ async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcom
   }
   const resume = lastSession(reviewDir);
   const n = fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length;
+  // model left at default: follow the Claude profile that wrote the act, so its session can be resumed (much cheaper
+  // than a fresh session re-reading everything). An explicit --model is always used as given.
+  let model = authorModel;
+  const sp = parseSpec(model);
+  if (resume && !flag("--model") && (sp.provider === "claude" || sp.provider === "claude-iit")) {
+    const other = sp.provider === "claude" ? "claude-iit" : "claude";
+    if (!claudeHasSession(sp.provider, resume) && claudeHasSession(other, resume)) {
+      model = `${other}:${sp.model}`;
+      console.log(`   (the act was written with the ${other} profile: fixing with ${model} to continue its session)`);
+    }
+  }
   const fix = `Review of ${act.id} (${file}). Fix these, then re-run assemble and frames, check the layout report and the sheet once:\n${extra ? `Director's notes (most important):\n${extra}\n` : ""}${critic ? `Critic (advisory, from the contact sheet):\n${critic}\n` : ""}Keep everything that works. Reply with 2 lines when done.`;
-  const fresh = `${actPrompt}\n\n# Act ${act.id}, file ${file} (it exists: Read it first and revise it, don't start over)\n${fix}`;
+  // a fresh session gets the full brief (plan + timed narration), so it doesn't spend turns hunting for them
+  const fresh = `${briefFor(act, file)}\n\n# Fix round\nThe scene file exists: Read it first and revise it, don't start over.\n${fix}`;
+  const before = { acts: fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"), board: (() => { try { return fs.readFileSync(path.join(paths.outputDir, "storyboard.json"), "utf-8"); } catch { return null; } })() };
+  const sceneBefore = fs.statSync(file).mtimeMs;
   console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resuming the author's session" : ""})...`);
-  const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
+  const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, freshMaxTurns: 80, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
   account(`act ${act.id} fix`, model, r);
-  console.log(`   ${act.id} fix: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
-  if (r.ok) recordPlanHash(paths.outputDir, act.id);
-  return r.ok ? "ok" : "failed";
+  const edited = fs.statSync(file).mtimeMs > sceneBefore;
+  const outOfTurns = !r.ok && ranOutOfTurns(r);
+  console.log(`   ${act.id} fix: ${r.ok ? "ok" : outOfTurns ? `ran out of turns (${r.numTurns})` : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
+  const planNote = checkPlanEdit(before);
+  if (planNote) console.log(planNote);
+  if (r.ok || edited) recordPlanHash(paths.outputDir, act.id);
+  if (r.ok) return "ok";
+  // its edits are on disk: keep them and say so, instead of calling the whole run a failure
+  if (edited) { console.log(`   📝 ${act.id}: the fix's edits are kept (it stopped before its final check): render frames / preview and look`); return "notes"; }
+  return "failed";
 }
 
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));

@@ -464,7 +464,7 @@ const ACTIONS: Record<string, Action> = {
     build: (ws, o, act) => [B("act", "--video", ws, "--act", act!, ...args(o, "acts.act"))],
   },
   "acts.fix": {
-    step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to the act's author for one revision.", paid: "~$5–11", long: "~3–15 min",
+    step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to the act's author for one revision. Leave the model at default: it then continues the session of the profile that wrote the act (cheapest). Another model or profile starts a fresh session (re-reads everything, dearer).", paid: "~$5–11", long: "~3–15 min",
     opts: [modelOpt("actAuthor", "Author model", "--model")],
     build: (ws, o, act) => {
       const rel = path.join("workspace", ws, notesRel(act!));

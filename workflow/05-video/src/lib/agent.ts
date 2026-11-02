@@ -36,11 +36,13 @@ export interface AgentOptions {
   /** Prompt for a fresh run when `resume` can't be used (the session belongs to another profile or provider, or is
    *  gone): the run starts over with this instead of failing. Without it, a missing session fails the run. */
   fresh?: string;
+  /** Turn limit for that fresh run (it has to read the files a resumed session already knew). Default: maxTurns. */
+  freshMaxTurns?: number;
 }
 
 /** Whether a Claude profile has this session on disk (sessions are per config dir: a claude-iit session can't be
  *  resumed as claude). Other providers are checked by trying. */
-function claudeHasSession(provider: "claude" | "claude-iit", id: string): boolean {
+export function claudeHasSession(provider: "claude" | "claude-iit", id: string): boolean {
   const root = path.join(CLAUDE_DIRS[provider], "projects");
   try { return fs.readdirSync(root).some((d) => fs.existsSync(path.join(root, d, `${id}.jsonl`))); } catch { return false; }
 }
@@ -192,7 +194,7 @@ export async function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
   const sp = parseSpec(opts.model);
   const startFresh = (why: string) => {
     console.log(`   (${why}: starting a fresh session with the full brief)`);
-    return spawnAgent({ ...opts, prompt: opts.fresh!, resume: undefined });
+    return spawnAgent({ ...opts, prompt: opts.fresh!, resume: undefined, maxTurns: opts.freshMaxTurns ?? opts.maxTurns });
   };
   if ((sp.provider === "claude" || sp.provider === "claude-iit") && opts.fresh && !claudeHasSession(sp.provider, opts.resume))
     return startFresh(`the earlier session isn't in the ${sp.provider} profile`);
