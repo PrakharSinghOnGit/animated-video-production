@@ -267,7 +267,15 @@ class GeminiEngine:
                     raise SystemExit("Gemini daily quota is used up (free tier: 10 requests/day per model). Turn on billing for"
                                      " the key's project in AI Studio, or rerun tomorrow: finished sections are kept, so a rerun"
                                      " without --force continues where this stopped.")
-                if ("SERVICE_DISABLED" in msg or "PERMISSION_DENIED" in msg) and self.vertex is not None and self.client is not self.vertex:
+                if re.search(r"outstanding balance|billing account|billing.*(disabled|not enabled)|prepay|credits? (are )?(exhausted|depleted)", msg, re.I):
+                    if self.vertex is not None and self.client is not self.vertex:
+                        print("  ! The Gemini API key's billing account is blocked (unpaid balance); switching to Vertex AI", flush=True)
+                        self.client = self.vertex
+                        continue
+                    raise SystemExit("Gemini TTS is blocked by billing: the API key's billing account has an outstanding balance."
+                                     " Pay it at https://aistudio.google.com/billing (or use a key from another project in .env"
+                                     " GEMINI_TTS), then rerun: finished sections are kept, so the rerun continues where this stopped.")
+                if re.search(r"SERVICE_DISABLED|PERMISSION_DENIED", msg, re.I) and self.vertex is not None and self.client is not self.vertex:
                     print("  ! Gemini API is disabled for the key's project; switching to Vertex AI", flush=True)
                     self.client = self.vertex
                     continue
