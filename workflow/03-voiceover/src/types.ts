@@ -45,4 +45,5 @@ export interface GenerationOptions {
   acceptWer?: number;       // Local: stop taking new seeds once a take scores <= this (default 0.05)
   asrModel?: string;        // faster-whisper model used to score takes (default small.en)
   checkRef?: boolean;       // Transcribe the reference clip and compare with its configured text
+  review?: boolean;         // use 03-voiceover/review.json: your note (and direction) per section, keep the old take in audio/prev
 }

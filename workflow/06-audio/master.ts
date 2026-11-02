@@ -4,6 +4,8 @@
  * depend on it).
  *
  * Usage: bun run audio:master --video <ID> [--in <wav>] [--out <wav>] [--target-lufs -14] [--tp -1]
+ *          [--highpass 80] [--deess 0.3] [--ratio 2.5] [--threshold -20] [--no-room-tone]
+ * Writes 06-audio/master.json beside the output: the chain with its settings and the loudness before and after.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -21,6 +23,11 @@ interface Options {
   output?: string;
   targetLufs: number;
   truePeak: number;
+  highpass: number;      // Hz, 0 = off
+  deess: number;         // de-esser intensity 0..1, 0 = off
+  ratio: number;         // compressor ratio, 1 = off
+  threshold: number;     // compressor threshold (dB)
+  roomTone: boolean;
 }
 
 interface Metrics {
@@ -31,7 +38,7 @@ interface Metrics {
 
 function parseArgs(): Options {
   const args = process.argv.slice(2);
-  const opts: Options = { video: "", targetLufs: -14, truePeak: -1 };
+  const opts: Options = { video: "", targetLufs: -14, truePeak: -1, highpass: 80, deess: 0.3, ratio: 2.5, threshold: -20, roomTone: true };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === "--video" || a === "-v") opts.video = args[++i];
@@ -39,10 +46,17 @@ function parseArgs(): Options {
     else if (a === "--out") opts.output = args[++i];
     else if (a === "--target-lufs") opts.targetLufs = parseFloat(args[++i]);
     else if (a === "--tp") opts.truePeak = parseFloat(args[++i]);
+    else if (a === "--highpass") opts.highpass = parseFloat(args[++i]);
+    else if (a === "--deess") opts.deess = parseFloat(args[++i]);
+    else if (a === "--ratio") opts.ratio = parseFloat(args[++i]);
+    else if (a === "--threshold") opts.threshold = parseFloat(args[++i]);
+    else if (a === "--no-room-tone") opts.roomTone = false;
     else fail(`Unknown argument: ${a}`);
   }
   if (!opts.video) fail("Missing --video <ID>");
-  if (!Number.isFinite(opts.targetLufs) || !Number.isFinite(opts.truePeak)) fail("--target-lufs and --tp must be numbers");
+  if (![opts.targetLufs, opts.truePeak, opts.highpass, opts.deess, opts.ratio, opts.threshold].every(Number.isFinite)) fail("numeric options must be numbers");
+  if (opts.deess < 0 || opts.deess > 1) fail("--deess is 0..1");
+  if (opts.ratio < 1 || opts.ratio > 20) fail("--ratio is 1..20");
   return opts;
 }
 
@@ -118,17 +132,24 @@ function main() {
   console.log(`[audio:master] before: ${fmt(before)}`);
 
   // Voice chain: highpass -> de-ess -> compress. Room tone is mixed under the whole file.
-  const voice = ["aresample=48000", "highpass=f=80"];
-  if (hasFilter("deesser")) voice.push("deesser=i=0.3:m=0.5:f=0.5");
-  else console.warn("[audio:master] WARNING: ffmpeg 'deesser' filter unavailable; skipping de-ess");
-  voice.push("acompressor=threshold=-20dB:ratio=2.5:attack=10:release=120:makeup=2");
+  const chain: { stage: string; what: string; settings: string; on: boolean }[] = [];
+  const voice = ["aresample=48000"];
+  if (opts.highpass > 0) voice.push(`highpass=f=${opts.highpass}`);
+  chain.push({ stage: "High-pass EQ", what: "cuts rumble and mic thumps below the voice", settings: opts.highpass > 0 ? `${opts.highpass} Hz, 12 dB/oct` : "off", on: opts.highpass > 0 });
+  const deess = opts.deess > 0 && hasFilter("deesser");
+  if (opts.deess > 0 && !deess) console.warn("[audio:master] WARNING: ffmpeg 'deesser' filter unavailable; skipping de-ess");
+  if (deess) voice.push(`deesser=i=${opts.deess}:m=0.5:f=0.5`);
+  chain.push({ stage: "De-esser", what: "softens harsh s / sh sounds", settings: deess ? `intensity ${opts.deess}` : "off", on: deess });
+  if (opts.ratio > 1) voice.push(`acompressor=threshold=${opts.threshold}dB:ratio=${opts.ratio}:attack=10:release=120:makeup=2`);
+  chain.push({ stage: "Compressor", what: "evens out loud and quiet words", settings: opts.ratio > 1 ? `${opts.ratio}:1 above ${opts.threshold} dB, attack 10 ms, release 120 ms, +2 dB makeup` : "off", on: opts.ratio > 1 });
+  chain.push({ stage: "Room tone", what: "very quiet pink noise under the voice so pauses aren't dead digital silence", settings: opts.roomTone ? "pink noise ~ -62 dBFS, low-passed 4 kHz" : "off", on: opts.roomTone });
 
   // Deterministic pink-noise room tone (fixed seed), ~-62 dBFS, lowpassed.
   const noise = `anoisesrc=color=pink:seed=1337:sample_rate=${SAMPLE_RATE}:duration=${(inDur + 1).toFixed(3)}:amplitude=0.1,lowpass=f=4000,volume=-50dB,aformat=channel_layouts=mono`;
 
-  const buildGraph = (tail: string) =>
-    `[0:a]${voice.join(",")},aformat=channel_layouts=mono[v];${noise}[n];` +
-    `[v][n]amix=inputs=2:duration=first:normalize=0,${tail}`;
+  const buildGraph = (tail: string) => opts.roomTone
+    ? `[0:a]${voice.join(",")},aformat=channel_layouts=mono[v];${noise}[n];[v][n]amix=inputs=2:duration=first:normalize=0,${tail}`
+    : `[0:a]${voice.join(",")},aformat=channel_layouts=mono,${tail}`;
 
   const run = (tail: string, out: string, outArgs: string[]) =>
     ffmpeg(["-i", input, "-filter_complex", buildGraph(tail), ...outArgs, out]);
@@ -168,6 +189,12 @@ function main() {
   if (diff > DURATION_TOLERANCE_SEC) fail(`Duration drift ${(diff * 1000).toFixed(1)}ms exceeds 10ms; word timestamps would desync`);
   if (after.truePeak > opts.truePeak + 0.05) fail(`True peak ${after.truePeak} dBTP exceeds ${opts.truePeak}`);
   if (Math.abs(after.integrated - opts.targetLufs) > 0.5) console.warn(`[audio:master] WARNING: integrated loudness ${after.integrated} LUFS is off target ${opts.targetLufs}`);
+  chain.push({ stage: "Loudness", what: "two-pass loudness normalisation to the YouTube target (+ a limiter only if peaks are still over)", settings: `${opts.targetLufs} LUFS, true peak ${opts.truePeak} dBTP, LRA ${LRA_TARGET}`, on: true });
+  fs.writeFileSync(path.join(path.dirname(output), "master.json"), JSON.stringify({
+    at: new Date().toISOString(), input: path.relative(REPO_ROOT, input), output: path.relative(REPO_ROOT, output),
+    options: { targetLufs: opts.targetLufs, truePeak: opts.truePeak, highpass: opts.highpass, deess: opts.deess, ratio: opts.ratio, threshold: opts.threshold, roomTone: opts.roomTone },
+    chain, before, after, durationIn: inDur, durationOut: outDur,
+  }, null, 2));
 }
 
 main();

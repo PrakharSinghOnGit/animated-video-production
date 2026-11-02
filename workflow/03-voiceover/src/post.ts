@@ -3,7 +3,7 @@
  * Voice post: speed and gaps for the whole voiceover, then the combined file. Runs after the voice step and before
  * Align (dashboard: Align → Speed & gaps; "Align all" runs it first with the last used settings).
  *
- *   bun run tts:post --video <ID> [--speed 1.08] [--gap 0.6] [--chapter-gap 2.5]
+ *   bun run tts:post --video <ID> [--speed 1.08] [--gap 0.6] [--chapter-gap 2.5] [--max-pause 0.8]
  *
  * - The untouched TTS output is kept in 03-voiceover/audio/raw/part-N/ (copied the first time a file is seen, or when
  *   the voice step rewrote it), and every run starts from that copy: re-running with new settings never stacks.
@@ -12,7 +12,9 @@
  *   section, `--chapter-gap` before a chapter (the silent pause the chapter card plays in), nothing after the last.
  * - Writes the section files back in place (what Align reads), combined/part_N_combined.wav and
  *   combined/full_voiceover.wav (what mastering reads), and audio/post.json (settings + which files are ours).
- * Settings not given default to the last run's (post.json), else speed 1, gap 0.9 s, chapter gap 2.5 s.
+ * - --max-pause: any silence inside a section longer than this is shortened to it (a TTS take that stalls mid-sentence);
+ *   0 = off. Runs before transcription, so word timings follow the shortened audio.
+ * Settings not given default to the last run's (post.json), else speed 1, gap 0.9 s, chapter gap 2.5 s, max pause off.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -43,6 +45,8 @@ async function main() {
   const speed = num("--speed") ?? prev?.speed ?? 1;
   const gap = num("--gap") ?? prev?.gap ?? 0.9;
   const chapterGap = num("--chapter-gap") ?? prev?.chapterGap ?? 2.5;
+  const maxPause = num("--max-pause") ?? prev?.maxPause ?? 0;
+  if (maxPause && maxPause < 0.2) { console.error("❌ --max-pause must be 0 (off) or at least 0.2 s"); process.exit(1); }
   if (speed < 0.5 || speed > 2) { console.error("❌ --speed must be between 0.5 and 2"); process.exit(1); }
   if (gap < 0 || chapterGap < 0) { console.error("❌ gaps cannot be negative"); process.exit(1); }
   if (speed !== 1 && spawnSync("rubberband", ["--version"]).status !== 0) { console.error("❌ rubberband is not installed: brew install rubberband"); process.exit(1); }
@@ -76,7 +80,7 @@ async function main() {
   const ours: Record<string, number> = prev?.files ?? {};
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wg_post_"));
   let before = 0, after = 0;
-  console.log(`🎚  Voice post: speed ×${speed}, gap ${gap}s, chapter gap ${chapterGap}s (${files.length} sections${speed !== 1 ? ", rubberband fine engine" : ""})`);
+  console.log(`🎚  Voice post: speed ×${speed}, gap ${gap}s, chapter gap ${chapterGap}s${maxPause ? `, pauses inside capped at ${maxPause}s` : ""} (${files.length} sections${speed !== 1 ? ", rubberband fine engine" : ""})`);
   const outFiles: string[] = [];
   files.forEach((rel, idx) => {
     const cur = path.join(audio, rel), raw = path.join(rawDir, rel);
@@ -88,7 +92,10 @@ async function main() {
     const pad = last ? 0 : Math.max(0, (chapterEnd(rel) ? chapterGap : gap) - TAIL);
     const t1 = path.join(tmp, `a${idx}.wav`), t2 = path.join(tmp, `b${idx}.wav`);
     // trim the trailing silence to a natural tail (float, no requantising)
-    run("ffmpeg", ["-v", "error", "-y", "-i", raw, "-af", `areverse,silenceremove=start_periods=1:start_silence=${TAIL}:start_threshold=-45dB,areverse`, "-c:a", "pcm_f32le", t1]);
+    // silenceremove keeps about stop_duration + stop_silence of each long silence (peak detection, short window: measured
+    // on Gemini takes, a 2.8 s stall at --max-pause 0.8 comes out at ~0.82 s)
+    const cap = maxPause ? `silenceremove=stop_periods=-1:stop_duration=${maxPause / 2}:stop_silence=${maxPause / 2}:stop_threshold=-42dB:detection=peak:window=0.02,` : "";
+    run("ffmpeg", ["-v", "error", "-y", "-i", raw, "-af", `${cap}areverse,silenceremove=start_periods=1:start_silence=${TAIL}:start_threshold=-45dB,areverse`, "-c:a", "pcm_f32le", t1]);
     let src = t1;
     if (Math.abs(speed - 1) > 1e-3) { run("rubberband", ["-q", "--fine", "--tempo", String(speed), t1, t2]); src = t2; }
     run("ffmpeg", ["-v", "error", "-y", "-i", src, "-af", `apad=pad_dur=${pad.toFixed(3)}`, "-c:a", "pcm_s24le", cur]);
@@ -109,7 +116,7 @@ async function main() {
   concat(outFiles, path.join(combined, "full_voiceover.wav"));
   fs.rmSync(tmp, { recursive: true, force: true });
 
-  fs.writeFileSync(stateFile, JSON.stringify({ speed, gap, chapterGap, at: new Date().toISOString(), files: ours }, null, 2));
+  fs.writeFileSync(stateFile, JSON.stringify({ speed, gap, chapterGap, maxPause, at: new Date().toISOString(), files: ours }, null, 2));
   console.log(`  ✓ ${fmt(before)} → ${fmt(after)} (raw sections in audio/raw/, combined/full_voiceover.wav)`);
   console.log("  Next: Align (transcribe → master → captions → .srt) so word timings match the new audio.");
 }

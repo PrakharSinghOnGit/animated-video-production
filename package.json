@@ -22,6 +22,7 @@
     "voice:design:gemini": ".venv/bin/python workflow/03-voiceover/src/design_voice_gemini.py",
     "tts": "bun run workflow/03-voiceover/run.ts",
     "tts:post": "bun run workflow/03-voiceover/src/post.ts",
+    "voice:scan": "bun run workflow/03-voiceover/scan.ts",
     "tts:cost": "bun run workflow/03-voiceover/run.ts --cost",
     "tts:dry-run": "bun run workflow/03-voiceover/run.ts --dry-run",
     "tts:list": "bun run workflow/03-voiceover/run.ts --list",

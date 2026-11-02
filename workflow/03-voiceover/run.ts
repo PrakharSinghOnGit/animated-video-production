@@ -28,6 +28,8 @@ function parseArgs(): GenerationOptions {
       options.part = parseInt(args[++i], 10);
     } else if (arg === "--section" || arg === "--id" || arg === "-s") {
       options.sectionId = args[++i];
+    } else if (arg === "--review") {
+      options.review = true;
     } else if (arg === "--qwen") {
       options.ttsModel = "qwen";
     } else if (arg === "--gemini") {

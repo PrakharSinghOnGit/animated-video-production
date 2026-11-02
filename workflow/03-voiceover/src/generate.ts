@@ -7,6 +7,7 @@ import { resolveVoice, findPython } from "./voice_profile";
 import { normalizeForSpeech } from "./normalize";
 import { chunkText } from "./chunk";
 import { moodFor } from "./mood";
+import { scanVoice, sectionStyle } from "./scan";
 import type { GenerationOptions, TtsModel, VOSection } from "./types";
 
 const ENGINE_NAME: Record<TtsModel, string> = { qwen: "Qwen3-TTS", gemini: "Gemini TTS" };
@@ -18,10 +19,19 @@ export const DEFAULT_GEMINI_VOICE = "Algenib";
 /** Passage length per TTS call: whole sentences of one script block, so sentences are phrased together. */
 const PASSAGE_CHARS: Record<TtsModel, number> = { gemini: 1200, qwen: 420 };
 
-/** Base style + this section's tone note ("[VO: dry, slightly lower]" -> "This passage: dry, slightly lower."). */
-function sectionStyle(base: string, instruction?: string): string {
-  const tone = (instruction ?? "").replace(/^[\s`\[]*VO\s*:\s*/i, "").replace(/[\]`]+\s*$/, "").trim();
-  return tone ? `${base}. This passage: ${tone}.` : base;
+/** Your review of a section (dashboard Voice → Review, 03-voiceover/review.json): what to change in the next take,
+ *  and optionally the whole Gemini direction replaced by your own. */
+interface SectionReview { note?: string; direction?: string; status?: string; at?: string; regeneratedAt?: string }
+const reviewFile = (audioDir: string) => path.resolve(audioDir, "..", "review.json");
+function readReviews(audioDir: string): Record<string, SectionReview> {
+  try { return JSON.parse(fs.readFileSync(reviewFile(audioDir), "utf-8")); } catch { return {}; }
+}
+/** The direction for a reviewed take: your direction (else the usual one) + your note as what to fix. */
+function reviewedStyle(base: string, r: SectionReview | undefined): string {
+  if (!r) return base;
+  const dir = r.direction?.trim() || base;
+  const note = r.note?.trim();
+  return note ? `${dir.replace(/\.?\s*$/, "")}. Fix from the previous take: ${note.replace(/\.?\s*$/, "")}.` : dir;
 }
 
 /** The engine when none is given: TTS_ENGINE in .env, else Gemini. */
@@ -209,13 +219,16 @@ export async function runGenerate(options: GenerationOptions) {
   // Filter sections
   let targets: VOSection[] = [];
   if (options.sectionId) {
-    const match = allSections.find((s) => s.id.toLowerCase() === options.sectionId?.toLowerCase());
-    if (!match) {
-      console.error(`❌ Section with ID '${options.sectionId}' not found.`);
-      console.log("Use --list to view all available section IDs.");
-      process.exit(1);
+    // one id or several, comma-separated
+    for (const id of options.sectionId.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean)) {
+      const match = allSections.find((s) => s.id.toLowerCase() === id);
+      if (!match) {
+        console.error(`❌ Section with ID '${id}' not found.`);
+        console.log("Use --list to view all available section IDs.");
+        process.exit(1);
+      }
+      targets.push(match);
     }
-    targets = [match];
   } else if (options.part !== undefined) {
     targets = allSections.filter((s) => s.part === options.part);
     if (targets.length === 0) {
@@ -310,6 +323,14 @@ export async function runGenerate(options: GenerationOptions) {
       continue;
     }
 
+    // a reviewed redo keeps the take it replaces (the untouched one from Speed & gaps' raw copy when there is one) for A/B
+    if (options.review && fs.existsSync(filePath)) {
+      const raw = path.join(baseAudioDir, "raw", `part-${sec.part}`, fileName);
+      const prev = path.join(baseAudioDir, "prev", `part-${sec.part}`, fileName);
+      fs.mkdirSync(path.dirname(prev), { recursive: true });
+      fs.copyFileSync(fs.existsSync(raw) && fs.statSync(raw).mtimeMs >= fs.statSync(filePath).mtimeMs - 60_000 ? raw : filePath, prev);
+    }
+
     if (fs.existsSync(filePath) && !options.forceOverwrite) {
       console.log(`[${i + 1}/${targets.length}] ⏩ Cached: ${sec.id} (${path.basename(filePath)})`);
       skippedCount++;
@@ -352,6 +373,8 @@ export async function runGenerate(options: GenerationOptions) {
     // the last section of a part gets the chapter gap.
     const sectionGapMs = Math.round((options.sectionGap ?? 0.9) * 1000);
     const chapterGapMs = Math.round((options.chapterGap ?? 0) * 1000);
+    const reviews = options.review ? readReviews(baseAudioDir) : {};
+    if (options.review) for (const m of manifestItems) if (reviews[m.id]) console.log(`  📝 ${m.id}: ${cloud ? `"${reviewedStyle(sectionStyle(options.style ?? DEFAULT_GEMINI_STYLE, allSections.find((s) => s.id === m.id)?.rawInstruction), reviews[m.id])}"` : "(Qwen takes no direction: the note is not used)"}`);
     const items = manifestItems.map((item) => {
       const pieces = chunkText(item.text, PASSAGE_CHARS[ttsModel]);
       const idx = allSections.findIndex((s) => s.id === item.id);
@@ -366,7 +389,7 @@ export async function runGenerate(options: GenerationOptions) {
       return {
         id: item.id,
         mood: hasMood ? mood : "neutral",
-        ...(cloud ? { style: sectionStyle(options.style ?? DEFAULT_GEMINI_STYLE, sec?.rawInstruction) } : {}),
+        ...(cloud ? { style: options.review ? reviewedStyle(sectionStyle(options.style ?? DEFAULT_GEMINI_STYLE, sec?.rawInstruction), reviews[item.id]) : sectionStyle(options.style ?? DEFAULT_GEMINI_STYLE, sec?.rawInstruction) } : {}),
         ...(hasMood ? { ref_audio: moodWav, ref_text: fs.readFileSync(moodWav.replace(/\.wav$/, ".txt"), "utf-8").trim() } : {}),
         chunks: pieces.map((text, ci) => ({ id: `${item.id}_c${String(ci + 1).padStart(2, "0")}`, text })),
         out_path: item.outputPath,
@@ -423,7 +446,18 @@ export async function runGenerate(options: GenerationOptions) {
 
   // the voice step's "done" marker (dashboard status; Align → Speed & gaps builds the combined file from the sections)
   if (!options.outputDir) {
-    fs.writeFileSync(path.join(baseAudioDir, "voice.json"), JSON.stringify({ engine: ttsModel, voice: cloud ? (options.voice || DEFAULT_GEMINI_VOICE) : voice?.name, sections: targets.length, generated: manifestItems.length, at: new Date().toISOString() }, null, 2));
+    fs.writeFileSync(path.join(baseAudioDir, "voice.json"), JSON.stringify({ engine: ttsModel, voice: cloud ? (options.voice || DEFAULT_GEMINI_VOICE) : voice?.name, style: cloud ? (options.style ?? DEFAULT_GEMINI_STYLE) : undefined, sections: targets.length, generated: manifestItems.length, at: new Date().toISOString() }, null, 2));
+    // reviewed sections that got a new take: the dashboard shows them as "regenerated: listen again"
+    if (options.review && manifestItems.length) {
+      const all = readReviews(baseAudioDir), now = new Date().toISOString();
+      for (const m of manifestItems) if (all[m.id]) all[m.id] = { ...all[m.id], status: "regenerated", regeneratedAt: now };
+      fs.writeFileSync(reviewFile(baseAudioDir), JSON.stringify(all, null, 2));
+    }
+    // what the dashboard's Listen / Review show: the exact direction per section and long pauses inside a take
+    try {
+      const { flagged } = scanVoice(baseAudioDir, allSections, options.style ?? DEFAULT_GEMINI_STYLE);
+      if (flagged) console.log(`\n  ⏸  ${flagged} section(s) have a pause over 0.9 s inside: listen to them in Voice → Listen & approve.`);
+    } catch (e: any) { console.warn(`  ⚠️ could not scan for long pauses: ${e.message}`); }
   }
 
   // Concatenation (CLI --combine; the dashboard combines in Align → Speed & gaps)
