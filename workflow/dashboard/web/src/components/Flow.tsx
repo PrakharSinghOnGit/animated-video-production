@@ -14,15 +14,16 @@ import { useMedia, useStored } from "@/lib/storage";
 import { ago, cn, dur, money } from "@/lib/utils";
 
 export type { LoopDef };
-export interface BlockDef extends BlockSpec { children?: React.ReactNode }
-/** Attach each block's content (by block id) to the shared spec. */
-export const withKids = (blocks: BlockSpec[], kids: Record<string, React.ReactNode>): BlockDef[] => blocks.map((b) => ({ ...b, children: kids[b.id] }));
+export interface BlockDef extends BlockSpec { children?: React.ReactNode; aside?: React.ReactNode }
+/** Attach each block's content (by block id) to the shared spec; `asides` go to the right of the block's title (gate buttons). */
+export const withKids = (blocks: BlockSpec[], kids: Record<string, React.ReactNode>, asides: Record<string, React.ReactNode> = {}): BlockDef[] =>
+  blocks.map((b) => ({ ...b, children: kids[b.id], aside: asides[b.id] }));
 
 
 function useStatus(b: BlockSpec): { status: BlockStatus; last: ReturnType<typeof lastRun>; cost: ReturnType<typeof costOf> } {
-  const { d, busy } = useApp();
+  const { d } = useApp();
   const last = d && b.label ? lastRun(d, b.label) : null;
-  return { status: blockStatus(d, busy, b), last, cost: d ? costOf(d, b.costRe ?? null) : null };
+  return { status: blockStatus(d, b), last, cost: d ? costOf(d, b.costRe ?? null) : null };
 }
 
 function StepMark({ status, index }: { status: BlockStatus; index: number }) {
@@ -35,7 +36,7 @@ function StepMark({ status, index }: { status: BlockStatus; index: number }) {
 }
 
 function Block({ b, index }: { b: BlockDef; index: number }) {
-  const { schema, busy, ws } = useApp();
+  const { schema, canRun, ws } = useApp();
   const { hot } = useHighlight();
   const runSaved = useRunSaved();
   const { status, last, cost } = useStatus(b);
@@ -70,7 +71,8 @@ function Block({ b, index }: { b: BlockDef; index: number }) {
             </div>
           )}
         </div>
-        {b.action && <RunButton running={status === "running"} disabled={!!busy} onClick={() => runSaved(b.action!, b.act)} />}
+        {b.aside && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{b.aside}</div>}
+        {b.action && <RunButton running={status === "running"} disabled={!canRun(b.action, b.act)} onClick={() => runSaved(b.action!, b.act)} />}
       </div>
       {b.note && <div className="-mt-1 px-4 pb-3 pl-[52px] text-xs text-warning">{b.note}</div>}
       {hasBody && open && (

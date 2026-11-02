@@ -12,8 +12,14 @@ interface App {
   list: WsSummary[]; studio: StudioState | null; reloadList: () => Promise<void>;
   schema: Schema;
   d: Details | null; refresh: () => Promise<void>;
-  /** the job running in the selected video, if any */
+  /** the first job running in the selected video, if any (several can run: jobs on different acts) */
   busy: Job | null;
+  /** every job running in the selected video */
+  runningJobs: Job[];
+  /** false while a running job would clash with this action (same act, or a whole-video job); the server has the last word */
+  canRun: (key: string, act?: string) => boolean;
+  /** the running job with this label, if any */
+  jobFor: (label: string) => Job | null;
   /** every job the server knows (all videos), newest first */
   activity: Job[]; runningAnywhere: Job[];
   system: SystemInfo | null;
@@ -21,7 +27,7 @@ interface App {
   usage: UsageReport | null; loadUsage: (force?: boolean) => Promise<void>;
   toasts: Toast[]; toast: (m: string) => void;
   run: (key: string, act?: string, opts?: Record<string, unknown>) => Promise<void>;
-  stop: () => Promise<void>;
+  stop: (jobId?: string) => Promise<void>;
   file: (rel: string) => string;
   logTab: string | null; showLog: (jobId: string | null) => void;
   logRequest: number;
@@ -85,7 +91,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const loadUsage = useCallback(async (force = false) => { try { setUsage(await api.usage(force)); } catch (e) { if (force) toast((e as Error).message); } }, [toast]);
   usePoll(() => loadUsage(), 60000);
 
-  const busy = useMemo(() => d?.jobs.find((j) => j.status === "running") ?? null, [d]);
+  const runningJobs = useMemo(() => d?.jobs.filter((j) => j.status === "running") ?? [], [d]);
+  const busy = runningJobs[0] ?? null;
+  const canRun = useCallback((key: string, act?: string) => {
+    if (!runningJobs.length) return true;
+    if (runningJobs.some((j) => (j.locks ?? ["*"]).includes("*"))) return false;
+    const a = schema[key];
+    if (a?.step === "acts" && a.perAct && act) return !runningJobs.some((j) => j.locks?.includes(`act:${act}`));
+    if (key === "acts.all" || key === "acts.reviewAll") return !runningJobs.some((j) => j.label === a?.label);
+    return false;
+  }, [runningJobs, schema]);
+  const jobFor = useCallback((label: string) => runningJobs.find((j) => j.label === label) ?? null, [runningJobs]);
   const runningAnywhere = useMemo(() => activity.filter((j) => j.status === "running"), [activity]);
 
   const showLog = useCallback((id: string | null) => { setLogTab(id); setLogRequest((n) => n + 1); }, []);
@@ -102,13 +118,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) { toast((e as Error).message); }
   }, [ws, schema, toast, showLog, refresh]);
 
-  const stop = useCallback(async () => {
-    if (!ws || !window.confirm("Stop the running job?")) return;
-    try { await api.stop(ws); toast("Stopping…"); } catch (e) { toast((e as Error).message); }
-  }, [ws, toast]);
+  const stop = useCallback(async (jobId?: string) => {
+    const j = jobId ? runningJobs.find((x) => x.id === jobId) : busy;
+    if (!ws || !window.confirm(`Stop ${j ? j.label : "the running job"}?`)) return;
+    try { await api.stop(ws, j?.id); toast("Stopping…"); } catch (e) { toast((e as Error).message); }
+  }, [ws, toast, runningJobs, busy]);
 
   const file = useCallback((rel: string) => api.fileUrl(ws ?? "", rel), [ws]);
 
-  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest, mode, setMode };
+  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, runningJobs, canRun, jobFor, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest, mode, setMode };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

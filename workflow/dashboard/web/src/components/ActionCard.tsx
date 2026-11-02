@@ -13,8 +13,8 @@ import { RunButton } from "./RunButton";
 
 /** One runnable action: what it does, its options, a Run button. Master buttons also show the commands they chain. */
 /** `bare`: only the controls (options + Run), for use inside a flow block that already shows the title and status. */
-export function ActionCard({ id, act, children, hint, bare }: { id: string; act?: string; children?: React.ReactNode; hint?: string; bare?: boolean }) {
-  const { schema, d, busy, run } = useApp();
+export function ActionCard({ id, act, children, hint, bare, hide = [] }: { id: string; act?: string; children?: React.ReactNode; hint?: string; bare?: boolean; hide?: string[] }) {
+  const { schema, d, canRun, jobFor, run } = useApp();
   const { hot, setHot } = useHighlight();
   const a = schema[id];
   const defs = a?.opts ?? [];
@@ -41,10 +41,10 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
 
   const isMaster = !!a.chain;
   const title = a.perAct ? `${a.label} ${act}` : a.label;
-  const running = busy?.label === title;
+  const job = jobFor(title), running = !!job;
   const last = [...(d?.runs ?? [])].reverse().find((r) => r.label === title);
   const opts = toOpts(defs, merged);
-  const preview = Object.entries(opts).filter(([, v]) => v !== false && !(Array.isArray(v) && !v.length)).map(([k, v]) => (v === true ? k : `${k}=${Array.isArray(v) ? v.join(",") : v}`)).join(" · ");
+  const preview = Object.entries(opts).filter(([k]) => !hide.includes(k)).filter(([, v]) => v !== false && !(Array.isArray(v) && !v.length)).map(([k, v]) => (v === true ? k : `${k}=${Array.isArray(v) ? v.join(",") : v}`)).join(" · ");
   const lit = hot.has(id);
   const coveredKeys = isMaster ? a.chain!.flatMap((c) => (c.action ? [c.action] : [])) : [];
 
@@ -75,13 +75,13 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
         </div>
       )}
       {!bare && <div className="h-2" />}
-      {!bare && isMaster && <MasterChain chain={a.chain!} job={running ? busy : null} />}
+      {!bare && isMaster && <MasterChain chain={a.chain!} job={job} />}
       {hint && <div className={cn("pb-2 text-xs text-warning", bare ? "px-3" : "px-4")}>{hint}</div>}
       {children}
       {defs.length > 0 && (
         <Fold title={<span className="flex min-w-0 items-center gap-2">Options <span className="min-w-0 truncate font-mono text-[11px] font-normal text-subtle-foreground">{preview}</span></span>} className={cn("px-3", !bare && "border-t")}>
           <div className="grid gap-2.5 pb-3 pt-1 sm:grid-cols-2 sm:gap-x-8">
-            {defs.filter((o) => visible(o, defs, merged)).map((o) => (
+            {defs.filter((o) => visible(o, defs, merged) && !hide.includes(o.key)).map((o) => (
               <OptionField key={o.key} o={o} value={merged[o.key]} choices={id === "acts.all" && o.key === "acts" ? planActs : undefined} onChange={(v) => setVals((p) => { const n = { ...merged, ...p, [o.key]: v }; store.set(`opt.${id}`, toOpts(defs, n)); return n; })} />
             ))}
           </div>
@@ -89,7 +89,7 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
       )}
       {!bare && (
         <div className="mt-auto flex items-center gap-2.5 px-4 pb-4 pt-1">
-          <RunButton primary={!a.paid} running={running} disabled={!!busy} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />
+          <RunButton primary={!a.paid} running={running} disabled={!canRun(id, act)} onClick={() => { store.set(`opt.${id}`, opts); void run(id, act, opts); }} />
           {defs.length === 0 && <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={preview}>{preview}</span>}
         </div>
       )}

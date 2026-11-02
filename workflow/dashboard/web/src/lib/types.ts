@@ -18,9 +18,20 @@ export type Schema = Record<string, ActionDef>;
 export interface JobStats { cpuAvg: number | null; cpuPeak: number | null; rssPeakMB: number | null; gpuAvg: number | null; gpuPeak: number | null; cur: { cpu: number; rssMB: number; top: string[] } | null }
 export interface Job {
   id: string; ws: string; step: string; label: string; status: "running" | "done" | "failed" | "stopped"; exitCode: number | null;
-  startedAt: number; endedAt: number | null; ms: number; cmd?: string; cmds: string[]; cmdIndex: number; cmdCount: number; opts: Record<string, unknown>; stats: JobStats;
+  startedAt: number; endedAt: number | null; ms: number; cmd?: string; cmds: string[]; cmdIndex: number; cmdCount: number; opts: Record<string, unknown>; locks?: string[]; stats: JobStats;
 }
 export interface FileInfo { path: string; size: number; mtime: number }
+/** Your review of one voice section (03-voiceover/review.json). */
+export interface VoiceReview { note: string; direction?: string; status: "open" | "regenerated"; at: string; regeneratedAt?: string }
+export interface VoiceSection {
+  id: string; part: number; partTitle: string; chapterTitle: string | null; file: FileInfo | null; text: string; instruction: string; direction: string;
+  pauses: { at: number; dur: number }[]; pausesStale: boolean; wer: number | null; review: VoiceReview | null; prev: FileInfo | null;
+}
+export interface Loudness { integrated: number; truePeak: number; lra: number }
+export interface MasterReport {
+  at: string; options: Record<string, number | boolean>; chain: { stage: string; what: string; settings: string; on: boolean }[];
+  before: Loudness; after: Loudness; durationIn: number; durationOut: number;
+}
 export interface Timing { step: string; ms?: number; model?: string; costUsd?: number; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; at?: string; note?: string }
 export interface StepMeta { runs: number; totalMs: number; totalCost: number; last: { step: string; ms?: number; costUsd?: number; model?: string; at?: string } }
 export interface Run { id: string; step: string; label: string; cmds?: string[]; opts?: Record<string, unknown>; status: string; start: number; end: number; ms: number; cpuAvg?: number | null; cpuPeak?: number | null; rssPeakMB?: number | null; gpuAvg?: number | null; gpuPeak?: number | null }
@@ -78,9 +89,12 @@ export interface Details {
   id: string; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
   script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
   runs: Run[]; totals: { ms: number; costUsd: number };
-  voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean };
-  align: { voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number } | null; master: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
-  plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[] };
+  voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean;
+    sections: VoiceSection[]; scanned: boolean; baseStyle: string | null; engine: string | null };
+  align: { voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number; maxPause: number } | null; master: FileInfo | null; masterReport: MasterReport | null; rawVoice: FileInfo | null;
+    transcript: { model: string | null; at: string | null; clips: { id: string; startMs: number; durationMs: number; matchedPct: number | null; text: string; words: number }[] } | null;
+    srt: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
+  plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[]; approval: { at: string; valid: boolean } | null };
   acts: ActRow[];
   publish: PublishInfo;
   shorts: ShortsInfo;

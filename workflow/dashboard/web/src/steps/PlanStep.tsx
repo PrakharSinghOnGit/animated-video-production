@@ -5,6 +5,9 @@ import { DataTable, Td } from "@/components/DataTable";
 import { Note } from "@/components/FileLine";
 import { Badge } from "@/components/ui/badge";
 import type { PlanAct, PlanBeat } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
+import { ago } from "@/lib/utils";
 
 const sec = (ms: number) => `${(ms / 1000).toFixed(1)}`;
 const unverifiedSrc = (s: string) => /unverified|narration/i.test(s);
@@ -82,8 +85,9 @@ function ActPlan({ a, onOpen }: { a: PlanAct; onOpen: () => void }) {
 }
 
 export function PlanStep() {
-  const { d, go } = useApp();
+  const { d, go, ws, refresh, toast } = useApp();
   if (!d) return null;
+  const set = async (on: boolean) => { try { await (on ? api.approvePlan(ws!) : api.unapprovePlan(ws!)); await refresh(); } catch (e) { toast((e as Error).message); } };
   const p = d.plan;
   const spec = stepSpec("plan", d);
   const treatment = Object.entries(p.treatment ?? {});
@@ -115,5 +119,11 @@ export function PlanStep() {
         <div className="grid gap-2">{p.acts.map((a) => <ActPlan key={a.id} a={a} onOpen={() => go({ act: a.id, step: "acts" })} />)}</div>
       </>),
   };
-  return <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids)} />;
+  kids.approve = p.acts.length ? <span className="text-xs text-muted-foreground">{p.approval?.valid ? `You approved this plan ${ago(Date.parse(p.approval.at))}.` : "Approving takes the plan as it is: validation and sync warnings no longer block authoring."}</span> : undefined;
+  const asides = {
+    approve: p.acts.length ? (p.approval?.valid
+      ? <Button size="sm" onClick={() => set(false)}>Remove approval</Button>
+      : <Button size="sm" variant="default" onClick={() => set(true)}>Approve plan</Button>) : undefined,
+  };
+  return <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids, asides)} />;
 }

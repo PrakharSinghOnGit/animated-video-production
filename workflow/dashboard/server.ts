@@ -101,6 +101,8 @@ interface Job {
   pid: number | null;
   stopRequested: boolean;
   opts: Record<string, any>;
+  /** what the job writes: "act:A03" for one act's jobs, "*" for the whole video. Jobs whose locks overlap never run together. */
+  locks: string[];
   stats: { n: number; cpuSum: number; cpuPeak: number; rssPeak: number; gpuSum: number; gpuN: number; gpuPeak: number; cur: { cpu: number; rssMB: number; top: string[] } | null };
 }
 
@@ -109,11 +111,18 @@ const jobsByWs = new Map<string, string[]>(); // ws → jobIds (newest last)
 let jobSeq = 0;
 const enc = new TextEncoder();
 
+/** The first running job of a video (any), see runningJobs for all of them. */
 function runningJob(ws: string): Job | undefined {
-  for (const jid of jobsByWs.get(ws) ?? []) {
-    const j = jobs.get(jid);
-    if (j?.status === "running") return j;
-  }
+  return runningJobs(ws)[0];
+}
+function runningJobs(ws: string): Job[] {
+  return (jobsByWs.get(ws) ?? []).map((jid) => jobs.get(jid)).filter((j): j is Job => j?.status === "running");
+}
+/** Locks overlap when either takes the whole video ("*") or both write the same act. */
+const lockClash = (a: string[], b: string[]) => a.includes("*") || b.includes("*") || a.some((x) => b.includes(x));
+/** The running job a new job with these locks would clash with, if any. */
+function clashWith(ws: string, locks: string[]): Job | undefined {
+  return runningJobs(ws).find((j) => lockClash(j.locks, locks));
 }
 
 function appendWsLog(ws: string, s: string) {
@@ -141,7 +150,7 @@ function jobStats(j: Job) {
 }
 function jobSummary(j: Job) {
   return { id: j.id, ws: j.ws, step: j.step, label: j.label, status: j.status, exitCode: j.exitCode, startedAt: j.startedAt, endedAt: j.endedAt,
-    ms: (j.endedAt ?? Date.now()) - j.startedAt, cmd: j.cmds[j.cmdIndex]?.join(" "), cmds: j.cmds.map((c) => c.join(" ")), cmdIndex: j.cmdIndex, cmdCount: j.cmds.length, opts: j.opts, stats: jobStats(j) };
+    ms: (j.endedAt ?? Date.now()) - j.startedAt, cmd: j.cmds[j.cmdIndex]?.join(" "), cmds: j.cmds.map((c) => c.join(" ")), cmdIndex: j.cmdIndex, cmdCount: j.cmds.length, opts: j.opts, locks: j.locks, stats: jobStats(j) };
 }
 
 /** Every finished job, with duration and resources, in workspace/<ID>/dashboard_runs.json (newest last, capped). */
@@ -230,11 +239,11 @@ function killTree(pid: number, signal: NodeJS.Signals = "SIGTERM") {
   for (const p of all.reverse()) { try { process.kill(p, signal); } catch {} }
 }
 
-function startJob(ws: string, step: string, label: string, cmds: string[][], opts: Record<string, any> = {}): Job {
+function startJob(ws: string, step: string, label: string, cmds: string[][], opts: Record<string, any> = {}, locks: string[] = ["*"]): Job {
   const job: Job = {
     id: `j${Date.now().toString(36)}${(jobSeq++).toString(36)}`,
     ws, step, label, cmds, cmdIndex: 0, status: "running", exitCode: null,
-    startedAt: Date.now(), endedAt: null, text: "", subs: new Set(), pid: null, stopRequested: false, opts,
+    startedAt: Date.now(), endedAt: null, text: "", subs: new Set(), pid: null, stopRequested: false, opts, locks,
     stats: { n: 0, cpuSum: 0, cpuPeak: 0, rssPeak: 0, gpuSum: 0, gpuN: 0, gpuPeak: 0, cur: null },
   };
   jobs.set(job.id, job);
@@ -313,6 +322,13 @@ function actIds(ws: string): string[] {
 }
 
 const notesRel = (act: string) => `05-video/review/${act}/director_notes.md`;
+const voiceReviewPath = (ws: string) => path.join(wsDir(ws), "03-voiceover/review.json");
+/** Master voice: options not given fall back to the last run's (06-audio/master.json), like Speed & gaps does. */
+function masterOpts(ws: string, o: Record<string, any>): Record<string, any> {
+  const last = readJson<any>(path.join(wsDir(ws), "06-audio/master.json"))?.options ?? {};
+  const pick = (k: string) => (o[k] !== undefined && o[k] !== "" ? o[k] : last[k]);
+  return { targetLufs: pick("targetLufs"), highpass: pick("highpass"), deess: pick("deess"), ratio: pick("ratio"), threshold: pick("threshold"), noRoomTone: o.noRoomTone ?? (last.roomTone === false) };
+}
 
 /** One option of an action. The client renders a control per option; the server validates and maps it to argv. */
 interface Opt {
@@ -417,21 +433,47 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("tts", "--video", ws, ...args(o, "voice.run"))],
   },
+  "voice.redo": {
+    step: "voice", label: "Regenerate reviewed", help: "Reads the sections in Review again: Gemini gets each section's direction plus your note (\"Fix from the previous take: …\"); the old take is kept to compare. Qwen takes no direction, so a note only buys a fresh take there. Then run Align → Merge so the full voiceover picks it up.", long: "~10–40 s per section",
+    opts: [
+      ...ENGINE_OPTS.filter((o) => o.key !== "parallel"),
+      { key: "takes", label: "Takes per passage", help: "the take whose words best match the script is kept", type: "number", min: 1, max: 6, step: 1, flag: "--takes" },
+      { key: "section", label: "Only section id", help: "empty = every section in Review that is waiting for a new take", type: "text", flag: "--section" },
+    ],
+    build: (ws, o) => {
+      const rv = readJson<Record<string, any>>(voiceReviewPath(ws)) ?? {};
+      const ids = o.section ? [String(o.section)] : Object.entries(rv).filter(([, r]) => r?.status === "open").map(([id]) => id);
+      if (!ids.length) return "nothing to regenerate: add sections to Review (and write what to change)";
+      if (ids.some((id) => !/^[\w-]+$/.test(id))) return "bad section id";
+      return [B("tts", "--video", ws, "--review", "--force", ...args({ ...o, section: undefined }, "voice.redo"), "--section", ids.join(","))];
+    },
+  },
+  "voice.scan": { step: "voice", label: "Scan for long pauses", help: "Lists every section with its exact TTS direction and finds pauses over 0.9 s inside each take (generation does this too; run it for voices made before).", long: "seconds",
+    build: (ws) => [B("voice:scan", "--video", ws)] },
   "align.post": {
     step: "align", label: "Speed & gaps", help: "Speeds the whole voiceover up or down without changing its pitch (rubberband, best quality) and sets the silence between sections and before chapters, then builds the combined voiceover. Always starts from the untouched voice files, so you can re-run with other settings. Empty = the last used setting. Run the rest of Align after it.", long: "~10–30 s",
     opts: [
       { key: "speed", label: "Speed", help: "1 = as generated, 1.1 = 10% faster, 0.95 = 5% slower (pitch unchanged)", type: "number", min: 0.7, max: 1.5, step: 0.01, flag: "--speed" },
       { key: "gap", label: "Gap between sections (s)", help: "silence after each script block", type: "number", min: 0, max: 3, step: 0.05, flag: "--gap" },
       { key: "chapterGap", label: "Chapter pause (s)", help: "silence before a chapter, while its title card shows", type: "number", min: 0, max: 8, step: 0.1, flag: "--chapter-gap" },
+      { key: "maxPause", label: "Longest pause inside a section (s)", help: "shortens any silence inside a take to this (a stalled TTS take); 0 = off; empty = last used", type: "number", min: 0, max: 3, step: 0.05, flag: "--max-pause" },
     ],
     build: (ws, o) => [B("tts:post", "--video", ws, ...args(o, "align.post"))],
   },
-  "align.all": { step: "align", label: "Align all", help: "Speed & gaps (last used settings) → transcribe → master → captions → .srt.", long: "~3 min",
-    chain: [{ label: "Speed & gaps", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Export .srt", action: "align.srt" }], build: (ws) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws), B("captions", "--video", ws), B("srt", "--video", ws)] },
+  "align.all": { step: "align", label: "Align all", help: "Merge (speed & gaps, last used settings) → transcribe → master → captions (which also writes the .srt).", long: "~3 min",
+    chain: [{ label: "Merge", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }], build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws)] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
-  "align.master": { step: "align", label: "Master voice", help: "EQ, de-ess, compression, loudness.", build: (ws) => [B("audio:master", "--video", ws)] },
+  "align.master": { step: "align", label: "Master voice", help: "High-pass EQ → de-esser → compressor → room tone → loudness to the YouTube target. Empty = the last used setting. Writes 06-audio/master.json (what it did, loudness before/after).",
+    opts: [
+      { key: "targetLufs", label: "Loudness target (LUFS)", help: "YouTube normalises to −14", type: "number", min: -24, max: -9, step: 0.5, flag: "--target-lufs" },
+      { key: "highpass", label: "High-pass (Hz)", help: "0 = off", type: "number", min: 0, max: 200, step: 5, flag: "--highpass" },
+      { key: "deess", label: "De-esser intensity", help: "0 = off", type: "number", min: 0, max: 1, step: 0.05, flag: "--deess" },
+      { key: "ratio", label: "Compression ratio", help: "1 = off", type: "number", min: 1, max: 8, step: 0.5, flag: "--ratio" },
+      { key: "threshold", label: "Compression threshold (dB)", type: "number", min: -40, max: 0, step: 1, flag: "--threshold" },
+      { key: "noRoomTone", label: "No room tone", type: "bool", def: false, flag: "--no-room-tone" },
+    ],
+    build: (ws, o) => [B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master"))] },
   "align.captions": { step: "align", label: "Build captions", help: "captions.json + chapters.json for the planner; also re-exports the .srt so it always matches the voice.", build: (ws) => [B("captions", "--video", ws)] },
-  "align.srt": { step: "align", label: "Export .srt", help: "YouTube closed captions.", build: (ws) => [B("srt", "--video", ws)] },
   "plan.run": {
     step: "plan", label: "Plan acts", help: "The director splits the narration into ~10 acts with beats, hits and sourced data.", paid: "~$1.5", long: "~6 min",
     opts: [
@@ -451,8 +493,30 @@ const ACTIONS: Record<string, Action> = {
       CRITIC_OPT,
       { key: "force", label: "Redo acts that exist", type: "bool", def: false, flag: "--force" },
       { key: "strict", label: "Paid fix round on a failed critic", type: "bool", def: false, flag: "--strict" },
+      { key: "stopAt", label: "Start no new act at 5-h usage (%)", help: "Claude (default profile) only, read from the status line; empty = never. Running acts always finish", type: "number", min: 10, max: 100, step: 5, def: 90, flag: "--stop-at" },
+      { ...modelOpt("actAuthor", "On a usage limit, switch to", "--on-limit", "onLimit"), help: "default = stop: start no new acts. A model here redoes the stopped act and the rest with it (e.g. the other Claude profile)" },
+      { key: "models", label: "Per-act models", help: "set in the act list above (A01=claude:sonnet,…)", type: "text", flag: "--models" },
     ],
     build: (ws, o) => [B("act", "--video", ws, ...args(o, "acts.all"))],
+  },
+  "acts.reviewAll": {
+    step: "acts", label: "Review acts", help: "For each picked act: renders its preview (to watch) and runs the reviewer, one act after another. Runs beside authoring: only the picked acts are locked.", long: "~3–8 min per act",
+    opts: [
+      { key: "acts", label: "Acts", help: "empty = every act that has a file", type: "multi", choices: [], flag: "--act" },
+      { key: "preview", label: "Also render previews", type: "bool", def: true, flag: "--preview" },
+      modelOpt("actReview", "Reviewer", "--agent", "agent"),
+      { key: "give", label: "Give it", type: "multi", choices: ["transcript", "plan", "script", "code"], def: ["transcript", "plan"], map: (v: string[]) => (v.length ? ["--give", v.join(",")] : ["--give", "none"]) },
+      { key: "toNotes", label: "Append findings to review notes", type: "bool", def: true, flag: "--to-notes" },
+    ],
+    build: (ws, o) => {
+      const scenes = sceneFiles(ws);
+      const picked: string[] = Array.isArray(o.acts) && o.acts.length ? o.acts.map(String) : actIds(ws).filter((id) => scenes[id]);
+      const bad = picked.filter((id) => !actIds(ws).includes(id) || !scenes[id]);
+      if (bad.length) return `${bad.join(", ")}: no act file to review`;
+      if (!picked.length) return "no act has a file yet";
+      const rv = args({ ...o, acts: [], preview: false }, "acts.reviewAll");   // reviewer options only
+      return picked.flatMap((id) => [...(o.preview !== false ? [B("preview", "--video", ws, "--act", id)] : []), B("review", "--video", ws, "--act", id, ...rv)]);
+    },
   },
   "acts.act": {
     step: "acts", perAct: true, label: "Author", help: "Writes this act.", paid: "~$3", long: "~17 min",
@@ -479,6 +543,7 @@ const ACTIONS: Record<string, Action> = {
       { key: "words", label: "Also at hit words", type: "bool", def: true, flag: "--words" },
       { key: "scale", label: "Scale", type: "number", min: 0.25, max: 1, step: 0.25, def: 0.5, flag: "--scale" },
       { key: "at", label: "Extra times (s)", help: "comma-separated, e.g. 12.3,20", type: "text", flag: "--at" },
+      { key: "only", label: "Only these times (keep the other frames)", help: "renders just the extra times and adds them to the frames already there", type: "bool", def: false, flag: "--only" },
     ],
     build: (ws, o, act) => [B("frames", "--video", ws, "--scene", act!, ...args(o, "acts.frames"))],
   },
@@ -749,7 +814,7 @@ function args(o: Record<string, any>, key: string): string[] {
         continue;
       case "multi": {
         const arr = (Array.isArray(v) ? v : []).map(String);
-        const allowed = key === "acts.all" && opt.key === "acts" ? currentOpts.__acts ?? [] : opt.choices ?? [];
+        const allowed = (key === "acts.all" || key === "acts.reviewAll") && opt.key === "acts" ? currentOpts.__acts ?? [] : opt.choices ?? [];
         const unknown = arr.filter((x) => !allowed.includes(x));
         if (unknown.length) throw new Error(`${opt.label}: ${unknown.join(", ")} ${unknown.length > 1 ? "are" : "is"} not offered any more (pick again)`);
         out.push(...(opt.map ? opt.map(arr) : arr.length ? [opt.flag!, arr.join(",")] : []));
@@ -758,7 +823,8 @@ function args(o: Record<string, any>, key: string): string[] {
       case "text": {
         const s = String(v).trim();
         if (!s) continue;
-        if (s.length > 300 || s.startsWith("-") || /[\0\n\r]/.test(s)) throw new Error(`${opt.label}: invalid text`);
+        if (s.length > (opt.key === "models" ? 2000 : 300) || s.startsWith("-") || /[\0\n\r]/.test(s)) throw new Error(`${opt.label}: invalid text`);
+        if (opt.key === "models" && !/^([A-Z]\d+=[\w:./@-]+)(,[A-Z]\d+=[\w:./@-]+)*$/.test(s)) throw new Error("Per-act models: A01=claude:sonnet,A02=opus");
         if (opt.key === "at" && !/^[\d.,\s]+$/.test(s)) throw new Error("Extra times: numbers separated by commas");
         if (opt.key === "only" && !/^[\w,]+$/.test(s)) throw new Error("Items: keys separated by commas");
         if (opt.key === "section" && !/^[\w-]+$/.test(s)) throw new Error("Section id: letters, digits, _ and -");
@@ -770,7 +836,26 @@ function args(o: Record<string, any>, key: string): string[] {
 }
 
 /** Every runnable thing: action key → argv chain (allowlisted; options validated). */
-function commandFor(ws: string, key: string, opts: Record<string, any>, act?: string): { label: string; key: string; cmds: string[][] } | string {
+/**
+ * What a job writes, so the dashboard can run jobs side by side: one act's jobs (author, frames, preview, review, fix)
+ * lock that act; the batch actions lock the acts they will touch; everything else locks the whole video ("*").
+ */
+function locksFor(ws: string, key: string, opts: Record<string, any>, act?: string): string[] {
+  const a = ACTIONS[key];
+  if (a.step === "acts" && a.perAct && act) return [`act:${act}`];
+  if (key === "acts.all" || key === "acts.reviewAll") {
+    const picked: string[] = Array.isArray(opts.acts) ? opts.acts.map(String) : [];
+    if (picked.length) return picked.map((x) => `act:${x}`);
+    if (key === "acts.reviewAll") return actIds(ws).filter((id) => sceneFiles(ws)[id]).map((x) => `act:${x}`);
+    // no pick: every act without a file, plus (as the author does) acts whose plan changed; with "redo", all acts
+    const scenes = sceneFiles(ws);
+    const ids = opts.force ? actIds(ws) : actIds(ws).filter((id) => !scenes[id] || actStale(ws, id, mtime(path.join(wsDir(ws), scenes[id]))));
+    return ids.length ? ids.map((x) => `act:${x}`) : ["*"];
+  }
+  return ["*"];
+}
+
+function commandFor(ws: string, key: string, opts: Record<string, any>, act?: string): { label: string; key: string; cmds: string[][]; locks: string[] } | string {
   const a = ACTIONS[key];
   if (!a) return "unknown action";
   if (a.perAct && (!act || !ACT_ID.test(act) || !actIds(ws).includes(act))) return "unknown act";
@@ -781,7 +866,7 @@ function commandFor(ws: string, key: string, opts: Record<string, any>, act?: st
   try { cmds = a.build(ws, opts ?? {}, act); } catch (e: any) { return e.message; }
   if (typeof cmds === "string") return cmds;
   const jobKey = a.variant ? `${a.step}:${act}` : a.perAct ? `${key.split(".")[1]}:${act}` : a.step;   // shorts jobs all use the step key "shorts"
-  return { key: jobKey, label: a.perAct || a.variant || a.perShort ? `${a.label} ${act}` : a.label, cmds };
+  return { key: jobKey, label: a.perAct || a.variant || a.perShort ? `${a.label} ${act}` : a.label, cmds, locks: locksFor(ws, key, opts ?? {}, act) };
 }
 
 function schema() {
@@ -853,6 +938,12 @@ function actStale(ws: string, id: string, sceneMs: number): boolean {
   try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, cur); } catch {}
   return false;
 }
+/** Your approval of the plan; valid while acts.json is the file you approved. */
+function planApproval(ws: string): { at: string; valid: boolean } | null {
+  const a = readJson<any>(path.join(wsDir(ws), "05-video/plan_approved.json")), f = path.join(wsDir(ws), "05-video/acts.json");
+  if (!a || !exists(f)) return null;
+  return { at: a.at, valid: a.sha256 === new Bun.CryptoHasher("sha256").update(fs.readFileSync(f)).digest("hex") };
+}
 const approvalPath = (ws: string, id: string) => path.join(wsDir(ws), `05-video/review/${id}/approved.json`);
 /** Explicit human approval; valid only while the scene is the one that was approved. */
 function actApproval(ws: string, id: string, sceneMs: number): { at: string; sceneMtime: number } | null {
@@ -867,8 +958,7 @@ function sceneStatus(ws: string, id: string, rel: string | undefined): St {
 }
 
 function overlay(ws: string, key: string, st: St, outputs: string[]): St {
-  const run = runningJob(ws);
-  if (run && (run.step === key || run.step.startsWith(key + ":"))) return "running";
+  if (runningJobs(ws).some((run) => run.step === key || run.step.startsWith(key + ":"))) return "running";
   const last = lastRuns(ws)[key];
   if (last && last.exit !== "0") {
     const newestOut = Math.max(0, ...outputs.map((o) => mtime(path.join(wsDir(ws), o))));
@@ -954,8 +1044,7 @@ function stepStatuses(ws: string): Record<string, St> {
     const have = ids.filter((i) => scenes[i]);
     acts = have.length === 0 ? "none" : have.length < ids.length ? "partial" : have.some((i) => sceneStatus(ws, i, scenes[i]) === "stale") ? "stale" : "done";
   }
-  const run = runningJob(ws);
-  if (run && /^(acts|act:|fix:|frames:)/.test(run.step)) acts = "running";
+  if (runningJobs(ws).some((run) => /^(acts|act:|fix:|frames:|preview:|review:)/.test(run.step))) acts = "running";
   const render = (() => {
     const { draft, final: fin } = renderStates(ws);
     const st: St = fin !== "none" ? fin : draft;
@@ -967,7 +1056,7 @@ function stepStatuses(ws: string): Record<string, St> {
       : exists(path.join(wsDir(ws), "02-scripting/idea.md")) ? overlay(ws, "script", "partial", []) : "none",
     voice: S("voice", ["03-voiceover/sections/index.ts"], ["03-voiceover/audio/voice.json"]),
     align: S("align", ["03-voiceover/audio/voice.json"], ["03-voiceover/audio/combined/full_voiceover.wav", "04-transcription/full_transcript.json", "06-audio/voiceover_master.wav", "05-video/captions.json"]),
-    plan: S("plan", ["05-video/captions.json"], ["05-video/acts.json"]),
+    plan: planApproval(ws)?.valid ? overlay(ws, "plan", "done", ["05-video/acts.json"]) : S("plan", ["05-video/captions.json"], ["05-video/acts.json"]),
     acts,
     sound: S("sound", ["06-audio/voiceover_master.wav"], ["05-video/events.json", "06-audio/music_plan.json", "06-audio/music.wav", "06-audio/mix.wav"], sceneMax),
     render,
@@ -1103,9 +1192,26 @@ function details(ws: string) {
   const voiceSince = run?.step === "voice" ? run.startedAt : 0;
   const freshWavs = voiceParts.reduce((s, p) => s + p.files.filter((f: any) => f.mtime >= voiceSince).length, 0);
 
+  // voice sections for Listen / Review: text, the exact direction, long pauses, your review, the previous take
+  const voiceManifest = readJson<any>(path.join(audioDir, "sections.json"));
+  const pauses = readJson<any>(path.join(audioDir, "pauses.json"))?.files ?? {};
+  const reviews = readJson<Record<string, any>>(voiceReviewPath(ws)) ?? {};
+  const voiceSections = (voiceManifest?.sections ?? []).map((x: any) => {
+    const base = path.basename(x.file, ".wav"), rep = readJson<any>(path.join(audioDir, "reports", `${base}.json`));
+    const wer = rep?.chunks?.length ? rep.chunks.reduce((n: number, c: any) => n + (c.chosenWer ?? 0), 0) / rep.chunks.length : null;
+    const f = fileInfo(ws, `03-voiceover/audio/${x.file}`);
+    return { id: x.id, part: x.part, partTitle: x.partTitle ?? "", chapterTitle: x.chapterTitle ?? null, file: f, text: x.text, instruction: x.instruction, direction: x.direction,
+      pauses: f && pauses[x.file]?.mtime === f.mtime ? pauses[x.file].pauses : [], pausesStale: !!f && !!pauses[x.file] && pauses[x.file].mtime !== f.mtime,
+      wer, review: reviews[x.id] ?? null, prev: fileInfo(ws, `03-voiceover/audio/prev/${x.file}`) };
+  });
+
   // align
   const captions = readJson<any[]>(path.join(d, "05-video/captions.json"));
   const chapters = readJson<any[]>(path.join(d, "05-video/chapters.json"));
+  const transcript = readJson<any>(path.join(d, "04-transcription/full_transcript.json"));
+  let tOff = 0;
+  const trClips = (transcript?.clips ?? []).map((c: any) => { const r = { id: c.sectionId, startMs: Math.round(tOff * 1000), durationMs: Math.round(c.duration * 1000), matchedPct: c.matchedPct ?? null, text: c.text ?? "", words: (c.words ?? []).length }; tOff += c.duration; return r; });
+  const masterReport = readJson<any>(path.join(d, "06-audio/master.json"));
 
   // plan
   const plan = readJson<any>(path.join(d, "05-video/acts.json"));
@@ -1130,7 +1236,7 @@ function details(ws: string) {
     const notesPath = path.join(d, notesRel(a.id));
     const scene = scenes[a.id] ? fileInfo(ws, scenes[a.id]) : null;
     let status: St = sceneStatus(ws, a.id, scenes[a.id]);
-    if (run && [`act:${a.id}`, `fix:${a.id}`, `frames:${a.id}`].includes(run.step)) status = "running";
+    if (runningJobs(ws).some((j) => j.locks.includes(`act:${a.id}`) && /^(acts|act:|fix:)/.test(j.step))) status = "running";
     else for (const k of [`act:${a.id}`, `fix:${a.id}`]) if (last[k] && last[k].exit !== "0" && last[k].end >= (scene?.mtime ?? 0)) status = "failed";
     return {
       id: a.id, title: a.title, status, scene,
@@ -1177,11 +1283,13 @@ function details(ws: string) {
     },
     runs: (readJson<any[]>(path.join(d, "dashboard_runs.json")) ?? []).slice(-80),
     totals: { ms: allRows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: allRows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
-    voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince },
-    align: { voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap }) => ({ speed, gap, chapterGap }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
+    voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince, sections: voiceSections, scanned: !!voiceManifest, baseStyle: voiceManifest?.baseStyle ?? null, engine: readJson<any>(path.join(audioDir, "voice.json"))?.engine ?? null },
+    align: { voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap, maxPause }) => ({ speed, gap, chapterGap, maxPause: maxPause ?? 0 }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), masterReport, rawVoice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"),
+      transcript: transcript ? { model: transcript.model ?? null, at: transcript.generatedAt ?? null, clips: trClips } : null,
+      srt: fileInfo(ws, `07-assembly/export/${ws}.srt`), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, style: plan?.style ?? null,
       treatment: plan?.treatment ? Object.fromEntries(Object.entries(plan.treatment).filter(([k, v]) => k !== "logline" && (typeof v === "string" || Array.isArray(v))).map(([k, v]) => [k, Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" · ") : v])) : {},
-      acts, unverified },
+      acts, unverified, approval: planApproval(ws) },
     acts: actRows,
     sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
     render: { videos, qc, manifest, ...renderStates(ws) },
@@ -1549,16 +1657,18 @@ async function appFetch(req: Request): Promise<Response> {
         const c = commandFor(ws, action, opts && typeof opts === "object" && !Array.isArray(opts) ? opts : {}, typeof act === "string" ? act.toUpperCase() : undefined);
         return typeof c === "string" ? bad(c) : json({ label: c.label, cmds: c.cmds });
       }
-      const busy = runningJob(ws);
-      if (busy) return bad(`busy: ${busy.label} is running`, 409);
       const o = opts && typeof opts === "object" && !Array.isArray(opts) ? opts : {};
       const c = commandFor(ws, action, o, typeof act === "string" ? act.toUpperCase() : undefined);
       if (typeof c === "string") return bad(c);
-      return json({ job: jobSummary(startJob(ws, c.key, c.label, c.cmds, o)) });
+      // jobs on different acts run side by side; anything that touches the same act, or the whole video, waits
+      const busy = clashWith(ws, c.locks);
+      if (busy) return bad(`busy: ${busy.label} is running${busy.locks.includes("*") ? "" : ` (it uses ${busy.locks.filter((l) => c.locks.includes(l) || c.locks.includes("*")).map((l) => l.replace("act:", "")).join(", ")})`}`, 409);
+      return json({ job: jobSummary(startJob(ws, c.key, c.label, c.cmds, o, c.locks)) });
     }
 
     if (rest === "/stop" && req.method === "POST") {
-      const j = runningJob(ws);
+      const { job: jid } = await body(req).catch(() => ({}));
+      const j = typeof jid === "string" ? runningJobs(ws).find((x) => x.id === jid) : runningJob(ws);
       if (!j) return bad("nothing running", 404);
       j.stopRequested = true;
       if (j.pid) killTree(j.pid);
@@ -1653,6 +1763,38 @@ async function appFetch(req: Request): Promise<Response> {
       const f = path.join(wsDir(ws), notesRel(nm[1]));
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, text, "utf-8");
+      return json({ ok: true });
+    }
+
+    // Voice → Review: per section { note, direction?, status: open | regenerated, at }; generate.ts --review reads it
+    if (rest === "/voice/review" && req.method === "PUT") {
+      const b = await body(req).catch(() => null);
+      if (!b || typeof b !== "object" || Array.isArray(b)) return bad("a JSON object of sections");
+      const out: Record<string, any> = {};
+      for (const [id, r] of Object.entries<any>(b)) {
+        if (!/^[\w-]+$/.test(id) || !r || typeof r !== "object") return bad(`bad entry ${id}`);
+        const note = String(r.note ?? "").slice(0, 2000), direction = String(r.direction ?? "").slice(0, 2000);
+        out[id] = { note, ...(direction.trim() ? { direction } : {}), status: r.status === "regenerated" ? "regenerated" : "open", at: typeof r.at === "string" ? r.at : new Date().toISOString(), ...(r.regeneratedAt ? { regeneratedAt: String(r.regeneratedAt) } : {}) };
+      }
+      fs.writeFileSync(voiceReviewPath(ws), JSON.stringify(out, null, 2));
+      return json({ ok: true });
+    }
+
+    // your approval of the plan as it is (also when it is out of sync with the captions or failed validation):
+    // the act author then starts without the freshness check (05-video/src/lib/freshness.ts)
+    if (rest === "/plan/approve" && (req.method === "POST" || req.method === "DELETE")) {
+      const f = path.join(wsDir(ws), "05-video/plan_approved.json");
+      if (req.method === "DELETE") { fs.rmSync(f, { force: true }); return json({ ok: true }); }
+      const plan = path.join(wsDir(ws), "05-video/acts.json");
+      if (!exists(plan)) return bad("no plan yet");
+      fs.writeFileSync(f, JSON.stringify({ at: new Date().toISOString(), sha256: new Bun.CryptoHasher("sha256").update(fs.readFileSync(plan)).digest("hex") }, null, 2));
+      return json({ ok: true });
+    }
+
+    // let the running acts of a batch finish, start no new ones (author_act.ts checks this file)
+    if (rest === "/acts/stop-batch" && req.method === "POST") {
+      if (!runningJobs(ws).some((j) => j.step === "acts")) return bad("no batch is running", 404);
+      fs.writeFileSync(path.join(wsDir(ws), "05-video/.batch_stop"), new Date().toISOString());
       return json({ ok: true });
     }
 

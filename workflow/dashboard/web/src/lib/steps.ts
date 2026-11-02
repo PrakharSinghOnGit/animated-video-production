@@ -50,8 +50,11 @@ export function todoText(key: StepKey, st: St, d: Details): string {
       if (a === "changed since approval") return pre + "Edited after approval: review it and approve again.";
       return pre + "Review and edit the script, then approve it.";
     }
-    case "voice": return st === "done" ? "Full voiceover generated." : pre + `Generate the voiceover (${d.voice.sectionCount || "no"} sections).`;
-    case "align": return st === "done" ? "Speed & gaps, timings, master and captions exist." : pre + "Run Align all: speed & gaps, transcribe, master, captions, .srt.";
+    case "voice": {
+      const open = d.voice.sections.filter((s) => s.review?.status === "open").length;
+      return st !== "done" ? pre + `Generate the voiceover (${d.voice.sectionCount || "no"} sections).` : open ? `${open} section${open > 1 ? "s" : ""} in Review: write what to change, then regenerate.` : "Voiceover generated: listen, and add any bad section to Review.";
+    }
+    case "align": return st === "done" ? "Merged voice, timings, master and captions exist." : pre + "Run Align all: merge (speed & gaps), transcribe, master, captions.";
     case "plan": return st === "done" ? `${d.plan.acts.length} acts planned.` : pre + "Run the director to split the narration into acts.";
     case "acts": {
       const n = d.acts.length, done = d.acts.filter((a) => a.scene).length;

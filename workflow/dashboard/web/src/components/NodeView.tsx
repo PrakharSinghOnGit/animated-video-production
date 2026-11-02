@@ -114,7 +114,7 @@ const nodeTypes = { card: Card, frame: Frame, row: Row, root: Root };
 
 /** Selected card: what it is, its state, the Run button, and a jump back to the list view. */
 function Inspector({ n, onClose }: { n: Node<CardData, "card">; onClose: () => void }) {
-  const { schema, busy, go, setMode } = useApp();
+  const { schema, canRun, go, setMode } = useApp();
   const runSaved = useRunSaved();
   const c = n.data, a = c.action ? schema[c.action] : undefined;
   return (
@@ -136,7 +136,7 @@ function Inspector({ n, onClose }: { n: Node<CardData, "card">; onClose: () => v
         {c.cost > 0 && <span className="text-foreground/80">{money(c.cost)}</span>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {c.action && <RunButton primary={!a?.paid} running={c.status === "running"} disabled={!!busy} onClick={() => runSaved(c.action!, c.act)} />}
+        {c.action && <RunButton primary={!a?.paid} running={c.status === "running"} disabled={!canRun(c.action, c.act)} onClick={() => runSaved(c.action!, c.act)} />}
         <Button variant="secondary" onClick={() => { setMode("list"); go({ view: "ws", ...c.nav }); }}><ExternalLink />Open page</Button>
       </div>
     </div>
@@ -160,13 +160,13 @@ const fit = { padding: 0.06, minZoom: 0.8 };
 type Offsets = Record<string, { x: number; y: number }>;
 
 function Canvas() {
-  const { d, ws, busy, go, setMode } = useApp();
+  const { d, ws, go, setMode } = useApp();
   const [sel, setSel] = useState<string | null>(null);
   const dark = useDark(), phone = useMedia("(max-width: 639px)");
   const [collapsedList, setCollapsed] = useStored<string[]>("graph.collapsed", []);
   const [offsets, setOffsets] = useStored<Offsets>(`graph.offsets.${ws}`, {});
   const collapsed = useMemo(() => new Set(collapsedList), [collapsedList]);
-  const graph = useMemo(() => (d ? buildGraph(d, busy, collapsed) : { nodes: [] as GNode[], edges: [] }), [d, busy, collapsed]);
+  const graph = useMemo(() => (d ? buildGraph(d, collapsed) : { nodes: [] as GNode[], edges: [] }), [d, collapsed]);
   const base = useMemo(() => new Map(graph.nodes.map((n) => [n.id, n.position])), [graph]);
   // computed layout + the user's moves (stored as offsets from the computed position, per video)
   const laid = useMemo(() => graph.nodes.map((n) => { const o = offsets[n.id]; return { ...n, position: o ? { x: n.position.x + o.x, y: n.position.y + o.y } : n.position, selected: n.id === sel }; }), [graph, offsets, sel]);

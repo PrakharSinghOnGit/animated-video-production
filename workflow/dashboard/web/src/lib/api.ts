@@ -47,7 +47,7 @@ export const api = {
 
   status: (ws: string) => call<Details>(`${w(ws)}/status`),
   run: (ws: string, action: string, opts: Record<string, unknown>, act?: string) => call<{ job: Job }>(`${w(ws)}/run`, { method: "POST", body: { action, act, opts } }),
-  stop: (ws: string) => call<{ ok: true }>(`${w(ws)}/stop`, { method: "POST", body: {} }),
+  stop: (ws: string, job?: string) => call<{ ok: true }>(`${w(ws)}/stop`, { method: "POST", body: { job } }),
   startStudio: (ws: string) => call<unknown>(`${w(ws)}/studio`, { method: "POST", body: {} }),
   lastLog: (ws: string, step: string) => call<string>(`${w(ws)}/log?step=${encodeURIComponent(step)}`),
   script: (ws: string) => call<string>(`${w(ws)}/script`),
@@ -57,6 +57,10 @@ export const api = {
 
   approveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "POST", body: {} }),
   unapproveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "DELETE" }),
+  approvePlan: (ws: string) => call<unknown>(`${w(ws)}/plan/approve`, { method: "POST", body: {} }),
+  unapprovePlan: (ws: string) => call<unknown>(`${w(ws)}/plan/approve`, { method: "DELETE" }),
+  saveVoiceReview: (ws: string, rv: Record<string, unknown>) => call<unknown>(`${w(ws)}/voice/review`, { method: "PUT", body: rv }),
+  stopBatch: (ws: string) => call<unknown>(`${w(ws)}/acts/stop-batch`, { method: "POST", body: {} }),
 
   saveMetadata: (ws: string, body: { titles?: Record<string, string>; description?: string; tags?: string[]; hashtags?: string[] }) => call<{ ok: true; checks: { errors: string[]; warnings: string[] } }>(`${w(ws)}/publish/metadata`, { method: "PUT", body }),
   savePublishNotes: (ws: string, which: string, text: string) => call<unknown>(`${w(ws)}/publish/notes/${which}`, { method: "PUT", body: text }),

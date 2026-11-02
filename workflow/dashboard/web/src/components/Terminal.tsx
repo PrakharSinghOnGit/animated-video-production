@@ -13,7 +13,7 @@ const MIN = 120;
 
 /** Plain terminal at the bottom of the center panel: drag the top edge to resize, collapse to a bar, one tab per job. On a phone it is a bottom drawer. */
 export function Terminal({ phone }: { phone: boolean }) {
-  const { d, ws, busy, logTab, showLog, logRequest, stop } = useApp();
+  const { d, ws, busy, runningJobs, logTab, showLog, logRequest, stop } = useApp();
   const [open, setOpen] = useStored<boolean>("log.open", false);
   const [h, setH] = useStored<number>("log.h", 260);
   const drag = useRef<{ y: number; h: number } | null>(null);
@@ -59,7 +59,7 @@ export function Terminal({ phone }: { phone: boolean }) {
           </NativeSelect>
         )}
         {job && <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">{job.cmdCount > 1 ? `${job.cmdIndex + 1}/${job.cmdCount} · ` : ""}{job.status === "running" ? "running" : job.status} {dur(job.ms)}</span>}
-        {busy && <Button size="sm" variant="destructive" onClick={stop}><Square className="fill-current" />Stop</Button>}
+        {busy && <Button size="sm" variant="destructive" onClick={() => void stop(job?.status === "running" ? job.id : undefined)} title={job?.status === "running" ? `Stop ${job.label}` : `Stop ${busy.label}`}><Square className="fill-current" />Stop{job?.status !== "running" && runningJobs.length > 1 ? ` (${runningJobs.length} running)` : ""}</Button>}
       </div>
       {open && (
         <>

@@ -12,7 +12,7 @@ import { ScriptStep } from "@/steps/ScriptStep";
 import { VoiceStep } from "@/steps/VoiceStep";
 import { AlignStep } from "@/steps/AlignStep";
 import { PlanStep } from "@/steps/PlanStep";
-import { ActsStep } from "@/steps/ActsStep";
+import { ActsHeader, ActsStep } from "@/steps/ActsStep";
 import { SoundStep } from "@/steps/SoundStep";
 import { RenderStep } from "@/steps/RenderStep";
 import { HistoryStep } from "@/steps/HistoryStep";
@@ -30,8 +30,8 @@ const RUN_ALL: Record<VideoKey, string> = { script: "script.write", voice: "voic
 
 const DESC: Record<VideoKey, string> = {
   script: "Write your idea in plain text. Claude turns it into a spoken, chunked script with a scored hook and on-screen hints (yt-script method). You review and edit it, then approve it; nothing is voiced before that. Approval is a human gate and is never part of Run all.",
-  voice: "Qwen3-TTS reads every sentence in the channel voice. Each sentence gets several takes; the one that best matches the script and the voice is kept.",
-  align: "Word-level timings from the voiceover, then mastering (EQ, de-ess, compression, −14 LUFS), the captions the planner uses, and the .srt for YouTube.",
+  voice: "Gemini (or the local Qwen clone) reads every script block with its tone note as direction. Listen, add bad takes to Review with what to change, and regenerate just those.",
+  align: "Merge the sections (speed, gaps, pause cap), word-level timings matched to the script, mastering (EQ, de-ess, compression, −14 LUFS), then the captions the planner uses and the YouTube .srt.",
   plan: "The director (Claude) splits the narration into acts: beats, the hits that must land on spoken words, BPM, and the data shown on screen with its source.",
   acts: "Each act is drawn in code by Claude in the plan's house style. Preview it, ask a reviewer, collect notes, send them to the act's author, and review again.",
   sound: "Foley events come from each act's code. The music bed is a separate stem for your editor; the mix is voice + foley only unless you include music.",
@@ -68,7 +68,8 @@ function VideoSection() {
   ) : (() => {
     const k = cur as VideoKey, View = VIEWS[k], st = d.statuses[k] ?? "none";
     const label = STEPS.find((s) => s.key === k)!.label;
-    return <StepPage key={k} title={label} desc={DESC[k]} status={st} state={states[k]} todo={todoText(k, st, d)} stats={stats(k, d)} runAll={RUN_ALL[k]}><View /></StepPage>;
+    // Acts: the act list and the batch controls live in the header (they act on many acts), the picked act below
+    return <StepPage key={k} title={label} desc={DESC[k]} status={st} state={states[k]} todo={todoText(k, st, d)} stats={stats(k, d)} runAll={k === "acts" ? undefined : RUN_ALL[k]} extra={k === "acts" ? <ActsHeader /> : undefined}><View /></StepPage>;
   })();
   return (
     <>

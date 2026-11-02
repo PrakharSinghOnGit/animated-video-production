@@ -1,6 +1,6 @@
 import { MarkerType, type Edge as RFEdge, type Node } from "@xyflow/react";
 import type { Route } from "@/hooks/useRoute";
-import type { ActRow, Details, Job, Run, St, StepKey } from "./types";
+import type { ActRow, Details, Run, St, StepKey } from "./types";
 import { costOf, lastRun, type BlockStatus } from "./flow";
 import { actSpec, blockStatus, shortSpec, stepSpec, type BlockSpec, type LoopDef } from "./pipeline";
 import { STATE_LABEL, STEPS, stepStates, type StepState } from "./steps";
@@ -33,7 +33,7 @@ export { STATE_LABEL };
 const arrow = (color: string) => ({ type: MarkerType.ArrowClosed, color, width: 16, height: 16 });
 const MUTED = "var(--muted-foreground)";
 
-interface Ctx { d: Details; busy: Job | null; nodes: GNode[]; edges: Edge[]; status: Map<string, BlockStatus>; parent: Map<string, string>; frame: string | null }
+interface Ctx { d: Details; nodes: GNode[]; edges: Edge[]; status: Map<string, BlockStatus>; parent: Map<string, string>; frame: string | null }
 
 /** Add the cards of one flow (a step column or an act row) and its in-flow and loop edges. Returns the card ids. */
 function flow(c: Ctx, nav: (b: BlockSpec) => Partial<Route>, prefix: string, blocks: BlockSpec[], loops: LoopDef[], at: (i: number) => { x: number; y: number }, dir: "h" | "v"): string[] {
@@ -42,7 +42,7 @@ function flow(c: Ctx, nav: (b: BlockSpec) => Partial<Route>, prefix: string, blo
   const loopIdx = loops.map((l) => ({ l, s: lo.get(l.from) ?? 0, t: li.get(l.to) ?? 0 }));
   loopIdx.forEach(({ l }) => { lo.set(l.from, (lo.get(l.from) ?? 0) + 1); li.set(l.to, (li.get(l.to) ?? 0) + 1); });
   blocks.forEach((b, i) => {
-    const status = blockStatus(c.d, c.busy, b);
+    const status = blockStatus(c.d, b);
     c.status.set(ids[i], status);
     const act = c.d.acts.find((a) => a.id === b.act);
     if (c.frame) c.parent.set(ids[i], c.frame);
@@ -90,7 +90,7 @@ const reviewLine = (a: ActRow) => { const r = a.reviews[0]; return r ? `sync ${r
 const secState = (st: St | undefined): StepState => (st === "done" ? "done" : st === "running" ? "running" : st === "none" || !st ? "todo" : "next");
 const firstLine = (t: string) => t.split("\n").map((l) => l.replace(/^#+\s*/, "").trim()).find(Boolean) ?? "";
 
-const countDone = (d: Details, busy: Job | null, blocks: BlockSpec[]) => blocks.filter((b) => blockStatus(d, busy, b) === "done").length;
+const countDone = (d: Details, blocks: BlockSpec[]) => blocks.filter((b) => blockStatus(d, b) === "done").length;
 
 /**
  * The whole project as a node graph, left to right: the Idea at the root and three branches below each other.
@@ -98,8 +98,8 @@ const countDone = (d: Details, busy: Job | null, blocks: BlockSpec[]) => blocks.
  * its stages. Packaging: one column. A key in `collapsed` turns that frame into one summary node (edges re-route to it).
  * Cards are children of their frame (relative positions), so dragging a frame moves its cards. Pure: nothing is measured.
  */
-export function buildGraph(d: Details, busy: Job | null, collapsed: Set<string> = new Set()): { nodes: GNode[]; edges: Edge[] } {
-  const c: Ctx = { d, busy, nodes: [], edges: [], status: new Map(), parent: new Map(), frame: null };
+export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { nodes: GNode[]; edges: Edge[] } {
+  const c: Ctx = { d, nodes: [], edges: [], status: new Map(), parent: new Map(), frame: null };
   const states = stepStates(d.statuses);
   const first = new Map<StepKey, string>(), last = new Map<StepKey, string>(), right = new Map<StepKey, number>();
   const acts = d.acts;
@@ -119,7 +119,7 @@ export function buildGraph(d: Details, busy: Job | null, collapsed: Set<string> 
     if (collapsed.has(s.key)) {
       w = CW; h = CH;
       if (s.key === "acts") { done = acts.filter((a) => a.status === "done").length; total = acts.length; }
-      else { const { blocks } = stepSpec(s.key, d); done = countDone(d, busy, blocks); total = blocks.length; }
+      else { const { blocks } = stepSpec(s.key, d); done = countDone(d, blocks); total = blocks.length; }
       first.set(s.key, frameId); last.set(s.key, frameId);
       if (s.key === "acts") actEnds.push({ first: frameId, last: frameId });
     } else if (s.key !== "acts") {
@@ -198,7 +198,7 @@ export function buildGraph(d: Details, busy: Job | null, collapsed: Set<string> 
     pFirst = flow(c, (b) => ({ sec: "packaging", step: b.id, act: null, short: null }), "publish", pub.blocks, pub.loops, (i) => ({ x: px + PAD, y: y0 + HEAD + i * (H + GAP_Y) }), "v")[0];
   }
   c.frame = null;
-  frame("frame:publish", "publish", px, y0, pw, ph, "Packaging", "Thumbnails, titles, description", secState(d.statuses.publish), countDone(d, busy, pub.blocks), pub.blocks.length);
+  frame("frame:publish", "publish", px, y0, pw, ph, "Packaging", "Thumbnails, titles, description", secState(d.statuses.publish), countDone(d, pub.blocks), pub.blocks.length);
 
   // ── root: the Idea ──
   const idea = d.script.idea;

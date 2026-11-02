@@ -7,8 +7,10 @@ import { STATE_LABEL, type StepState } from "@/lib/steps";
 import type { St } from "@/lib/types";
 
 /** A step as its own page: header (state, what is left, stats, fixed Run all) then the flow of its sub-steps. */
-export function StepPage({ title, desc, status, state, todo, stats, runAll, children }: {
-  title: string; desc: string; status: St; state: StepState; todo: string; stats?: React.ReactNode; runAll?: string; children: React.ReactNode;
+export function StepPage({ title, desc, status, state, todo, stats, runAll, extra, children }: {
+  title: string; desc: string; status: St; state: StepState; todo: string; stats?: React.ReactNode; runAll?: string;
+  /** step-wide controls shown inside the header, under the title (the Acts step: the act list and the batch controls) */
+  extra?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
     <HighlightProvider>
@@ -28,6 +30,7 @@ export function StepPage({ title, desc, status, state, todo, stats, runAll, chil
           {runAll && <RunAll action={runAll} />}
         </div>
         {runAll && <div className="mt-3"><RunAllChain action={runAll} /></div>}
+        {extra && <div className="mt-4">{extra}</div>}
       </header>
       <div className="wg-enter px-6 pb-12 pt-5 max-sm:px-4">{children}</div>
     </HighlightProvider>

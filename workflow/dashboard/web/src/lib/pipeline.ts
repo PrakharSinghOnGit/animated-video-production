@@ -26,9 +26,9 @@ export interface LoopDef { from: string; to: string; label: string; ran: number 
 export interface Spec { blocks: BlockSpec[]; loops: LoopDef[] }
 
 /** running if its job is on, failed if its last run did not finish (and is newer than its output), else done / todo. */
-export function blockStatus(d: Details | null, busy: Job | null, b: BlockSpec): BlockStatus {
+export function blockStatus(d: Details | null, b: BlockSpec): BlockStatus {
   const last = d && b.label ? lastRun(d, b.label) : null;
-  const running = !!b.label && busy?.label === b.label;
+  const running = !!b.label && !!d?.jobs.some((j: Job) => j.status === "running" && j.label === b.label);
   const failed = !!last && last.status !== "done" && (!b.outAt || last.end > b.outAt);
   return running ? "running" : failed ? "failed" : b.done ? "done" : "todo";
 }
@@ -53,13 +53,16 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
       };
     }
     case "voice": {
-      const v = d.voice;
+      const v = d.voice, has = v.parts.some((p) => p.files.length > 0);
+      const open = v.sections.filter((s) => s.review?.status === "open").length;
       return {
-        loops: [{ from: "listen", to: "gen", label: "not right → regenerate", ran: reruns(d, "Generate voice") }],
+        loops: [{ from: "review", to: "listen", label: "regenerate → listen again", ran: d.runs.filter((r) => r.label === "Regenerate reviewed").length }],
         blocks: [
           { id: "sections", title: "Voice sections ready", desc: "Produced by “Split into sections” on the Script page.", done: v.sectionCount > 0 },
-          { id: "gen", title: "Generate voice", action: "voice.run", label: "Generate voice", done: v.parts.some((p) => p.files.length > 0), outAt: Math.max(0, ...v.parts.flatMap((p) => p.files.map((f) => f.mtime))) || undefined, costRe: /^voice\b/i },
-          { id: "listen", title: "Listen & approve", desc: "Play a few sections. Wrong words or delivery: regenerate that part or section, or try another voice. Speed and the gaps between sections are set in Align → Speed & gaps.", done: v.parts.some((p) => p.files.length > 0) },
+          { id: "gen", title: "Generate voice", action: "voice.run", label: "Generate voice", done: has, outAt: Math.max(0, ...v.parts.flatMap((p) => p.files.map((f) => f.mtime))) || undefined, costRe: /^voice\b/i },
+          { id: "listen", title: "Listen & approve", desc: "Play the sections. Long pauses inside a take are flagged. Anything wrong (a stall, a laugh, a misread word): Add to review and say what to change.", options: false, done: has },
+          { id: "review", title: "Review & regenerate", desc: "Each section you added: what to change, and the exact direction Gemini gets (edit it if you like). Regenerate one or all; the old take stays to compare.", action: "voice.redo", label: "Regenerate reviewed", done: has && open === 0,
+            note: open ? `${open} section${open > 1 ? "s" : ""} waiting for a new take` : undefined },
         ],
       };
     }
@@ -68,11 +71,10 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
       return {
         loops: [],
         blocks: [
-          { id: "post", title: "Speed & gaps", desc: "Speed (pitch unchanged), the gap between sections and the chapter pause; builds the full voiceover.", action: "align.post", label: "Speed & gaps", done: !!a.voice, outAt: a.voice?.mtime, costRe: /^post\b/i },
-          { id: "tr", title: "Transcribe", action: "align.transcribe", label: "Transcribe", done: a.words != null, costRe: /^transcribe\b/i },
+          { id: "post", title: "Merge (speed & gaps)", desc: "Joins the sections into the full voiceover: speed (pitch unchanged), the gap between sections, the chapter pause, and optionally a cap on long pauses inside a take.", action: "align.post", label: "Speed & gaps", done: !!a.voice, outAt: a.voice?.mtime, costRe: /^post\b/i },
+          { id: "tr", title: "Transcribe", desc: "Word timings for the merged voice, matched against the script. A low match means the take said something else: listen to it.", action: "align.transcribe", label: "Transcribe", done: !!a.transcript, costRe: /^transcribe\b/i },
           { id: "ma", title: "Master voice", action: "align.master", label: "Master voice", done: !!a.master, outAt: a.master?.mtime, costRe: /^master\b/i },
-          { id: "ca", title: "Build captions", action: "align.captions", label: "Build captions", done: a.words != null, costRe: /^captions\b/i },
-          { id: "srt", title: "Export .srt", action: "align.srt", label: "Export .srt", done: ok(d, "Export .srt") || ok(d, "Align all") },
+          { id: "ca", title: "Build captions", desc: "captions.json and chapters.json for the planner, and the YouTube .srt (the final export copies it).", action: "align.captions", label: "Build captions", done: a.words != null, costRe: /^captions\b/i },
         ],
       };
     }
@@ -86,7 +88,9 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
         blocks: [
           { id: "plan", title: "Plan acts", action: "plan.run", label: "Plan acts", done: p.acts.length > 0, outAt: p.file?.mtime, costRe: /^direct\b/i },
           { id: "check", title: "Validate plan", action: "plan.check", label: "Validate plan", done: checked && p.acts.length > 0 },
-          { id: "review", title: "Review & approve plan", desc: "Gate G1: read the acts and the figures that come only from the narration.", done: p.acts.length > 0 && checked },
+          { id: "review", title: "Review plan", desc: "Gate G1: read the acts and the figures that come only from the narration.", done: p.acts.length > 0 && (checked || !!p.approval?.valid) },
+          { id: "approve", title: "Approve plan", desc: "Your gate: accepts this exact acts.json, also when it failed validation or is out of sync with the captions (acts are then authored without the freshness check). Any change to the plan needs a new approval.",
+            done: !!p.approval?.valid, note: p.approval && !p.approval.valid ? "The plan changed since you approved it: approve again." : undefined },
         ],
       };
     }
