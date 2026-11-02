@@ -15,6 +15,25 @@ export let W = 1920, H = 1080;
 export function setFrameSize(w: number, h: number): void { W = w; H = h; }
 /** True for a vertical (9:16) frame. */
 export const isVertical = (): boolean => H > W;
+/**
+ * Cached offscreen canvases (paper textures, text, stamps, scratch layers) live across frames and acts. In a render with
+ * --gl=angle and several premounted acts the GPU can drop one (context lost): it then draws nothing, silently, and the
+ * paper texture disappears for the rest of the render. Every module that caches canvases registers them here;
+ * CanvasHost calls checkCaches() before each draw and resetCaches() when a frame comes out blank.
+ */
+const caches: { list: () => (OffscreenCanvas | null | undefined)[]; reset: () => void }[] = [];
+export function registerCache(list: () => (OffscreenCanvas | null | undefined)[], reset: () => void): void { caches.push({ list, reset }); }
+const isLost = (c: OffscreenCanvas | null | undefined) => {
+  try { return !!c && (c.getContext("2d") as unknown as { isContextLost?: () => boolean })?.isContextLost?.() === true; } catch { return false; }
+};
+/** Rebuild (lazily, on next use) every cache that holds a lost canvas. Returns how many caches were reset. */
+export function checkCaches(): number {
+  let n = 0;
+  for (const c of caches) if (c.list().some(isLost)) { c.reset(); n++; }
+  return n;
+}
+export function resetCaches(): void { for (const c of caches) c.reset(); }
+
 /** An offscreen canvas of the current frame size, recreated when the size changed. */
 export function frameCanvas(c: OffscreenCanvas | null): OffscreenCanvas {
   return c && c.width === W && c.height === H ? c : new OffscreenCanvas(W, H);
@@ -63,6 +82,7 @@ export function viewRect(c: Cam, pad = 40): Rect {
 
 // ---------- paper ----------
 let _tile: OffscreenCanvas | null = null, _grain: OffscreenCanvas | null = null, _wood: OffscreenCanvas | null = null;
+registerCache(() => [_tile, _grain, _wood, _pc, _pb], () => { _tile = _grain = _wood = _pc = _pb = null; });
 export function paperTile(): OffscreenCanvas {
   if (_tile) return _tile;
   const S = 512, { c, g } = mkCanvas(S, S), R = mulberry(7);
@@ -251,6 +271,7 @@ export function bracketPath(x0: number, x1: number, y: number, h = 14): Pt[] {
 // ---------- handwriting (Caveat) with graphite grain and write-on reveal ----------
 interface TextImg { c: OffscreenCanvas; w: number; h: number; pad: number; base: number }
 const _txt = new Map<string, TextImg>();
+registerCache(() => [..._txt.values()].map((x) => x.c), () => _txt.clear());
 function textImage(text: string, size: number, color: string, weight: number, font: string, scale: number): TextImg {
   const key = [text, size, color, weight, font, scale].join("|");
   const hit = _txt.get(key); if (hit) return hit;
@@ -558,6 +579,7 @@ export function halftone(g: G, path: Pt[], o: HalftoneOpts = {}): void {
 
 // ---------- rubber stamp ----------
 const _stamp = new Map<string, { c: OffscreenCanvas; w: number; h: number }>();
+registerCache(() => [..._stamp.values()].map((x) => x.c), () => _stamp.clear());
 function stampImage(text: string, size: number, color: string) {
   const key = `${text}|${size}|${color}`, hit = _stamp.get(key); if (hit) return hit;
   const SC = 2, probe = mkCanvas(8, 8).g; probe.font = `600 ${size * SC}px "${FONT.type}"`;

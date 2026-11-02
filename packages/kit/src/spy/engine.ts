@@ -3,7 +3,7 @@
 // See CREDITS.md. Differences: TypeScript, the 2D context is passed explicitly (no module-level "current g"), per-context state
 // lives in a WeakMap, textures are generated once from a fixed seed (deterministic), palettes are ink sets (INKS).
 import { hash, vnoise, clamp } from "../paper/lib";
-import { W, H, frameCanvas, type G, type Pt } from "../paper/engine";
+import { W, H, frameCanvas, registerCache, type G, type Pt } from "../paper/engine";
 
 export { W, H, setFrameSize, isVertical, frameCanvas, applyCam, w2s, s2w, viewRect, type G, type Pt, type Cam, type Rect } from "../paper/engine";
 export { frameRect, moveTime, SAFE } from "../paper/transitions";
@@ -190,6 +190,7 @@ export function xf(pts: Pt[], x = 0, y = 0, s = 1, r = 0): Pt[] {
 
 // ---------- paper texture ----------
 let tex: OffscreenCanvas | null = null, speck: OffscreenCanvas | null = null;
+registerCache(() => [tex, speck, LC, LT], () => { tex = speck = LC = LT = null; });
 function makeTex(): void {
   tex = frameCanvas(null);
   const t = tex.getContext("2d")!, im = t.createImageData(W, H), d = im.data;

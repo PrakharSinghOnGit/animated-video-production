@@ -9,6 +9,7 @@
  */
 import { INK, GRID, W, H, TAU, clamp, mulberry, inkOf, type G, type Pt, type Ink, type InkName } from "./core";
 import { resample, polyLength, truncate } from "./geom";
+import { registerCache } from "../paper/engine";
 
 /** Drawing clock: drawAct sets it for every sub-frame, so strokes boil without passing t around. */
 export const inkClock = { t: 0 };
@@ -29,6 +30,7 @@ export function scratch(i: number): G {
 export const canvasOf = (g: G) => g.canvas as unknown as CanvasImageSource;
 
 let grainTile: OffscreenCanvas | null = null, toothTile: OffscreenCanvas | null = null;
+registerCache(() => [...pool, grainTile, toothTile], () => { pool.length = 0; grainTile = toothTile = null; });
 function tiles() {
   if (grainTile && toothTile) return;
   const S = 512, r = mulberry(7);

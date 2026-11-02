@@ -2,7 +2,14 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
 import { useScene } from "../scene";
 import { hash } from "./lib";
-import { W, H, setFrameSize, type G } from "./engine";
+import { W, H, setFrameSize, checkCaches, resetCaches, type G } from "./engine";
+
+/** Fully transparent at the centre and four inner points: nothing was drawn (a lost canvas), the old backdrop would show. */
+function blank(g: CanvasRenderingContext2D, w: number, h: number): boolean {
+  try {
+    return [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]].every(([x, y]) => g.getImageData(Math.floor(w * x), Math.floor(h * y), 1, 1).data[3] === 0);
+  } catch { return false; }
+}
 
 export interface PaperCtx {
   /** seconds since this sequence started (frame / fps) */
@@ -71,8 +78,20 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.filter = "none";
     setFrameSize(width, height);
+    const n = checkCaches();
+    if (n) console.warn(`[CanvasHost] frame ${frame}: ${n} cached canvas(es) were lost by the GPU and are rebuilt`);
+    if ((g as unknown as { isContextLost?: () => boolean }).isContextLost?.()) throw new Error(`[CanvasHost] frame ${frame}: the canvas context was lost (render again; it would be a blank frame)`);
     g.clearRect(0, 0, W, H);
     draw(g, ctx);
+    // a blank frame shows the dark backdrop under the acts: rebuild every cache and draw again, else fail loudly
+    if (blank(g, width, height)) {
+      console.warn(`[CanvasHost] frame ${frame}: drew nothing; rebuilding cached canvases and drawing again`);
+      resetCaches();
+      g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.filter = "none";
+      g.clearRect(0, 0, W, H);
+      draw(g, ctx);
+      if (blank(g, width, height)) throw new Error(`[CanvasHost] frame ${frame}: the act drew a blank frame twice (render again; a canvas or the GPU failed)`);
+    }
     if (!released.current) { released.current = true; continueRender(handle); }
   });
 
