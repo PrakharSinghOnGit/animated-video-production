@@ -3,6 +3,7 @@
  * voice (sections + voice.json) → Speed & gaps (combined/full_voiceover.wav) → Align (captions.json, voiceover_master.wav)
  * → Plan (acts.json) → acts; and to pick a sound mix only when it was built from the current voice.
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -28,10 +29,19 @@ export function staleInputs(ws: string, step: "plan" | "acts"): string[] {
   return out;
 }
 
-/** Exit with the problems unless --allow-stale was passed. */
+/** You approved the current acts.json in the dashboard (Plan → Approve plan), out of sync or not. */
+export function planApproved(ws: string): boolean {
+  try {
+    const a = JSON.parse(fs.readFileSync(path.join(ws, "05-video/plan_approved.json"), "utf-8"));
+    return a.sha256 === crypto.createHash("sha256").update(fs.readFileSync(path.join(ws, "05-video/acts.json"))).digest("hex");
+  } catch { return false; }
+}
+
+/** Exit with the problems unless --allow-stale was passed (or, for acts, you approved this plan). */
 export function requireFresh(ws: string, step: "plan" | "acts"): void {
   const bad = staleInputs(ws, step);
   if (!bad.length || process.argv.includes("--allow-stale")) return;
+  if (step === "acts" && planApproved(ws)) { console.log(`ℹ️  The plan is out of sync (${bad.join("; ")}), but you approved it: going on.`); return; }
   console.error(`❌ Not starting ${step === "plan" ? "the plan" : "act authoring"}: it would use an old voice.\n${bad.map((b) => "   - " + b).join("\n")}\n   (--allow-stale runs it anyway)`);
   process.exit(1);
 }

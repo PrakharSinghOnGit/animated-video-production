@@ -5,6 +5,7 @@
  * Usage: bun run frames --video <ID> --scene A01 [--every 3] [--at 1.5,4,9.2] [--scale 0.5] [--words]
  *   --every <s>   one frame every s seconds across the act (default 3)
  *   --at <list>   extra times in seconds (act-relative)
+ *   --only        render just the --at times and keep the frames already there (the sheet shows all of them)
  *   --words       also one frame at the start of every hit word listed in acts.json for this act
  * Output: <ws>/05-video/review/<scene>/t_<sec>.jpg and sheet.jpg (labelled with the time)
  */
@@ -44,14 +45,16 @@ if (!scene) {
 const fps: number = timeline.fps;
 const durSec = scene.durationFrames / fps;
 
+const only = args.includes("--only");
+if (only && !extra.length) { console.error("❌ --only needs --at <times>"); process.exit(1); }
 const times = new Set<number>();
-for (let t = 0; t < durSec; t += every) times.add(Math.round(t * 100) / 100);
-times.add(Math.round((durSec - 1 / fps) * 100) / 100);
+if (!only) for (let t = 0; t < durSec; t += every) times.add(Math.round(t * 100) / 100);
+if (!only) times.add(Math.round((durSec - 1 / fps) * 100) / 100);
 for (const t of extra) if (t >= 0 && t < durSec) times.add(t);
 // Only the Ledger style reserves a subtitle band; Briefing has none (impact text only)
 const planFile = path.join(paths.outputDir, "acts.json");
 const subtitles = !fs.existsSync(planFile) || (JSON.parse(fs.readFileSync(planFile, "utf-8")).style ?? "briefing") === "ledger";
-if (args.includes("--words")) {
+if (args.includes("--words") && !only) {
   const actsFile = path.join(paths.outputDir, "acts.json");
   if (fs.existsSync(actsFile)) {
     const plan: ActsPlan = JSON.parse(fs.readFileSync(actsFile, "utf-8"));
@@ -71,7 +74,7 @@ const entry = path.join(paths.outputDir, "src", "index.ts");
 const publicDir = path.join(paths.outputDir, "public");
 const outDir = path.join(paths.outputDir, "review", sceneId);
 fs.mkdirSync(outDir, { recursive: true });
-for (const f of fs.readdirSync(outDir)) if (/^t_.*\.jpg$/.test(f)) fs.unlinkSync(path.join(outDir, f));
+if (!only) for (const f of fs.readdirSync(outDir)) if (/^t_.*\.jpg$/.test(f)) fs.unlinkSync(path.join(outDir, f));
 
 console.log(`📦 Bundling ${path.relative(process.cwd(), entry)}...`);
 const serveUrl = await bundle({ entryPoint: entry, publicDir: fs.existsSync(publicDir) ? publicDir : undefined });
@@ -85,6 +88,8 @@ for (const t of sorted) {
   await renderStill({ serveUrl, composition, frame, output: file, imageFormat: "jpeg", jpegQuality: 85, scale, logLevel: "error" });
   files.push(file);
 }
+// --only: the sheet and the layout report cover every frame in the folder, old and new
+if (only) files.splice(0, files.length, ...fs.readdirSync(outDir).filter((f) => /^t_[\d.]+\.jpg$/.test(f)).sort().map((f) => path.join(outDir, f)));
 
 // Contact sheet, 4 columns, each tile labelled with its time (Pillow: Homebrew ffmpeg lacks drawtext)
 const sheet = path.join(outDir, "sheet.jpg");

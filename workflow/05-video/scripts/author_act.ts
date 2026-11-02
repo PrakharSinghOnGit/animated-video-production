@@ -8,8 +8,16 @@
  * the plan's style filled in (workflow/styles/<style>/STYLE.md + ACT.md).
  *
  * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]]
+ *
+ * Batch controls (so a run doesn't die half way on a plan limit):
+ *   --models A01=claude:sonnet,A04=codex:gpt-6-luna   per-act model (others use --model / the default)
+ *   --stop-at 90        start no new act once Claude's 5-hour usage is at or above 90% (status-line file, see limitPct)
+ *   --on-limit <model>  when an act stops on a usage limit: redo it and the rest with this model (e.g. claude-iit:opus);
+ *                       without it, no new acts start after a limit
+ *   A file 05-video/.batch_stop (dashboard: "Start no more acts") lets the running acts finish and starts no new ones.
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
@@ -38,6 +46,11 @@ const strict = args.includes("--strict"); // let a failed critic verdict trigger
 const fixMode = args.includes("--fix");
 const fixNotesFile = fixMode && flag("--fix") && !flag("--fix")!.startsWith("--") ? flag("--fix") : undefined;
 const MAX_FIX_ROUNDS = 1;
+// per-act models: "A01=claude:sonnet,A04=opus"
+const perActModel: Record<string, string> = Object.fromEntries((flag("--models") ?? "").split(",").map((x) => x.trim()).filter((x) => x.includes("="))
+  .map((x) => { const i = x.indexOf("="); return [x.slice(0, i).trim().toUpperCase(), roleModel("actAuthor", x.slice(i + 1).trim())]; }));
+const stopAt = flag("--stop-at") ? parseFloat(flag("--stop-at")!) : undefined;
+const onLimit = flag("--on-limit") ? roleModel("actAuthor", flag("--on-limit")) : undefined;
 if (!videoId) {
   console.error("Usage: bun run act --video <ID> [--act A01] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force]");
   process.exit(1);
@@ -59,8 +72,11 @@ if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`
 }
 // 9:16 shorts (config.json format "short") get their own brief: one act, hook on frame 1, loop, captions
 const short = isShortWorkspace(wsDir);
-const model = roleModel(short ? "shortsAct" : "actAuthor", flag("--model"));
-const authorModel = model;
+const authorModel = roleModel(short ? "shortsAct" : "actAuthor", flag("--model"));
+/** Set once an act stopped on a usage limit: the model every act started after that uses (or null = start no more). */
+let limitSwitch: string | null | undefined;
+/** The model for an act: after a usage limit the fallback, else its own (--models), else the batch model. */
+const modelFor = (id: string) => (limitSwitch ? limitSwitch : perActModel[id] ?? authorModel);
 const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style);
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
 
@@ -142,7 +158,46 @@ ${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} wi
 }
 
 /** ok = written (critic passed or not used); notes = written, the critic's notes are saved for you; failed = no act. */
-type Outcome = "ok" | "notes" | "failed";
+type Outcome = "ok" | "notes" | "failed" | "limit";
+
+/** An act stopped on a usage limit: switch the rest of the batch to --on-limit (and queue this act again), or stop starting acts. */
+function hitLimit(act: Act, model: string): Outcome {
+  if (onLimit && onLimit !== model && limitSwitch === undefined) {
+    limitSwitch = onLimit;
+    console.log(`   ⛔ ${act.id}: ${model} hit its usage limit: this act and the rest continue with ${onLimit}`);
+    queue.unshift(act);
+    return "limit";
+  }
+  if (limitSwitch !== null) limitSwitch = null;
+  console.log(`   ⛔ ${act.id}: ${model} hit its usage limit: no new acts will start (the ones running finish)`);
+  return "limit";
+}
+
+/** Claude's 5-hour usage in % from the status-line file the dashboard reads (~/.claude/wealthgap/statusline.json), or
+ *  null when it is missing, older than 30 min, or its window has reset since. Covers the default Claude profile. */
+function limitPct(): number | null {
+  try {
+    const f = path.join(os.homedir(), ".claude/wealthgap/statusline.json");
+    if (Date.now() - fs.statSync(f).mtimeMs > 30 * 60_000) return null;
+    const w = JSON.parse(fs.readFileSync(f, "utf-8"))?.rate_limits?.five_hour;
+    if (!w || typeof w.used_percentage !== "number") return null;
+    if (typeof w.resets_at === "number" && w.resets_at * 1000 < Date.now()) return 0;
+    return w.used_percentage;
+  } catch { return null; }
+}
+const stopFile = path.join(paths.outputDir, ".batch_stop");
+
+/** Why the batch should start no new act now, or "" to go on. */
+function holdReason(id: string): string {
+  if (fs.existsSync(stopFile)) return "you asked to start no more acts";
+  if (limitSwitch === null) return "a model hit its usage limit";
+  const m = parseSpec(modelFor(id));
+  if (stopAt !== undefined && m.provider === "claude") {
+    const pct = limitPct();
+    if (pct !== null && pct >= stopAt) return `Claude's 5-hour usage is at ${pct}% (stop at ${stopAt}%)`;
+  }
+  return "";
+}
 
 async function authorAct(act: Act): Promise<Outcome> {
   const file = sceneFile(act);
@@ -159,11 +214,13 @@ async function authorAct(act: Act): Promise<Outcome> {
     console.log(`♻️  ${act.id}: its plan changed since the act was written, redoing it`);
   }
   const brief = briefFor(act, file);
+  const model = modelFor(act.id);
 
   console.log(`✏️  ${act.id} authoring (${model})...`);
   let r = await runAgentAsync({ prompt: brief, model, tools: AUTHOR_TOOLS, maxTurns: 80, logPath: path.join(reviewDir, "author_0.log") });
   account(`act ${act.id} author`, model, r);
   console.log(`   ${act.id} author: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costUsd.toFixed(2)}`);
+  if (r.limit) return hitLimit(act, model);
   if (!r.ok || !fs.existsSync(file)) return "failed";
   recordPlanHash(paths.outputDir, act.id);
   if (!useCritic) return "ok";
@@ -245,9 +302,9 @@ async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcom
   const n = fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length;
   // model left at default: follow the Claude profile that wrote the act, so its session can be resumed (much cheaper
   // than a fresh session re-reading everything). An explicit --model is always used as given.
-  let model = authorModel;
+  let model = modelFor(act.id);
   const sp = parseSpec(model);
-  if (resume && !flag("--model") && (sp.provider === "claude" || sp.provider === "claude-iit")) {
+  if (resume && !flag("--model") && !perActModel[act.id] && !limitSwitch && (sp.provider === "claude" || sp.provider === "claude-iit")) {
     const other = sp.provider === "claude" ? "claude-iit" : "claude";
     if (!claudeHasSession(sp.provider, resume) && claudeHasSession(other, resume)) {
       model = `${other}:${sp.model}`;
@@ -262,6 +319,7 @@ async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcom
   console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resuming the author's session" : ""})...`);
   const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, freshMaxTurns: 80, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
   account(`act ${act.id} fix`, model, r);
+  if (r.limit && fs.statSync(file).mtimeMs <= sceneBefore) return hitLimit(act, model);
   const edited = fs.statSync(file).mtimeMs > sceneBefore;
   const outOfTurns = !r.ok && ranOutOfTurns(r);
   console.log(`   ${act.id} fix: ${r.ok ? "ok" : outOfTurns ? `ran out of turns (${r.numTurns})` : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
@@ -277,19 +335,27 @@ async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcom
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));
 const t0 = Date.now();
 const results: Record<string, Outcome> = {};
+const skipped: string[] = [];
 const queue = [...todo];
+try { fs.rmSync(stopFile); } catch {}
+if (Object.keys(perActModel).length) console.log(`Per-act models: ${Object.entries(perActModel).map(([k, v]) => `${k}=${v}`).join(", ")}`);
 await Promise.all(
   Array.from({ length: Math.min(parallel, queue.length) }, async () => {
     while (queue.length) {
+      const why = holdReason(queue[0].id);
+      if (why) { console.log(`⏸  Not starting ${queue.map((a) => a.id).join(", ")}: ${why}.`); skipped.push(...queue.splice(0).map((a) => a.id)); break; }
       const act = queue.shift()!;
       results[act.id] = await authorAct(act);
     }
   })
 );
+try { fs.rmSync(stopFile); } catch {}
 spawnSync("bun", ["run", "assemble", "--video", paths.jobId], { stdio: "inherit" });
-const mark = { ok: "✅", notes: "📝", failed: "❌" } as const;
+const mark = { ok: "✅", notes: "📝", failed: "❌", limit: "⛔" } as const;
+if (skipped.length) console.log(`⏸  Not started: ${skipped.join(", ")}. Run Author acts again later (acts that have a file are skipped).`);
 console.log(`\n${Object.entries(results).map(([id, o]) => `${mark[o]} ${id}`).join("  ")}   (${formatDuration(Date.now() - t0)} total)`);
 if (Object.values(results).includes("notes")) console.log("📝 = written; the critic's notes are in review/<act>/ for you to look at (Review / Fix with notes if they matter).");
+if (Object.values(results).includes("limit") && !Object.values(results).includes("failed")) console.log("⛔ = stopped on a usage limit: run it again later or with another model.");
 if (Object.values(results).includes("failed")) {
   console.log("❌ = no act was written, or the fix run failed: see review/<act>/author_*.log.");
   process.exit(1);
