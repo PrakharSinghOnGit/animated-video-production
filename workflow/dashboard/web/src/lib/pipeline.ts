@@ -96,17 +96,16 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
     }
     case "sound": {
       const s = d.sound, has = (n: string) => s.files.find((f) => f.path.endsWith(n));
-      const music = has("music.wav"), mix = has("mix.wav"), daw = d.sound.daw;
+      const music = has("music.wav"), mix = has("mix.wav");
+      const musicStale = !!s.music && s.music.planDuration != null && Math.abs(s.music.duration - s.music.planDuration) > 2;
       return {
         loops: [],
         blocks: [
           { id: "cues", title: "Cues", action: "sound.cues", label: "Cues", done: s.events != null, costRe: /^cues\b/i },
           { id: "foley", title: "Review foley", desc: "Every foley event the acts declare: play it, switch it off, change its level, then apply (cues, mix, new draft).", done: s.events != null },
-          { id: "music", title: "Music stem", action: "sound.music", label: "Music stem", done: !!music, outAt: music?.mtime, costRe: /^music\b/i },
-          { id: "mix", title: "Mix", action: "sound.mix", label: "Mix", done: !!mix, outAt: mix?.mtime, costRe: /^mix\b/i },
-          { id: "daw", title: "openDAW project", desc: "Voice, every foley event on its own clip, the music stem: one project to edit.", action: "daw.build", label: "Build openDAW project", done: !!daw.bundle, outAt: daw.bundle?.mtime, costRe: /^build opendaw\b/i,
-            note: !daw.setUp ? "Needs `bun run daw:setup` once" : daw.bundleStale ? "The cues changed since this project was built" : undefined },
-          { id: "edited", title: "Edited in openDAW", desc: "Top bar: openDAW. Edit, then File > Export > To video pipeline. The next render uses it.", done: !!daw.mix, outAt: daw.mix?.mtime },
+          { id: "music", title: "Music stem", desc: "A separate music file (not in the render: you add music in post), one section per act with a crossfade.", action: "sound.music", label: "Music stem", done: !!music && !musicStale, outAt: music?.mtime, costRe: /^music\b/i,
+            note: musicStale ? `music.json is from an older cut (${Math.round(s.music!.duration)} s, the video is ${Math.round(s.music!.planDuration!)} s): run with “Reset music.json”.` : undefined },
+          { id: "mix", title: "Mix", desc: "The voice + every foley event (music only if you include it): the audio the render uses.", action: "sound.mix", label: "Mix", done: !!mix, outAt: mix?.mtime, costRe: /^mix\b/i },
         ],
       };
     }

@@ -1,4 +1,4 @@
-import { Check, History, Loader2, X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { STEPS, stepStates } from "@/lib/steps";
 import { dur, money, cn, STATUS_LABEL } from "@/lib/utils";
 import { useApp } from "@/hooks/app";
@@ -41,15 +41,6 @@ export function StepBar({ current, onPick }: { current: string; onPick: (k: stri
           </button>
         );
       })}
-      <span aria-hidden className="my-3 w-px shrink-0 bg-border" />
-      <button onClick={() => onPick("runs")} aria-current={current === "runs" ? "step" : undefined} className={cn(item, "max-w-[150px]")}>
-        <span className="flex items-center gap-2">
-          <History className="size-[15px] text-subtle-foreground" />
-          <span className={cn("text-[13px] font-medium", current === "runs" ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>Runs</span>
-        </span>
-        <span className="truncate pl-[23px] text-[11px] text-subtle-foreground">{dur(d.totals.ms)} · {money(d.totals.costUsd)}</span>
-        <span aria-hidden className={cn("absolute inset-x-3 bottom-0 h-[2px] rounded-full", current === "runs" ? "bg-brand" : "bg-transparent")} />
-      </button>
     </nav>
   );
 }

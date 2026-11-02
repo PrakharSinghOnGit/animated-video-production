@@ -98,7 +98,8 @@ export interface Details {
   acts: ActRow[];
   publish: PublishInfo;
   shorts: ShortsInfo;
-  sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string };
+  sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
+    music: { duration: number; crossfadeSec: number | null; planDuration: number | null; sections: { label: string; title: string | null; t0: number; t1: number; intro: string | null; source: string; bpm: number | null; key: string | null; intensity: number | null }[] } | null };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];
 }

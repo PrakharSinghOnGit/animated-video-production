@@ -1291,7 +1291,18 @@ function details(ws: string) {
       treatment: plan?.treatment ? Object.fromEntries(Object.entries(plan.treatment).filter(([k, v]) => k !== "logline" && (typeof v === "string" || Array.isArray(v))).map(([k, v]) => [k, Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" · ") : v])) : {},
       acts, unverified, approval: planApproval(ws) },
     acts: actRows,
-    sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits },
+    sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits,
+      // what Cues / Music stem made: events per sound and per act, and the music sections (with where each came from)
+      eventTypes: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {})).sort((a: any, b: any) => b[1] - a[1]),
+      eventActs: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.act] = (m[e.act] ?? 0) + 1; return m; }, {})),
+      music: (() => {
+        const m = readJson<any>(path.join(d, "06-audio/music.json")), plan = readJson<any>(path.join(d, "06-audio/music_plan.json"));
+        if (!m) return null;
+        return { duration: m.duration, crossfadeSec: m.crossfadeSec ?? null, planDuration: plan?.duration ?? null,
+          sections: (m.sections ?? []).map((x: any) => ({ label: x.label, title: x.title ?? null, t0: x.t0, t1: x.t1, intro: x.intro ?? null,
+            source: x.source?.type === "file" ? `file: ${path.basename(String(x.source.path ?? x.source.file ?? ""))}` : x.source?.type === "synth" ? `synth (${x.source.palette ?? "default"})` : String(x.source?.type ?? "?"),
+            bpm: x.source?.bpm ?? null, key: x.source?.key ? `${x.source.key} ${x.source.mode ?? ""}`.trim() : null, intensity: x.source?.intensity ?? null })) };
+      })() },
     render: { videos, qc, manifest, ...renderStates(ws) },
     timings: allRows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),

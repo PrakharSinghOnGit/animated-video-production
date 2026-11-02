@@ -15,7 +15,6 @@ import { PlanStep } from "@/steps/PlanStep";
 import { ActsHeader, ActsStep } from "@/steps/ActsStep";
 import { SoundStep } from "@/steps/SoundStep";
 import { RenderStep } from "@/steps/RenderStep";
-import { HistoryStep } from "@/steps/HistoryStep";
 import { SectionTabs } from "@/components/SectionTabs";
 import { ProjectOverview } from "@/pages/ProjectOverview";
 import { ShortsPage } from "@/pages/ShortsPage";
@@ -60,12 +59,8 @@ function VideoSection() {
   const states = useMemo(() => stepStates(d?.statuses), [d?.statuses]);
   if (!d) return null;
   const nextKey = STEPS.find((s) => states[s.key] === "next" || states[s.key] === "running")?.key ?? STEPS[0].key;
-  const cur = route.step === "runs" || STEPS.some((s) => s.key === route.step) ? route.step! : nextKey;
-  const body = cur === "runs" ? (
-    <StepPage title="Runs" desc="" status="none" state="done" todo="Every run started from the dashboard (duration, CPU, memory, GPU) and every step the pipeline recorded (model and Claude cost)." >
-      <HistoryStep />
-    </StepPage>
-  ) : (() => {
+  const cur = STEPS.some((s) => s.key === route.step) ? route.step! : nextKey;
+  const body = (() => {
     const k = cur as VideoKey, View = VIEWS[k], st = d.statuses[k] ?? "none";
     const label = STEPS.find((s) => s.key === k)!.label;
     // Acts: the act list and the batch controls live in the header (they act on many acts), the picked act below

@@ -18,6 +18,7 @@ import { Markdown } from "@/components/ui/markdown";
 import { PageHeader, StatCard } from "@/components/ui/layout";
 import { StatusPill } from "@/components/Status";
 import { Badge } from "@/components/ui/badge";
+import { HistoryStep } from "@/steps/HistoryStep";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { Fold } from "@/components/ui/collapsible";
@@ -144,6 +145,11 @@ export function ProjectOverview() {
             </CardBody>
           </Card>
         </div>
+      </section>
+      <section aria-label="Runs" className="grid gap-3">
+        <SubHead>Runs</SubHead>
+        <p className="m-0 -mt-2 text-xs text-muted-foreground">Every run of this video from the dashboard (duration, CPU, memory, GPU) and every pipeline step (model and cost) · {dur(d.totals.ms)} · {money(d.totals.costUsd)}</p>
+        <HistoryStep />
       </section>
     </div>
   );
