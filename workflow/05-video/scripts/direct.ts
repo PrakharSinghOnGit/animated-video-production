@@ -17,6 +17,7 @@ import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
+import { retireOldScenes } from "../src/lib/scenes";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -80,6 +81,9 @@ function finish(): void {
     }
   }
   fs.writeFileSync(storyboardFile, JSON.stringify(actsToStoryboard(plan), null, 2), "utf-8");
+  // a new plan can reuse act IDs for different acts: the old plan's scene files are moved aside so they are not used
+  const moved = retireOldScenes(paths.outputDir, plan.acts);
+  if (moved.length) console.log(`🗄  ${moved.length} scene file(s) from the previous plan moved aside:\n${moved.map((m) => "   " + m).join("\n")}`);
   console.log(`✅ ${plan.acts.length} acts, avg ${Math.round(plan.acts.reduce((s, a) => s + a.endMs - a.startMs, 0) / plan.acts.length / 1000)} s`);
   for (const a of plan.acts) console.log(`   ${a.id} ${String(Math.round((a.endMs - a.startMs) / 1000)).padStart(3)} s  ${a.bpm} BPM  ${a.title}`);
   console.log(`   storyboard view → ${path.relative(process.cwd(), storyboardFile)}`);

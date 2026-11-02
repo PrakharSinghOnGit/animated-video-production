@@ -20,6 +20,7 @@ import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
+import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {
@@ -48,6 +49,8 @@ requireFresh(wsDir, "acts");
 const plan: ActsPlan = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"));
 const scenesDir = path.join(paths.outputDir, "src", "scenes");
 fs.mkdirSync(scenesDir, { recursive: true });
+// files from an older plan (an ID that left the plan, or the same ID with another slug) would be picked up instead
+for (const m of retireOldScenes(paths.outputDir, plan.acts)) console.log(`🗄  older plan's scene moved: ${m}`);
 const style = plan.style || "briefing";
 const styleGuide = `workflow/styles/${style}/STYLE.md`;
 if (!fs.existsSync(path.resolve(process.cwd(), `workflow/styles/${style}/ACT.md`))) {
@@ -137,13 +140,22 @@ ${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} wi
   }
 }
 
-async function authorAct(act: Act): Promise<boolean> {
+/** ok = written (critic passed or not used); notes = written, the critic's notes are saved for you; failed = no act. */
+type Outcome = "ok" | "notes" | "failed";
+
+async function authorAct(act: Act): Promise<Outcome> {
   const file = sceneFile(act);
   const reviewDir = path.join(paths.outputDir, "review", act.id);
-  if (fixMode && fs.existsSync(file)) return fixAct(act, file, reviewDir);
+  if (fixMode) {
+    if (!fs.existsSync(file)) { console.log(`❌ ${act.id}: no act file to fix (${path.basename(file)}); author it first`); return "failed"; }
+    return fixAct(act, file, reviewDir);
+  }
   if (fs.existsSync(file) && !force) {
-    console.log(`⏩ ${act.id} exists (${path.basename(file)}); --force to redo`);
-    return true;
+    if (!planChanged(paths.outputDir, act.id, file)) {
+      console.log(`⏩ ${act.id} exists (${path.basename(file)}); --force to redo`);
+      return "ok";
+    }
+    console.log(`♻️  ${act.id}: its plan changed since the act was written, redoing it`);
   }
   const brief = `${actPrompt}
 
@@ -161,28 +173,33 @@ ${actWords(act)}`;
   let r = await runAgentAsync({ prompt: brief, model, tools: AUTHOR_TOOLS, maxTurns: 80, logPath: path.join(reviewDir, "author_0.log") });
   account(`act ${act.id} author`, model, r);
   console.log(`   ${act.id} author: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costUsd.toFixed(2)}`);
-  if (!r.ok || !fs.existsSync(file)) return false;
-  if (!useCritic) return true;
+  if (!r.ok || !fs.existsSync(file)) return "failed";
+  recordPlanHash(paths.outputDir, act.id);
+  if (!useCritic) return "ok";
 
   for (let round = 1; round <= MAX_FIX_ROUNDS + 1; round++) {
     const v = await critique(act, round);
     // The vision critic is advisory (it has miscounted marks and is harsh on taste); only the
     // free layout gate, or --strict, sends an act back for a paid fix round.
     if (v.pass || round > MAX_FIX_ROUNDS || (!v.layout && !strict)) {
-      if (!v.pass && !v.layout) console.log(`   📝 ${act.id}: critic notes saved for your review (review/${act.id}/critic_${round}.json); no paid fix round`);
-      return v.pass || !v.layout;
+      if (!v.pass) console.log(`   📝 ${act.id}: ${v.layout ? "layout flags" : "critic notes"} saved for your review (review/${act.id}/${v.layout ? "layout.json" : `critic_${round}.json`})${round > MAX_FIX_ROUNDS ? " after the fix round" : "; no paid fix round"}`);
+      return v.pass ? "ok" : "notes";
     }
     const fix = `A critic who has not seen your code reviewed ${act.id} (${file}) from its contact sheet. Fix these issues, then re-run assemble and frames and check the sheet once:\n${v.notes}\nKeep everything that works. Reply with 2 lines when done.`;
     // Resume the author's own session: it already knows the style, the engine and its file
     const resume = r.sessionId || undefined;
-    r = await runAgentAsync({ prompt: resume ? fix : `${brief}\n\n# Fix round ${round}\n${fix}`, model, tools: AUTHOR_TOOLS, maxTurns: 40, resume, logPath: path.join(reviewDir, `author_${round}.log`) });
+    const fresh = `${brief}\n\n# Fix round ${round}\n${fix}`;
+    r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, resume, logPath: path.join(reviewDir, `author_${round}.log`) });
     account(`act ${act.id} fix r${round}`, model, r);
     console.log(`   ${act.id} fix r${round}: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
+    if (r.ok) recordPlanHash(paths.outputDir, act.id);
   }
-  return false;
+  return "notes";   // the act file is there; the last critic verdict is in review/<act>/
 }
 
-/** The author's latest session id (from its run logs), so a fix round reuses its context. */
+/** The author's latest session id (from its run logs), so a fix round reuses its context. Only a session from the
+ *  same model profile can be resumed (a claude-iit session does not exist for claude); runAgentAsync checks that and
+ *  falls back to a fresh run with the full brief. */
 function lastSession(reviewDir: string): string | undefined {
   const logs = fs.existsSync(reviewDir) ? fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).sort((a, b) => parseInt(a.slice(7)) - parseInt(b.slice(7))) : [];
   for (const f of logs.reverse()) {
@@ -192,23 +209,31 @@ function lastSession(reviewDir: string): string | undefined {
   return undefined;
 }
 
-async function fixAct(act: Act, file: string, reviewDir: string): Promise<boolean> {
-  const v = await critique(act, 1);
+async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcome> {
   const extra = fixNotesFile ? fs.readFileSync(fixNotesFile, "utf-8") : "";
-  if (v.pass && !extra) { console.log(`   ✅ ${act.id}: critic passes, nothing to fix`); return true; }
+  // with your review notes the critic is skipped (the review already looked at the act); without, it finds the issues
+  let critic = "";
+  if (!extra) {
+    const n = fs.readdirSync(reviewDir).filter((f) => /^critic_\d+\.json$/.test(f)).length + 1;
+    const v = await critique(act, n);
+    if (v.pass) { console.log(`   ✅ ${act.id}: critic passes, nothing to fix`); return "ok"; }
+    critic = v.notes;
+  }
   const resume = lastSession(reviewDir);
   const n = fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length;
-  const fix = `Review of ${act.id} (${file}). Fix these, then re-run assemble and frames, check the layout report and the sheet once:\n${extra ? `Director's notes (most important):\n${extra}\n` : ""}${v.notes ? `Critic (advisory, from the contact sheet):\n${v.notes}\n` : ""}Keep everything that works. Reply with 2 lines when done.`;
-  console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resumed session" : ""})...`);
-  const r = await runAgentAsync({ prompt: resume ? fix : `${actPrompt}\n\n# Act ${act.id}, file ${file}\n${fix}`, model, tools: AUTHOR_TOOLS, maxTurns: 40, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
+  const fix = `Review of ${act.id} (${file}). Fix these, then re-run assemble and frames, check the layout report and the sheet once:\n${extra ? `Director's notes (most important):\n${extra}\n` : ""}${critic ? `Critic (advisory, from the contact sheet):\n${critic}\n` : ""}Keep everything that works. Reply with 2 lines when done.`;
+  const fresh = `${actPrompt}\n\n# Act ${act.id}, file ${file} (it exists: Read it first and revise it, don't start over)\n${fix}`;
+  console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resuming the author's session" : ""})...`);
+  const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
   account(`act ${act.id} fix`, model, r);
   console.log(`   ${act.id} fix: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)}`);
-  return r.ok;
+  if (r.ok) recordPlanHash(paths.outputDir, act.id);
+  return r.ok ? "ok" : "failed";
 }
 
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));
 const t0 = Date.now();
-const results: Record<string, boolean> = {};
+const results: Record<string, Outcome> = {};
 const queue = [...todo];
 await Promise.all(
   Array.from({ length: Math.min(parallel, queue.length) }, async () => {
@@ -219,8 +244,10 @@ await Promise.all(
   })
 );
 spawnSync("bun", ["run", "assemble", "--video", paths.jobId], { stdio: "inherit" });
-console.log(`\n${Object.entries(results).map(([id, ok]) => `${ok ? "✅" : "⚠️ "} ${id}`).join("  ")}   (${formatDuration(Date.now() - t0)} total)`);
-if (Object.values(results).some((ok) => !ok)) {
-  console.log("Acts marked ⚠️ failed authoring or the critic after the fix rounds; check review/<act>/critic_*.json.");
+const mark = { ok: "✅", notes: "📝", failed: "❌" } as const;
+console.log(`\n${Object.entries(results).map(([id, o]) => `${mark[o]} ${id}`).join("  ")}   (${formatDuration(Date.now() - t0)} total)`);
+if (Object.values(results).includes("notes")) console.log("📝 = written; the critic's notes are in review/<act>/ for you to look at (Review / Fix with notes if they matter).");
+if (Object.values(results).includes("failed")) {
+  console.log("❌ = no act was written, or the fix run failed: see review/<act>/author_*.log.");
   process.exit(1);
 }

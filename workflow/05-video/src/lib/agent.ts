@@ -33,7 +33,20 @@ export interface AgentOptions {
   maxTurns?: number;
   /** Continue an earlier run's session (its context is reused, so files need not be re-read). */
   resume?: string;
+  /** Prompt for a fresh run when `resume` can't be used (the session belongs to another profile or provider, or is
+   *  gone): the run starts over with this instead of failing. Without it, a missing session fails the run. */
+  fresh?: string;
 }
+
+/** Whether a Claude profile has this session on disk (sessions are per config dir: a claude-iit session can't be
+ *  resumed as claude). Other providers are checked by trying. */
+function claudeHasSession(provider: "claude" | "claude-iit", id: string): boolean {
+  const root = path.join(CLAUDE_DIRS[provider], "projects");
+  try { return fs.readdirSync(root).some((d) => fs.existsSync(path.join(root, d, `${id}.jsonl`))); } catch { return false; }
+}
+const sessionMissing = (r: AgentResult) => {
+  try { return /No conversation found|session .*not found|no (such )?session|unknown session|thread .*not found/i.test(fs.readFileSync(r.logPath, "utf-8")); } catch { return false; }
+};
 
 function cliArgs(opts: AgentOptions, model: string): string[] {
   const args = ["-p", "--model", model, "--output-format", "json", "--permission-mode", "acceptEdits"];
@@ -45,7 +58,7 @@ function cliArgs(opts: AgentOptions, model: string): string[] {
 
 function finish(opts: AgentOptions, status: number | null, stdout: string, stderr: string, errMsg: string, durationMs: number): AgentResult {
   fs.mkdirSync(path.dirname(opts.logPath), { recursive: true });
-  fs.writeFileSync(opts.logPath, `exit: ${status}\nerror: ${errMsg}\n\n--- stdout ---\n${stdout}\n\n--- stderr ---\n${stderr}\n`, "utf-8");
+  fs.writeFileSync(opts.logPath, `model: ${opts.model}\nexit: ${status}\nerror: ${errMsg}\n\n--- stdout ---\n${stdout}\n\n--- stderr ---\n${stderr}\n`, "utf-8");
 
   let parsed: any = {};
   try {
@@ -172,8 +185,27 @@ export function runAgent(opts: AgentOptions): AgentResult {
   return pl.parse(opts, res.status, res.stdout ?? "", res.stderr ?? "", res.error?.message ?? "", Date.now() - t0);
 }
 
-/** Same as runAgent, without blocking: several agents can run in parallel. */
-export function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
+/** Same as runAgent, without blocking: several agents can run in parallel. A `resume` that can't be used falls back
+ *  to a fresh run with `fresh` (see AgentOptions). */
+export async function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
+  if (!opts.resume) return spawnAgent(opts);
+  const sp = parseSpec(opts.model);
+  const startFresh = (why: string) => {
+    console.log(`   (${why}: starting a fresh session with the full brief)`);
+    return spawnAgent({ ...opts, prompt: opts.fresh!, resume: undefined });
+  };
+  if ((sp.provider === "claude" || sp.provider === "claude-iit") && opts.fresh && !claudeHasSession(sp.provider, opts.resume))
+    return startFresh(`the earlier session isn't in the ${sp.provider} profile`);
+  const r = await spawnAgent(opts);
+  if (!r.ok && opts.fresh && sessionMissing(r)) {
+    const again = await startFresh("the earlier session could not be resumed");
+    again.durationMs += r.durationMs;
+    return again;
+  }
+  return r;
+}
+
+function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
   const sp = parseSpec(opts.model);
   if (sp.provider === "agy") return viaAgy(opts, sp);
   if (sp.provider === "ollama") ensureOllama();

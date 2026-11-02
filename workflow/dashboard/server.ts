@@ -744,13 +744,14 @@ function args(o: Record<string, any>, key: string): string[] {
         continue;
       }
       case "select":
-        if (!(dynChoices(opt) ?? []).includes(String(v))) throw new Error(`${opt.label}: not one of ${opt.choices?.join(", ")}`);
+        if (!(dynChoices(opt) ?? []).includes(String(v))) throw new Error(`${opt.label}: "${v}" is not offered any more (pick again; offered: ${(dynChoices(opt) ?? []).slice(0, 8).join(", ")})`);
         out.push(...(opt.map ? opt.map(String(v)) : [opt.flag!, String(v)]));
         continue;
       case "multi": {
         const arr = (Array.isArray(v) ? v : []).map(String);
         const allowed = key === "acts.all" && opt.key === "acts" ? currentOpts.__acts ?? [] : opt.choices ?? [];
-        if (arr.some((x) => !allowed.includes(x))) throw new Error(`${opt.label}: unknown value`);
+        const unknown = arr.filter((x) => !allowed.includes(x));
+        if (unknown.length) throw new Error(`${opt.label}: ${unknown.join(", ")} ${unknown.length > 1 ? "are" : "is"} not offered any more (pick again)`);
         out.push(...(opt.map ? opt.map(arr) : arr.length ? [opt.flag!, arr.join(",")] : []));
         continue;
       }
@@ -822,9 +823,14 @@ function lastRuns(ws: string) {
   return last;
 }
 
+/** Act ID → its scene file: the plan's `<id>_<slug>.tsx` when there, else any file with the ID. */
 function sceneFiles(ws: string): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const f of ls(path.join(wsDir(ws), "05-video/src/scenes"), /^A\d+_.*\.tsx$/)) out[f.split("_")[0]] = `05-video/src/scenes/${f}`;
+  const slugs = new Map<string, string>(((readJson<any>(path.join(wsDir(ws), "05-video/acts.json"))?.acts ?? []) as any[]).map((a) => [a.id, a.slug]));
+  for (const f of ls(path.join(wsDir(ws), "05-video/src/scenes"), /^A\d+_.*\.tsx$/)) {
+    const id = f.split("_")[0];
+    if (!out[id] || f === `${id}_${slugs.get(id)}.tsx`) out[id] = `05-video/src/scenes/${f}`;
+  }
   return out;
 }
 
@@ -834,11 +840,16 @@ const planHash = (ws: string, id: string): string => {
   return new Bun.CryptoHasher("sha256").update(JSON.stringify(a ?? null)).digest("hex");
 };
 const planHashPath = (ws: string, id: string) => path.join(wsDir(ws), `05-video/review/${id}/plan.hash`);
-/** Stale = this act's plan entry changed since its scene was written. The hash is (re)recorded when missing or older than the scene (authored/fixed since), so unrecorded = fresh. */
+/**
+ * Stale = this act's plan entry changed since its scene was written (same rule as planChanged in
+ * 05-video/src/lib/scenes.ts, which the act author uses). A recorded hash counts when it was written with or after the
+ * scene and not after a plan change the scene predates; otherwise stale = acts.json is newer than the scene. A missing
+ * hash is recorded only for a scene newer than the plan, so an old act is never stamped with a new plan.
+ */
 function actStale(ws: string, id: string, sceneMs: number): boolean {
-  const f = planHashPath(ws, id), cur = planHash(ws, id);
-  const rec = exists(f) && mtime(f) >= sceneMs ? readText(f).trim() : "";
-  if (rec) return rec !== cur;
+  const f = planHashPath(ws, id), cur = planHash(ws, id), plan = mtime(path.join(wsDir(ws), "05-video/acts.json")), h = exists(f) ? mtime(f) : 0;
+  if (h >= sceneMs && !(sceneMs < plan && plan < h)) return readText(f).trim() !== cur;
+  if (plan > sceneMs) return true;
   try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, cur); } catch {}
   return false;
 }
@@ -1532,8 +1543,12 @@ async function appFetch(req: Request): Promise<Response> {
     }
 
     if (rest === "/run" && req.method === "POST") {
-      const { action, act, opts } = await body(req);
+      const { action, act, opts, dry } = await body(req);
       if (typeof action !== "string") return bad("action required");
+      if (dry === true) {   // validate and show the commands without running them
+        const c = commandFor(ws, action, opts && typeof opts === "object" && !Array.isArray(opts) ? opts : {}, typeof act === "string" ? act.toUpperCase() : undefined);
+        return typeof c === "string" ? bad(c) : json({ label: c.label, cmds: c.cmds });
+      }
       const busy = runningJob(ws);
       if (busy) return bad(`busy: ${busy.label} is running`, 409);
       const o = opts && typeof opts === "object" && !Array.isArray(opts) ? opts : {};

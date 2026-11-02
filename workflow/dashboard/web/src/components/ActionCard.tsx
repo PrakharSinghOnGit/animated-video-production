@@ -22,11 +22,19 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
     const saved = store.get<Record<string, unknown>>(`opt.${id}`, {});
     return Object.fromEntries(defs.map((o) => [o.key, initialValue(o, saved)]));
   });
-  // options arrive with the schema: fill any that are still missing
+  const planActs = useMemo(() => d?.plan.acts.map((x) => x.id) ?? [], [d]);
+  // options arrive with the schema: fill any that are still missing. A remembered pick that is no longer offered
+  // (an act from an older plan, a model that went away) is dropped, so it can't block the run unseen.
   const merged = useMemo(() => {
     const saved = store.get<Record<string, unknown>>(`opt.${id}`, {});
-    return Object.fromEntries(defs.map((o) => [o.key, vals[o.key] ?? initialValue(o, saved)]));
-  }, [defs, vals, id]);
+    return Object.fromEntries(defs.map((o) => {
+      const v = vals[o.key] ?? initialValue(o, saved);
+      const offered = id === "acts.all" && o.key === "acts" ? planActs : o.choices;
+      if (o.type === "multi" && Array.isArray(v) && offered) return [o.key, v.filter((x) => offered.includes(x))];
+      if (o.type === "select" && typeof v === "string" && offered?.length && !offered.includes(v)) return [o.key, o.def == null ? "" : String(o.def)];
+      return [o.key, v];
+    }));
+  }, [defs, vals, id, planActs]);
 
   const covered = useMemo(() => Object.entries(schema).filter(([k, m]) => k !== id && m.chain?.some((c) => c.action === id)).map(([, m]) => m.label), [schema, id]);
   if (!a) return null;
@@ -38,7 +46,6 @@ export function ActionCard({ id, act, children, hint, bare }: { id: string; act?
   const opts = toOpts(defs, merged);
   const preview = Object.entries(opts).filter(([, v]) => v !== false && !(Array.isArray(v) && !v.length)).map(([k, v]) => (v === true ? k : `${k}=${Array.isArray(v) ? v.join(",") : v}`)).join(" · ");
   const lit = hot.has(id);
-  const planActs = d?.plan.acts.map((x) => x.id) ?? [];
   const coveredKeys = isMaster ? a.chain!.flatMap((c) => (c.action ? [c.action] : [])) : [];
 
   return (

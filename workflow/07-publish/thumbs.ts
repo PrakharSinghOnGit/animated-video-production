@@ -213,17 +213,18 @@ ${packages}
 ${pn.lines.join("\n") || "(none)"}
 `;
 const others = VARIANTS.filter((v) => !todo.includes(v) && fs.existsSync(srcFile(v)));
-let prompt: string, resume: string | undefined;
+let prompt: string, resume: string | undefined, fresh: string | undefined;
 if (fixMode) {
   resume = lastSession();
   const fix = `Fix thumbnail variant(s) ${todo.join(", ")} with the creator's notes below. Edit the existing file(s) ${todo.map(srcFile).join(", ")}, re-render (bun run thumbs:render --video ${videoId} --variant <V> --no-preview), LOOK at the result (Read the image), then run the full bun run thumbs:render --video ${videoId} and Read preview_small.png. Update thumbnails.json for the changed variant(s). Keep what works and keep the variants distinct from each other. Reply with 1-2 lines per variant when done.\n\n${todo.map((v) => `## Notes for ${v}\n${notesOf(v)}`).join("\n\n")}`;
-  prompt = resume ? fix : `${brief}\n\n${context}\n${fix}`;
+  fresh = `${brief}\n\n${context}\n${fix}`;
+  prompt = resume ? fix : fresh;
 } else {
   prompt = `${brief}\n\n${context}\nDesign and write: ${todo.join(", ")}.${others.length ? ` Variants ${others.join(", ")} already exist (files in ${thumbsDir}, entries in thumbnails.json): read them and make yours different in subject and angle.` : ""}`;
 }
 console.log(`✏️  ${fixMode ? "Fixing" : "Designing"} thumbnails ${todo.join(", ")} (${model}${resume ? ", resumed session" : ""})...`);
 const t0 = Date.now();
-const r = await runAgentAsync({ prompt, model, tools: ["Read", "Write", "Edit", "Bash(bun run thumbs:render:*)"], maxTurns: 90, resume, logPath: pubFile(videoId, `logs/thumbs_${n}.log`), cwd: REPO });
+const r = await runAgentAsync({ prompt, model, tools: ["Read", "Write", "Edit", "Bash(bun run thumbs:render:*)"], maxTurns: 90, resume, fresh, logPath: pubFile(videoId, `logs/thumbs_${n}.log`), cwd: REPO });
 recordTiming(ws, { step: `thumbs ${todo.join("")}${fixMode ? " fix" : ""} (${model})`, ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 console.log(`   author: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costUsd.toFixed(2)}`);
 

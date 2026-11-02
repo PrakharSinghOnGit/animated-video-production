@@ -133,7 +133,8 @@ async function main() {
   const allNumbers: any[] = [];
 
   for (const scene of timeline.scenes) {
-    const matchingFile = existingFiles.find((f) => {
+    // the act's own file (<id>_<slug>.tsx) first; any file with the ID otherwise (older workspaces)
+    const matchingFile = existingFiles.find((f) => f === `${scene.id}_${scene.slug}.tsx`) ?? existingFiles.find((f) => {
       const idMatch = f.match(/^([SA]\d+)/i);
       return idMatch && idMatch[1].toUpperCase() === scene.id.toUpperCase();
     });
