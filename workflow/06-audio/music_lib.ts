@@ -7,7 +7,7 @@
  * Put tracks in a mood folder and they are tagged with it: assets/music/<mood>/<file>.mp3, mood one of
  * calm | hopeful | curious | tense | dark | driving | triumphant (anything else is kept as is). Files at the top level are
  * "untagged" until you edit index.json. Licence: "own" for tracks you made, else what the source says (the credit line goes
- * in the description when the licence needs one). `music:gen` adds its tracks here itself.
+ * in the description when the licence needs one). Prompts for generating beds: music_prompts.json (dashboard: Sound → Music stem).
  * audio:music picks from this index for each section (mood from the section's mode, energy from its intensity) and falls back
  * to the synth palettes when the library is empty.
  */

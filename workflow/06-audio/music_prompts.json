@@ -1,5 +1,5 @@
 {
-  "about": "Prompts for background beds under narration (Stable Audio via `bun run music:gen --prompt <id>`, or paste into any generator). Every bed: instrumental, steady, no drops or solos that fight the voice, loops cleanly. `style` = the video style it suits (any = both).",
+  "about": "Prompts for background beds under narration (paste into Stable Audio or any generator; the dashboard has Copy buttons under Sound → Music stem). Every bed: instrumental, steady, no drops or solos that fight the voice, loops cleanly. `style` = the video style it suits (any = both).",
   "common": "Instrumental only, no vocals, no choir. Background music for a spoken documentary: steady level, sparse mid-range so the narrator's voice sits on top, no sudden drops, builds or solos. Clean studio mix. Seamless loop, ends on the same chord it starts on.",
   "prompts": [
     { "id": "spy-walk-calm", "style": "briefing", "mood": ["calm", "curious"], "energy": 0.3, "bpm": 92, "seconds": 180,
