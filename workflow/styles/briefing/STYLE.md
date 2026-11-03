@@ -40,7 +40,7 @@ No gradients, no glows, no transparency fades, no fifth colour. Text is ink on a
 ## 4. Type & impact text
 
 - **Numbers on screen are digits with units** ("$9.6T", "7%"), as large cut type, readable at thumbnail size. Hold every text ≥ (characters ÷ 15 + 1.5) s once landed.
-- **Set labels** (a short name, a source note) in League Spartan, small but ≥ 30 px on screen. A source note sits beside the figure it supports.
+- **Set labels** (a short name, a source note) in League Spartan **500–600** (never 700+: heavy Spartan clogs into a blob at label size), small but ≥ 30 px on screen when it is meant to be read, with a thin outline in the ground colour (`label` does both). A source note sits beside the figure it supports. Labels seen from far out (a wide establishing shot) need not be readable.
 - **No running subtitles.** The narration is never transcribed on screen; viewers get closed captions from the `.srt` (`bun run srt`). On-screen words are **impact text** only: the figure, the term being defined, the name, the one phrase the line hangs on ("IPO", "$9.6T", "PAID LAST"), cut as type and staged as part of the set, landing on its spoken word. Usually 1–4 words, rarely more than one impact text per sentence; most sentences have none. The full frame is the stage (no reserved subtitle band).
 - **Brand**: the channel logo appears once, on the end card at the spoken subscribe line (`brandEndCard`): a brand-black card slides over the set, the logo's three bars run across the frame, the tagline, a red SUBSCRIBE tag stamped on the word. No watermark or logo anywhere else in the film.
 - **Chapter pill**: a small cut-paper tag top-left ("02 · Who owns it") for the length of a chapter.
@@ -49,9 +49,10 @@ No gradients, no glows, no transparency fades, no fifth colour. Text is ink on a
 
 - **The voice drives the beats, the music grid places them.** A visual hit is complete on its spoken word: anticipation starts 0.25–0.6 s earlier. If a music beat lies within ±150 ms of the word, land on the beat.
 - **Puppets on twos** (figures, hands, letters landing, props: poses stepped at 12 fps); **camera and slides on ones** (a stepped camera judders).
-- Type lands letter by letter and **stops dead** with a paper slap; strips slide in along a diagonal and stop dead on the beat.
+- **Elastic, with weight.** Things arrive on a spring that overshoots and settles (`bounce`, `pop`), and land with a thump: a squash on contact (`land`), a settle wobble (`wobble`), a puff of paper scraps (`scraps`), and for the act's biggest hits a short camera shake (`shake`). Type lands letter by letter with a squash; strips slide in along a diagonal and bounce on the beat. Plain ease-in/out is for camera moves and slow drifts only.
+- **More happening.** A beat is rarely one thing: secondary motion follows the main hit (the floor shakes when a figure lands, coins jump, a sign swings), held things idle (`idle`: a slow bob or sway), and a row of items pops in staggered (`stagger`), not all at once.
 - **Stop-time**: once or twice per video, at the biggest reveal, the whole picture freezes for a beat in silence, then resumes.
-- **Calm long-form tempo.** One idea at a time; build it while it is explained, then hold while the narrator finishes. Walks are one step per beat at 80–110 BPM, not a sprint. Nothing shorter than 0.4 s except a deliberate whip or stop-time.
+- **Calm long-form tempo.** One idea at a time; build it while it is explained, then hold while the narrator finishes. Walks are one step per beat at 80–110 BPM, not a sprint. Moves of the set take at least 0.4 s; pops, thumps and scrap bursts are quick by nature and may be shorter.
 
 ## 6. Camera grammar (the screencast camera)
 

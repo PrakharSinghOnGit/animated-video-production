@@ -11,7 +11,7 @@
 ```tsx
 import React from "react";
 import { draft } from "@wealthgap/kit";
-const { DraftCanvas, drawAct, INK, PAL, spring, move, seg, lerp, clamp, lineP, circleP, polygonP, morph, line, fill, shape,
+const { DraftCanvas, drawAct, INK, PAL, spring, move, seg, lerp, clamp, bounce, pop, land, wobble, idle, stagger, specks, lineP, circleP, polygonP, morph, line, fill, shape,
   text, label, fitSize, dropIn, capHeight, cube, drawMesh, drawSolids, bars, counter, panel, penny /* … */ } = draft;
 type Ctx = draft.DraftCtx;
 type G = draft.G;
@@ -54,7 +54,8 @@ export default function Act() {
 - **Ink changes** happen at the end of the outgoing act: `close: "flood"` (paper → blueprint; `floodShape(u)` grows a shape from the scene, e.g. a hexagon cell, past the frame) or `close: "scan" | "scanUp"` (to/from hologram), with `to: <next ink>` and `handoff: (h, t) => …` drawing the next act's first shape in the next ink. Only when the plan says the next act changes ink.
 - **Chapter acts** (`chapter` in the plan): start with `chapterCard(h, t, {ink, n, title, t0: 0.2, pressAt: firstWord - 0.4})` during the narration pause; once `pressed === 1`, continue from the returned `rail` line (it becomes the act's first shape).
 - **Hits land on the word**: start moves 0.05–0.3 s before `w(word).t0` (springs from `spring(t, t0 - 0.05)`); a number must be readable at its word.
-- **Numbers are big type** (`text` ≥ 90 px; headline figures 160–400 px) or `counter` (rolls up, complete at its word). Labels via `label` ≥ 24 px. A small source note beside a figure from the plan's `data`.
+- **Motion with weight** (STYLE.md §5): arrivals `bounce`/`pop` (squash and stretch, start 0.1–0.15 s before the word), impacts `land` + `specks(g, t, hit, x, y, {ink})` + `wobble`; held shapes `idle`; rows `stagger`. `spring` stays for exact moves (lines, rails, morphs).
+- **Numbers are big type** (`text` ≥ 90 px; headline figures 160–400 px) or `counter` (rolls up, complete at its word). Labels via `label` ≥ 24 px (weight 500–700, default 600, outlined automatically). A small source note beside a figure from the plan's `data`.
 - **Always transforming**: something changes at least every 1.5 s; the pencil boil alone does not count except on a figure being read.
 - **3D**: `drawMesh` for single wireframes (hidden edges dashed), `drawSolids` for solids that hide each other (bars on a floor, stacked cubes, a drum with words via `faceDraw`); turn objects, never the view.
 - **Penny** (optional, ~half the acts): `penny(h, x, y, {ink: INKNAME, s ≤ 2.5, pose, mood, t})`; her mood follows the narration; at most one on screen; never text or speech bubbles on her.

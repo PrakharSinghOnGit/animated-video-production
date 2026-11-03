@@ -37,7 +37,7 @@ Prefer the order paper → blueprint → hologram → paper (each accent is the 
 
 ## 4. Type & impact text
 
-- **Geist only.** Weight 900 for big words and numbers (≥ 90 px on screen; headline figures 160–400 px); 600–800 for labels at 24–28 px, tracked 0.14–0.3 em, uppercase.
+- **Geist only.** Weight 900 for big words and numbers (≥ 90 px on screen; headline figures 160–400 px); 500–700 for labels (default 600; never 800+, it clogs) at 24–28 px, tracked 0.14–0.3 em, uppercase, with a thin outline in the paper colour (`label` does it).
 - **No running subtitles.** On-screen words are impact text staged in the drawing: a figure as big type, a key term between rails, a label on a part. YouTube captions come from `bun run srt`.
 - Big type takes the ink's fill: hatched on paper, solid or clean outline on the blueprint, scan lines or solid cyan on the hologram.
 - **Corner labels on every frame** (drawn by `drawAct`): top left `FIG. 07 — GEAR` (the act's number in the video and its one-word name), bottom right a counter (`SHEET 07 / 12`, or a running value that fits the act).
@@ -45,7 +45,8 @@ Prefer the order paper → blueprint → hologram → paper (each accent is the 
 
 ## 5. Motion
 
-- **Critically damped springs** (`spring`, ω 12–40): nothing ever passes its target, no bounce. Exponential ease-in/out for wipes, presses and exits (`expIn`, `expOut`, `move`).
+- **Elastic springs with weight.** Things arrive on springs that overshoot and settle (`bounce`, `pop` with squash and stretch); presses and slams land with a thump (`land` squash, `wobble`, a burst of pencil `specks`). `spring` (critically damped, no overshoot) is for precise moves: lines extending, rails, morphs between exact shapes. Exponential ease-in/out for wipes and exits (`expIn`, `expOut`, `move`).
+- **Secondary motion.** After a hit, something reacts (a part jiggles, Penny flinches, a neighbouring bar dips); held shapes idle (`idle`) instead of freezing; rows pop in staggered (`stagger`).
 - **Land on the word.** Every move that matters starts 0.05–0.3 s before its spoken word so it lands on it (`ctx.word`).
 - **Always transforming.** Something changes at least every 1.5 s (the reel's 0.5 s rule is for a 30 s piece; a 10-minute explainer needs room to read). Holds longer than 1.5 s are allowed only for a figure the viewer must read, and the pencil boil keeps paper alive meanwhile.
 - **Kinetic type** between rails: letters rise through a baseline, words whip in (1400 px in 0.2 s), rails clap shut on a word and reopen, letters drop in one by one, a rail presses a word flat into a line.
@@ -98,7 +99,7 @@ Centred, symmetric, drafting-sheet compositions: one idea big in the middle (geo
 
 ## 11. Banned
 
-Particle bursts, glows, lens flares, camera shake, camera moves of any kind, RGB split, crossfades, generic gradients, bouncy or overshooting easing, holds over 1.5 s without a reason, stock footage, logos, real faces, boxes of bullet text, anything that looks like a template.
+Glitter or glowing particle effects (pencil specks on an impact are fine), glows, lens flares, camera moves of any kind (a short thump shake on the biggest hit is fine), RGB split, crossfades, generic gradients, rubbery bounce on everything (overshoot is for arrivals and impacts), holds over 1.5 s without a reason, stock footage, logos, real faces, boxes of bullet text, anything that looks like a template.
 
 ## 12. Data honesty
 

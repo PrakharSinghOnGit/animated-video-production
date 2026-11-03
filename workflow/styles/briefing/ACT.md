@@ -11,7 +11,8 @@
 import React from "react";
 import { spy } from "@wealthgap/kit";
 const { SpyCanvas, INKS, clear, applyCam, piece, roughC, rectP, layout, drawLine, landEach, landEnd, lineRect,
-  figureSide, walkPose, POSE, onTwos, walkStride, focusCam, drawAct, chapterPill, actIn, seg /* … */ } = spy;
+  figureSide, walkPose, POSE, onTwos, walkStride, focusCam, drawAct, chapterPill, actIn, seg,
+  bounce, pop, land, wobble, thump, shake, idle, stagger, scraps /* … */ } = spy;
 type Ctx = spy.SpyCtx;
 type Rect = spy.Rect;
 
@@ -57,6 +58,7 @@ export default function Act() {
 - **Every act uses `drawAct`** (whip in over the first 0.6 s, whip out over the last 0.6 s, blur, paper finish) and draws only screen-space extras (chapter pill, spotlight) in its `overlay`. **No subtitles**: on-screen words are impact text only (STYLE.md §4), as cut type in the scene. Don't put hits in those windows; the first beat holds until `actIn(t) === 1`. Pass `from`/`to` as the previous/next act's ground when it differs.
 - **The camera is `focusCam` only.** List every action with its real `t0`/`t1` and a world rect; never key raw x/y/zoom (except `pushIn` toward a rect for the act's one spotlight moment). This is what guarantees the camera never leaves unfinished work, so be honest about `t1`: the end of a build, a walk or a landing, plus the time to read it.
 - **Numbers are cut type** with `layout` + `drawLine` + `landEach`, complete before the spoken word (`landEnd`). Headline figures ≥ 90 px on screen; set labels via `label` ≥ 30 px on screen. Show a source note (small label) next to a figure from the plan's `data`.
+- **Motion with weight** (STYLE.md §5): arrivals use `bounce`/`pop` (start 0.1–0.15 s before the word so the overshoot peaks on it), landings `land` + `scraps(g, t, hit, x, y, ink)` + `wobble` for things that hang or swing; the act's 1–3 biggest hits add `shake(cam, t, [hits])` to the focusCam camera. Held objects `idle`. Use `seg` + plain easing for camera-like drifts and slow builds only. Labels: `label(g, s, x, y, \`600 44px "${SPY_FONT.sans}"\`, col)` (weights above 600 are drawn at 600; the outline is automatic).
 - **Puppets** via `figureSide` sampled `onTwos(t)`; advance x by `walkStride` per walk cycle so feet don't slide. Identity by accent colour/hat, never faces. The figure that is the viewer's stand-in ("you", the saver, the trader) is **the Agent**: pass `hero: true` (three hatband cuts + gold coin tie clip, `brand-assets/mascot/AGENT.md`); other people stay plain extras. Never draw the signature by hand.
 - **Inks**: one `INKS` set for the whole chapter; ground changes (paper → hot → ink) mark the act's turn. Warm = the money (on a black keyline); hot = danger/loss/the hero's accent. Never fill shapes directly: always `piece` (cut gap + shadow).
 - **Chapter acts** (`chapter` in the plan): open with `open: "iris"` or `"strips"` from the previous chapter's ground, show `chapterCard(g, n, title, progress, inks)` during the narration pause (progress over 0.6 s → first spoken word − 0.3 s), then go to the first beat; `chapterPill` in the overlay for the rest of the chapter. In non-chapter acts of a chapter, keep the pill in the overlay too.
