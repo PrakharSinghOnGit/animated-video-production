@@ -99,6 +99,14 @@ over from an older script version are moved to `audio/stale/`. Then
 → `bun run srt --video <ID>` (YouTube closed captions in `07-assembly/export/<ID>.srt`; the video itself shows
 no running subtitles).
 
+**Pauses for the picture** (dashboard: Align → Pauses for the picture). When an act needs more time than the narration
+gives, the voice waits: `03-voiceover/holds.json` lists pauses (after a word, or after a script block). The director asks
+for them in the plan (`acts[].holds`), act authors in `05-video/review/<ACT>/holds.json`, you in the dashboard; `bun run
+voice:holds --video <ID> --import` collects requests. A pause only goes at a true pause point: a sentence/phrase end or
+around a joining word (and, but, so), and only where the take is silent (`--scan` checks the waveform: no breath, no word
+tail; the gap is filled with the take's own floor). Apply = Align all (merge with pauses → transcribe → master →
+captions → `voice:holds --shift-plan`, which moves the plan's act/beat times by the pauses and keeps your approval).
+
 ### Step 4: Plan 💲 (~6 min, ~$1.5, Opus) → **G1**
 `bun run direct --video <ID>` (style defaults to `briefing`, or `WG_STYLE`; `--style drafting` or another folder in
 `workflow/styles/`; the dashboard's Plan step has a House style picker). Writes `05-video/acts.json`: ~10 acts of 40–90 s, each with beats, BPM, data, chapter.

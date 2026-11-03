@@ -19,6 +19,7 @@ Don't explore the rest of the repo; everything you need is there.
 - **No boxes with text in them.** If a frame looks like a slide, restage it in the style's own terms (STYLE.md §8).
 - **Sound.** Export `events(word)` with foley for every visible action (types listed in the style's ACT.md), act-relative seconds.
 - Keep the file readable: small helper functions per beat, < ~800 lines.
+- **Not enough time for a visual? Ask for a pause, don't rush.** If the narration moves on before something can be shown properly (a crowd building, a long transform, a reveal that needs to land), write `05-video/review/<ACT>/holds.json` = `{"holds": [{"word": "orders.", "occurrence": 1, "ms": 1200, "why": "…"}]}`: the voice waits `ms` after that word (nth occurrence in this act). Only after a sentence/phrase end or around a joining word (and, but, so); 300–2000 ms; at most 3. The creator approves and applies them (the act then gets longer); until then the act must still work without them, so draw against the current word times and let the pause give extra room, never a missing piece.
 
 ## Process
 1. Plan the layout and the actions for every beat (a short comment block at the top of the file).

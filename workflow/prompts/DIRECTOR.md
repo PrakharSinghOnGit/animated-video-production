@@ -24,7 +24,8 @@ If the inputs list chapters, each one opens a new act that starts at the chapter
 3. Benchmark: learn / don't take.
 4. Per act: the idea in one sentence, what is on its sheet (layout, left→right / top→bottom regions), signature move, camera path (named moves from STYLE.md §6), how it arrives from the previous act.
 5. **Cue map**: BPM per act (80–100), the music intensity (0–1), where the silences go (before each act's turn and before the video's biggest number), which spoken words carry visual hits.
-6. **Sound design table** per act: foley used, music state.
+6. **Pauses for the picture** (`holds`): where the narration moves on too fast for what must be shown (a crowd of orders, a long build, a reveal that needs a beat to land), ask the voice to wait: `{word, occurrence, ms, why}` = a pause of `ms` after that word. Only after a sentence or phrase end (a word with . , ; : ? ! or a dash) or right before/after a joining word (and, but, so, because); never mid-phrase. 300–2000 ms each, at most ~3 per act, and only where the visual truly needs it: most acts need none. They are applied to the recording later (a pause is placed only where the take is silent) and the act's times then grow by them.
+7. **Sound design table** per act: foley used, music state.
 
 ## 4. Beats
 Split every act into beats of 6–20 s that follow the narration. For each beat: what is drawn or moved (name the style's primitives and native moves from STYLE.md §8, and the camera move), and its **hits**: spoken words on which something must be *complete* (a number readable, a stamp down, a mark landed). 1–4 hits per beat; not every sentence needs one.
@@ -68,6 +69,7 @@ Write **`acts.json`** at the path given below, exactly this shape (times in ms, 
       "bpm": 88,
       "intensity": 0.35,
       "silence": [{ "word": "nothing", "occurrence": 1, "durMs": 900 }],
+      "holds": [{ "word": "orders.", "occurrence": 1, "ms": 1200, "why": "the order flood needs a beat to fill the screen" }],
       "sound": "foley + music state",
       "beats": [
         {

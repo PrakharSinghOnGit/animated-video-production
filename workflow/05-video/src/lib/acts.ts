@@ -48,6 +48,8 @@ export interface Act {
   bpm: number;
   intensity: number;
   silence?: { word: string; occurrence?: number; durMs: number }[];
+  /** pauses for the picture: the voice waits `ms` after this word (applied in Align by voice:holds + tts:post) */
+  holds?: { word: string; occurrence?: number; ms: number; why?: string }[];
   sound?: string;
   /** set on the act that opens a chapter: it starts on the narration pause with the chapter card */
   chapter?: { n: number; title: string };
@@ -125,6 +127,10 @@ export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter
     if (!(act.bpm >= 70 && act.bpm <= bpmMax)) errors.push(`${where}: bpm ${act.bpm} outside 70-${bpmMax}`);
     if (!(act.intensity >= 0 && act.intensity <= 1)) errors.push(`${where}: intensity must be 0-1`);
 
+    for (const h of act.holds ?? []) {
+      if (!findWord(captions, h.word, h.occurrence ?? 1, act.startMs, act.endMs)) errors.push(`${where}: hold word "${h.word}" is not spoken in this act`);
+      if (!(h.ms >= 100 && h.ms <= 4000)) errors.push(`${where}: hold after "${h.word}" is ${h.ms} ms (100-4000)`);
+    }
     for (const s of act.silence ?? []) {
       if (!findWord(captions, s.word, s.occurrence ?? 1, act.startMs, act.endMs)) errors.push(`${where}: silence word "${s.word}" is not spoken in this act`);
     }

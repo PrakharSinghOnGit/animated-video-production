@@ -15,12 +15,17 @@
  * - --max-pause: any silence inside a section longer than this is shortened to it (a TTS take that stalls mid-sentence);
  *   0 = off. Runs before transcription, so word timings follow the shortened audio.
  * Settings not given default to the last run's (post.json), else speed 1, gap 0.9 s, chapter gap 2.5 s, max pause off.
+ * - Holds (03-voiceover/holds.json, "pauses for the picture"): extra silence after a word, cut only at a true pause point
+ *   (holds.py checks the waveform), or added to the gap after a section. Positions come from the last transcript, so a
+ *   hold inside a section needs the voice transcribed with the same speed/pause settings first. Writes audio/retime.json
+ *   (old and new holds) for `voice:holds --shift-plan`, which moves the plan's times to match after captions are rebuilt.
  */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveWorkspace, loadSections } from "./workspace";
+import { readHolds, holdsPy, wordsPath, toBase, retimePath, type Applied } from "./holdlib";
 
 const argv = process.argv.slice(2);
 const flag = (n: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
@@ -78,6 +83,12 @@ async function main() {
   };
 
   const ours: Record<string, number> = prev?.files ?? {};
+  // holds: settings that move every position (then holds inside sections wait for a fresh transcript)
+  const sameBase = !!prev && prev.speed === speed && (prev.maxPause ?? 0) === maxPause && prev.gap === gap && prev.chapterGap === chapterGap;
+  const prevApplied: Applied[] = prev?.holds ?? [];
+  const holds = readHolds(ws.rootDir).holds.filter((h) => h.on && h.ms > 0);
+  const applied: Applied[] = [];
+  let resourced = false, baseOff = 0, heldOff = 0;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wg_post_"));
   let before = 0, after = 0;
   console.log(`🎚  Voice post: speed ×${speed}, gap ${gap}s, chapter gap ${chapterGap}s${maxPause ? `, pauses inside capped at ${maxPause}s` : ""} (${files.length} sections${speed !== 1 ? ", rubberband fine engine" : ""})`);
@@ -86,7 +97,8 @@ async function main() {
     const cur = path.join(audio, rel), raw = path.join(rawDir, rel);
     // a file the voice step wrote (not our last output) becomes the new raw source
     const mt = fs.statSync(cur).mtimeMs;
-    if (!fs.existsSync(raw) || ours[rel] !== mt) { fs.mkdirSync(path.dirname(raw), { recursive: true }); fs.copyFileSync(cur, raw); }
+    const fresh = !fs.existsSync(raw) || ours[rel] !== mt;
+    if (fresh) { fs.mkdirSync(path.dirname(raw), { recursive: true }); fs.copyFileSync(cur, raw); if (prev) resourced = true; }
     before += duration(raw);
     const last = idx === files.length - 1;
     const pad = last ? 0 : Math.max(0, (chapterEnd(rel) ? chapterGap : gap) - TAIL);
@@ -98,7 +110,45 @@ async function main() {
     run("ffmpeg", ["-v", "error", "-y", "-i", raw, "-af", `${cap}areverse,silenceremove=start_periods=1:start_silence=${TAIL}:start_threshold=-45dB,areverse`, "-c:a", "pcm_f32le", t1]);
     let src = t1;
     if (Math.abs(speed - 1) > 1e-3) { run("rubberband", ["-q", "--fine", "--tempo", String(speed), t1, t2]); src = t2; }
-    run("ffmpeg", ["-v", "error", "-y", "-i", src, "-af", `apad=pad_dur=${pad.toFixed(3)}`, "-c:a", "pcm_s24le", cur]);
+    // holds for this section: inside it at a clean pause point, or after it (added to the gap)
+    const id = path.basename(rel, ".wav"), mine = holds.filter((h) => h.section === id);
+    const baseDur = duration(src);
+    let inserted = 0, endMs = 0;
+    const inner = mine.filter((h) => h.after !== "end"), endH = mine.filter((h) => h.after === "end");
+    if (inner.length) {
+      const wf = wordsPath(ws.rootDir, id);
+      const words: { start: number; end: number }[] = (() => { try { return JSON.parse(fs.readFileSync(wf, "utf-8")).words; } catch { return []; } })();
+      const transcribedAfterLastPost = prev && fs.existsSync(wf) && fs.statSync(wf).mtimeMs > Date.parse(prev.at);
+      const reason = !sameBase ? "speed/gap/pause settings changed in this run: run Align once, then apply the pauses again"
+        : fresh ? "this section's voice is new: run Align once (transcribe), then apply the pauses again"
+        : !transcribedAfterLastPost ? "the transcript is older than the last merge: run Align (transcribe) first" : null;
+      const mineOld = prevApplied.filter((a) => a.section === id && a.ok && a.local != null).map((a) => ({ baseAt: a.local, ms: a.ms }));
+      const req: { id: string; lo: number; hi: number; ms: number }[] = [];
+      for (const h of inner) {
+        const w = words[h.after as number], n = words[(h.after as number) + 1];
+        if (reason || !w || !n) { applied.push({ id: h.id, section: id, after: h.after, ms: h.ms, local: null, baseAt: null, mergedAt: null, ok: false, why: reason ?? "word not found in the transcript" }); continue; }
+        req.push({ id: h.id, lo: toBase(w.end, mineOld) - 0.08, hi: toBase(n.start, mineOld) + 0.08, ms: h.ms });
+      }
+      if (req.length) {
+        const t3 = path.join(tmp, `h${idx}.wav`);
+        const res = holdsPy(["insert", "--wav", src, "--out", t3, "--holds", JSON.stringify(req)]).applied as any[];
+        let before = 0;
+        for (const r of res.sort((a, b) => (a.at ?? 1e9) - (b.at ?? 1e9))) {
+          if (r.ok) {
+            applied.push({ id: r.id, section: id, after: inner.find((h) => h.id === r.id)!.after, ms: r.ms, local: r.at, baseAt: baseOff + r.at, mergedAt: heldOff + r.at + before / 1000, ok: true });
+            before += r.ms; inserted += r.ms;
+          } else applied.push({ id: r.id, section: id, after: inner.find((h) => h.id === r.id)!.after, ms: r.ms, local: null, baseAt: null, mergedAt: null, ok: false, why: r.why });
+        }
+        if (inserted) src = t3;
+      }
+    }
+    for (const h of endH) {
+      if (last) { applied.push({ id: h.id, section: id, after: "end", ms: h.ms, local: null, baseAt: null, mergedAt: null, ok: false, why: "after the last section: nothing follows" }); continue; }
+      applied.push({ id: h.id, section: id, after: "end", ms: h.ms, local: baseDur, baseAt: baseOff + baseDur, mergedAt: heldOff + baseDur + inserted / 1000, ok: true });
+      endMs += h.ms;
+    }
+    run("ffmpeg", ["-v", "error", "-y", "-i", src, "-af", `apad=pad_dur=${(pad + endMs / 1000).toFixed(3)}`, "-c:a", "pcm_s24le", cur]);
+    baseOff += baseDur + pad; heldOff += baseDur + pad + (inserted + endMs) / 1000;
     ours[rel] = fs.statSync(cur).mtimeMs;
     after += duration(cur);
     outFiles.push(cur);
@@ -116,7 +166,18 @@ async function main() {
   concat(outFiles, path.join(combined, "full_voiceover.wav"));
   fs.rmSync(tmp, { recursive: true, force: true });
 
-  fs.writeFileSync(stateFile, JSON.stringify({ speed, gap, chapterGap, maxPause, at: new Date().toISOString(), files: ours }, null, 2));
+  fs.writeFileSync(stateFile, JSON.stringify({ speed, gap, chapterGap, maxPause, at: new Date().toISOString(), files: ours, holds: applied }, null, 2));
+  // what the plan's times need: the same voice without holds before and after (else the plan must be redone)
+  // re-resolving a hold from a fresh transcript may move its cut a few ms inside the same silence: not a change
+  const po = prevApplied.filter((a) => a.ok), pn = applied.filter((a) => a.ok);
+  const changed = po.length !== pn.length || po.some((a, i) => a.ms !== pn[i].ms || Math.abs((a.baseAt ?? 0) - (pn[i].baseAt ?? 0)) > 0.05);
+  fs.writeFileSync(retimePath(ws.rootDir), JSON.stringify({
+    at: new Date().toISOString(), baseSame: sameBase && !resourced, changed,
+    old: prevApplied.filter((a) => a.ok).map((a) => ({ baseAt: a.baseAt, ms: a.ms })), new: applied.filter((a) => a.ok).map((a) => ({ baseAt: a.baseAt, ms: a.ms })),
+  }, null, 2));
+  const ok = applied.filter((a) => a.ok), bad = applied.filter((a) => !a.ok);
+  if (applied.length) console.log(`  pauses for the picture: ${ok.length} applied (+${(ok.reduce((s, a) => s + a.ms, 0) / 1000).toFixed(1)} s)${bad.length ? `, ${bad.length} not applied:` : ""}`);
+  for (const b of bad) console.log(`    ✗ ${b.section} after ${b.after === "end" ? "the section" : `word ${b.after}`}: ${b.why}`);
   console.log(`  ✓ ${fmt(before)} → ${fmt(after)} (raw sections in audio/raw/, combined/full_voiceover.wav)`);
   console.log("  Next: Align (transcribe → master → captions → .srt) so word timings match the new audio.");
 }
