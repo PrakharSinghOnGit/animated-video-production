@@ -1,6 +1,8 @@
 /**
  * Per-chapter music bed.
- * Usage: bun run audio:music --video <ID> [--reset] [--refresh-timing] [--audition]
+ * Usage: bun run audio:music --video <ID> [--reset] [--refresh-timing] [--synth] [--audition]
+ * New music.json files take one track per chapter from the library (assets/music/index.json, `bun run music:lib`);
+ * --synth ignores the library.
  *
  * workspace/<ID>/06-audio/music.json is created from music_plan.json (and 05-video/chapters.json) only if missing;
  * edit it to choose each section's source (synth palette | licensed file | epidemic). Output: music.wav, beats.json,
@@ -25,6 +27,7 @@ if (!fs.existsSync(mj) && !fs.existsSync(plan)) {
 const initArgs = ["--init", "--plan", plan, "--music-json", mj, "--chapters", chapters];
 if (flag("--reset")) initArgs.push("--reset");
 if (flag("--refresh-timing")) initArgs.push("--refresh-timing");
+if (flag("--synth")) initArgs.push("--synth");
 if (fs.existsSync(plan)) runPython("audio:music", "music.py", initArgs);
 
 // --- Epidemic sections: download only with a paid, safelisted subscription ---

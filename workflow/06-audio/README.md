@@ -26,6 +26,10 @@ bun run audio:mix   --video <ID>   # voice + music + foley -> workspace/<ID>/06-
 
 ### Per-chapter music (you choose)
 
+**Music library.** Drop tracks into `assets/music/<mood>/` (moods: calm, hopeful, curious, tense, dark, driving, triumphant; top-level files are "untagged") and run `bun run music:lib`: it measures length, BPM and energy into `assets/music/index.json` (edit mood, `license`, `credit` there). A **new** `music.json` then takes one track per chapter from the library (mood from the section's mode, energy from its intensity, no repeats while others fit; later acts of the chapter continue the same track) and keeps the synth palette as `fallback`. `--synth` ignores the library.
+
+**Generated beds** (optional): `bun run music:gen --prompt <id>` calls Stable Audio (Stability AI developer API, `STABILITY_API_KEY` in `.env`; 8 credits = $0.08 per track, up to 380 s; separate from the stableaudio.com web credits) and adds the track to the library. Prompts live in `music_prompts.json` (`--list`); `--text "..." --mood tense` for your own. Check Stability's terms for commercial use before publishing.
+
 `audio:music` reads `workspace/<ID>/06-audio/music.json`, which is created from `music_plan.json` (and `05-video/chapters.json` if present) **only if missing**. Edit it freely; `--reset` regenerates it, `--refresh-timing` re-reads act timings but keeps your sources. Flags: `--audition` (20 s excerpt per section to `06-audio/audition/<label>.wav`).
 
 ```json

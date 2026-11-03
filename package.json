@@ -32,6 +32,8 @@
     "daw:setup": "bun run workflow/06-audio/opendaw/setup.ts",
     "audio:music": "bun run workflow/06-audio/music.ts",
     "music:search": "bun run workflow/06-audio/music_search.ts",
+    "music:lib": "bun run workflow/06-audio/music_lib.ts",
+    "music:gen": "bun run workflow/06-audio/music_gen.ts",
     "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
     "sfx:check": "bun run workflow/06-audio/sfx_fetch.ts --check",
     "sfx:clips": "bun run workflow/06-audio/sfx_clips.ts",

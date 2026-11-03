@@ -1,0 +1,30 @@
+{
+  "about": "Prompts for background beds under narration (Stable Audio via `bun run music:gen --prompt <id>`, or paste into any generator). Every bed: instrumental, steady, no drops or solos that fight the voice, loops cleanly. `style` = the video style it suits (any = both).",
+  "common": "Instrumental only, no vocals, no choir. Background music for a spoken documentary: steady level, sparse mid-range so the narrator's voice sits on top, no sudden drops, builds or solos. Clean studio mix. Seamless loop, ends on the same chord it starts on.",
+  "prompts": [
+    { "id": "spy-walk-calm", "style": "briefing", "mood": ["calm", "curious"], "energy": 0.3, "bpm": 92, "seconds": 180,
+      "prompt": "1960s spy jazz combo, cool and understated: walking upright bass, brushed snare, soft vibraphone chords, muted trumpet playing a short motif every eight bars. D minor, 92 BPM, relaxed swing." },
+    { "id": "spy-walk-tense", "style": "briefing", "mood": ["tense", "curious"], "energy": 0.5, "bpm": 100, "seconds": 180,
+      "prompt": "1960s spy thriller jazz, tense and stealthy: pizzicato upright bass ostinato, ride cymbal, low organ stabs, surf guitar twang on bar one of each phrase, vibraphone tremolo. E minor, 100 BPM, cool swing." },
+    { "id": "spy-noir-dark", "style": "briefing", "mood": ["dark", "tense"], "energy": 0.35, "bpm": 84, "seconds": 180,
+      "prompt": "Late-night film noir jazz: slow walking bass, brushes, smoky muted trumpet, dark piano voicings with flat ninths, a little tape hiss. C minor, 84 BPM, slow and suspicious." },
+    { "id": "spy-chase-driving", "style": "briefing", "mood": ["driving", "tense"], "energy": 0.75, "bpm": 112, "seconds": 120,
+      "prompt": "1960s spy caper chase, energetic but controlled: fast walking bass, bongos and ride, brass section stabs on the downbeats, surf guitar riff, hammond organ. A minor, 112 BPM." },
+    { "id": "spy-reveal-triumphant", "style": "briefing", "mood": ["triumphant", "hopeful"], "energy": 0.6, "bpm": 96, "seconds": 120,
+      "prompt": "Cool 1960s spy jazz in a major key, confident and satisfied: walking bass, brushes, warm vibraphone melody, horn section swells at phrase ends. F major, 96 BPM." },
+    { "id": "draft-pencil-calm", "style": "drafting", "mood": ["calm", "curious"], "energy": 0.25, "bpm": 90, "seconds": 180,
+      "prompt": "Minimal modern documentary bed: soft felt piano arpeggio, warm analog synth pad, gentle sub bass, light clicky percussion like a pencil tapping. D major, 90 BPM, thoughtful and clean." },
+    { "id": "draft-blueprint-curious", "style": "drafting", "mood": ["curious", "hopeful"], "energy": 0.45, "bpm": 100, "seconds": 180,
+      "prompt": "Bright minimal electronic for an explainer: plucked marimba and kalimba pattern, soft side-chained pad, tight kick and shaker, round bass. G major, 100 BPM, playful but focused." },
+    { "id": "draft-hologram-tense", "style": "drafting", "mood": ["tense", "dark"], "energy": 0.5, "bpm": 96, "seconds": 180,
+      "prompt": "Cool futuristic tension bed: pulsing synth bass in sixteenths, glassy arpeggiator, filtered pad, subtle ticking hi-hats, no melody. A minor, 96 BPM, precise and uneasy." },
+    { "id": "draft-build-driving", "style": "drafting", "mood": ["driving", "hopeful"], "energy": 0.7, "bpm": 110, "seconds": 120,
+      "prompt": "Upbeat modern explainer groove: punchy kick and clap, bouncy synth bass, staccato strings, bright plucks. C major, 110 BPM, confident momentum." },
+    { "id": "any-lofi-calm", "style": "any", "mood": ["calm", "hopeful"], "energy": 0.25, "bpm": 82, "seconds": 180,
+      "prompt": "Warm lo-fi hip hop bed: dusty Rhodes chords, soft boom-bap drums low in the mix, mellow bass, light vinyl crackle. E-flat major, 82 BPM." },
+    { "id": "any-pulse-tense", "style": "any", "mood": ["tense", "curious"], "energy": 0.4, "bpm": 90, "seconds": 180,
+      "prompt": "Investigative documentary tension: low cello ostinato, ticking clock-like percussion, distant piano notes, subtle synth drone. D minor, 90 BPM, curious and suspenseful, never loud." },
+    { "id": "any-outro-triumphant", "style": "any", "mood": ["triumphant", "hopeful"], "energy": 0.55, "bpm": 100, "seconds": 90,
+      "prompt": "Uplifting ending bed: bright piano chords, warm strings, steady light drums, gentle build to a confident final chord. B-flat major, 100 BPM." }
+  ]
+}

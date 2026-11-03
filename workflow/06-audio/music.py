@@ -537,9 +537,47 @@ def build_sections(plan, chapters):
     return secs
 
 
+XF = 1.8   # crossfadeSec in music.json: a section starts this early, so a continued track starts this much earlier to line up
+WANT = {"minor": {"tense", "dark", "curious"}, "dorian": {"curious", "tense", "calm"}, "major": {"calm", "hopeful", "curious", "triumphant"}}
+
+
+def pick_library(secs, root, log=print):
+    """One library track per chapter (a chapter = a section with intro "swell" plus the sections after it): mood from the
+    section's mode, energy near its intensity, no track twice in a video while unused ones fit. Later sections of the chapter
+    continue the same track where the previous one stopped. Synth stays where nothing is left. Returns how many got a track."""
+    idx = os.path.join(root, "assets/music/index.json")
+    if not os.path.exists(idx): return 0
+    tracks = [t for t in json.load(open(idx)).get("tracks", []) if os.path.exists(os.path.join(root, t["file"])) and t.get("duration", 0) >= 20]
+    if not tracks: return 0
+    groups = []
+    for i, s in enumerate(secs):
+        if not groups or s.get("intro") == "swell": groups.append([])
+        groups[-1].append(i)
+    used, n = {}, 0
+    for g in groups:
+        head = secs[g[0]]["source"]; want = WANT.get(head.get("mode", "major"), WANT["major"])
+        inten = float(head.get("intensity", .45)); target = min(1.0, .15 + inten * 1.1)   # plan intensities run ~0.3-0.7
+        def score(t):
+            mood = set(t.get("mood") or [])
+            m = 2.0 if mood & want else (0.6 if "untagged" in mood or not mood else 0.0)
+            e = -abs((t["energy"] if t.get("energy") is not None else .5) - target) * 2
+            return m + e - 3.0 * used.get(t["file"], 0)
+        t = max(tracks, key=score); used[t["file"]] = used.get(t["file"], 0) + 1
+        off = 0.0
+        for i in g:
+            s = secs[i]; synth = dict(s["source"])
+            s["source"] = dict(type="file", path=t["file"], start=round((off - XF if off else 0) % max(1.0, t["duration"] - 5), 2), gainDb=0,
+                               bpm=t.get("bpm"), license=t.get("license"), credit=t.get("credit"), title=t.get("title"))
+            s["fallback"] = synth
+            off += float(s["t1"]) - float(s["t0"]); n += 1
+        log("[music] chapter at %.0f s (%s, intensity %.2f) -> %s%s" % (secs[g[0]]["t0"], head.get("mode"), inten, t["file"], " (again: add tracks to the library for variety)" if used[t["file"]] > 1 else ""))
+    return n
+
+
 def init_music_json(a):
     plan = json.load(open(a.plan)); chapters = json.load(open(a.chapters)) if a.chapters and os.path.exists(a.chapters) else None
     secs = build_sections(plan, chapters)
+    lib = 0 if a.synth else pick_library(secs, a.root)
     if a.refresh_timing and os.path.exists(a.music_json):
         old = json.load(open(a.music_json))
         if len(old["sections"]) == len(secs):
@@ -549,7 +587,7 @@ def init_music_json(a):
         else: print("[music] WARNING: section count changed (%d -> %d); sources reset to defaults" % (len(old["sections"]), len(secs)))
     out = dict(version=1, sr=int(plan.get("sr", 48000)), duration=float(plan["duration"]), crossfadeSec=1.8, sections=secs, hits=plan.get("hits", []))
     json.dump(out, open(a.music_json, "w"), indent=2)
-    print("[music] wrote %s (%d sections%s)" % (a.music_json, len(secs), ", chapters applied" if chapters else ""))
+    print("[music] wrote %s (%d sections%s%s)" % (a.music_json, len(secs), ", chapters applied" if chapters else "", ", %d from the library" % lib if lib else ", synth (library empty)" if not a.synth else ", synth"))
 
 
 def main():
@@ -558,6 +596,7 @@ def main():
     ap.add_argument("--plan"); ap.add_argument("--music-json"); ap.add_argument("--chapters"); ap.add_argument("--out"); ap.add_argument("--beats")
     ap.add_argument("--sources"); ap.add_argument("--audition"); ap.add_argument("--root", default=os.getcwd())
     ap.add_argument("--init", action="store_true"); ap.add_argument("--reset", action="store_true"); ap.add_argument("--refresh-timing", action="store_true")
+    ap.add_argument("--synth", action="store_true", help="--init: ignore the music library, synth palettes only")
     a = ap.parse_args()
     if a.init:
         if a.music_json and os.path.exists(a.music_json) and not (a.reset or a.refresh_timing): print("[music] %s exists (use --reset to regenerate)" % a.music_json); return
