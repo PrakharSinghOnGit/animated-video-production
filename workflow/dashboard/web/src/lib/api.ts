@@ -1,5 +1,5 @@
 import type { AnalyticsData, LessonStore } from "./analytics";
-import type { DawState, Details, EnvView, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -60,6 +60,8 @@ export const api = {
   approvePlan: (ws: string) => call<unknown>(`${w(ws)}/plan/approve`, { method: "POST", body: {} }),
   unapprovePlan: (ws: string) => call<unknown>(`${w(ws)}/plan/approve`, { method: "DELETE" }),
   saveVoiceReview: (ws: string, rv: Record<string, unknown>) => call<unknown>(`${w(ws)}/voice/review`, { method: "PUT", body: rv }),
+  holdPoints: (ws: string) => call<HoldPoints>(`${w(ws)}/align/holdpoints`),
+  saveHolds: (ws: string, holds: HoldItem[]) => call<unknown>(`${w(ws)}/align/holds`, { method: "PUT", body: { holds: holds.map(({ status: _s, failWhy: _f, mergedAt: _m, ...h }) => h) } }),
   stopBatch: (ws: string) => call<unknown>(`${w(ws)}/acts/stop-batch`, { method: "POST", body: {} }),
 
   saveMetadata: (ws: string, body: { titles?: Record<string, string>; description?: string; tags?: string[]; hashtags?: string[] }) => call<{ ok: true; checks: { errors: string[]; warnings: string[] } }>(`${w(ws)}/publish/metadata`, { method: "PUT", body }),

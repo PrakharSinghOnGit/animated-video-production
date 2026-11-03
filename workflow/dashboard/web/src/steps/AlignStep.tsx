@@ -6,6 +6,7 @@ import { DataTable, Td } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { ago, cn, dur } from "@/lib/utils";
 import type { Loudness } from "@/lib/types";
+import { HoldsPanel } from "./HoldsPanel";
 
 /** Same threshold transcribe.ts warns at: below it the take likely says something else than the script. */
 const LOW_MATCH = 80;
@@ -72,6 +73,7 @@ export function AlignStep() {
           {a.srt && <a className="text-brand hover:underline" href={file(a.srt.path)} target="_blank" rel="noreferrer">Open the .srt ({ago(a.srt.mtime)})</a>}
         </div>
       </>) : undefined,
+    holds: a.transcript ? <HoldsPanel /> : undefined,
   };
   return <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids)} />;
 }

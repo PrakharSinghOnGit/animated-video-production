@@ -91,7 +91,7 @@ export interface Details {
   runs: Run[]; totals: { ms: number; costUsd: number };
   voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean;
     sections: VoiceSection[]; scanned: boolean; baseStyle: string | null; engine: string | null };
-  align: { voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number; maxPause: number } | null; master: FileInfo | null; masterReport: MasterReport | null; rawVoice: FileInfo | null;
+  align: { holds: HoldsSummary; voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number; maxPause: number } | null; master: FileInfo | null; masterReport: MasterReport | null; rawVoice: FileInfo | null;
     transcript: { model: string | null; at: string | null; clips: { id: string; startMs: number; durationMs: number; matchedPct: number | null; text: string; words: number }[] } | null;
     srt: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
   plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[]; approval: { at: string; valid: boolean } | null };
@@ -99,6 +99,7 @@ export interface Details {
   publish: PublishInfo;
   shorts: ShortsInfo;
   sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
+    library: { tracks: MusicTrack[]; prompts: { about: string; common: string; prompts: MusicPrompt[] } | null };
     music: { duration: number; crossfadeSec: number | null; planDuration: number | null; sections: { label: string; title: string | null; t0: number; t1: number; intro: string | null; source: string; bpm: number | null; key: string | null; intensity: number | null }[] } | null };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
   timings: Timing[]; jobs: Job[];
@@ -157,3 +158,21 @@ export interface ModelEntry { id: string; label: string; free?: boolean; tools?:
 export interface ProviderState { label: string; billing: "subscription" | "free" | "local"; edits: boolean; note: string; ok: boolean; error?: string; models: ModelEntry[] }
 export interface RoleRow { key: string; label: string; group: string; edits: boolean; builtin: string; current: string; custom: boolean }
 export interface ModelsData { roles: RoleRow[]; providers: Record<ProviderKey, ProviderState> }
+
+/** Align → Pauses for the picture (03-voiceover/holds.json + how the last merge applied them). */
+export interface HoldItem {
+  id: string; section: string; after: number | "end"; word: string; next?: string; ms: number; on: boolean; by: string;
+  why?: string; act?: string; note?: string; key?: string;
+  status?: "applied" | "waiting" | "failed" | "off"; failWhy?: string; mergedAt?: number | null;
+}
+export interface HoldsSummary {
+  holds: HoldItem[]; pending: number; scannedAt: string | null; cleanPoints: number; addedMs: number; dirty: boolean;
+  planShift: { changed: boolean; shifted: boolean; baseSame: boolean } | null;
+}
+export interface HoldPoints {
+  at: string | null;
+  sections: { id: string; part: number; startS: number; words: string[]; points: { after: number; word: string; next: string; clean: boolean; why: string; quietDb: number | null }[] }[];
+}
+
+export interface MusicTrack { file: string; title: string; mood: string[]; bpm: number | null; energy: number | null; duration: number; source: string; license: string; credit?: string }
+export interface MusicPrompt { id: string; style: string; mood: string[]; energy: number; bpm: number; seconds: number; prompt: string }

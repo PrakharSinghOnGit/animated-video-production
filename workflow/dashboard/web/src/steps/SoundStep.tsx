@@ -6,6 +6,8 @@ import { Prose } from "@/components/FileLine";
 import { DataTable, Td } from "@/components/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { SfxReview } from "@/components/SfxReview";
+import { ActionCard } from "@/components/ActionCard";
+import { Button } from "@/components/ui/button";
 
 const t = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
@@ -36,9 +38,53 @@ export function SoundStep() {
         )}
         {s.music && <div className="text-[11px] text-subtle-foreground">{s.music.crossfadeSec ? `${s.music.crossfadeSec} s crossfade between sections · ` : ""}edit 06-audio/music.json to pick other tracks</div>}
         {music && <MediaPlayer f={music} kind="audio" label="06-audio/music.wav" />}
+        <MusicLibrary />
         {s.stems.length > 0 && <BlockFold title={`${s.stems.length} stems and auditions`}><div className="grid gap-2 pb-2">{s.stems.map((f) => <MediaPlayer key={f.path} f={f} kind="audio" label={f.path.replace("06-audio/", "")} />)}</div></BlockFold>}
       </>),
     mix: <>{mix && <MediaPlayer f={mix} kind="audio" label="06-audio/mix.wav" />}{s.credits && <div><div className="mb-1 text-xs font-medium">Credits for the description</div><Prose>{s.credits}</Prose></div>}</>,
   };
   return <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids)} />;
+}
+
+/** Music stem: the shared library (tracks per mood, Scan) and ready prompts for generating beds yourself. */
+function MusicLibrary() {
+  const { d, toast } = useApp();
+  if (!d) return null;
+  const { tracks, prompts } = d.sound.library;
+  const untagged = tracks.filter((x) => x.mood.includes("untagged")).length;
+  const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); toast("Prompt copied"); } catch { toast("Copy blocked by the browser: select the text and copy it"); } };
+  return (
+    <>
+      <BlockFold title={`Music library · ${tracks.length} track${tracks.length === 1 ? "" : "s"}${untagged ? ` · ${untagged} untagged` : ""}`}>
+        <div className="grid gap-2.5 pb-2">
+          <div className="text-xs text-muted-foreground">Put tracks in <code>assets/music/&lt;mood&gt;/</code> (calm, hopeful, curious, tense, dark, driving, triumphant), then scan. A new music.json (Music stem with “Reset”) takes one track per chapter: minor-key chapters get tense/dark/curious tracks, major ones calm/hopeful, at an energy close to the chapter's intensity, no track twice while others fit.</div>
+          <ActionCard id="sound.library" />
+          {tracks.length > 0 && (
+            <DataTable maxH="320px" head={[{ label: "Track" }, { label: "Mood" }, { label: "BPM", right: true }, { label: "Energy", right: true }, { label: "Length", right: true }, { label: "Licence" }]}>
+              {tracks.map((x) => <tr key={x.file}><Td className="max-w-[260px] truncate" title={x.file}>{x.title}</Td><Td>{x.mood.join(", ")}</Td><Td right>{x.bpm ?? ""}</Td><Td right>{x.energy ?? ""}</Td><Td right>{Math.round(x.duration)} s</Td><Td>{x.license}{x.credit ? ` · ${x.credit}` : ""}</Td></tr>)}
+            </DataTable>
+          )}
+        </div>
+      </BlockFold>
+      {prompts && (
+        <BlockFold title={`Prompts for generating beds (${prompts.prompts.length})`}>
+          <div className="grid gap-2 pb-2">
+            <div className="text-xs text-muted-foreground">Paste one into Stable Audio (or any generator), ~2–3 min long, save the file into the mood folder it lists, then Scan the library. Each copy includes the shared rules for a bed under narration.</div>
+            {prompts.prompts.map((p) => {
+              const full = `${p.prompt} ${prompts.common}`;
+              return (
+                <div key={p.id} className="grid gap-1 rounded-md border p-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <b className="font-mono">{p.id}</b><Badge>{p.style}</Badge><span className="text-muted-foreground">save to assets/music/{p.mood[0]}/ · {p.bpm} BPM · {p.seconds} s</span>
+                    <Button size="sm" variant="secondary" className="ml-auto" onClick={() => void copy(full)}>Copy prompt</Button>
+                  </div>
+                  <div className="select-all text-[12px] leading-relaxed text-foreground/85">{full}</div>
+                </div>
+              );
+            })}
+          </div>
+        </BlockFold>
+      )}
+    </>
+  );
 }

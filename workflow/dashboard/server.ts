@@ -460,8 +460,16 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("tts:post", "--video", ws, ...args(o, "align.post"))],
   },
-  "align.all": { step: "align", label: "Align all", help: "Merge (speed & gaps, last used settings) → transcribe → master → captions (which also writes the .srt).", long: "~3 min",
-    chain: [{ label: "Merge", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }], build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws)] },
+  "align.all": { step: "align", label: "Align all", help: "Merge (speed & gaps and pauses, last used settings) → transcribe → master → captions (which also writes the .srt) → move the plan's times if only pauses changed → find pause points.", long: "~3 min",
+    chain: [{ label: "Merge", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times" }, { label: "Find pause points", action: "align.holdsScan" }],
+    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("voice:holds", "--video", ws, "--scan")] },
+  "align.holdsImport": { step: "align", label: "Collect pause requests", help: "Reads the pauses the director asked for (plan) and the ones act authors asked for, places each at the nearest clean pause point (or refuses it) and adds it to the list. Your on/off and lengths are kept.", long: "seconds",
+    build: (ws) => [B("voice:holds", "--video", ws, "--scan"), B("voice:holds", "--video", ws, "--import")] },
+  "align.holdsScan": { step: "align", label: "Find pause points", help: "Marks every place a pause can go: a sentence or phrase end, or around a joining word, where the take is truly silent (no breath, no word tail).", long: "seconds",
+    build: (ws) => [B("voice:holds", "--video", ws, "--scan")] },
+  "align.holds": { step: "align", label: "Apply pauses", help: "Merge with the pauses → transcribe → master → captions, then move the plan's act and beat times by the pauses added (your plan approval is kept). Acts time their hits from words, so their code still fits.", long: "~3–4 min",
+    chain: [{ label: "Merge with pauses", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times" }, { label: "Find pause points", action: "align.holdsScan" }],
+    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("voice:holds", "--video", ws, "--scan")] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
   "align.master": { step: "align", label: "Master voice", help: "High-pass EQ → de-esser → compressor → room tone → loudness to the YouTube target. Empty = the last used setting. Writes 06-audio/master.json (what it did, loudness before/after).",
     opts: [
@@ -568,13 +576,17 @@ const ACTIONS: Record<string, Action> = {
     chain: [{ label: "Cues", action: "sound.cues" }, { label: "Music stem", action: "sound.music" }, { label: "Mix", action: "sound.mix" }], build: (ws, o) => [B("cues", "--video", ws), B("audio:music", "--video", ws), B("audio:mix", "--video", ws, ...args(o, "sound.mix"))] },
   "sound.cues": { step: "sound", label: "Cues", help: "Foley events from the acts + the music cue plan.", build: (ws) => [B("cues", "--video", ws)] },
   "sound.music": {
-    step: "sound", label: "Music stem", help: "Procedural spy-jazz bed as a separate file for post.",
+    step: "sound", label: "Music stem", help: "The per-chapter music bed as a separate file. A new music.json takes one track per chapter from your music library (assets/music), else the built-in synth.",
     opts: [
-      { key: "reset", label: "Reset music.json", type: "bool", def: false, flag: "--reset" },
+      { key: "reset", label: "Reset music.json", help: "rebuild it (picks tracks from the library again)", type: "bool", def: false, flag: "--reset" },
+      { key: "synth", label: "Synth only (ignore the library)", type: "bool", def: false, flag: "--synth" },
       { key: "audition", label: "Render 20 s auditions", type: "bool", def: false, flag: "--audition" },
     ],
     build: (ws, o) => [B("audio:music", "--video", ws, ...args(o, "sound.music"))],
   },
+  "sound.library": { step: "sound", label: "Scan music library", help: "Adds new tracks in assets/music/<mood>/ to the library (measures length, BPM and energy) and drops missing ones. Then Music stem with Reset picks from them.", long: "seconds",
+    opts: [{ key: "remeasure", label: "Measure every track again", type: "bool", def: false, flag: "--remeasure" }],
+    build: (_ws, o) => [B("music:lib", ...args(o, "sound.library"))] },
   "sound.mix": {
     step: "sound", label: "Mix", help: "Voice + foley at −14 LUFS (music is added in post).",
     opts: SOUND_MIX_OPTS,
@@ -1182,6 +1194,38 @@ function shortsDetails(ws: string) {
   };
 }
 
+/** Align → Pauses: the holds, how the last merge applied them, requests not collected yet, and the plan shift state. */
+function holdsSummary(ws: string) {
+  const d = wsDir(ws);
+  const file = readJson<{ holds: any[] }>(path.join(d, "03-voiceover/holds.json"))?.holds ?? [];
+  const post = readJson<any>(path.join(d, "03-voiceover/audio/post.json"));
+  const applied: any[] = post?.holds ?? [];
+  const retime = readJson<any>(path.join(d, "03-voiceover/audio/retime.json"));
+  const pts = readJson<any>(path.join(d, "03-voiceover/audio/hold_points.json"));
+  const plan = readJson<any>(path.join(d, "05-video/acts.json"));
+  const keys = new Set(file.map((h) => h.key).filter(Boolean));
+  const norm = (x: string) => String(x).toLowerCase().replace(/[^a-z0-9]/g, "");
+  let pending = 0;
+  for (const a of plan?.acts ?? []) {
+    const author = readJson<any>(path.join(d, "05-video/review", a.id, "holds.json"));
+    const reqs: [string, any[]][] = [["director", a.holds ?? []], [`author ${a.id}`, author?.holds ?? (Array.isArray(author) ? author : [])]];
+    for (const [by, list] of reqs) for (const r of list) if (r?.word && !keys.has(`${by}|${a.id}|${norm(r.word)}|${r.occurrence ?? 1}`)) pending++;
+  }
+  const holds = file.map((h) => {
+    const ap = applied.find((x) => x.id === h.id);
+    const live = !!ap && ap.ok && ap.ms === h.ms && h.on;
+    return { ...h, status: !h.on ? "off" : live ? "applied" : ap && !ap.ok && ap.ms === h.ms ? "failed" : "waiting", failWhy: ap && !ap.ok ? ap.why : undefined, mergedAt: ap?.mergedAt ?? null };
+  });
+  const appliedGone = applied.filter((x) => x.ok && !file.some((h) => h.id === x.id && h.on)).length;
+  return {
+    holds, pending, scannedAt: pts?.at ?? null,
+    cleanPoints: pts ? Object.values<any>(pts.sections).reduce((n, x) => n + (x.points ?? []).filter((p: any) => p.clean).length, 0) : 0,
+    addedMs: applied.filter((x) => x.ok).reduce((n, x) => n + x.ms, 0),
+    dirty: holds.some((h) => h.status === "waiting") || appliedGone > 0,
+    planShift: retime ? { changed: !!retime.changed, shifted: !!retime.shifted, baseSame: !!retime.baseSame } : null,
+  };
+}
+
 function details(ws: string) {
   const d = wsDir(ws);
   const rows = timingsFor(ws), allRows = timingsAll(ws);
@@ -1295,7 +1339,7 @@ function details(ws: string) {
     runs: (readJson<any[]>(path.join(d, "dashboard_runs.json")) ?? []).slice(-80),
     totals: { ms: allRows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: allRows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
     voice: { parts: voiceParts, combined, sectionCount, freshWavs, running: !!voiceSince, sections: voiceSections, scanned: !!voiceManifest, baseStyle: voiceManifest?.baseStyle ?? null, engine: readJson<any>(path.join(audioDir, "voice.json"))?.engine ?? null },
-    align: { voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap, maxPause }) => ({ speed, gap, chapterGap, maxPause: maxPause ?? 0 }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), masterReport, rawVoice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"),
+    align: { holds: holdsSummary(ws), voice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"), post: readJson(path.join(audioDir, "post.json")) ? (({ speed, gap, chapterGap, maxPause }) => ({ speed, gap, chapterGap, maxPause: maxPause ?? 0 }))(readJson(path.join(audioDir, "post.json"))) : null, master: fileInfo(ws, "06-audio/voiceover_master.wav"), masterReport, rawVoice: fileInfo(ws, "03-voiceover/audio/combined/full_voiceover.wav"),
       transcript: transcript ? { model: transcript.model ?? null, at: transcript.generatedAt ?? null, clips: trClips } : null,
       srt: fileInfo(ws, `07-assembly/export/${ws}.srt`), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, style: plan?.style ?? null,
@@ -1306,6 +1350,8 @@ function details(ws: string) {
       // what Cues / Music stem made: events per sound and per act, and the music sections (with where each came from)
       eventTypes: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {})).sort((a: any, b: any) => b[1] - a[1]),
       eventActs: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.act] = (m[e.act] ?? 0) + 1; return m; }, {})),
+      // the shared music library (assets/music/index.json, `music:lib`) and the prompts for generating beds by hand
+      library: { tracks: readJson<any>(path.join(REPO, "assets/music/index.json"))?.tracks ?? [], prompts: readJson<any>(path.join(REPO, "workflow/06-audio/music_prompts.json")) },
       music: (() => {
         const m = readJson<any>(path.join(d, "06-audio/music.json")), plan = readJson<any>(path.join(d, "06-audio/music_plan.json"));
         if (!m) return null;
@@ -1785,6 +1831,38 @@ async function appFetch(req: Request): Promise<Response> {
       const f = path.join(wsDir(ws), notesRel(nm[1]));
       fs.mkdirSync(path.dirname(f), { recursive: true });
       fs.writeFileSync(f, text, "utf-8");
+      return json({ ok: true });
+    }
+
+    // Align → Pauses: every section's words with the places a pause may go (from the last scan), for the picker
+    if (rest === "/align/holdpoints" && req.method === "GET") {
+      const d = wsDir(ws), audio = path.join(d, "03-voiceover/audio");
+      const pts = readJson<any>(path.join(audio, "hold_points.json"));
+      if (!pts) return json({ sections: [], at: null });
+      const parts = exists(audio) ? fs.readdirSync(audio).filter((x) => /^part-\d+$/.test(x)).sort((a, b) => parseInt(a.slice(5)) - parseInt(b.slice(5))) : [];
+      const ids = parts.flatMap((p) => fs.readdirSync(path.join(audio, p)).filter((f) => f.endsWith(".wav")).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((f) => ({ id: f.replace(/\.wav$/, ""), part: parseInt(p.slice(5)) })));
+      let off = 0;
+      const sections = ids.map(({ id, part }) => {
+        const w = readJson<any>(path.join(d, "04-transcription/words", `${id}.json`));
+        const out = { id, part, startS: off, words: (w?.words ?? []).map((x: any) => x.word as string), points: pts.sections[id]?.points ?? [] };
+        off += w?.duration ?? 0;
+        return out;
+      });
+      return json({ at: pts.at, sections });
+    }
+    if (rest === "/align/holds" && req.method === "PUT") {
+      const b = await body(req).catch(() => null);
+      if (!b || !Array.isArray(b.holds)) return bad("{holds: [...]}");
+      const out = [];
+      for (const h of b.holds) {
+        if (!h || typeof h.section !== "string" || !/^[\w-]+$/.test(h.section)) return bad("bad section");
+        if (!(h.after === "end" || (Number.isInteger(h.after) && h.after >= 0))) return bad("bad position");
+        const ms = Math.round(Number(h.ms));
+        if (!(ms >= 50 && ms <= 4000)) return bad("a pause is 50–4000 ms");
+        out.push({ id: /^[\w-]{1,40}$/.test(String(h.id)) ? String(h.id) : crypto.randomUUID().slice(0, 8), section: h.section, after: h.after, word: String(h.word ?? "").slice(0, 80), ...(h.next ? { next: String(h.next).slice(0, 80) } : {}),
+          ms, on: h.on !== false, by: String(h.by ?? "you").slice(0, 40), ...(h.why ? { why: String(h.why).slice(0, 300) } : {}), ...(h.act ? { act: String(h.act).slice(0, 8) } : {}), ...(h.note ? { note: String(h.note).slice(0, 300) } : {}), ...(h.key ? { key: String(h.key).slice(0, 200) } : {}) });
+      }
+      fs.writeFileSync(path.join(wsDir(ws), "03-voiceover/holds.json"), JSON.stringify({ holds: out }, null, 2) + "\n");
       return json({ ok: true });
     }
 

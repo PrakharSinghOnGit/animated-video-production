@@ -75,6 +75,8 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
           { id: "tr", title: "Transcribe", desc: "Word timings for the merged voice, matched against the script. A low match means the take said something else: listen to it.", action: "align.transcribe", label: "Transcribe", done: !!a.transcript, costRe: /^transcribe\b/i },
           { id: "ma", title: "Master voice", action: "align.master", label: "Master voice", done: !!a.master, outAt: a.master?.mtime, costRe: /^master\b/i },
           { id: "ca", title: "Build captions", desc: "captions.json and chapters.json for the planner, and the YouTube .srt (the final export copies it).", action: "align.captions", label: "Build captions", done: a.words != null, costRe: /^captions\b/i },
+          { id: "holds", title: "Pauses for the picture", desc: "Extra silence where an act needs time to show something (the director and act authors can ask for it; you decide). Only at a true pause in the take: a phrase end with nothing on the waveform.", action: "align.holds", label: "Apply pauses", done: !a.holds.dirty && !a.holds.pending && !!a.holds.scannedAt, costRe: /^post\b/i,
+            note: a.holds.pending ? `${a.holds.pending} pause request(s) from the plan or act authors: collect them below.` : a.holds.dirty ? "Changed since the last merge: run Apply pauses." : undefined },
         ],
       };
     }
