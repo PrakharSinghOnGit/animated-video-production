@@ -10,7 +10,7 @@ export function stepMeta(k: string, d: Details): string {
   return m ? `${dur(m.totalMs)}${m.totalCost ? ` · ${money(m.totalCost)}` : ""}` : "";
 }
 
-function Mark({ st, n }: { st: string; n: number }) {
+export function Mark({ st, n }: { st: string; n: number }) {
   return (
     <span className={cn("flex size-[18px] shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tabular-nums ring-1 ring-inset transition-colors",
       st === "done" ? "bg-success/15 text-success ring-success/35" : st === "running" ? "bg-warning/15 text-warning ring-warning/40" : st === "failed" ? "bg-destructive/15 text-destructive ring-destructive/40" : st === "partial" || st === "stale" ? "bg-warning/8 text-warning ring-warning/35" : "text-subtle-foreground ring-border-strong")}>

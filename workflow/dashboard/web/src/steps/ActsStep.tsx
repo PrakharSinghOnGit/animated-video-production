@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Loader2, PenLine, ScanEye, Square } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import { useRunWith } from "@/hooks/useRunSaved";
@@ -21,6 +21,9 @@ export function ActsHeader() {
   const runWith = useRunWith();
   const [sel, setSel] = useStored<string[]>(`acts.sel.${ws}`, []);
   const [models, setModels] = useStored<Record<string, string>>(`acts.models.${ws}`, {});
+  const strip = useRef<HTMLUListElement>(null);
+  // keep the open act in view in the strip
+  useEffect(() => { strip.current?.querySelector(`[data-act="${route.act ?? ""}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [route.act]);
   const choices = useMemo(() => schema["acts.act"]?.opts.find((o) => o.key === "model")?.choices ?? ["default"], [schema]);
   if (!d || !ws || !d.acts.length) return null;
   const acts = d.acts, ids = new Set(acts.map((a) => a.id));
@@ -47,22 +50,25 @@ export function ActsHeader() {
           <Button size="sm" variant="ghost" onClick={() => setSel([])}>None</Button>
         </span>
       </div>
-      <ul className="m-0 max-h-[272px] list-none overflow-y-auto p-0" role="listbox" aria-label="Acts">
+      <ul ref={strip} className="m-0 flex list-none snap-x gap-2 overflow-x-auto p-2.5" role="listbox" aria-label="Acts" aria-orientation="horizontal">
         {acts.map((x) => {
-          const rv = x.reviews[0], on = picked.includes(x.id), job = runningJobs.find((j) => j.locks?.includes(`act:${x.id}`));
+          const rv = x.reviews[0], on = picked.includes(x.id), job = runningJobs.find((j) => j.locks?.includes(`act:${x.id}`)), isOpen = x.id === open?.id;
           return (
-            <li key={x.id} role="option" aria-selected={x.id === open?.id}
-              className={cn("grid grid-cols-[auto_auto_1fr_auto] items-center gap-2.5 border-b border-border/60 px-3 py-1.5 last:border-0 sm:grid-cols-[auto_auto_1fr_auto_168px]", x.id === open?.id ? "bg-accent shadow-[inset_3px_0_0_var(--brand)]" : "hover:bg-accent/50")}>
-              <Checkbox checked={on} onCheckedChange={(v) => toggle(x.id, v === true)} aria-label={`Pick ${x.id} for a batch`} />
-              {job ? <Loader2 className="size-3.5 animate-spin text-warning" aria-label="running" /> : <StatusDot s={x.status} />}
-              <button type="button" onClick={() => go({ act: x.id })} className="min-w-0 py-0.5 text-left outline-none focus-visible:underline">
-                <span className="block truncate text-[13px]"><span className="font-mono">{x.id}</span> {x.title}</span>
+            <li key={x.id} role="option" aria-selected={isOpen} data-act={x.id}
+              className={cn("relative grid w-[212px] shrink-0 snap-start gap-1.5 rounded-lg border bg-card p-2.5 transition-colors", isOpen ? "border-brand ring-1 ring-brand/50" : "hover:bg-accent/50", on && !isOpen && "border-brand/50")}>
+              <div className="flex items-center gap-2">
+                <Checkbox className="relative z-10" checked={on} onCheckedChange={(v) => toggle(x.id, v === true)} aria-label={`Pick ${x.id} for a batch`} />
+                {job ? <Loader2 className="size-3.5 animate-spin text-warning" aria-label="running" /> : <StatusDot s={x.status} />}
+                <span className="font-mono text-[13px] font-semibold">{x.id}</span>
+                <span className="ml-auto text-[11px] text-muted-foreground">{rv ? `sync ${rv.sync}/10` : x.critic ? `critic ${x.critic.score}/10` : ""}</span>
+              </div>
+              <button type="button" onClick={() => go({ act: x.id })} className="min-w-0 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:underline">
+                <span className="block truncate text-[12.5px]">{x.title}</span>
                 <span className="block truncate text-[11px] text-muted-foreground">
                   {((x.end - x.start) / 1000).toFixed(0)} s{x.meta ? ` · ${dur(x.meta.totalMs)} · ${money(x.meta.totalCost)}` : ""}{x.approval ? " · approved" : ""}{job ? ` · ${job.label}` : ""}
                 </span>
               </button>
-              <span className="text-[11px] text-muted-foreground">{rv ? `sync ${rv.sync}/10` : x.critic ? `critic ${x.critic.score}/10` : ""}</span>
-              <NativeSelect aria-label={`Author model for ${x.id}`} title="Model that authors this act in a batch (default = the batch model)" className="!h-7 text-xs max-sm:col-span-4 max-sm:ml-7 max-sm:w-auto"
+              <NativeSelect aria-label={`Author model for ${x.id}`} title="Model that authors this act in a batch (default = the batch model)" className="relative z-10 !h-7 w-full text-xs"
                 value={models[x.id] && choices.includes(models[x.id]) ? models[x.id] : "default"} onChange={(e) => setModels((p) => ({ ...p, [x.id]: e.target.value }))}>
                 {choices.map((c) => <option key={c} value={c}>{c === "default" ? "batch model" : c}</option>)}
               </NativeSelect>
@@ -81,7 +87,7 @@ export function ActsHeader() {
         <span className="text-[11px] text-subtle-foreground">{schema["acts.all"]?.paid?.replace(/\s*per act$/, "")} per act{modelArg ? ` · own models: ${modelArg}` : ""}</span>
       </div>
       <Fold title="Batch options (parallel acts, batch model, usage limit, reviewer)" className="border-t px-3">
-        <div className="grid gap-3 pb-3 lg:grid-cols-2">
+        <div className="grid gap-3 pb-3">
           <div className="rounded-md border"><div className="px-3 pt-2 text-xs font-semibold">Author</div><ActionCard bare id="acts.all" hide={["acts", "models"]} /></div>
           <div className="rounded-md border"><div className="px-3 pt-2 text-xs font-semibold">Review</div><ActionCard bare id="acts.reviewAll" hide={["acts"]} /></div>
         </div>

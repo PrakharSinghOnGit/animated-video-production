@@ -39,7 +39,7 @@ export function OptionField({ o, value, onChange, choices }: { o: OptDef; value:
     const list = choices ?? o.choices ?? [];
     const sel = new Set(value as string[]);
     return (
-      <div className="col-span-full grid gap-1">
+      <div className="grid gap-1 py-2">
         {label}
         <div className="flex flex-wrap gap-x-1 gap-y-0.5">
           {list.length === 0 && <span className="text-xs text-muted-foreground">none yet</span>}
@@ -54,7 +54,7 @@ export function OptionField({ o, value, onChange, choices }: { o: OptDef; value:
     );
   }
   return (
-    <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
+    <div className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-1 py-2">
       {label}
       {o.type === "bool" ? (
         <Checkbox id={id} className="size-5" checked={value as boolean} onCheckedChange={(x) => onChange(x === true)} />
@@ -65,7 +65,7 @@ export function OptionField({ o, value, onChange, choices }: { o: OptDef; value:
       ) : o.type === "number" ? (
         <Input id={id} type="number" inputMode="decimal" className="w-24" min={o.min} max={o.max} step={o.step ?? "any"} value={String(value)} placeholder="default" onChange={(e) => onChange(e.target.value)} />
       ) : (
-        <Input id={id} type="text" className="w-44" value={String(value)} placeholder="optional" onChange={(e) => onChange(e.target.value)} />
+        <Input id={id} type="text" className="w-56 max-sm:w-40" value={String(value)} placeholder="optional" onChange={(e) => onChange(e.target.value)} />
       )}
     </div>
   );

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { Plus, RotateCcw, X } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { api } from "@/lib/api";
-import { shortSpec } from "@/lib/pipeline";
+import { blockStatus, shortSpec } from "@/lib/pipeline";
 import { todoText } from "@/lib/steps";
 import { ago, cn, dur, money } from "@/lib/utils";
 import type { PubChecks, ShortItem } from "@/lib/types";
@@ -18,10 +18,10 @@ import { SfxReview } from "@/components/SfxReview";
 import { StatTile } from "@/components/StatTile";
 import { StatusDot } from "@/components/Status";
 import { StepPage } from "@/components/StepPage";
+import { Mark } from "@/components/StepBar";
 import { TextEditor, useDraft } from "@/components/TextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { Fold } from "@/components/ui/collapsible";
 
 /** A short is <= 60 s; the voice runs about 2.4 spoken words per second including the pauses. */
@@ -69,7 +69,7 @@ function Redo({ s, stage }: { s: ShortItem; stage: string }) {
 }
 
 /** Remounted per short (key), so its drafts belong to the short on screen. */
-function ShortFlow({ s }: { s: ShortItem }) {
+function ShortFlow({ s, stage }: { s: ShortItem; stage: string }) {
   const { d, ws, file, refresh, busy } = useApp();
   const runSaved = useRunSaved();
   const script = useDraft(s.script), feedback = useDraft(s.feedback), notes = useDraft(s.notes);
@@ -172,83 +172,120 @@ function ShortFlow({ s }: { s: ShortItem }) {
       </div>
     ),
   };
-  return <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids)} />;
+  return <Flow blocks={withKids(spec.blocks, kids).filter((b) => b.id === stage)} />;
 }
 const p = (s: ShortItem, k: keyof ShortItem["progress"]) => s.progress[k];
 
-/** Shorts section: Write / check all, then one short at a time (S1, S2, S3) as a stage-by-stage flow. */
+/** The next stage a short needs (its step bar opens there). */
+const nextStage = (s: ShortItem, d: Parameters<typeof shortSpec>[1]) => shortSpec(s, d).blocks.find((b) => !b.done)?.id ?? "export";
+
+/** One short in the shorts bar: id, kind, title, where it stands; × removes it (after a confirm). */
+function ShortChip({ s, on, onPick }: { s: ShortItem; on: boolean; onPick: () => void }) {
+  const { d, run, canRun } = useApp();
+  if (!d) return null;
+  const next = s.progress.exported ? "exported" : `next: ${STAGES.find(([k]) => k === nextStage(s, d))?.[1] ?? "export"}`;
+  return (
+    <div role="tab" aria-selected={on} className={cn("group relative grid w-60 shrink-0 snap-start gap-0.5 rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent", on && "border-brand ring-1 ring-brand/50")}>
+      <button type="button" onClick={onPick} className="absolute inset-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand" aria-label={`Open ${s.id}`} />
+      <span className="flex items-center gap-1.5 pr-6"><StatusDot s={s.progress.exported ? "done" : s.approval === "approved" ? "partial" : "none"} /><b className="font-mono text-[13px]">{s.id}</b><span className="truncate text-xs text-muted-foreground">{s.entry.kind}</span></span>
+      <span className="truncate text-[12.5px]">{s.entry.title || "(untitled)"}</span>
+      <span className="truncate text-[11px] text-muted-foreground">{next} · {s.words} words · ~{Math.round(s.words / WPS)} s</span>
+      <button type="button" title={`Remove ${s.id}`} aria-label={`Remove ${s.id}`} disabled={!canRun("shorts.remove", s.id)}
+        className="absolute right-1.5 top-1.5 z-10 rounded p-1 text-subtle-foreground opacity-60 hover:bg-destructive/10 hover:text-destructive hover:opacity-100 disabled:opacity-30 group-hover:opacity-100"
+        onClick={() => { if (window.confirm(`Remove ${s.id} "${s.entry.title || "untitled"}"? Its folder moves to shorts/.removed/ (restore it by moving it back).`)) void run("shorts.remove", s.id); }}>
+        <X className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/** The open short's stages, left to right like the video's step bar. */
+function ShortStepBar({ s, cur, onPick }: { s: ShortItem; cur: string; onPick: (k: string) => void }) {
+  const { d } = useApp();
+  if (!d) return null;
+  const spec = shortSpec(s, d), next = nextStage(s, d);
+  return (
+    <nav aria-label={`${s.id} stages`} className="flex overflow-x-auto rounded-lg border bg-card">
+      {spec.blocks.map((b, i) => {
+        const st = blockStatus(d, b), on = cur === b.id;
+        return (
+          <button key={b.id} onClick={() => onPick(b.id)} aria-current={on ? "step" : undefined}
+            className="group relative flex min-w-[78px] flex-1 basis-0 flex-col justify-center gap-0.5 px-2.5 py-2.5 text-left outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent">
+            <span className="flex items-center gap-2">
+              <Mark st={st} n={i + 1} />
+              <span className={cn("truncate text-[12.5px] font-medium", on ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{b.title.replace(" + QC", "")}</span>
+              {next === b.id && !on && <span className="size-1.5 shrink-0 rounded-full bg-brand" aria-label="next" />}
+            </span>
+            <span aria-hidden className={cn("absolute inset-x-3 bottom-0 h-[2px] rounded-full", on ? "bg-brand" : "bg-transparent")} />
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
+ * Shorts section: the shorts bar (one chip per short, + Add short, × to remove), then the open short as its own workspace:
+ * its header, its stage bar, one stage below. Writing all at once and the shared feedback sit in a fold.
+ */
 export function ShortsPage() {
   const { d, ws, route, go, refresh } = useApp();
   const fb = useDraft(d?.shorts.feedback ?? "");
+  const [adding, setAdding] = useState(false);
   const sid = route.short && d?.shorts.items.some((s) => s.id === route.short) ? route.short : d?.shorts.items[0]?.id;
-  // a node-view click lands on one stage of one short
-  useEffect(() => {
-    if (!route.step) return;
-    const t = setTimeout(() => document.querySelector(`[data-block="${CSS.escape(route.step!)}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }), 250);
-    return () => clearTimeout(t);
-  }, [route.step, sid]);
   if (!d || !ws) return null;
   const sh = d.shorts, st = d.statuses.shorts ?? "none", ex = sh.items.filter((s) => s.progress.exported).length;
   const cur = sh.items.find((s) => s.id === sid);
   const m = d.meta.shorts;
   const scriptOk = d.script.approval === "approved" || d.script.approval === "legacy";
   const state = st === "done" ? "done" : st === "running" ? "running" : scriptOk ? "next" : "blocked";
-  const spec = cur ? shortSpec(cur, d) : null;
+  const stage = cur ? (STAGES.some(([k]) => k === route.step) ? route.step! : nextStage(cur, d)) : null;
+  const addOpen = adding || sh.items.length === 0;
   return (
     <StepPage title="Shorts" desc={DESC} status={st} state={state} todo={todoText("shorts", st, d)}
       stats={<><StatTile value={sh.items.length ? `${ex}/${sh.items.length}` : "—"} label="exported" />{m && <StatTile value={dur(m.totalMs)} label={`${m.runs} runs`} />}{m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Claude cost" />}</>}>
-      <div className="grid gap-4">
-        <Fold defaultOpen={sh.items.length === 0} title={<b className="text-[13px] text-foreground">Write and check all shorts</b>} className="rounded-lg border bg-card px-3.5">
+      <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0">
+        <section aria-label="Shorts" className="grid min-w-0 gap-2">
+          <div role="tablist" aria-label="Shorts" className="flex snap-x gap-2 overflow-x-auto pb-1">
+            {sh.items.map((s) => <ShortChip key={s.id} s={s} on={s.id === sid} onPick={() => go({ short: s.id, step: null })} />)}
+            <button type="button" onClick={() => setAdding(!adding)} aria-expanded={addOpen}
+              className={cn("flex w-40 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground hover:border-brand hover:text-foreground", addOpen && "border-brand text-foreground")}>
+              <Plus className="size-4" />Add short
+            </button>
+          </div>
+          {addOpen && (
+            <div className="grid gap-2 rounded-lg border bg-card p-3">
+              <div className="text-xs text-muted-foreground">{sh.items.length ? `The writer reads the ${sh.items.length} short${sh.items.length > 1 ? "s" : ""} that exist and writes one that repeats none of them (other kind, hook, number and payoff). Give an idea to steer it, or tick Blank to write it yourself.` : "Add one short at a time (the writer avoids repeating earlier ones), or write a whole set at once under All shorts."}</div>
+              <ActionCard id="shorts.add" />
+              {!scriptOk && <Note>The long script is not approved yet: shorts are cut from the approved script and the plan's sourced data.</Note>}
+            </div>
+          )}
+        </section>
+
+        {cur && stage && (
+          <section aria-label={cur.id} className="grid min-w-0 grid-cols-1 gap-3 [&>*]:min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <b className="font-mono text-[15px]">{cur.id}</b>
+              {cur.entry.kind && <Badge tone="info">{cur.entry.kind}</Badge>}
+              <h2 className="m-0 min-w-0 flex-1 basis-56 text-[15px] font-semibold">{cur.entry.title || "(untitled)"}</h2>
+              <span className={cn("text-xs text-muted-foreground", Math.round(cur.words / WPS) > 60 && "text-destructive")}>{cur.words} words · ~{Math.round(cur.words / WPS)} s</span>
+              {cur.timings.runs > 0 && <span className="text-xs text-muted-foreground">{dur(cur.timings.ms)}{cur.timings.costUsd ? ` · ${money(cur.timings.costUsd)}` : ""}</span>}
+            </div>
+            <ShortStepBar s={cur} cur={stage} onPick={(k) => go({ step: k })} />
+            <ShortFlow key={`${cur.id}-${stage}`} s={cur} stage={stage} />
+          </section>
+        )}
+
+        <Fold title={<b className="text-[13px] text-foreground">All shorts: write a set at once, check, shared feedback</b>} className="rounded-lg border bg-card px-3.5">
           <div className="grid gap-3 pb-3.5">
             <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.check" /></ActionGrid>
             <TextEditor title="Feedback on all shorts" sub="shorts/feedback.md" rows={4} draft={fb} spellCheck
               placeholder="Open with the number, not the question. Three shorts should not share one hook shape."
-              hint="Read by a full rewrite (Write shorts with Overwrite ticked). For one short, use its own feedback box and Revise."
+              hint="Read by a full rewrite (Write shorts with Overwrite ticked) and by Add short. For one short, use its own feedback box and Revise."
               onSave={async (t) => { await api.saveShortsFeedback(ws, t); await refresh(); }} />
             {sh.notes && <Note>Writer's note: {sh.notes}</Note>}
           </div>
         </Fold>
-        {sh.items.length === 0 && <Note>No shorts yet. {scriptOk ? "Run Write shorts." : "The long script is not approved yet; shorts are written from the approved script and the plan's data."}</Note>}
-        {sh.items.length > 0 && (
-          <>
-            <div role="tablist" aria-label="Shorts" className="flex flex-wrap gap-2">
-              {sh.items.map((s) => {
-                const on = s.id === sid, next = s.progress.exported ? "exported" : STAGES.find(([k]) => k !== "script" && k !== "export" && !s.progress[k as keyof typeof s.progress])?.[1] ?? "export";
-                return (
-                  <button key={s.id} role="tab" aria-selected={on} onClick={() => go({ short: s.id, step: null })}
-                    className={cn("grid min-w-40 max-w-64 gap-0.5 rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent", on && "border-brand ring-1 ring-brand/50")}>
-                    <span className="flex items-center gap-1.5"><b className="font-mono text-[13px]">{s.id}</b><span className="truncate text-xs text-muted-foreground">{s.entry.kind}</span></span>
-                    <span className="truncate text-[12.5px]">{s.entry.title ?? "(untitled)"}</span>
-                    <span className="text-[11px] text-muted-foreground">{s.progress.exported ? "exported" : `next: ${next}`} · {s.words} words · ~{Math.round(s.words / WPS)} s</span>
-                  </button>
-                );
-              })}
-            </div>
-            {cur && spec && (
-              <Card>
-                <CardHeader className="flex-wrap">
-                  <b className="font-mono text-[13px]">{cur.id}</b>
-                  {cur.entry.kind && <Badge tone="info">{cur.entry.kind}</Badge>}
-                  <CardTitle className="min-w-0 flex-1 basis-56">{cur.entry.title ?? "(untitled)"}</CardTitle>
-                  <CardSub className={cn(Math.round(cur.words / WPS) > 60 && "text-destructive")}>{cur.words} words · ~{Math.round(cur.words / WPS)} s</CardSub>
-                  {cur.timings.runs > 0 && <CardSub className="hidden sm:inline">{dur(cur.timings.ms)}{cur.timings.costUsd ? ` · ${money(cur.timings.costUsd)}` : ""}</CardSub>}
-                </CardHeader>
-                <CardBody>
-                  <nav aria-label="Stages" className="flex flex-wrap gap-1">
-                    {STAGES.map(([k, label], i) => {
-                      const b = spec.blocks[i], status = b.done ? "done" : "none";
-                      return (
-                        <button key={k} onClick={() => { go({ step: k }); document.querySelector(`[data-block="${k}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" }); }}
-                          className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs hover:bg-accent", route.step === k && "border-brand")}><StatusDot s={status} />{label}</button>
-                      );
-                    })}
-                  </nav>
-                  <ShortFlow key={cur.id} s={cur} />
-                </CardBody>
-              </Card>
-            )}
-          </>
-        )}
       </div>
     </StepPage>
   );

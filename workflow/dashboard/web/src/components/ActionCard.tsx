@@ -80,7 +80,7 @@ export function ActionCard({ id, act, children, hint, bare, hide = [] }: { id: s
       {children}
       {defs.length > 0 && (
         <Fold title={<span className="flex min-w-0 items-center gap-2">Options <span className="min-w-0 truncate font-mono text-[11px] font-normal text-subtle-foreground">{preview}</span></span>} className={cn("px-3", !bare && "border-t")}>
-          <div className="grid gap-2.5 pb-3 pt-1 sm:grid-cols-2 sm:gap-x-8">
+          <div className="grid divide-y divide-border/60 pb-2">
             {defs.filter((o) => visible(o, defs, merged) && !hide.includes(o.key)).map((o) => (
               <OptionField key={o.key} o={o} value={merged[o.key]} choices={id === "acts.all" && o.key === "acts" ? planActs : undefined} onChange={(v) => setVals((p) => { const n = { ...merged, ...p, [o.key]: v }; store.set(`opt.${id}`, toOpts(defs, n)); return n; })} />
             ))}

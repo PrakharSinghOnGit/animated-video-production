@@ -78,7 +78,7 @@ function Block({ b, index }: { b: BlockDef; index: number }) {
       {hasBody && open && (
         <div className="wg-enter">
           {hasOpts && <div className="border-t px-1"><ActionCard bare id={b.action!} act={b.act} hint={b.hint} /></div>}
-          {b.children && <div className="grid gap-3 border-t p-4 max-sm:p-2.5">{b.children}</div>}
+          {b.children && <div className="grid grid-cols-1 gap-3 border-t p-4 max-sm:p-2.5 [&>*]:min-w-0">{b.children}</div>}
         </div>
       )}
     </div>
@@ -118,7 +118,7 @@ export function Flow({ blocks, loops = [] }: { blocks: BlockDef[]; loops?: LoopD
   const ids = blocks.map((b) => b.id);
   const ax = G - (narrow ? 9 : 14);
   return (
-    <div ref={box} className="relative grid gap-5" style={{ paddingLeft: G }}>
+    <div ref={box} className="relative grid grid-cols-1 gap-5 [&>*]:min-w-0" style={{ paddingLeft: G }}>
       <svg aria-hidden className="pointer-events-none absolute left-0 top-0 overflow-visible" width={G} height={height || 1}>
         <defs>
           {[["m", "var(--border-strong)"], ["b", "var(--brand)"]].map(([k, c]) => (
