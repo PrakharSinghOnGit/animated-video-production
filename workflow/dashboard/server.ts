@@ -664,6 +664,17 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("shorts:write", "--video", ws, ...args(o, "shorts.write"))],
   },
+  "shorts.add": {
+    step: "shorts", label: "Add short", help: "Adds one short. With the writer, it reads the shorts that exist and writes a new one that repeats none of them (another kind, hook, number and payoff), following your idea if you give one. Blank: an empty short you write yourself (free).",
+    paid: "~$0.3–0.8 (blank: free)", long: "~1–2 min",
+    opts: [
+      { key: "idea", label: "Idea for this short", help: "optional: an angle, a number, an example from the video", type: "text", flag: "--idea" },
+      { key: "blank", label: "Blank (I write it)", type: "bool", def: false, flag: "--blank" },
+      modelOpt("shortsWriter", "Writer model", "--model"),
+    ],
+    build: (ws, o) => [B("shorts:write", "--video", ws, "--add", ...args(o, "shorts.add"))],
+  },
+  "shorts.remove": { step: "shorts", perShort: true, label: "Remove", help: "Deletes this short (its folder moves to shorts/.removed/, so it can be restored by hand).", long: "seconds", build: (ws, _o, s) => [B("shorts:write", "--video", ws, "--remove", s!)] },
   "shorts.check": { step: "shorts", label: "Check scripts", help: "Re-runs the checks (word count, numbers against the plan's data, banned phrases) after a hand edit. No model.", long: "seconds", build: (ws) => [B("shorts:write", "--video", ws, "--check")] },
   "shorts.revise": {
     step: "shorts", perShort: true, label: "Revise", help: "Rewrites this one short from its feedback (shorts/<S>/02-scripting/feedback.md). Save the feedback first; the new script needs approval again.", paid: "~$0.3–0.8", long: "~1–2 min",

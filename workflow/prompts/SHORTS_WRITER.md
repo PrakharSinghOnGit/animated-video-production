@@ -34,7 +34,7 @@ video keeps them. Each short must work for someone who has never seen the channe
 - Spoken English only in `**VO:**` lines: no parentheses, lists or markdown inside narration.
 - No get-rich wording (guaranteed, secret, overnight, never lose, get rich), no financial advice phrasing ("you should buy").
 
-## Output 1: one script per short → `{{SHORTS_DIR}}/S<n>/02-scripting/script_raw.md` (Write tool; n = 1..{{COUNT}})
+## Output 1: one script per short → `{{SHORTS_DIR}}/S<n>/02-scripting/script_raw.md` (Write tool; write: {{IDS}})
 Exactly this format (the voice pipeline parses it). One part, 4–9 beats; a beat is 1–2 short sentences:
 
 ```md

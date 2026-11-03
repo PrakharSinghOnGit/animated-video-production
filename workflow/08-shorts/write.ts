@@ -4,6 +4,9 @@
  *
  * Usage: bun run shorts:write --video <VID> [--count 3] [--model opus|sonnet] [--force]   write all shorts (paid, ~$0.5–1.5)
  *        bun run shorts:write --video <VID> --short S2 [--model ...]                     revise one with S2/02-scripting/feedback.md
+ *        bun run shorts:write --video <VID> --add [--idea "..."] [--model ...]             write ONE more short, different from the existing ones (paid, ~$0.3–0.8)
+ *        bun run shorts:write --video <VID> --add --blank [--idea "..."]                   add an empty short you write yourself (free)
+ *        bun run shorts:write --video <VID> --remove S2                                   delete a short (its folder goes to shorts/.removed/)
  *        bun run shorts:write --video <VID> --approve S1|S1,S3|all                       approve scripts (only the creator decides)
  *        bun run shorts:write --video <VID> --check                                      re-run the checks after a hand edit
  *        bun run shorts:write --video <VID> --status
@@ -102,6 +105,40 @@ if (args.includes("--approve")) {
   process.exit(0);
 }
 
+if (args.includes("--remove")) {
+  const sid = (flag("--remove") ?? "").toUpperCase();
+  if (!SHORT_ID.test(sid) || !exists(shortWs(vid, sid))) { console.error(`❌ no short ${sid}`); process.exit(1); }
+  const bin = path.join(dir, ".removed"), to = path.join(bin, `${sid}-${Date.now()}`);
+  fs.mkdirSync(bin, { recursive: true });
+  fs.renameSync(shortWs(vid, sid), to);
+  const ix = index();
+  if (ix) { ix.shorts = ix.shorts.filter((x) => x.id !== sid); fs.writeFileSync(indexPath(vid), JSON.stringify(ix, null, 2), "utf-8"); }
+  console.log(`🗑  removed ${sid} (kept in ${path.relative(REPO, to)}; move it back to restore)`);
+  process.exit(0);
+}
+
+/** Next free id: one past the highest ever used (removed ones included), so a new short never takes an old one's name. */
+function nextId(): string {
+  const used = [...listShorts(vid!), ...(exists(path.join(dir, ".removed")) ? fs.readdirSync(path.join(dir, ".removed")).map((n) => n.split("-")[0]) : [])];
+  return `S${Math.max(0, ...used.filter((x) => SHORT_ID.test(x)).map((x) => parseInt(x.slice(1), 10))) + 1}`;
+}
+const adding = args.includes("--add"), idea = flag("--idea")?.trim();
+
+if (adding && args.includes("--blank")) {
+  const sid = nextId();
+  scaffoldShort(vid, sid);
+  const sp = path.join(shortWs(vid, sid), "02-scripting", "script_raw.md");
+  if (!exists(sp)) fs.writeFileSync(sp, `### Part 1: ${idea ?? "Untitled short"}\n**VO:** \`[VO: punchy, fast]\` \n**[ON SCREEN]:** \n`, "utf-8");
+  const ix = index() ?? { shorts: [] };
+  const entry: ShortEntry = { id: sid, kind: "custom", title: idea ?? "", hook: "", payoff: "", loop: "", words: 0, data: [], description: "", hashtags: ["#Shorts"] };
+  ix.shorts = [...ix.shorts.filter((x) => x.id !== sid), entry];
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(indexPath(vid), JSON.stringify(ix, null, 2), "utf-8");
+  check(entry); linkWorkspaces();
+  console.log(`➕ ${sid} added (empty): write its script in ${path.relative(REPO, sp)}, then Check scripts and approve it.`);
+  process.exit(0);
+}
+
 // ───────────── write / revise (paid) ─────────────
 const parentScript = path.join(parent, "02-scripting", "script_raw.md");
 if (!exists(parentScript)) { console.error(`❌ the long video has no script: ${path.relative(REPO, parentScript)}`); process.exit(1); }
@@ -113,14 +150,15 @@ const one = flag("--short")?.toUpperCase();
 const count = Math.min(5, Math.max(1, parseInt(flag("--count") ?? "3", 10)));
 const model = roleModel("shortsWriter", flag("--model"));
 const existing = listShorts(vid);
-if (!one && existing.length && !args.includes("--force")) {
+if (!one && !adding && existing.length && !args.includes("--force")) {
   console.error(`❌ ${existing.length} short(s) exist (${existing.join(", ")}). Revise one: --short S2 (reads S2/02-scripting/feedback.md), or rewrite all: --force`);
   process.exit(1);
 }
 if (one && !existing.includes(one)) { console.error(`❌ no short ${one} (have: ${existing.join(", ") || "none"})`); process.exit(1); }
 
 const stamp = Date.now();
-const targets = one ? [one] : Array.from({ length: count }, (_, i) => `S${i + 1}`);
+const added = adding ? nextId() : null;
+const targets = one ? [one] : added ? [added] : Array.from({ length: count }, (_, i) => `S${i + 1}`);
 
 const allFeedback = path.join(dir, "feedback.md");
 let previous = "";
@@ -128,12 +166,16 @@ if (one) {
   const fb = path.join(shortWs(vid, one), "02-scripting", "feedback.md");
   if (!exists(fb) || mtime(fb) < mtime(path.join(shortWs(vid, one), "02-scripting", "script_raw.md"))) console.warn(`⚠️  no new ${path.relative(REPO, fb)}: revising without notes`);
   previous = `6. This is a **revision of ${one} only**. Its previous script: \`${path.join(shortWs(vid, one), "02-scripting", `script_raw.${stamp}.bak.md`)}\`; the creator's notes: \`${fb}\` (apply every point). Rewrite only ${one}'s script_raw.md, and Write the index back with ${one}'s entry updated and every other entry unchanged (current index: \`${indexPath(vid)}\`).`;
+} else if (added) {
+  const others = (index()?.shorts ?? []).filter((x) => existing.includes(x.id));
+  const list = others.length ? others.map((x) => `   - ${x.id} [${x.kind}] "${x.title}": hook "${x.hook}"; payoff "${x.payoff}"; script \`${path.join(shortWs(vid, x.id), "02-scripting", "script_raw.md")}\``).join("\n") : "   (none yet)";
+  previous = `6. This **adds one new short, ${added}**, next to the ones that exist. Read their scripts first; the new one must not repeat any of them: a different kind if possible, a different hook shape, a different main number or example, a different payoff.\n${list}\n${idea ? `   The creator's idea for ${added} (follow it): ${idea}\n` : ""}   Write only ${added}'s script_raw.md, and Write the index back with every existing entry unchanged plus ${added}'s entry (current index: \`${indexPath(vid)}\`; if it does not exist, write it with ${added} only).${exists(allFeedback) ? ` The creator's notes for all shorts apply too: \`${allFeedback}\`.` : ""}`;
 } else if (exists(allFeedback)) {
   previous = `6. The creator's notes for these shorts (apply them): \`${allFeedback}\`.`;
 }
 const figures = pn.lines.length ? pn.lines.map((l) => `   - ${l}`).join("\n") : "   (none: the long video has no sourced plan yet. State no numbers except ones the long script says, and list them in notes.)";
 const prompt = loadPrompt("SHORTS_WRITER", { video: parent })
-  .replace(/{{COUNT}}/g, String(one ? existing.length : count)).replace(/{{SCRIPT}}/g, parentScript)
+  .replace(/{{COUNT}}/g, String(one ? existing.length : added ? 1 : count)).replace(/{{IDS}}/g, targets.join(", ")).replace(/{{SCRIPT}}/g, parentScript)
   .replace(/{{IDEA}}/g, exists(path.join(parent, "02-scripting", "idea.md")) ? path.join(parent, "02-scripting", "idea.md") : "(none)")
   .replace(/{{FIGURES}}/g, figures).replace(/{{PREVIOUS}}/g, previous).replace(/{{SHORTS_DIR}}/g, dir).replace(/{{INDEX}}/g, indexPath(vid))
   .replace(/{{MIN_WORDS}}/g, String(MIN_WORDS)).replace(/{{MAX_WORDS}}/g, String(MAX_WORDS));
@@ -149,12 +191,12 @@ if (exists(indexPath(vid))) fs.copyFileSync(indexPath(vid), indexPath(vid).repla
 if (!one) for (const sid of existing.filter((s) => !targets.includes(s))) console.warn(`⚠️  ${sid} is not part of the new set: its folder is left as is (delete it by hand if unwanted)`);
 for (const sid of targets) scaffoldShort(vid, sid);   // the writer writes into S<n>/02-scripting/
 
-console.log(`✂️  ${one ? `Revising ${one}` : `Writing ${count} shorts`} for ${vid} (${model})...`);
+console.log(`✂️  ${one ? `Revising ${one}` : added ? `Adding ${added}` : `Writing ${count} shorts`} for ${vid} (${model})...`);
 const r = runAgent({
   prompt, model, maxTurns: 30, cwd: REPO, tools: ["Read", "Write", "Bash(python3 workflow/02-scripting/yt-script/hookscore.py:*)"],
   logPath: path.join(dir, `write_${stamp}.log`),
 });
-recordTiming(parent, { step: one ? `shorts write (${one} revision)` : "shorts write", ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
+recordTiming(parent, { step: one ? `shorts write (${one} revision)` : added ? `shorts write (${added} added)` : "shorts write", ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 console.log(`   ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costUsd.toFixed(2)}${r.ok ? "" : ` — run failed, see ${r.logPath}`}`);
 
 const ix = index();
