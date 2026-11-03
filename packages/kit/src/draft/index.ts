@@ -8,3 +8,4 @@ export * from "./chart";
 export * from "./scene";
 export * from "./mascot";
 export { DraftCanvas } from "./DraftCanvas";
+export * from "./motion";

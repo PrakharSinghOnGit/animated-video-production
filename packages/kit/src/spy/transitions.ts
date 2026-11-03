@@ -159,14 +159,14 @@ export function drawAct(g: G, ctx: { t: number; fps?: number }, o: ActOpts, scen
 export function chapterPill(g: G, n: number, title: string, progress: number, inks: Inks = INKS.noir): void {
   if (progress <= 0) return;
   const x0 = SAFE.x0, y0 = SAFE.y0, h = 56, num = String(n).padStart(2, "0"), t = title.toUpperCase();
-  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = `700 27px "${SPY_FONT.sans}"`; (g as any).letterSpacing = "3px";
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.font = `600 27px "${SPY_FONT.sans}"`; (g as any).letterSpacing = "3px";
   const tw = g.measureText(t).width, nw = g.measureText(num).width, a = 74, b = tw + 52;
   const slide = -(a + b + x0 + 40) * (1 - outBack(clamp(progress), 1.1));
   g.translate(slide, 0);
   piece(g, roughC(`pillA${a}`, () => [[x0, y0], [x0 + a, y0 - 1], [x0 + a, y0 + h], [x0, y0 + h + 1]] as Pt[], 61, 1.2, 12), inks.hot);
   piece(g, roughC(`pillB${Math.round(b)}`, () => [[x0 + a, y0 - 1], [x0 + a + b, y0 + 1], [x0 + a + b + 13, y0 + h / 2], [x0 + a + b, y0 + h - 1], [x0 + a, y0 + h]] as Pt[], 62, 1.2, 12), inks.warm);
-  label(g, num, x0 + a / 2 - nw / 2, y0 + 38, `700 27px "${SPY_FONT.sans}"`, inks.paper, "left", 3);
-  label(g, t, x0 + a + 26, y0 + 38, `700 27px "${SPY_FONT.sans}"`, inks.ink, "left", 3);
+  label(g, num, x0 + a / 2 - nw / 2, y0 + 38, `700 27px "${SPY_FONT.sans}"`, inks.paper, "left", 3, { halo: 0 });
+  label(g, t, x0 + a + 26, y0 + 38, `700 27px "${SPY_FONT.sans}"`, inks.ink, "left", 3, { halo: 0 });
   g.restore();
 }
 

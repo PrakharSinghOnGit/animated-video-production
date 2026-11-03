@@ -116,13 +116,25 @@ export function text(g: G, str: string, x: number, y: number, o: TextOpts): Text
   return box;
 }
 
-/** Small tracked label (600-800, 24-28 px). */
-export function label(g: G, str: string, x: number, y: number, o: { ink: InkName | Ink; size?: number; weight?: number; track?: number; col?: string; align?: "left" | "center" | "right"; alpha?: number }): number {
-  const k = inkOf(o.ink), size = o.size ?? 26, weight = o.weight ?? 700, track = o.track ?? 0.2;
+/** Heaviest Geist weight `label` draws: 800+ clogs at label sizes. Big words (`text`) keep 900. */
+export const LABEL_MAX_WEIGHT = 700;
+/**
+ * Small tracked label (500-700, default 600, 24-28 px). Gets a thin outline in the ink's paper colour (`halo` screen px,
+ * default 3, 0 = none) so it stays readable where it crosses lines and fills.
+ */
+export function label(g: G, str: string, x: number, y: number, o: { ink: InkName | Ink; size?: number; weight?: number; track?: number; col?: string; align?: "left" | "center" | "right"; alpha?: number; halo?: number; haloCol?: string }): number {
+  const k = inkOf(o.ink), size = o.size ?? 26, weight = Math.min(o.weight ?? 600, LABEL_MAX_WEIGHT), track = o.track ?? 0.2;
   const { width, letters } = measure(str, size, weight, track);
   const left = o.align === "center" ? x - width / 2 : o.align === "right" ? x - width : x;
   g.save();
-  g.font = font(size, weight); g.fillStyle = o.col ?? k.label; g.globalAlpha = o.alpha ?? 1; g.textBaseline = "alphabetic";
+  g.font = font(size, weight); g.globalAlpha = o.alpha ?? 1; g.textBaseline = "alphabetic";
+  const halo = o.halo ?? 3;
+  if (halo > 0) {
+    const m = g.getTransform(), sc = Math.sqrt(Math.abs(m.a * m.d - m.b * m.c)) || 1;
+    g.lineJoin = "round"; g.lineWidth = (halo * 2) / sc; g.strokeStyle = o.haloCol ?? k.bg;
+    for (const l of letters) g.strokeText(l.ch, left + l.x, y);
+  }
+  g.fillStyle = o.col ?? k.label;
   for (const l of letters) g.fillText(l.ch, left + l.x, y);
   g.restore();
   return width;

@@ -83,3 +83,13 @@ Notes: build `focus` from word times inside `draw` (the plan is cached per array
 
 ## Known limits
 Wipes render `from` and `to` both (two full-frame draws) and the strip wipe adds an offscreen copy: fine at 1080p, keep scenes cheap. `luma`-based subtitle colour is a two-way choice. One puppet rig only (profile, facing +x). `drawTitle` has no digits or punctuation; use `drawLine` for those. Silhouettes cannot be nested inside one another.
+
+## Motion with weight (motion.ts, shared with Drafting via paper/motion.ts)
+All pure functions of `t` (act seconds).
+- `bounce(t, t0, {w=20, damp=0.4})` 0 -> 1 on an under-damped spring (peaks ~1.25 at +0.17 s, settled by +0.5 s); `bounceTo(a, b, t, t0)`.
+- `pop(t, t0, {squash=0.18})` -> `{s, sx, sy, done}`: scale in with overshoot, stretched while growing, squashed on the rebound. Scale around the object's base (landing) or centre (appearing).
+- `land(t, t0, amount=0.22)` -> `{sx, sy}` squash on contact that springs back; `wobble(t, t0, deg=6)` settle swing in rad.
+- `thump(t, t0, {amp=12, dur=0.4, punch=0.04})` -> `{dx, dy, s, rot}`; `shake(cam, t, [hitTimes])` adds thumps to a camera (only the act's biggest hits).
+- `idle(t, seed, amp=6, period=3)` -> `{dx, dy, s, rot}` slow bob/sway for held things; `stagger(t0, n, gap=0.06)` start times for a row.
+- `burst(t, t0, {n, speed, dir, spread, gravity, drag, size, dur, seed})` particle positions; `scraps(g, t, t0, x, y, col, opts)` draws them as small cut-paper pieces (world coords).
+- `label(...)` draws League Spartan at most weight 600 (`LABEL_MAX_WEIGHT`) with a 3 px outline in the ground colour (`{halo, haloCol}` as the 9th argument; `halo: 0` = none).

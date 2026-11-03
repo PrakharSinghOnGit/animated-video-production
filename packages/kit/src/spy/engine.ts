@@ -226,11 +226,31 @@ export function paperFinish(g: G, amt = 1): void {
   g.restore();
 }
 
-/** Plain canvas text for small labels (use drawLine for anything big). */
-export function label(g: G, s: string, x: number, y: number, font: string, col: string, align: CanvasTextAlign = "left", ls = 0): void {
-  g.save(); g.font = font; g.fillStyle = col; g.textAlign = align; g.textBaseline = "alphabetic";
+/** Heaviest League Spartan weight `label` draws: 700+ clogs at label sizes (reads as a blob on dark grounds). */
+export const LABEL_MAX_WEIGHT = 600;
+export interface LabelOpts {
+  /**
+   * outline in screen px, in `haloCol` (default 3): keeps the label readable where it crosses pieces. 0 = none. By default only
+   * drawn when the text contrasts with the ground (light text on a dark ground or the reverse); text set on a piece of another
+   * colour (a tag, a card) should pass 0 or that piece's colour.
+   */
+  halo?: number;
+  /** default: the current ground (state(g).bg) */
+  haloCol?: string;
+}
+/**
+ * Plain canvas text for small labels (use drawLine for anything big). The weight in `font` is capped at 600, and text that
+ * contrasts with the ground gets a thin outline in the ground colour, so it stays legible where it crosses pieces.
+ */
+export function label(g: G, s: string, x: number, y: number, font: string, col: string, align: CanvasTextAlign = "left", ls = 0, o: LabelOpts = {}): void {
+  g.save();
+  g.font = font.replace(/^\s*(\d{3})\b/, (_, w) => String(Math.min(+w, LABEL_MAX_WEIGHT)));
+  g.textAlign = align; g.textBaseline = "alphabetic";
   if (ls) (g as any).letterSpacing = ls + "px";
-  g.fillText(s, x, y); g.restore();
+  const hc = o.haloCol ?? state(g).bg, isHex = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
+  const halo = o.halo ?? (isHex(col) && isHex(hc) && Math.abs(luma(col) - luma(hc)) > 0.35 ? 3 : 0);
+  if (halo > 0) { g.lineJoin = "round"; g.lineWidth = (halo * 2) / curScale(g); g.strokeStyle = hc; g.strokeText(s, x, y); }
+  g.fillStyle = col; g.fillText(s, x, y); g.restore();
 }
 
 // ---------- silhouette layer ----------

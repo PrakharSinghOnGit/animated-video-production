@@ -46,3 +46,9 @@ Rules: everything is a pure function of the `t` that `drawAct` passes to your sc
 
 ## Penny (mascot.ts)
 `penny(g, x, y, {ink, s=2.5, pose, mood, t, turn, look, aim, flip, blink, squash})` → `{center, top, hand, feet}`. Origin = between her feet; s = 2.5 is ~250 px wide (keep ≤ ~25 % of frame height). `pose`: `stand | walk | run | point | present | shrug | pencil | wave | sit`; `mood`: `happy | neutral | surprised | worried | smug`; `turn` radians (PI/2 = edge-on coin); `t` drives run/walk/wave cycles and blinks; `aim` = pointing angle. Run speed for non-sliding feet: `pennyRunSpeed(s)` px/s. Spec: `brand-assets/mascot/CHARACTER.md`.
+
+## Motion with weight (motion.ts, shared with Briefing via paper/motion.ts)
+`bounce`, `bounceTo`, `pop` (squash and stretch), `land`, `wobble`, `thump`, `shake`, `idle`, `stagger`, `burst`: see `packages/kit/src/paper/motion.ts`
+(all pure functions of `t`). `specks(g, t, t0, x, y, {ink, col?, n?, speed?, ...})` draws a burst as pencil flicks in the ink's line colour.
+`spring` (critically damped, never overshoots) stays for exact moves. `label` draws Geist at most weight 700 (default 600) with a 3 px outline
+in the ink's paper colour (`halo`, `haloCol`; `halo: 0` = none).

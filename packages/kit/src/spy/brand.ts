@@ -69,7 +69,7 @@ export function brandEndCard(g: G, t: number, at: number, o: { tag?: string } = 
   const tl = outCubic(seg(t, at - 0.45, at - 0.05));
   if (tl > 0) {
     g.save(); g.globalAlpha = clamp(tl * 2);
-    label(g, BRAND_TAGLINE, cx - size / 2 + (1 - tl) * -60, cy + size / 2 + 86, `600 46px "${SPY_FONT.sans}"`, BRAND.text, "left", 1);
+    label(g, BRAND_TAGLINE, cx - size / 2 + (1 - tl) * -60, cy + size / 2 + 86, `600 46px "${SPY_FONT.sans}"`, BRAND.text, "left", 1, { halo: 0 });
     g.restore();
   }
   // SUBSCRIBE: a red cut tag stamped on the word
@@ -80,7 +80,7 @@ export function brandEndCard(g: G, t: number, at: number, o: { tag?: string } = 
     g.font = `700 64px "${SPY_FONT.sans}"`; (g as any).letterSpacing = "6px";
     const w = g.measureText(txt).width + 72;
     withBg(g, BRAND.ground, () => piece(g, roughC(`brandTag${Math.round(w)}`, () => [[0, 0], [w, -4], [w + 26, 50], [w, 104], [0, 100]] as Pt[], 530, 1.4, 12), BRAND.red, { shA: 0.4 }));
-    label(g, txt, 38, 74, `700 64px "${SPY_FONT.sans}"`, BRAND.text, "left", 6);
+    label(g, txt, 38, 74, `700 64px "${SPY_FONT.sans}"`, BRAND.text, "left", 6, { halo: 0 });
     g.restore();
   }
   g.restore();
