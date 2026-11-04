@@ -34,6 +34,30 @@ export function checkCaches(): number {
 }
 export function resetCaches(): void { for (const c of caches) c.reset(); }
 
+/**
+ * Skip draws whose transform has collapsed (|det| < 1e-6: the shape would be under a millionth of a pixel). Chrome's
+ * renderer can freeze filling a detailed path at a near-zero scale (a net with holes at scale 1e-16 hung a full render
+ * at the same frame every time: "waiting for the page to render ... timeout"). Such a draw is invisible anyway, so it is
+ * dropped for every canvas (page and offscreen), whatever act code produced the scale.
+ */
+function guardFlatDraws(): void {
+  const protos = [globalThis.CanvasRenderingContext2D?.prototype, globalThis.OffscreenCanvasRenderingContext2D?.prototype].filter(Boolean) as any[];
+  for (const pr of protos) {
+    if (pr.__flatGuard) continue;
+    pr.__flatGuard = true;
+    for (const name of ["fill", "stroke", "fillRect", "strokeRect", "fillText", "strokeText", "drawImage"]) {
+      const orig = pr[name];
+      if (typeof orig !== "function") continue;
+      pr[name] = function (this: CanvasRenderingContext2D, ...a: unknown[]) {
+        const m = this.getTransform();
+        if (!(Math.abs(m.a * m.d - m.b * m.c) >= 1e-6)) return;   // also catches NaN
+        return orig.apply(this, a);
+      };
+    }
+  }
+}
+guardFlatDraws();
+
 /** An offscreen canvas of the current frame size, recreated when the size changed. */
 export function frameCanvas(c: OffscreenCanvas | null): OffscreenCanvas {
   return c && c.width === W && c.height === H ? c : new OffscreenCanvas(W, H);
@@ -271,7 +295,10 @@ export function bracketPath(x0: number, x1: number, y: number, h = 14): Pt[] {
 // ---------- handwriting (Caveat) with graphite grain and write-on reveal ----------
 interface TextImg { c: OffscreenCanvas; w: number; h: number; pad: number; base: number }
 const _txt = new Map<string, TextImg>();
-registerCache(() => [..._txt.values()].map((x) => x.c), () => _txt.clear());
+/** Pixel budget per image cache (~256 MB of RGBA each): a full render keeps one tab alive for thousands of frames. */
+const CACHE_PX = 64e6;
+let _txtPx = 0;
+registerCache(() => [..._txt.values()].map((x) => x.c), () => { _txt.clear(); _txtPx = 0; });
 function textImage(text: string, size: number, color: string, weight: number, font: string, scale: number): TextImg {
   const key = [text, size, color, weight, font, scale].join("|");
   const hit = _txt.get(key); if (hit) return hit;
@@ -286,8 +313,9 @@ function textImage(text: string, size: number, color: string, weight: number, fo
   }
   g.globalCompositeOperation = "destination-out"; g.fillStyle = g.createPattern(grainTile(), "repeat")!; g.fillRect(0, 0, w, h);
   const r: TextImg = { c, w: w / scale, h: h / scale, pad: size * 0.3, base: (h * 0.72) / scale };
-  if (_txt.size > 400) _txt.clear();
-  _txt.set(key, r);
+  // budget by pixels, not count: zoomed text is up to 5x, so 400 big ones were gigabytes in one render tab
+  if (_txt.size > 400 || _txtPx + w * h > CACHE_PX) { _txt.clear(); _txtPx = 0; }
+  _txt.set(key, r); _txtPx += w * h;
   return r;
 }
 export interface HandOpts { size?: number; color?: string; progress?: number; weight?: number; align?: "left" | "right" | "center"; font?: string; zoom?: number; alpha?: number }
@@ -579,7 +607,8 @@ export function halftone(g: G, path: Pt[], o: HalftoneOpts = {}): void {
 
 // ---------- rubber stamp ----------
 const _stamp = new Map<string, { c: OffscreenCanvas; w: number; h: number }>();
-registerCache(() => [..._stamp.values()].map((x) => x.c), () => _stamp.clear());
+let _stampPx = 0;
+registerCache(() => [..._stamp.values()].map((x) => x.c), () => { _stamp.clear(); _stampPx = 0; });
 function stampImage(text: string, size: number, color: string) {
   const key = `${text}|${size}|${color}`, hit = _stamp.get(key); if (hit) return hit;
   const SC = 2, probe = mkCanvas(8, 8).g; probe.font = `600 ${size * SC}px "${FONT.type}"`;
@@ -600,7 +629,8 @@ function stampImage(text: string, size: number, color: string) {
   for (let k = 0; k < 14; k++) { g.fillStyle = `rgba(0,0,0,${0.1 + R() * 0.22})`; const rr = (14 + R() * 38) * SC * 0.5; g.beginPath(); g.ellipse(R() * W2, R() * H2, rr * (1 + R()), rr, R() * 3, 0, TAU); g.fill(); }
   for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(0,0,0,${0.35 + R() * 0.65})`; const rr = (0.4 + R() * 1.6) * SC; g.beginPath(); g.arc(R() * W2, R() * H2, rr, 0, TAU); g.fill(); }
   const r = { c, w: W2 / SC, h: H2 / SC };
-  _stamp.set(key, r);
+  if (_stampPx + W2 * H2 > CACHE_PX) { _stamp.clear(); _stampPx = 0; }
+  _stamp.set(key, r); _stampPx += W2 * H2;
   return r;
 }
 /**

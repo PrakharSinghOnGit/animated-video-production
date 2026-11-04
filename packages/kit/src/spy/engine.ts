@@ -106,7 +106,7 @@ export function roughC(key: string, fn: () => Pt[], seed?: number, amp?: number,
   for (const p of pts) sig += `${Math.round(p[0] * 10)},${Math.round(p[1] * 10)};`;
   let r = cache.get(sig);
   if (!r) {
-    if (cache.size > 50_000) cache.clear();
+    if (cache.size > 8_000) cache.clear();   // keys carry the geometry: animated pieces add one per frame
     r = rough(pts, seed, amp, step); cache.set(sig, r);
   }
   return r;

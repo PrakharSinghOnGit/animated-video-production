@@ -12,7 +12,10 @@ export const inOutCubic = (t: number): number => {
 };
 export const outCubic = (t: number): number => 1 - Math.pow(1 - clamp(t), 3);
 export const outBack = (t: number, s = 1.70158): number => {
-  t = clamp(t) - 1;
+  // exact ends: the formula gives ±2e-16 at 0 for some s, which passed "if (k > 0)" guards and drew at a 1e-16 scale
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  t = t - 1;
   return 1 + t * t * ((s + 1) * t + s);
 };
 export const outExpo = (t: number): number => (clamp(t) >= 1 ? 1 : 1 - Math.pow(2, -10 * clamp(t)));

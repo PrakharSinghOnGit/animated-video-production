@@ -52,6 +52,11 @@ export interface Letter {
 export interface Layout { letters: Letter[]; width: number; size: number; str: string }
 
 const gcache = new Map<string, Pt[][]>();
+/** Letter outlines and cut edges, keyed by size: an act that animates a size (L("$", r * 1.05)) adds a key every frame, and
+ * one render tab draws thousands of frames, so the cache is emptied when it gets big (it rebuilds in a few ms). Unbounded,
+ * it filled the tab's memory and crashed a full render at the same frame every time. */
+const GCACHE_MAX = 3000;
+const gset = (k: string, v: Pt[][]) => { if (gcache.size >= GCACHE_MAX) gcache.clear(); gcache.set(k, v); };
 /**
  * Lay out one line of League Gothic. size = em size in px (cap height is about 0.76 * size, so 200 gives ~150 px capitals).
  * `track` = extra letter spacing as a fraction of size (default 0.02). Needs ensureSpyFonts() to have resolved (SpyCanvas does that).
@@ -65,7 +70,7 @@ export function layout(str: string, size: number, opt: { track?: number } = {}):
     if (ch !== " ") {
       const key = ch + size.toFixed(1);
       let polys = gcache.get(key);
-      if (!polys) { polys = flatten(gl.getPath(0, 0, size).commands as any); gcache.set(key, polys); }
+      if (!polys) { polys = flatten(gl.getPath(0, 0, size).commands as any); gset(key, polys); }
       const bb = gl.getBoundingBox();
       out.push({ ch, x, w: adv, polys, x0: bb.x1 * sc, x1: bb.x2 * sc, top: -bb.y2 * sc, i });
     }
@@ -78,7 +83,7 @@ export function layout(str: string, size: number, opt: { track?: number } = {}):
 export function cutLetter(L: Letter, seed: number, amp = 1.6): Pt[][] {
   const k = `cut${seed}${L.ch}${L.polys.length}${amp}${L.x1.toFixed(1)}`;
   let r = gcache.get(k);
-  if (!r) { r = L.polys.map((p, j) => rough(p, seed * 7 + j * 13, amp, 9)); gcache.set(k, r); }
+  if (!r) { r = L.polys.map((p, j) => rough(p, seed * 7 + j * 13, amp, 9)); gset(k, r); }
   return r;
 }
 
