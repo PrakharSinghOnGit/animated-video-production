@@ -19,9 +19,12 @@ async function main() {
   const audio = (flag("--audio") ?? "mix") as AudioMode;
   if (![1080, 1440, 2160].includes(res)) { console.error("--res must be 1080, 1440 or 2160"); process.exit(1); }
   if (!["mix", "voice", "none"].includes(audio)) { console.error("--audio must be mix, voice or none"); process.exit(1); }
+  // --concurrency N: Chrome tabs rendering in parallel (default: Remotion's, half the CPU cores). Fewer = less memory, slower.
+  const concurrency = flag("--concurrency");
+  if (concurrency !== undefined && !(Number(concurrency) >= 1 && Number(concurrency) <= 16)) { console.error("--concurrency must be 1-16"); process.exit(1); }
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--res" || args[i] === "--audio") { i++; continue; }
+    if (args[i] === "--res" || args[i] === "--audio" || args[i] === "--concurrency") { i++; continue; }
     if (args[i] === "--video" || args[i] === "-v") {
       target = args[i + 1];
       i++;
@@ -125,6 +128,7 @@ async function main() {
       `--scale=${scale}`,
       "--overwrite",
       "--gl=angle",
+      ...(concurrency ? [`--concurrency=${concurrency}`] : []),
     ];
 
   } else {

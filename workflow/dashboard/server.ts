@@ -360,9 +360,14 @@ interface Action {
 const styles = () => ls(path.join(REPO, "workflow/styles")).filter((d) => exists(path.join(REPO, "workflow/styles", d, "STYLE.md")));
 
 /** Final render: resolution (upscaled above 1080p) and which audio goes in the file. */
+const TABS_OPT: Opt = { key: "concurrency", label: "Parallel render tabs", help: "auto = half the CPU cores; fewer uses less memory (if a render crashes) but takes longer", type: "select", choices: ["auto", "2", "3", "4", "6"], def: "auto", flag: "--concurrency",
+  map: (v) => (v === "auto" ? [] : ["--concurrency", String(v)]) };
+/** The draft inside a chain gets the same tab count (validated against the choices). */
+const tabs = (o: Record<string, any>): string[] => { const v = String(o.concurrency ?? "auto"); if (!TABS_OPT.choices!.includes(v)) throw new Error(`Parallel render tabs: "${v}" is not offered`); return TABS_OPT.map!(v as any); };
 const FINAL_OPTS: Opt[] = [
   { key: "res", label: "Resolution", help: "1440p and 4K are upscaled from the 1080p render", type: "select", choices: ["1080", "1440", "2160"], def: "1080", flag: "--res" },
   { key: "audio", label: "Audio", help: "mix = voice + foley (+ music if mixed in); none skips QC's loudness check", type: "select", choices: ["mix", "voice", "none"], def: "mix", flag: "--audio" },
+  TABS_OPT,
 ];
 
 /** Voice (03-voiceover): Qwen3-TTS clones the channel voice (voices/ACTIVE) locally; Gemini is optional cloud TTS. */
@@ -607,14 +612,15 @@ const ACTIONS: Record<string, Action> = {
     build: (ws, o) => [B("daw", "--video", ws, ...args(o, "daw.build"))] },
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
   "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min",
-    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("qc", "--video", ws, "--draft")] },
+    opts: [TABS_OPT],
+    chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws, o) => [B("assemble", "--video", ws), B("draft", "--video", ws, ...tabs(o)), B("qc", "--video", ws, "--draft")] },
   "render.final": { step: "render", label: "Final render", help: "H.264 with grain + QC. Acts are drawn at 1080p: 1440p and 4K are a sharp upscale (YouTube streams 4K uploads at a higher bitrate).", long: "~5–10 min (4K: longer)",
     opts: FINAL_OPTS,
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render final" }, { label: "QC", action: "render.qc" }], build: (ws, o) => [B("assemble", "--video", ws), B("render", "--video", ws, ...args(o, "render.final")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws, "--final")])] },
   "render.all": { step: "render", label: "Render all", help: "Assemble, draft render, final render, QC.", long: "~8–15 min",
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Render draft" }, { label: "Render final" }, { label: "QC", action: "render.qc" }],
     opts: FINAL_OPTS,
-    build: (ws, o) => [B("assemble", "--video", ws), B("draft", "--video", ws), B("render", "--video", ws, ...args(o, "render.all")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws, "--final")])] },
+    build: (ws, o) => [B("assemble", "--video", ws), B("draft", "--video", ws, ...tabs(o)), B("render", "--video", ws, ...args(o, "render.all")), ...(o.audio === "none" ? [] : [B("qc", "--video", ws, "--final")])] },
   "render.qc": { step: "render", label: "QC", help: "Hard checks: placeholders, loudness, duration.", build: (ws) => [B("qc", "--video", ws)] },
   "publish.all": {
     step: "publish", label: "Publish all", help: "Titles + description, the three thumbnails, then the thumbnail review. Titles you edited are kept (the metadata step skips them); thumbnails that exist are kept.", paid: "~$1–3", long: "~8–15 min",
