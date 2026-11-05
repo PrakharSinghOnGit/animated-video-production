@@ -106,6 +106,8 @@ export function shortProgress(vid: string, sid: string) {
     approved: approvalState(ws) === "approved",
     voice: exists(f("03-voiceover/audio/combined/full_voiceover.wav")),
     align: exists(f("05-video/captions.json")),
+    // optional: the track the short is cut to (no track = cut to the words alone)
+    beat: exists(f("06-audio/rhythm.json")),
     plan: exists(f("05-video/acts.json")),
     act: !!scene,
     sound: exists(f("06-audio/mix.wav")),

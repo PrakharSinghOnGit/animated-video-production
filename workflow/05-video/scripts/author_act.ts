@@ -102,7 +102,11 @@ function actWords(act: Act): string {
     }
   }
   if (buf.length) lines.push(`[${(buf[0].startFrame / fps).toFixed(2)}s] ${buf.map((x) => x.text).join(" ")}`);
-  return `Act window: ${(scene.durationFrames / fps).toFixed(2)} s (voice starts at ${(scene.voiceStartFrame / fps).toFixed(2)} s). Times are act-relative; ctx.word() gives exact word starts.\n${lines.join("\n")}`;
+  const m = scene.music;
+  const music = m ? `\n\nMusic (cut to it: see "Cutting to the beat" in the act guide): ${m.title ?? "track"}, ${m.bpm} BPM, a beat every ${(60 / m.bpm).toFixed(3)} s. In code: ctx.music.beats / .downbeats / .accents (act seconds), beatPulse(t, ctx.music.beats).
+Downbeats (bar starts, act s): ${m.downbeats.filter((t: number) => t >= 0).map((t: number) => t.toFixed(2)).join(", ")}
+Big accents (drops, hits; strength 0-1): ${m.accents.filter((a: any) => a.s >= 0.5 && a.t >= 0).map((a: any) => `${a.t.toFixed(2)} (${a.s})`).join(", ") || "none"}` : "";
+  return `Act window: ${(scene.durationFrames / fps).toFixed(2)} s (voice starts at ${(scene.voiceStartFrame / fps).toFixed(2)} s). Times are act-relative; ctx.word() gives exact word starts.\n${lines.join("\n")}${music}`;
 }
 
 function sceneFile(act: Act): string {

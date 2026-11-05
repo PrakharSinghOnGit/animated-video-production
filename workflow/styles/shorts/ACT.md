@@ -66,3 +66,19 @@ export default function Act() {
   give each action its own window, and check that the sheet's tiles show one region filling the frame, not the whole world.
 - **Pace**: a visual hit every 1.5–3 s; whips allowed every ~5 s; one stop-time or spotlight freeze at the payoff.
 - **Never**: `brandEndCard`, `chapterCard`, `chapterPill`, `autoSubtitle`, module-level `W`/`H` (use `ctx.W`, `ctx.H`, `SAFE`).
+
+## Cutting to the beat (when the short has a track: `ctx.music` is not null)
+The music is chosen before the plan (Shorts → Music & beat, `bun run music:beat`); its beats are in `ctx.music` in act
+seconds: `beats`, `downbeats` (bar starts), `accents` (drops and hits, `s` 0-1), `energy` per beat. Short-form lives on
+this: the picture should feel played by the track. Helpers (spy/draft re-export them): `beatPulse(t, beats, {decay})`
+1 on each beat decaying to 0, `beatPhase(t, beats)`, `snapToBeat(t, beats, 0.12)`, `beatsIn(beats, t0, t1)`.
+- **Every beat, a little**: the world breathes on the beat: `1 + 0.025 * beatPulse(t, m.beats)` into the camera zoom or a
+  hero object's scale, a bounce on idle props. Small: the voice leads, the beat carries.
+- **Every bar, a move**: camera moves, region changes and new elements start on a downbeat where the narration allows:
+  pick the downbeat at or just before the word (`snapToBeat(ctx.word(x).t0 - 0.2, m.downbeats, 0.35)`), never after it.
+  Rule 3 still holds: a hit is complete at its word's start; the beat only decides which frame inside that window.
+- **Big accents, a thump**: on accents with `s >= 0.6` a `shake`/`thump` on the camera and a `burst` (scraps/specks), the
+  payoff number lands on the strongest accent near its word.
+- **Rows and lists**: one item per beat (`beatsIn`) instead of a fixed stagger.
+- **Energy**: where `energy` steps up (the drop), switch to tighter framing and faster moves; in quiet bars hold wider.
+- No music (`ctx.music === null`): ignore this section; the short is cut to the words alone.

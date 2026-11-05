@@ -149,3 +149,42 @@ export function burst(t: number, t0: number, o: BurstOpts = {}): Particle[] {
   }
   return out;
 }
+
+// ---------- music: cutting to the beat (ctx.music, from bun run music:beat) ----------
+/** Index of the last beat at or before t (-1 before the first). Beats are sorted seconds. */
+export function lastBeat(t: number, beats: number[]): number {
+  let lo = 0, hi = beats.length - 1, k = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (beats[m] <= t) { k = m; lo = m + 1; } else hi = m - 1; }
+  return k;
+}
+/**
+ * Beat pulse 0..1: 1 on each beat, decaying over `decay` s (default 0.18). Multiply it into a scale (1 + 0.04 * p), a
+ * glow, a line weight: things breathe with the music. `lead` (s) fires that much early so a visual peak meets the audio
+ * (the eye reads ~1 frame late). Pure function of t.
+ */
+export function beatPulse(t: number, beats: number[], o: { decay?: number; lead?: number } = {}): number {
+  const k = lastBeat(t + (o.lead ?? 0.02), beats);
+  if (k < 0) return 0;
+  const d = t + (o.lead ?? 0.02) - beats[k];
+  return Math.exp(-d / (o.decay ?? 0.18));
+}
+/** Where t sits inside its beat: 0 on the beat .. 1 just before the next (and that beat's index). For loops in time. */
+export function beatPhase(t: number, beats: number[]): { i: number; u: number } {
+  const k = lastBeat(t, beats);
+  if (k < 0 || k >= beats.length - 1) return { i: k, u: 0 };
+  return { i: k, u: (t - beats[k]) / (beats[k + 1] - beats[k]) };
+}
+/**
+ * The beat nearest t within `win` s (default 0.12), else t. Snap a hit or a cut to the music, but never more than a
+ * moment away from its word (rule 3: a hit is complete at its word; snap BACKWARD only, so pass `before: true`).
+ */
+export function snapToBeat(t: number, beats: number[], win = 0.12, before = true): number {
+  let best = t, bd = win;
+  for (const b of beats) {
+    const d = t - b;
+    if ((before ? d >= 0 : true) && Math.abs(d) <= bd) { bd = Math.abs(d); best = b; }
+  }
+  return best;
+}
+/** Beats between t0 and t1 (e.g. to stagger a row: one item per beat). */
+export const beatsIn = (beats: number[], t0: number, t1: number): number[] => beats.filter((b) => b >= t0 && b < t1);

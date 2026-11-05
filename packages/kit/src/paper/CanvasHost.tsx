@@ -4,7 +4,7 @@ import { useScene } from "../scene";
 import { hash } from "./lib";
 import { W, H, setFrameSize, checkCaches, resetCaches, type G } from "./engine";
 import { setSeams, type SeamPlan, type SeamSide } from "./seam";
-import type { SceneSeamSide } from "../scene";
+import type { SceneSeamSide, SceneMusic } from "../scene";
 
 /** The neighbour frames a seam needs (decoded once per page; a missing file falls back to the act's own transition). */
 const seamImgs = new Map<string, Promise<HTMLImageElement | null>>();
@@ -45,6 +45,11 @@ export interface PaperCtx {
   duration: number;
   /** every spoken word of this sequence, seconds relative to it */
   words: { w: string; t: number; t1: number }[];
+  /**
+   * The music the short is cut to (null without a track): beats / downbeats / accents in this act's seconds.
+   * Use with beatPulse(t, ctx.music.beats) for thumps on the beat; see the shorts ACT.md.
+   */
+  music: SceneMusic | null;
 }
 
 let warned = false;
@@ -91,6 +96,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
       t: frame / fps, frame, fps, W: width, H: height, duration,
       voiceStart: scene ? scene.voiceStart / fps : 0,
       words: (scene?.words ?? []).map((w: any) => ({ w: w.text, t: w.startFrame / fps, t1: w.endFrame / fps })),
+      music: scene?.music ?? null,
       word: (text, occurrence = 1) => {
         if (scene && scene.has(text, occurrence)) {
           const w = scene.word(text, occurrence);

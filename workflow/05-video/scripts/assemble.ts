@@ -53,6 +53,22 @@ async function main() {
   const timeline: any = buildTimeline(captions, storyboard, { fps, leadMs: 200, width: cfg.width, height: cfg.height });
   if (typeof cfg.endHoldS === "number") timeline.endHoldS = cfg.endHoldS;
   if (typeof cfg.fadeOutFrames === "number") timeline.fadeOutFrames = cfg.fadeOutFrames;
+  // the music's beats (06-audio/rhythm.json, bun run music:beat): each act gets them in its own seconds as ctx.music
+  const rhythmPath = path.join(path.dirname(paths.outputDir), "06-audio", "rhythm.json");
+  if (fs.existsSync(rhythmPath)) {
+    const r = JSON.parse(fs.readFileSync(rhythmPath, "utf-8"));
+    for (const s of timeline.scenes) {
+      const a = s.windowStartFrame / fps, b = (s.windowEndFrame + fps) / fps;                  // + 1 s: beats just past the end
+      const inA = (t: number) => t >= a - 1 && t <= b, sh = (t: number) => Math.round((t - a) * 1000) / 1000;
+      s.music = {
+        bpm: r.bpm, title: r.title,
+        beats: r.beats.filter(inA).map(sh), downbeats: r.downbeats.filter(inA).map(sh),
+        accents: r.accents.filter((x: any) => inA(x.t)).map((x: any) => ({ t: sh(x.t), s: x.s })),
+        energy: r.beats.map((t: number, i: number) => [t, r.energy[i] ?? 0]).filter(([t]: number[]) => inA(t)).map(([t, e]: number[]) => ({ t: sh(t), e })),
+      };
+    }
+    console.log(`✓ Music beats from ${path.relative(process.cwd(), rhythmPath)}: ${r.bpm} BPM, ${r.beats.length} beats → ctx.music`);
+  }
   fs.writeFileSync(path.join(paths.outputDir, "timeline.json"), JSON.stringify(timeline, null, 2), "utf-8");
 
   // 1b. Ensure workspace has Remotion template structure (Root.tsx, Main.tsx, index.ts, configs)

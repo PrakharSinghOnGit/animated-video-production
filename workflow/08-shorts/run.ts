@@ -8,11 +8,12 @@
  * Stages (in order):
  *   voice   tts:format + tts (shorts voice settings: pace 1.0, short gaps, a bit more energy)          free, ~3–5 min
  *   align   transcribe + audio:master + captions + srt                                                 free, ~1 min
+ *   beat    music:beat: the track the short is cut to (beats, bars, accents → ctx.music), and the Sound bed  free
+ *           --beat-track assets/music/<mood>/x.mp3 [--beat-start 12.5 | --beat-auto]  |  --beat-clear (no track)
+ *           without a flag: re-analyses the track already chosen, or skips (cut to the words alone)
  *   plan    direct (one act, SHORT_DIRECTOR.md, Sonnet)                                         💲 ~$0.2–0.5
  *   act     act --act A01 (SHORT_ACT.md, Opus) + frames                                          💲 ~$2–4
- *   sound   cues + audio:music + audio:mix --with-music (voice + foley + spy-jazz bed, ducked)            free
- *           the bed is our own procedural music (no claims, no licence); to use a track instead, edit the short's
- *           06-audio/music.json source to {"type":"file","path":"assets/music/shorts/x.mp3","credit":"…"} and rerun --step sound
+ *   sound   cues + audio:music + audio:mix --with-music (voice + foley + the beat stage's track, else the generated bed, ducked)
  *   draft   draft render (review it: dashboard Shorts → the short)                                    free
  *   render  final 1080x1920 render + qc (≤ 60 s, 9:16, loudness)                                     free
  * Default: --from voice --to draft, so a run stops at the draft for the creator's review (gate SG2); then --step render.
@@ -23,7 +24,7 @@ import { REPO, WS_ROOT, SHORT_TTS, shortVideoId, shortWs, listShorts, approvalSt
 
 // shorts carry the bed louder than long-form (phone speakers): ~14 LU under the voice instead of ~22
 const SHORT_MUSIC = ["--music-db", "1", "--duck-db", "-9"];
-const STAGES = ["voice", "align", "plan", "act", "sound", "draft", "render"] as const;
+const STAGES = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"] as const;
 type Stage = (typeof STAGES)[number];
 
 const args = process.argv.slice(2);
@@ -49,6 +50,7 @@ const directorModel = flag("--director-model") ?? flag("--model");
 const actModel = flag("--act-model") ?? flag("--model");
 const force = args.includes("--force");
 const noMusic = args.includes("--no-music");
+const beatTrack = flag("--beat-track"), beatStart = flag("--beat-start"), beatAuto = args.includes("--beat-auto"), beatClear = args.includes("--beat-clear");
 
 const ids = which === "ALL" ? listShorts(vid) : which.split(",");
 if (!ids.length) { console.error(`❌ ${vid} has no shorts (bun run shorts:write --video ${vid})`); process.exit(1); }
@@ -64,6 +66,12 @@ function commands(id: string, s: Stage): [string, string[]][] {
   switch (s) {
     case "voice": return [["format", ["tts:format", ...v]], ["voice", ["tts", ...v, "--force", "--combine", ...SHORT_TTS, ...ttsExtra]]];
     case "align": return [["transcribe", ["transcribe", ...v]], ["master", ["audio:master", ...v]], ["captions", ["captions", ...v]], ["srt", ["srt", ...v]]];
+    case "beat": {
+      if (beatClear) return [["beat", ["music:beat", ...v, "--clear"]]];
+      const chosen = beatTrack || exists(path.join(WS_ROOT, id, "06-audio", "rhythm.json"));
+      if (!chosen) { console.log(`\n▷ ${id} beat: no track chosen, skipped (the short is cut to the words; Sound uses the generated bed)`); return []; }
+      return [["beat", ["music:beat", ...v, ...(beatTrack ? ["--track", beatTrack] : []), ...(beatStart ? ["--start", beatStart] : []), ...(beatAuto ? ["--auto"] : [])]]];
+    }
     case "plan": return [["direct", ["direct", ...v, ...(directorModel ? ["--model", directorModel] : [])]]];
     case "act": return [["act", ["act", ...v, "--act", "A01", ...(actModel ? ["--model", actModel] : []), ...(force ? ["--force"] : [])]]];
     case "sound": return noMusic ? [["cues", ["cues", ...v]], ["mix", ["audio:mix", ...v]]]

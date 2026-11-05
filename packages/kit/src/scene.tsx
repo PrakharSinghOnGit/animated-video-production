@@ -29,6 +29,19 @@ export interface SceneContextData {
   meta?: SceneMeta;
   /** seam plan from `bun run seams` (timeline.json scene.seams): image paths are relative to the public dir */
   seams?: SceneSeams;
+  /** the music's beats in this scene's seconds (timeline.json scene.music, from bun run music:beat) */
+  music?: SceneMusic;
+}
+export interface SceneMusic {
+  bpm: number; title?: string;
+  /** every beat, seconds from the scene start (may start slightly before 0) */
+  beats: number[];
+  /** the "one" of each bar */
+  downbeats: number[];
+  /** hits far above the track's usual level (drops, crashes), s = 0..1 relative strength */
+  accents: { t: number; s: number }[];
+  /** loudness per beat, 0..1 over the excerpt */
+  energy: { t: number; e: number }[];
 }
 export interface SceneSeamSide { kind: string; share?: number; img?: string; ground?: string }
 export interface SceneSeams { in?: SceneSeamSide; out?: SceneSeamSide }
@@ -45,6 +58,7 @@ export interface SceneContextValue {
   words: SpokenWord[];
   meta?: SceneMeta;
   seams?: SceneSeams;
+  music?: SceneMusic;
   sec: (seconds: number) => number;
   ms: (milliseconds: number) => number;
   has: (text: string, occurrence?: number) => boolean;
@@ -128,13 +142,14 @@ export const SceneProvider: React.FC<{
       words,
       meta: value.meta,
       seams: value.seams,
+      music: value.music,
       sec,
       ms,
       has,
       word,
       wordRange,
     };
-  }, [value.id, value.meta, value.seams, fps, width, height, durationFrames, leadFrames, voiceStart, voiceEnd, words]);
+  }, [value.id, value.meta, value.seams, value.music, fps, width, height, durationFrames, leadFrames, voiceStart, voiceEnd, words]);
 
   return <SceneContext.Provider value={contextValue}>{children}</SceneContext.Provider>;
 };

@@ -112,6 +112,8 @@ const shortInfo = short ? (() => { try { return JSON.parse(fs.readFileSync(path.
 const shortFigures = shortInfo?.data?.length
   ? `- The short's sourced figures (the only numbers allowed on screen; copy label/value/unit/source into beat data):\n${shortInfo.data.map((d: any) => `  - ${d.label}: ${d.value}${d.unit ? " " + d.unit : ""} [source: ${d.source}]`).join("\n")}\n`
   : short ? "- The short has no sourced figures: show no numbers that the narration does not say, and mark those \"narration (unverified)\".\n" : "";
+// the music the short is cut to (06-audio/rhythm.json, bun run music:beat)
+const rhythm = (() => { try { return JSON.parse(fs.readFileSync(path.join(wsDir, "06-audio", "rhythm.json"), "utf-8")); } catch { return null; } })();
 const prompt = `${director}
 
 # Inputs for ${paths.jobId}
@@ -119,7 +121,7 @@ const prompt = `${director}
 ${shortFigures}${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
 
 ${compactTranscript(captions)}
-${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}
+${rhythm ? `\nMusic: the short is cut to ${rhythm.title} at ${rhythm.bpm} BPM (a bar every ${((4 * 60) / rhythm.bpm).toFixed(2)} s). Put beat changes and the big reveal on bar starts where the narration allows; bar starts (ms): ${rhythm.downbeats.map((t: number) => Math.round(t * 1000)).join(", ")}. Big accents (ms): ${rhythm.accents.filter((a: any) => a.s >= 0.5).map((a: any) => Math.round(a.t * 1000)).join(", ") || "none"}.\n` : ""}${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}
 Write acts.json to this exact path with the Write tool: ${actsFile}
 Do not write any other file.`;
 

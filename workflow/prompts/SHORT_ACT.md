@@ -19,6 +19,7 @@ Don't explore the rest of the repo.
 - **Readable on a phone.** Headline numbers ≥ 160 px cap height on screen, labels ≥ 40 px; impact text and key action above
   y 1250; nothing important right of x 930 or below y 1440. Kinetic captions via one `shortCaption` call in the overlay.
 - **Pace.** A visual hit every 1.5–3 s; a pattern interrupt every 3–5 s; one stop-time or spotlight freeze at the payoff.
+- **Music.** If the act brief lists a track, cut to it: pulse on beats, moves on downbeats, thumps on big accents (ACT.md "Cutting to the beat").
 - **Data honesty.** Only the plan's `data` numbers with their units, a small source note beside each figure.
 - **Sound.** Export `events(word)` with foley on every visible hit.
 - Keep the file readable: small helper functions per beat, < ~800 lines.

@@ -197,7 +197,7 @@ the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overla
    3 hashtags with #Shorts. Needs the long video's `acts.json` for the figures.
 2. **SG1:** the user reads each script (edit + `--check`, or `S2/02-scripting/feedback.md` + `--short S2` to revise one, or
    `shorts/feedback.md` + `--force` to redo all), then `bun run shorts:write --video <ID> --approve S1|all` (only the user decides).
-3. `bun run shorts --video <ID> --short S1|all` runs voice → align → plan (Sonnet, one act, ~$0.3) → act (Opus, ~$2–4) → sound →
+3. `bun run shorts --video <ID> --short S1|all` runs voice → align → beat (optional: the track the short is cut to, `--beat-track assets/music/<mood>/x.mp3 [--beat-start s | --beat-auto]` or `bun run music:beat`; its beats, bars and accents reach the plan and the act as `ctx.music`, and Sound mixes the same track; dashboard: the short's Music & beat stage) → plan (Sonnet, one act, ~$0.3) → act (Opus, ~$2–4) → sound →
    draft, then stops. Voice is quicker than the long video (pace 1.0, short gaps); `--tts "..."` passes extra voice flags,
    `--from/--to/--step <stage>` run part of it. Unlike the long video, the short's mix **includes music**: the procedural spy
    bed (100 bpm, our own, no claims) about 14 LU under the voice. `--no-music` leaves it out (to add a sound in the YouTube

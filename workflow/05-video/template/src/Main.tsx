@@ -15,6 +15,8 @@ export interface TimelineScene {
   words?: Array<{ text: string; startFrame: number; endFrame: number }>;
   /** seam plan from `bun run seams` (one owner per seam, neighbour frames in public/seams/) */
   seams?: SceneContextData["seams"];
+  /** the music's beats in the scene's seconds (bun run music:beat) */
+  music?: SceneContextData["music"];
 }
 
 export interface MainProps {
@@ -85,6 +87,7 @@ export const Main: React.FC<MainProps> = ({ timeline, showVoiceOver = false }) =
               voiceEnd: sceneData.voiceEndFrame,
               words: sceneData.words,
               seams: sceneData.seams,
+              music: sceneData.music,
               meta: regEntry?.meta,
             }}
           >
