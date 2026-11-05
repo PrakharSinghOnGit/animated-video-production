@@ -68,12 +68,14 @@ export interface PublishInfo {
   approval: { at: string; valid: boolean } | null; stale: string[]; exported: FileInfo[]; badge: string;
 }
 export interface ShortFiles { draft: FileInfo | null; final: FileInfo | null; sheet: FileInfo | null; preview: FileInfo | null; mix: FileInfo | null; voice: FileInfo | null; srt: FileInfo | null }
-export const SHORT_STAGES = ["script", "approved", "voice", "align", "plan", "act", "sound", "render", "qc", "exported"] as const;
+export const SHORT_STAGES = ["script", "approved", "voice", "align", "beat", "plan", "act", "sound", "render", "qc", "exported"] as const;
 export type ShortProgress = Record<(typeof SHORT_STAGES)[number], boolean>;
 export interface ShortItem {
   id: string;
   entry: { kind?: string; title?: string; hook?: string; payoff?: string; loop?: string; why?: string; words?: number; description?: string; hashtags?: string[]; data?: { label: string; value: number | string; unit?: string; source: string }[] };
   checks: PubChecks | null; progress: ShortProgress;
+  /** Music & beat (06-audio/rhythm.json): the track the short is cut to, times in seconds on the short's clock */
+  rhythm: ShortRhythm | null;
   /** approved | changed since approval | not approved | no script */
   approval: string; approvedAt: string | null;
   script: string; scriptMtime: number; words: number;
@@ -184,3 +186,8 @@ export interface SeamRow {
   d?: number[]; back?: number; flag?: "ok" | "flicker" | "jump" | "empty"; note?: string; strip: string;
 }
 export interface SeamsReport { at: string; mtime: number; seams: SeamRow[] }
+
+export interface ShortRhythm {
+  track: string; title: string; license: string | null; bpm: number; start: number; dur: number; confidence: number;
+  beats: number[]; downbeats: number[]; accents: { t: number; s: number }[]; energy: number[]; at: string;
+}

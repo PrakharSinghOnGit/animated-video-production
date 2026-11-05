@@ -204,6 +204,8 @@ export function shortSpec(s: ShortItem, d: Details): Spec {
         note: s.approval === "changed since approval" ? "Edited after approval: approve again." : undefined },
       { id: "voice", title: "Voice", action: "shorts.voice", act: id, label: `Voice ${id}`, done: p.voice, outAt: f.voice?.mtime, note: approved ? undefined : "Approve the script first." },
       { id: "align", title: "Align", action: "shorts.align", act: id, label: `Align ${id}`, done: p.align },
+      { id: "beat", title: "Music & beat", desc: "Optional: the track the short is cut to. Its beats go to the plan and the act (pulses on beats, moves on bars, thumps on drops) and Sound mixes the same track. Choose it before Plan; after a change, run Plan and Act again.", action: "shorts.beat", act: id, label: `Music & beat ${id}`, done: p.beat || p.plan,
+        note: !p.beat && !p.plan ? "No track yet: pick one (or go on without music and the short is cut to the words)." : !p.beat ? "No track: this short is cut to the words." : undefined },
       { id: "plan", title: "Plan", action: "shorts.plan", act: id, label: `Plan ${id}`, done: p.plan },
       { id: "act", title: "Act", desc: "The one act of the short, drawn in code; frames and a reviewer; notes go back to its author.", action: "shorts.act", act: id, label: `Act ${id}`, done: p.act },
       { id: "sound", title: "Sound", desc: "Foley review, the music bed on or off, the mix.", action: "shorts.sound", act: id, label: `Sound ${id}`, done: p.sound, outAt: f.mix?.mtime },

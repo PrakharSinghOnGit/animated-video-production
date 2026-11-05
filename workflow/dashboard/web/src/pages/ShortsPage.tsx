@@ -13,6 +13,7 @@ import { ActionGrid } from "@/components/Layout";
 import { Note, Prose } from "@/components/FileLine";
 import { Lightbox } from "@/components/Lightbox";
 import { MediaPlayer } from "@/components/MediaPlayer";
+import { BeatMap } from "@/components/BeatMap";
 import { RunButton } from "@/components/RunButton";
 import { SfxReview } from "@/components/SfxReview";
 import { StatTile } from "@/components/StatTile";
@@ -27,8 +28,8 @@ import { Fold } from "@/components/ui/collapsible";
 /** A short is <= 60 s; the voice runs about 2.4 spoken words per second including the pauses. */
 const WPS = 2.4;
 const DESC = "2–3 standalone 9:16 shorts (≤ 60 s) from this video's script and sourced data. Each short is its own nested workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Approval is a human gate; paid stages (writing, planning, the act author, fixes) are never started by Write shorts alone.";
-const STAGES = [["script", "Script"], ["voice", "Voice"], ["align", "Align"], ["plan", "Plan"], ["act", "Act"], ["sound", "Sound"], ["draft", "Draft"], ["render", "Render + QC"], ["export", "Export"]] as const;
-const REDO = ["voice", "align", "plan", "act", "sound", "draft", "render"];
+const STAGES = [["script", "Script"], ["voice", "Voice"], ["align", "Align"], ["beat", "Music & beat"], ["plan", "Plan"], ["act", "Act"], ["sound", "Sound"], ["draft", "Draft"], ["render", "Render + QC"], ["export", "Export"]] as const;
+const REDO = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"];
 const APPROVAL_TONE = { approved: "success", "changed since approval": "warning", "not approved": "neutral", "no script": "danger" } as const;
 
 function Checks({ c }: { c: PubChecks | null }) {
@@ -141,6 +142,9 @@ function ShortFlow({ s, stage }: { s: ShortItem; stage: string }) {
         <Redo s={s} stage="act" />
         {lb !== null && <Lightbox items={items} index={lb} onIndex={setLb} onClose={() => setLb(null)} onNote={noteAt} />}
       </>
+    ),
+    beat: s.rhythm ? <BeatMap r={s.rhythm} /> : (
+      <div className="text-xs text-muted-foreground">No track. Pick one in the options (library: Sound → Music stem → Music library; the bed prompts are there too), then run. Without one the short is cut to the words and Sound uses the generated bed.</div>
     ),
     sound: (
       <>

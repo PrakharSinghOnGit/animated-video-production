@@ -380,7 +380,9 @@ const voiceProfiles = () => ["channel voice", ...ls(VOICES).filter((d) => exists
 const geminiDesigned = () => ls(VOICES).filter((d) => exists(path.join(VOICES, d, "gemini.json")));
 /** Models a step can use: write steps skip read-only providers (agy). */
 const roleChoices = (role: RoleKey) => ["default", ...allSpecs().filter((s) => !ROLES[role].edits || PROVIDERS[parseSpec(s).provider].edits), ...(role === "critic" ? ["off"] : [])];
-const dynChoices = (o: Opt) => (o.role ? roleChoices(o.role) : o.key === "voiceProfile" ? voiceProfiles() : o.key === "voice" ? [...geminiDesigned(), ...GEMINI_VOICES] : o.choices);
+/** Music & beat: keep the chosen track, no track, or any library track (assets/music/index.json). */
+const beatTracks = () => { try { return ["keep", "none", ...JSON.parse(fs.readFileSync(path.join(REPO, "assets/music/index.json"), "utf-8")).tracks.map((t: any) => String(t.file))]; } catch { return ["keep", "none"]; } };
+const dynChoices = (o: Opt) => (o.role ? roleChoices(o.role) : o.key === "beatTrack" ? beatTracks() : o.key === "voiceProfile" ? voiceProfiles() : o.key === "voice" ? [...geminiDesigned(), ...GEMINI_VOICES] : o.choices);
 const dynHelp = (o: Opt) => (o.role ? `default = ${roleModel(o.role)} (Settings → Models)` : o.help);
 const ENGINE_OPTS: Opt[] = [
   { key: "engine", label: "Engine", help: "gemini: Google voices, each block read whole with its tone note as direction (free tier with an AI Studio key) · qwen: local, free, the cloned channel voice. Default: TTS_ENGINE in .env", type: "select", choices: ["gemini", "qwen"], def: process.env.TTS_ENGINE?.trim() === "qwen" ? "qwen" : "gemini", map: (v) => ["--engine", v] },
@@ -405,7 +407,7 @@ const SOUND_MIX_OPTS: Opt[] = [
   { key: "noLib", label: "Procedural foley only", type: "bool", def: false, flag: "--no-lib" },
 ];
 
-const SHORT_STAGES = ["voice", "align", "plan", "act", "sound", "draft", "render"] as const;
+const SHORT_STAGES = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"] as const;
 
 const ACTIONS: Record<string, Action> = {
   "script.write": {
@@ -797,6 +799,15 @@ const SHORT_STAGE_ACTIONS: Record<string, Partial<Action> & { label: string; hel
     }),
   },
   align: { label: "Align", help: "Transcribe, master the voice, captions and the .srt.", long: "~1 min" },
+  beat: {
+    label: "Music & beat", help: "The track the short is cut to: finds its tempo, beats, bars and big accents, so the plan and the act move on the music (pulses on beats, moves on bars, thumps on drops); Sound mixes the same track. Optional: no track = cut to the words.", long: "seconds",
+    opts: [
+      { key: "beatTrack", label: "Track", help: "from the music library (Sound → Music stem → Music library: put files in assets/music/<mood>/ and Scan); keep = the one already chosen", type: "select", def: "keep",
+        map: (v: string) => (v === "keep" ? [] : v === "none" ? ["--beat-clear"] : ["--beat-track", v]) },
+      { key: "beatStart", label: "Start in the track (s)", help: "skip an intro or start on the drop; empty = from the top (or the last start)", type: "number", min: 0, max: 900, flag: "--beat-start" },
+      { key: "beatAuto", label: "Start on the first downbeat", help: "skips a silent or soft intro so the short opens on the one", type: "bool", def: false, flag: "--beat-auto" },
+    ],
+  },
   plan: { label: "Plan", help: "The director splits the short into its one act (Claude).", paid: "~$0.2–0.5", long: "~1 min", opts: [modelOpt("shortsDirector", "Director model", "--director-model", "directorModel")] },
   act: {
     label: "Act", help: "The act author draws the short in code, then renders its frames (Claude).", paid: "~$2–4", long: "~5–15 min",
@@ -1179,6 +1190,10 @@ function shortsDetails(ws: string) {
     const timings = (readJson<any[]>(path.join(sw, "timings.json")) ?? []).filter((r) => r && typeof r.step === "string");
     return {
       id, entry, checks: entry.checks ?? null, progress: sh.shortProgress(ws, id),
+      rhythm: (() => {
+        const r = readJson<any>(path.join(sw, "06-audio/rhythm.json"));
+        return r ? { track: r.track, title: r.title, license: r.license ?? null, bpm: r.bpm, start: r.start, dur: r.dur, confidence: r.confidence, beats: r.beats, downbeats: r.downbeats, accents: r.accents, energy: r.energy, at: r.at } : null;
+      })(),
       approval: sh.approvalState(sw), approvedAt: readJson<any>(path.join(sw, "02-scripting/approved.json"))?.at ?? null,
       script, scriptMtime: mtime(path.join(sw, "02-scripting/script_raw.md")), words: sh.spokenWords(script),
       feedback: readText(feedbackP), feedbackMtime: mtime(feedbackP),
