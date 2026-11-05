@@ -71,7 +71,7 @@ function MusicLibrary() {
           <div className="grid gap-2 pb-2">
             <div className="text-xs text-muted-foreground">Paste one into Stable Audio (or any generator), ~2–3 min long, save the file into the mood folder it lists, then Scan the library. Each copy includes the shared rules for a bed under narration.</div>
             {prompts.prompts.map((p) => {
-              const full = `${p.prompt} ${prompts.common}`;
+              const full = `${p.prompt} ${p.common ?? prompts.common}`;
               return (
                 <div key={p.id} className="grid gap-1 rounded-md border p-2.5">
                   <div className="flex flex-wrap items-center gap-1.5 text-xs">

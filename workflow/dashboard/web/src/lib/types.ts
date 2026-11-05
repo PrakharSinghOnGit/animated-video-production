@@ -177,7 +177,7 @@ export interface HoldPoints {
 }
 
 export interface MusicTrack { file: string; title: string; mood: string[]; bpm: number | null; energy: number | null; duration: number; source: string; license: string; credit?: string }
-export interface MusicPrompt { id: string; style: string; mood: string[]; energy: number; bpm: number; seconds: number; prompt: string }
+export interface MusicPrompt { id: string; style: string; mood: string[]; energy: number; bpm: number; seconds: number; prompt: string; /** shared rules for this kind (shorts: beat-forward), else the file's common bed rules */ common?: string }
 
 /** Render → Seams: one row per act-to-act cut (seams.ts / seams_check.py). */
 export interface SeamRow {
