@@ -139,6 +139,7 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
         ],
         blocks: [
           { id: "asm", title: "Assemble", action: "render.assemble", label: "Assemble", done: ok(d, "Assemble") || !!draft },
+          { id: "seams", title: "Seams between acts", desc: "One owner per transition (the neighbour's real frame instead of a flat colour), then a check of the frames around every cut. Runs inside the draft and final renders too.", action: "render.seams", label: "Seams", done: !!r.seams && !r.seams.seams.some((x) => x.flag && x.flag !== "ok"), outAt: r.seams?.mtime, costRe: /^seams\b/i },
           { id: "draft", title: "Draft render", desc: "Assemble, draft render, QC.", action: "render.draft", label: "Draft render", done: !!draft, outAt: draft?.mtime, costRe: /^render draft/i },
           { id: "watch", title: "Watch & approve draft", desc: "Gate G3: watch the draft, then go on or loop back and re-render. Done once a current draft exists (the file is not older than the mix, timeline or scenes).", done: !!draft && r.draft === "done" },
           { id: "final", title: "Final render", desc: "1080p H.264 with grain, then QC.", action: "render.final", label: "Final render", done: !!fin && r.final === "done", outAt: fin?.mtime, costRe: /^render final/i },

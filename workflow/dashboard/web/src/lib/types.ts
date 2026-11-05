@@ -101,7 +101,7 @@ export interface Details {
   sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
     library: { tracks: MusicTrack[]; prompts: { about: string; common: string; prompts: MusicPrompt[] } | null };
     music: { duration: number; crossfadeSec: number | null; planDuration: number | null; sections: { label: string; title: string | null; t0: number; t1: number; intro: string | null; source: string; bpm: number | null; key: string | null; intensity: number | null }[] } | null };
-  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St };
+  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St; seams: SeamsReport | null };
   timings: Timing[]; jobs: Job[];
 }
 export interface WsSummary { id: string; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
@@ -176,3 +176,11 @@ export interface HoldPoints {
 
 export interface MusicTrack { file: string; title: string; mood: string[]; bpm: number | null; energy: number | null; duration: number; source: string; license: string; credit?: string }
 export interface MusicPrompt { id: string; style: string; mood: string[]; energy: number; bpm: number; seconds: number; prompt: string }
+
+/** Render → Seams: one row per act-to-act cut (seams.ts / seams_check.py). */
+export interface SeamRow {
+  a: string; b: string; owner: string; kind: string; how: string; cutFrame: number; atS: number;
+  /** frame-to-frame change (0-255) before / at / after the cut */
+  d?: number[]; back?: number; flag?: "ok" | "flicker" | "jump" | "empty"; note?: string; strip: string;
+}
+export interface SeamsReport { at: string; mtime: number; seams: SeamRow[] }
