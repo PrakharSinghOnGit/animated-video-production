@@ -51,6 +51,7 @@
     "direct": "bun run workflow/05-video/scripts/direct.ts",
     "act": "bun run workflow/05-video/scripts/author_act.ts",
     "frames": "bun run workflow/05-video/scripts/frames.ts",
+    "seams": "bun run workflow/05-video/scripts/seams.ts",
     "cues": "bun run workflow/05-video/scripts/cues.ts",
     "timings": "bun run workflow/05-video/scripts/timings.ts",
     "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",

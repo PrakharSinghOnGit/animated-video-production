@@ -71,6 +71,7 @@ export const RemotionRoot: React.FC = () => {
                   voiceStart: sceneSlice.voiceStartFrame,
                   voiceEnd: sceneSlice.voiceEndFrame,
                   words: sceneSlice.words,
+                  seams: sceneSlice.seams,
                   meta: regEntry?.meta,
                 }}
               >

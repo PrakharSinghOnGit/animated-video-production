@@ -105,6 +105,7 @@ async function main() {
       }
     }
 
+    if (timeline.scenes.length > 1 && !timeline.scenes.some((s: any) => s.seams)) console.warn("[render] ⚠️  no seam plan in timeline.json: every act runs its own transitions (flicker at cuts). Run `bun run seams --video <ID>` after assemble.");
     const renderPropsPath = path.join(paths.outputDir, "render-props.json");
     const propsPayload = {
       timeline: {

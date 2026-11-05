@@ -1,8 +1,27 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { AbsoluteFill, continueRender, delayRender, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, continueRender, delayRender, getInputProps, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { useScene } from "../scene";
 import { hash } from "./lib";
 import { W, H, setFrameSize, checkCaches, resetCaches, type G } from "./engine";
+import { setSeams, type SeamPlan, type SeamSide } from "./seam";
+import type { SceneSeamSide } from "../scene";
+
+/** The neighbour frames a seam needs (decoded once per page; a missing file falls back to the act's own transition). */
+const seamImgs = new Map<string, Promise<HTMLImageElement | null>>();
+function loadSeamImg(rel: string): Promise<HTMLImageElement | null> {
+  let p = seamImgs.get(rel);
+  if (!p) {
+    p = new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => { console.warn(`[CanvasHost] seam image ${rel} not found: this seam uses the act's own transition`); res(null); };
+      im.src = staticFile(rel);
+    });
+    seamImgs.set(rel, p);
+  }
+  return p;
+}
+const seamProbe = (() => { try { return !!(getInputProps() as { seamProbe?: boolean }).seamProbe; } catch { return false; } })();
 
 /** Fully transparent at the centre and four inner points: nothing was drawn (a lost canvas), the old backdrop would show. */
 function blank(g: CanvasRenderingContext2D, w: number, h: number): boolean {
@@ -48,10 +67,17 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
   const [handle] = useState(() => delayRender(`Loading ${label}`));
   const [ready, setReady] = useState(false);
   const released = useRef(false);
+  const seamRef = useRef<SeamPlan | null>(null);
 
   useLayoutEffect(() => {
     let alive = true;
-    ensureFonts().then(() => { if (alive) setReady(true); });
+    const plan = scene?.seams;
+    const side = async (x?: SceneSeamSide): Promise<SeamSide | undefined> =>
+      x ? { kind: x.kind, share: x.share, ground: x.ground, img: x.img ? await loadSeamImg(x.img) : null } : undefined;
+    Promise.all([ensureFonts(), side(plan?.in), side(plan?.out)]).then(([, i, o]) => {
+      seamRef.current = seamProbe ? { probe: true } : plan ? { in: i, out: o } : null;
+      if (alive) setReady(true);
+    });
     return () => { alive = false; };
   }, []);
 
@@ -82,6 +108,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     if (n) console.warn(`[CanvasHost] frame ${frame}: ${n} cached canvas(es) were lost by the GPU and are rebuilt`);
     if ((g as unknown as { isContextLost?: () => boolean }).isContextLost?.()) throw new Error(`[CanvasHost] frame ${frame}: the canvas context was lost (render again; it would be a blank frame)`);
     g.clearRect(0, 0, W, H);
+    setSeams(seamRef.current);
     draw(g, ctx);
     // a blank frame shows the dark backdrop under the acts: rebuild every cache and draw again, else fail loudly
     if (blank(g, width, height)) {

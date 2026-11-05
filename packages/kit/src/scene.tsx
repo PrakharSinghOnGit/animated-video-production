@@ -27,7 +27,11 @@ export interface SceneContextData {
   voiceEnd?: number;
   words?: SpokenWord[];
   meta?: SceneMeta;
+  /** seam plan from `bun run seams` (timeline.json scene.seams): image paths are relative to the public dir */
+  seams?: SceneSeams;
 }
+export interface SceneSeamSide { kind: string; share?: number; img?: string; ground?: string }
+export interface SceneSeams { in?: SceneSeamSide; out?: SceneSeamSide }
 
 export interface SceneContextValue {
   id: string;
@@ -40,6 +44,7 @@ export interface SceneContextValue {
   voiceEnd: number;
   words: SpokenWord[];
   meta?: SceneMeta;
+  seams?: SceneSeams;
   sec: (seconds: number) => number;
   ms: (milliseconds: number) => number;
   has: (text: string, occurrence?: number) => boolean;
@@ -122,13 +127,14 @@ export const SceneProvider: React.FC<{
       voiceEnd,
       words,
       meta: value.meta,
+      seams: value.seams,
       sec,
       ms,
       has,
       word,
       wordRange,
     };
-  }, [value.id, value.meta, fps, width, height, durationFrames, leadFrames, voiceStart, voiceEnd, words]);
+  }, [value.id, value.meta, value.seams, fps, width, height, durationFrames, leadFrames, voiceStart, voiceEnd, words]);
 
   return <SceneContext.Provider value={contextValue}>{children}</SceneContext.Provider>;
 };

@@ -1,6 +1,6 @@
 import React from "react";
 import { AbsoluteFill, Freeze, Sequence, useVideoConfig } from "remotion";
-import { Backdrop, END_HOLD_S, Finish, VoiceOver, SceneProvider, tokens } from "@wealthgap/kit";
+import { Backdrop, END_HOLD_S, Finish, VoiceOver, SceneProvider, tokens, type SceneContextData } from "@wealthgap/kit";
 import { SCENE_REGISTRY } from "./scenes";
 
 export interface TimelineScene {
@@ -13,6 +13,8 @@ export interface TimelineScene {
   voiceStartFrame?: number;
   voiceEndFrame?: number;
   words?: Array<{ text: string; startFrame: number; endFrame: number }>;
+  /** seam plan from `bun run seams` (one owner per seam, neighbour frames in public/seams/) */
+  seams?: SceneContextData["seams"];
 }
 
 export interface MainProps {
@@ -82,6 +84,7 @@ export const Main: React.FC<MainProps> = ({ timeline, showVoiceOver = false }) =
               voiceStart: sceneData.voiceStartFrame,
               voiceEnd: sceneData.voiceEndFrame,
               words: sceneData.words,
+              seams: sceneData.seams,
               meta: regEntry?.meta,
             }}
           >

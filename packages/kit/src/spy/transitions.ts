@@ -6,6 +6,7 @@ import { SAFE } from "../paper/transitions";
 import { W, H, INKS, clear, piece, rough, roughC, paperFinish, label, type G, type Cam, type Pt, type Inks } from "./engine";
 import { camVelocity, motionBlur, scratchCanvas } from "./camera";
 import { layout, drawLine, landEach } from "./glyph";
+import { getSeams, reportSeamAsk } from "../paper/seam";
 import { SPY_FONT } from "./fonts";
 
 export type Draw = (g: G) => void;
@@ -122,18 +123,38 @@ const wipeFn = { iris: irisWipe, strips: stripWipe, pixels: pixelWipe } as const
  * (WIPE_T s); act end: whip-pan out to the left (last ACT_OUT s) or a wipe to `to`. Then overlay(g), then the paper finish.
  */
 export function drawAct(g: G, ctx: { t: number; fps?: number }, o: ActOpts, scene: Draw): void {
-  const t = ctx.t, fps = o.fps ?? ctx.fps ?? 30, open = o.open ?? "whip", close = o.close ?? "whip", dir = o.dir ?? 1;
+  const t = ctx.t, fps = o.fps ?? ctx.fps ?? 30, dir = o.dir ?? 1;
+  let open: string = o.open ?? "whip", close: string = o.close ?? "whip";
+  reportSeamAsk({ style: "briefing", open, close, ground: o.ground });
+  // the pipeline's seam plan (bun run seams) overrides what the act asked: one owner per seam, real neighbour frames
+  const plan = getSeams();
+  let inImg: CanvasImageSource | null | undefined, outImg: CanvasImageSource | null | undefined, inShare = 1, outShare = 1;
+  let fromCol = o.from, toCol = o.to;
+  if (plan?.probe) { open = "none"; close = "none"; }
+  else if (plan) {
+    if (plan.in) { open = plan.in.kind; inImg = plan.in.img; inShare = plan.in.share ?? 1; fromCol = plan.in.ground ?? fromCol; }
+    if (plan.out) { close = plan.out.kind; outImg = plan.out.img; outShare = plan.out.share ?? 1; toCol = plan.out.ground ?? toCol; }
+  }
   const run: Draw = (h) => { h.save(); scene(h); h.restore(); h.setTransform(1, 0, 0, 1, 0, 0); };
-  const wOpen = open !== "whip" && open !== "none" && t < WIPE_T, wClose = close !== "whip" && close !== "none" && t > o.dur - WIPE_T;
+  const image = (im: CanvasImageSource): Draw => (h) => { h.save(); h.setTransform(1, 0, 0, 1, 0, 0); h.drawImage(im, 0, 0, W, H); h.restore(); };
+  const isWipe = (k: string) => k in wipeFn;
+  const wOpen = isWipe(open) && t < WIPE_T, wClose = isWipe(close) && t > o.dur - WIPE_T;
   if (wOpen || wClose) {
     const kind = wOpen ? open : close, f = wipeFn[kind as "iris"], u = wOpen ? t / WIPE_T : 1 - (t - (o.dur - WIPE_T)) / WIPE_T;
-    const mine: Draw = run, other = fillScreen(wOpen ? o.from ?? o.ground : o.to ?? o.ground);
+    const im = wOpen ? inImg : outImg;
+    const mine: Draw = run, other = im ? image(im) : fillScreen(wOpen ? fromCol ?? o.ground : toCol ?? o.ground);
     const ex = kind === "iris" ? o.iris : undefined;
     if (wOpen) (f as any)(g, clamp(u), other, mine, ex ?? {}); else (f as any)(g, 1 - clamp(u), mine, other, ex ?? {});
   } else {
-    // only the seams that are whips move the frame (an act may whip in and hold at the end, or the reverse)
-    const off = (x: number) => actOut(x, o.dur) > 0 ? (close === "whip" ? actOffset(x, o.dur, dir) : 0)
-      : actIn(x) < 1 ? (open === "whip" ? actOffset(x, o.dur, dir) : 0) : 0;
+    // whips: with the neighbour's frame the two acts make ONE pan (each does its share and the frames meet at the cut);
+    // without it the frame leaves fully (1.15 W) over a flat ground, as before
+    const outPan = close !== "whip" ? 0 : outImg ? W * outShare : W * 1.15, inPan = open !== "whip" ? 0 : inImg ? W * inShare : W * 1.15;
+    const off = (x: number): number => {
+      const out = actOut(x, o.dur), inn = actIn(x);
+      if (out > 0) return -dir * outPan * out ** 3;
+      if (inn < 1) return dir * inPan * (1 - outCubic(inn));
+      return 0;
+    };
     const dx = off(t);
     const cv = o.cam ? camVelocity(o.cam, t, fps) : ([0, 0] as Pt);
     const fv = (off(t + 0.5 / fps) - off(t - 0.5 / fps)) || 0;
@@ -142,8 +163,10 @@ export function drawAct(g: G, ctx: { t: number; fps?: number }, o: ActOpts, scen
     else {
       const A = scratchCanvas(0);
       run(A.g);
+      const leaving = t >= o.dur / 2, nb = dx !== 0 ? (leaving ? outImg : inImg) : null;
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.shadowColor = "transparent";
-      g.fillStyle = dx !== 0 && t < o.dur / 2 ? o.from ?? o.ground : dx !== 0 ? o.to ?? o.ground : o.ground; g.fillRect(0, 0, W, H); g.restore();
+      g.fillStyle = dx !== 0 && !leaving ? fromCol ?? o.ground : dx !== 0 ? toCol ?? o.ground : o.ground; g.fillRect(0, 0, W, H); g.restore();
+      if (nb) motionBlur(g, nb, [fv, 0], { dx: dx + (leaving ? dir : -dir) * W });   // the neighbour rides beside this frame
       motionBlur(g, A.c, v, { dx });
     }
   }

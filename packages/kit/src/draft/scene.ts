@@ -9,6 +9,7 @@ import { background, inkLayer, scratch, canvasOf, setInkTime, line } from "./ink
 import { label, text, fitSize, dropIn, capHeight } from "./type";
 import { lineP } from "./geom";
 import type { PaperCtx } from "../paper/CanvasHost";
+import { getSeams, reportSeamAsk } from "../paper/seam";
 
 export type DraftCtx = PaperCtx;
 
@@ -104,19 +105,32 @@ export function drawAct(g: G, ctx: DraftCtx, o: ActOpts, scene: (h: G, t: number
     inkLayer(h, ink, (l) => scene(l, t));
   };
   const dur = o.dur ?? ctx.duration;
+  // the pipeline's seam plan (bun run seams) overrides what the act asked: one owner per seam, the neighbour's real frame
+  let openK: string = o.open ?? "none", closeK: string = o.close ?? "none";
+  reportSeamAsk({ style: "drafting", open: o.from ? openK : "none", close: o.to ? closeK : "none", ground: inkOf(o.ink).bg });
+  const plan = getSeams(), DRAFT_KINDS = ["scan", "scanUp", "flood"];
+  let inImg: CanvasImageSource | null | undefined, outImg: CanvasImageSource | null | undefined;
+  if (plan?.probe) { openK = "none"; closeK = "none"; }
+  else if (plan) {
+    if (plan.in) { openK = DRAFT_KINDS.includes(plan.in.kind) ? plan.in.kind : "none"; inImg = plan.in.img; }
+    if (plan.out) { closeK = DRAFT_KINDS.includes(plan.out.kind) ? plan.out.kind : "none"; outImg = plan.out.img; }
+  }
+  const image = (q: G, im: CanvasImageSource) => { q.save(); q.setTransform(1, 0, 0, 1, 0, 0); q.drawImage(im, 0, 0, W, H); q.restore(); };
   const frameAt = (h: G, t: number) => {
-    const open = o.open ?? "none", u = t / ACT_IN;
-    const close = o.close ?? "none", v = (t - (dur - ACT_OUT)) / ACT_OUT;
-    if (close !== "none" && o.to && v > 0) {
+    const u = t / ACT_IN, v = (t - (dur - ACT_OUT)) / ACT_OUT;
+    if (closeK !== "none" && (outImg || o.to) && v > 0) {
       const from = (q: G) => one(q, t, o.ink);
-      const to = (q: G) => { setInkTime(t); background(q, o.to!); if (o.handoff) inkLayer(q, o.to!, (l) => o.handoff!(l, t)); };
-      if (close === "flood") floodWipe(h, v, from, to, o.floodShape);
-      else scanWipe(h, expInOut(v), from, to, { up: close === "scanUp", ink: o.to });
-    } else if (open !== "none" && o.from && u < 1) {
-      const from = (q: G) => { setInkTime(t); background(q, o.from!); };
+      const to = (q: G) => {
+        if (outImg) return image(q, outImg);
+        setInkTime(t); background(q, o.to!); if (o.handoff) inkLayer(q, o.to!, (l) => o.handoff!(l, t));
+      };
+      if (closeK === "flood") floodWipe(h, v, from, to, o.floodShape);
+      else scanWipe(h, expInOut(v), from, to, { up: closeK === "scanUp", ink: o.to ?? o.ink });
+    } else if (openK !== "none" && (inImg || o.from) && u < 1) {
+      const from = (q: G) => { if (inImg) return image(q, inImg); setInkTime(t); background(q, o.from!); };
       const to = (q: G) => one(q, t, o.ink);
-      if (open === "flood") floodWipe(h, u, from, to, o.floodShape);
-      else scanWipe(h, expInOut(u), from, to, { up: open === "scanUp", ink: o.ink });
+      if (openK === "flood") floodWipe(h, u, from, to, o.floodShape);
+      else scanWipe(h, expInOut(u), from, to, { up: openK === "scanUp", ink: o.ink });
     } else one(h, t, o.ink);
   };
   if (n === 1) frameAt(g, ctx.t);

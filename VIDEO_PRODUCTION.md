@@ -147,7 +147,7 @@ Optional: the user can retime/regain every foley clip and try music loops in ope
 dashboard's openDAW button); their export `06-audio/mix_daw.wav` replaces `mix.wav` at render. See `docs/OPENDAW.md`.
 
 ### Step 7: Render → **G3** (~2–4 min draft, free)
-`bun run assemble --video <ID>` → `bun run draft --video <ID>` → user watches `05-video/draft.mp4` →
+`bun run assemble --video <ID>` → `bun run seams --video <ID>` (plans every act-to-act transition with one owner and the neighbours' real frames, then checks the frames around each cut for flicker, jumps and empty screens: `05-video/review/seams/`, dashboard Render → Seams; re-run after any act change, the dashboard's draft/final chains do) → `bun run draft --video <ID>` → user watches `05-video/draft.mp4` →
 `bun run render --video <ID>` → `bun run qc --video <ID>` (hard fails on placeholders, loudness, duration).
 Hand over: the final mp4, the `.srt`, `06-audio/music.wav` (stem), `06-audio/credits.txt`, the timings table.
 
