@@ -292,6 +292,13 @@ export async function runGenerate(options: GenerationOptions) {
     reportPath: string;
   }> = [];
 
+  // A take counts as done by its file name (NN_<id>.wav), which is a position, not the words. After the script
+  // changed, a name can hold an old line: match the takes to the script by their words first (moves kept takes to
+  // their new names, old lines to audio/stale/), so only lines without a take are voiced.
+  if (!options.dryRun && !options.forceOverwrite && !options.outputDir) {
+    execFileSync("bun", ["run", path.resolve(import.meta.dir, "..", "sync.ts"), "--video", ws.videoId, "--auto"], { stdio: "inherit" });
+  }
+
   let skippedCount = 0;
   const generatedFilesByPart: Map<number, string[]> = new Map();
   const allGeneratedFiles: string[] = [];

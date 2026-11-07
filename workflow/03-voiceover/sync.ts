@@ -4,6 +4,8 @@
  *
  *   bun run voice:sync --video <ID> [--dry] [--generate [voice flags...]]
  *
+ * The voice step (tts) runs this with --auto before voicing, so a plain Generate voice after a script change is safe too.
+ *
  * Run after the script was changed, approved again and split (tts:format). Each section of the new split is matched to
  * an existing take by its words (what the take was made from: its report in 03-voiceover/reports, else
  * audio/sections.json). A take with the same words is kept, and renamed when lines were added or removed before it
@@ -64,14 +66,25 @@ const rows: Row[] = sections.map((sec, i) => {
   if (from) used.add(from.stem);
   return { i, sec, stem, part: sec.part, from, toneChanged: !!from && !!from.tone && !!sec.rawInstruction && from.tone.trim() !== sec.rawInstruction.trim() };
 });
+// --auto (called by the voice step before it voices): quiet when every take already matches; hands off when some take's
+// words can't be read (no report, not in the old split), since it would otherwise be thrown out as unmatched
+const auto = argv.includes("--auto");
+if (auto) {
+  const unknown = takes.filter((t) => !t.words);
+  if (unknown.length) {
+    console.log(`  ! ${unknown.length} take(s) have no record of their words (${unknown.slice(0, 3).map((t) => t.stem).join(", ")}…): not checking takes against the script`);
+    process.exit(0);
+  }
+}
 const keep = rows.filter((r) => r.from && r.from.stem === r.stem && r.from.part === r.part);
 const rename = rows.filter((r) => r.from && (r.from.stem !== r.stem || r.from.part !== r.part));
 const voice = rows.filter((r) => !r.from);
 const drop = takes.filter((t) => !used.has(t.stem));
 
+if (auto && !rename.length && !drop.length) process.exit(0);
 console.log(`🎙  ${sections.length} sections: ${keep.length} keep their take, ${rename.length} keep it under a new name, ${voice.length} need voicing; ${drop.length} old take(s) no longer in the script`);
 for (const r of rename) console.log(`   ↪ ${r.from!.stem} → ${r.stem}`);
-for (const r of voice) console.log(`   🆕 ${r.sec.id}: ${r.sec.text.replace(/\s+/g, " ").slice(0, 90)}${r.sec.text.length > 90 ? "…" : ""}`);
+if (!auto) for (const r of voice) console.log(`   🆕 ${r.sec.id}: ${r.sec.text.replace(/\s+/g, " ").slice(0, 90)}${r.sec.text.length > 90 ? "…" : ""}`);
 for (const t of drop) console.log(`   🗑  ${t.stem} (moved to audio/stale/)`);
 const toneOnly = rows.filter((r) => r.toneChanged);
 if (toneOnly.length) console.log(`   ℹ️  tone note changed but same words (take kept; redo in Voice → Review if it matters): ${toneOnly.map((r) => r.sec.id).join(", ")}`);
@@ -137,10 +150,11 @@ if (lost.length || stemMap.size) writeHolds(root, holds);
 if (lost.length) console.log(`   ⚠️  ${lost.length} pause(s) for the picture were on rewritten lines and are gone: ask for them again after Align (Collect pause requests)`);
 
 console.log(`✅ takes in place: ${keep.length + rename.length} reused${voice.length ? `, ${voice.length} to voice` : ""}`);
+if (auto) process.exit(0);
 if (!voice.length) { console.log("   nothing to voice: run Align"); process.exit(0); }
 if (!generate) { console.log(`   voice them: bun run tts --video ${video} --section ${voice.map((r) => r.sec.id).join(",")}`); process.exit(0); }
 
-const pass = argv.filter((a, i) => !["--video", "--generate", "--dry"].includes(a) && argv[i - 1] !== "--video");
+const pass = argv.filter((a, i) => !["--video", "--generate", "--dry", "--auto"].includes(a) && argv[i - 1] !== "--video");
 console.log(`\n🎙  voicing ${voice.length} section(s)...`);
 const r = spawnSync("bun", ["run", path.join(import.meta.dir, "run.ts"), "--video", video, "--section", voice.map((x) => x.sec.id).join(","), ...pass], { stdio: "inherit", cwd: path.resolve(import.meta.dir, "../..") });
 process.exit(r.status ?? 1);
