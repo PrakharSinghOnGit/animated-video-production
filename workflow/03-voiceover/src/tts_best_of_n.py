@@ -181,6 +181,9 @@ class GeminiEngine:
     Delivery is steered by a natural-language style line; takes differ because sampling is not seeded."""
 
     RETRIES = 6
+    # a passage takes ~5-20 s; the Interactions API can hold a request open forever instead of answering (seen when the
+    # daily quota is used up), so every request gets a deadline. interactions.create ignores the client's http_options.
+    TIMEOUT = 180
 
     def __init__(self, job):
         from google import genai
@@ -201,7 +204,10 @@ class GeminiEngine:
         project = os.environ.get("GOOGLE_CLOUD_PROJECT") or _gcloud_project()
         if project:
             self.vertex = genai.Client(vertexai=True, project=project, location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"))
-        self.client = genai.Client(api_key=key) if key else self.vertex
+        self.client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=self.TIMEOUT * 1000)) if key else self.vertex
+        import threading
+        self._probe_lock = threading.Lock()
+        self._probed = False
         if self.client is None:
             raise SystemExit("Gemini TTS: set GEMINI_TTS in .env, or run `gcloud auth application-default login` and set GOOGLE_CLOUD_PROJECT")
         print(f"  Gemini TTS: {self.model}, voice {self.voice}, via {'API key' if key else 'Vertex AI (' + project + ')'}", flush=True)
@@ -227,7 +233,8 @@ class GeminiEngine:
                 content["annotations"] = [{"type": "speech_metadata", "style": style}]
             r = client.interactions.create(model=self.model, input=[{"type": "user_input", "content": [content]}],
                                            response_format={"type": "audio"},
-                                           generation_config={"speech_config": [{"voice": self.voice}]})
+                                           generation_config={"speech_config": [{"voice": self.voice}]},
+                                           timeout=self.TIMEOUT)
             import base64
             a = r.output_audio
             data = a.data if isinstance(a.data, (bytes, bytearray)) else base64.b64decode(a.data)
@@ -250,11 +257,48 @@ class GeminiEngine:
 
     parallel = True   # requests are independent, so run_job sends several at once
 
+    def _call_by_deadline(self, text, style):
+        """_call with a wall-clock deadline. The server can keep a request's connection alive without ever answering, so
+        the SDK's read timeouts never fire; the call runs on a daemon thread that is abandoned when time is up."""
+        import threading
+        box = {}
+
+        def run():
+            try:
+                box["r"] = self._call(self.client, text, style)
+            except BaseException as e:
+                box["e"] = e
+        th = threading.Thread(target=run, daemon=True)
+        th.start()
+        th.join(self.TIMEOUT)
+        if th.is_alive():
+            raise TimeoutError(f"no answer in {self.TIMEOUT}s (timed out)")
+        if "e" in box:
+            raise box["e"]
+        return box["r"]
+
+    def _why_no_answer(self):
+        """The Interactions API stays silent where generate_content answers at once with the error (quota, billing).
+        After a timeout, one tiny generate_content call (once per run) asks for the reason; '' when it goes through."""
+        with self._probe_lock:
+            if self._probed:
+                return ""
+            self._probed = True
+            t = self.types
+            try:
+                self.client.models.generate_content(model=self.model, contents="Hi.", config=t.GenerateContentConfig(
+                    response_modalities=["AUDIO"], speech_config=t.SpeechConfig(voice_config=t.VoiceConfig(
+                        prebuilt_voice_config=t.PrebuiltVoiceConfig(voice_name="Algenib")))))
+                return ""
+            except Exception as e:
+                print(f"  ! Asked Gemini why: {str(e)[:160]}", flush=True)
+                return str(e)
+
     def synth(self, text, seed, style=None):
         delay = 4.0
         for attempt in range(self.RETRIES):
             try:
-                wav, sr = self._call(self.client, text, style)
+                wav, sr = self._call_by_deadline(text, style)
                 if sr != self.sr:
                     import soxr
                     wav = soxr.resample(wav, sr, self.sr).astype("float32")
@@ -263,10 +307,18 @@ class GeminiEngine:
                 msg = str(e)
                 if isinstance(e, SystemExit):
                     raise
+                timed_out = "timeout" in type(e).__name__.lower() or "timed out" in msg.lower()
+                if timed_out:
+                    print(f"  ! Gemini did not answer within {self.TIMEOUT}s", flush=True)
+                    msg = (self._why_no_answer() or "") + " timed out"
                 if re.search(r"per.?day|PerDay", msg, re.I):
-                    raise SystemExit("Gemini daily quota is used up (free tier: 10 requests/day per model). Turn on billing for"
-                                     " the key's project in AI Studio, or rerun tomorrow: finished sections are kept, so a rerun"
-                                     " without --force continues where this stopped.")
+                    limit = re.search(r"limit: (\d+)", msg)
+                    wait = re.search(r"retry in ((?:\d+h)?(?:\d+m)?\d+)(?:\.\d+)?s", msg)
+                    wait = wait.group(1) + "s" if wait else None
+                    raise SystemExit(f"Gemini daily quota for {self.model} is used up ({limit.group(1) if limit else 'the'} requests/day"
+                                     f" on this key's tier{'; it resets in ' + wait if wait else ''}). Finished sections are kept, so"
+                                     " rerunning later continues where this stopped. To go on today: another model (its quota is"
+                                     " separate), fewer takes per line (--takes 1), or a higher tier/billing in AI Studio.")
                 if re.search(r"outstanding balance|billing account|billing.*(disabled|not enabled)|prepay|credits? (are )?(exhausted|depleted)", msg, re.I):
                     if self.vertex is not None and self.client is not self.vertex:
                         print("  ! The Gemini API key's billing account is blocked (unpaid balance); switching to Vertex AI", flush=True)
@@ -472,7 +524,14 @@ def run_parallel(engine, asr, asr_used, items, settings, workers):
             for f in as_completed(futs):
                 ii, ci = futs[f]
                 text = items[ii]["chunks"][ci]["text"].strip()
-                c = score_take(engine, asr, text, trim_silence(f.result(), sr), rnd)
+                try:
+                    wav = f.result()
+                except SystemExit as e:
+                    # a stop for the whole run (quota, billing): don't wait on the other requests in flight. Every
+                    # finished section is already written, so a rerun continues from here.
+                    print(f"\n❌ {e}", file=sys.stderr, flush=True)
+                    os._exit(1)
+                c = score_take(engine, asr, text, trim_silence(wav, sr), rnd)
                 cands[(ii, ci)].append(c)
                 ok = asr is None or c["score"] <= accept_wer
                 print(f"    {items[ii]['chunks'][ci]['id']}: wer={c['wer']:.2f} {c['duration']:.1f}s{'' if ok else '  (retake)' if rnd < takes else '  FLAGGED'}", flush=True)
