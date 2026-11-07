@@ -393,6 +393,10 @@ const ENGINE_OPTS: Opt[] = [
 ];
 
 /** A model picker tied to an agent step (workflow/lib/models.ts): "default" = Settings → Models; every discovered model otherwise. */
+/** Align all (merge → transcribe → master with the last used settings → captions → move the plan → pause points). */
+function alignAll(ws: string, o: Record<string, any> = {}) {
+  return [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, {}), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("replan", "--video", ws, "--auto"), B("voice:holds", "--video", ws, "--scan")];
+}
 function modelOpt(role: RoleKey, label: string, flag: string, key = "model"): Opt {
   return { key, label, type: "select", choices: ["default"], def: "default", role, map: (v) => (v === "default" ? [] : [flag, v]) };
 }
@@ -416,8 +420,15 @@ const ACTIONS: Record<string, Action> = {
     opts: [
       modelOpt("writer", "Writer model", "--model"),
       { key: "minutes", label: "Target length (min)", type: "number", min: 3, max: 15, step: 0.5, def: 9, flag: "--minutes" },
+      { key: "parts", label: "Only revise parts", help: "e.g. 2,4 = rewrite just those parts with your feedback (numbers as in the clean script); every other part stays exactly as it is, so after approval only their lines are voiced again (Apply script changes). Empty = the whole script", type: "text", flag: "--parts" },
     ],
     build: (ws, o) => [B("write", "--video", ws, ...args(o, "script.write"))],
+  },
+  "script.apply": {
+    step: "script", label: "Apply script changes", help: "After you changed an approved script (edited it or revised some parts) and approved it again: split it → voice only the lines that are new or changed (every other take is kept) → Align → move the plan to the new voice. Then Acts → Update changed acts redraws only the acts whose narration changed.", paid: "voice for the changed lines only", long: "~5 min + ~30 s per changed line",
+    opts: [...ENGINE_OPTS.filter((x) => x.key !== "parallel"), { key: "takes", label: "Takes per passage", type: "number", min: 1, max: 6, step: 1, flag: "--takes" }],
+    chain: [{ label: "Split into sections", action: "script.format" }, { label: "Voice changed lines", action: "voice.sync" }, { label: "Align all", action: "align.all" }, { label: "Update plan", action: "plan.replan" }],
+    build: (ws, o) => [B("tts:format", "--video", ws), B("voice:sync", "--video", ws, "--generate", ...args(o, "script.apply")), ...alignAll(ws)],
   },
   "script.approve": { step: "script", label: "Approve script", help: "Locks this exact script for voice generation (any edit afterwards needs a new approval).", build: (ws) => [B("write", "--video", ws, "--approve")] },
   "script.format": {
@@ -439,6 +450,11 @@ const ACTIONS: Record<string, Action> = {
       { key: "section", label: "Only section id", help: "e.g. part2_03_beat", type: "text", flag: "--section" },
     ],
     build: (ws, o) => [B("tts", "--video", ws, ...args(o, "voice.run"))],
+  },
+  "voice.sync": {
+    step: "voice", label: "Voice changed lines only", help: "After the script changed and was split again: keeps every take whose words are unchanged (renamed if lines were added or removed before it), moves takes of deleted lines to audio/stale/, and voices only the new or changed lines. Then run Align.", paid: "the changed lines only", long: "~30 s per line",
+    opts: [...ENGINE_OPTS.filter((x) => x.key !== "parallel"), { key: "takes", label: "Takes per passage", type: "number", min: 1, max: 6, step: 1, flag: "--takes" }],
+    build: (ws, o) => [B("voice:sync", "--video", ws, "--generate", ...args(o, "voice.sync"))],
   },
   "voice.redo": {
     step: "voice", label: "Regenerate reviewed", help: "Reads the sections in Review again: Gemini gets each section's direction plus your note (\"Fix from the previous take: …\"); the old take is kept to compare. Qwen takes no direction, so a note only buys a fresh take there. Then run Align → Merge so the full voiceover picks it up.", long: "~10–40 s per section",
@@ -467,16 +483,16 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("tts:post", "--video", ws, ...args(o, "align.post"))],
   },
-  "align.all": { step: "align", label: "Align all", help: "Merge (speed & gaps and pauses, last used settings) → transcribe → master → captions (which also writes the .srt) → move the plan's times if only pauses changed → find pause points.", long: "~3 min",
-    chain: [{ label: "Merge", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times" }, { label: "Find pause points", action: "align.holdsScan" }],
-    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("voice:holds", "--video", ws, "--scan")] },
+  "align.all": { step: "align", label: "Align all", help: "Merge (speed & gaps and pauses, last used settings) → transcribe → master → captions (which also writes the .srt) → move the plan's times to the new voice (pauses, speed, or re-voiced lines: acts whose words changed are listed for Update changed acts) → find pause points.", long: "~3 min",
+    chain: [{ label: "Merge", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times", action: "plan.replan" }, { label: "Find pause points", action: "align.holdsScan" }],
+    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("replan", "--video", ws, "--auto"), B("voice:holds", "--video", ws, "--scan")] },
   "align.holdsImport": { step: "align", label: "Collect pause requests", help: "Reads the pauses the director asked for (plan) and the ones act authors asked for, places each at the nearest clean pause point (or refuses it) and adds it to the list. Your on/off and lengths are kept.", long: "seconds",
     build: (ws) => [B("voice:holds", "--video", ws, "--scan"), B("voice:holds", "--video", ws, "--import")] },
   "align.holdsScan": { step: "align", label: "Find pause points", help: "Marks every place a pause can go: a sentence or phrase end, or around a joining word, where the take is truly silent (no breath, no word tail).", long: "seconds",
     build: (ws) => [B("voice:holds", "--video", ws, "--scan")] },
   "align.holds": { step: "align", label: "Apply pauses", help: "Merge with the pauses → transcribe → master → captions, then move the plan's act and beat times by the pauses added (your plan approval is kept). Acts time their hits from words, so their code still fits.", long: "~3–4 min",
-    chain: [{ label: "Merge with pauses", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times" }, { label: "Find pause points", action: "align.holdsScan" }],
-    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("voice:holds", "--video", ws, "--scan")] },
+    chain: [{ label: "Merge with pauses", action: "align.post" }, { label: "Transcribe", action: "align.transcribe" }, { label: "Master voice", action: "align.master" }, { label: "Build captions", action: "align.captions" }, { label: "Move plan times", action: "plan.replan" }, { label: "Find pause points", action: "align.holdsScan" }],
+    build: (ws, o) => [B("tts:post", "--video", ws), B("transcribe", "--video", ws), B("audio:master", "--video", ws, ...args(masterOpts(ws, o), "align.master")), B("captions", "--video", ws), B("voice:holds", "--video", ws, "--shift-plan"), B("replan", "--video", ws, "--auto"), B("voice:holds", "--video", ws, "--scan")] },
   "align.transcribe": { step: "align", label: "Transcribe", help: "Word timings from the voiceover (faster-whisper, aligned to the script).", build: (ws) => [B("transcribe", "--video", ws)] },
   "align.master": { step: "align", label: "Master voice", help: "High-pass EQ → de-esser → compressor → room tone → loudness to the YouTube target. Empty = the last used setting. Writes 06-audio/master.json (what it did, loudness before/after).",
     opts: [
@@ -497,6 +513,8 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("direct", "--video", ws, ...args(o, "plan.run"))],
   },
+  "plan.replan": { step: "plan", label: "Update plan to the new voice", help: "Free, no model. Moves every act and beat to the current voice by matching its words to the ones the plan was made from (Align runs this itself). Acts whose words didn't change keep their drawing; acts whose narration changed are listed under Acts → Update changed acts. Refuses when more than half the narration changed (plan again then).", long: "seconds",
+    build: (ws) => [B("replan", "--video", ws)] },
   "plan.check": { step: "plan", label: "Validate plan", help: "Re-checks acts.json without calling a model.", build: (ws) => [B("direct", "--video", ws, "--check")] },
   "acts.all": {
     step: "acts", label: "Author acts", help: "Writes every act (or the selected ones) that has no file yet.", paid: "~$3 per act", long: "~17 min per act",
@@ -541,6 +559,11 @@ const ACTIONS: Record<string, Action> = {
       { key: "force", label: "Redo if it exists", type: "bool", def: true, flag: "--force" },
     ],
     build: (ws, o, act) => [B("act", "--video", ws, "--act", act!, ...args(o, "acts.act"))],
+  },
+  "acts.changed": {
+    step: "acts", label: "Update changed acts", help: "Only the acts whose narration a script change rewrote: a drawn act gets one update round in its author's session (old lines → new lines, keep the rest); an act not drawn yet is authored. Each one leaves the list once done.", paid: "~$2–5 per act", long: "~5–15 min per act",
+    opts: [modelOpt("actAuthor", "Author model", "--model"), { key: "parallel", label: "Acts at once", type: "number", min: 1, max: 4, step: 1, def: 2, flag: "--parallel" }],
+    build: (ws, o) => [B("act", "--video", ws, "--changed", ...args(o, "acts.changed"))],
   },
   "acts.fix": {
     step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to the act's author for one revision. Leave the model at default: it then continues the session of the profile that wrote the act (cheapest). Another model or profile starts a fresh session (re-reads everything, dearer).", paid: "~$5–11", long: "~3–15 min",
@@ -975,7 +998,9 @@ const planHashPath = (ws: string, id: string) => path.join(wsDir(ws), `05-video/
  */
 function actStale(ws: string, id: string, sceneMs: number): boolean {
   const f = planHashPath(ws, id), cur = planHash(ws, id), plan = mtime(path.join(wsDir(ws), "05-video/acts.json")), h = exists(f) ? mtime(f) : 0;
-  if (h >= sceneMs && !(sceneMs < plan && plan < h)) return readText(f).trim() !== cur;
+  const [hash, mark] = h ? readText(f).trim().split("\n") : [""];
+  // "kept": replan / a pause shift moved only this act's times and re-stamped it (05-video/src/lib/scenes.ts)
+  if (h >= sceneMs && (mark === "kept" || !(sceneMs < plan && plan < h))) return hash.trim() !== cur;
   if (plan > sceneMs) return true;
   try { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, cur); } catch {}
   return false;
@@ -1367,7 +1392,9 @@ function details(ws: string) {
       srt: fileInfo(ws, `07-assembly/export/${ws}.srt`), words: captions?.length ?? null, durationMs: captions?.length ? captions[captions.length - 1].endMs : null, chapters: chapters ?? [] },
     plan: { file: fileInfo(ws, "05-video/acts.json"), logline: plan?.treatment?.logline ?? null, style: plan?.style ?? null,
       treatment: plan?.treatment ? Object.fromEntries(Object.entries(plan.treatment).filter(([k, v]) => k !== "logline" && (typeof v === "string" || Array.isArray(v))).map(([k, v]) => [k, Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" · ") : v])) : {},
-      acts, unverified, approval: planApproval(ws) },
+      acts, unverified, approval: planApproval(ws),
+      // acts whose narration a script change rewrote (replan), until Update changed acts redraws them
+      changed: readJson<any>(path.join(d, "05-video/changed_acts.json"))?.acts ?? {} },
     acts: actRows,
     sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits,
       // what Cues / Music stem made: events per sound and per act, and the music sections (with where each came from)

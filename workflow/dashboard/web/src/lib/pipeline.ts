@@ -49,6 +49,9 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
           { id: "approve", title: "Reviewed & approved", desc: "Gate G1a: read it, edit it, or write feedback and rewrite. Approving locks this exact script for voicing.", action: "script.approve", label: "Approve script", done: approved,
             note: s.file ? undefined : "Write or paste a script first." },
           { id: "format", title: "Split into sections", action: "script.format", label: "Split into voice sections", done: s.sections > 0 && approved },
+          { id: "apply", title: "Change it later", desc: "Changed the script after the voice was made (edited a line, or Write script with “Only revise parts”)? Approve it again, then this: only the new or changed lines are voiced, the rest of the voice is kept, Align runs, and the plan moves to the new voice. Acts whose narration changed are listed on the Acts page.",
+            action: "script.apply", label: "Apply script changes", done: approved && !Object.keys(d.plan.changed ?? {}).length,
+            note: Object.keys(d.plan.changed ?? {}).length ? `Acts to update after the last change: ${Object.keys(d.plan.changed).join(", ")} (Acts → Update changed acts)` : undefined },
         ],
       };
     }
@@ -63,6 +66,7 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
           { id: "listen", title: "Listen & approve", desc: "Play the sections. Long pauses inside a take are flagged. Anything wrong (a stall, a laugh, a misread word): Add to review and say what to change.", options: false, done: has },
           { id: "review", title: "Review & regenerate", desc: "Each section you added: what to change, and the exact direction Gemini gets (edit it if you like). Regenerate one or all; the old take stays to compare.", action: "voice.redo", label: "Regenerate reviewed", done: has && open === 0,
             note: open ? `${open} section${open > 1 ? "s" : ""} waiting for a new take` : undefined },
+          { id: "sync", title: "After a script change", desc: "Keeps every take whose words did not change and voices only new or changed lines (Script → Apply script changes does this and the rest in one go).", action: "voice.sync", label: "Voice changed lines only", done: has },
         ],
       };
     }
@@ -90,6 +94,8 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
         blocks: [
           { id: "plan", title: "Plan acts", action: "plan.run", label: "Plan acts", done: p.acts.length > 0, outAt: p.file?.mtime, costRe: /^direct\b/i },
           { id: "check", title: "Validate plan", action: "plan.check", label: "Validate plan", done: checked && p.acts.length > 0 },
+          { id: "replan", title: "Follow a changed voice", desc: "Free. Moves acts and beats to the current voice by their words, so a changed line or a new speed needs no new plan. Align runs it by itself; acts whose narration changed go to Acts → Update changed acts.", action: "plan.replan", label: "Update plan to the new voice", done: p.acts.length > 0,
+            note: Object.keys(p.changed ?? {}).length ? `Narration changed in ${Object.keys(p.changed).join(", ")}: update them on the Acts page.` : undefined },
           { id: "review", title: "Review plan", desc: "Gate G1: read the acts and the figures that come only from the narration.", done: p.acts.length > 0 && (checked || !!p.approval?.valid) },
           { id: "approve", title: "Approve plan", desc: "Your gate: accepts this exact acts.json, also when it failed validation or is out of sync with the captions (acts are then authored without the freshness check). Any change to the plan needs a new approval.",
             done: !!p.approval?.valid, note: p.approval && !p.approval.valid ? "The plan changed since you approved it: approve again." : undefined },

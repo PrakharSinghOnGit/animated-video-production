@@ -37,9 +37,33 @@ export function ActsHeader() {
   const batch = jobFor(schema["acts.all"]?.label ?? "Author acts"), reviewing = jobFor(schema["acts.reviewAll"]?.label ?? "Review acts");
   const author = () => runWith("acts.all", undefined, { acts: picked, models: modelArg || undefined });
   const review = () => runWith("acts.reviewAll", undefined, { acts: picked });
+  const changed = Object.entries(d.plan.changed ?? {});
+  const updating = jobFor(schema["acts.changed"]?.label ?? "Update changed acts");
   const stopBatch = async () => { try { await api.stopBatch(ws); toast("The running acts finish; no new act starts."); } catch (e) { toast((e as Error).message); } };
 
   return (
+    <>
+    {changed.length > 0 && (
+      <section aria-label="Acts whose narration changed" className="grid gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <b className="text-[12.5px]">The script changed: {changed.length} act{changed.length > 1 ? "s" : ""} to update</b>
+          <span className="text-muted-foreground">the other acts were only moved to the new voice and keep their drawing</span>
+          <Button size="sm" variant="default" className="ml-auto" disabled={!canRun("acts.changed")} onClick={() => runWith("acts.changed")}>
+            {updating ? <Loader2 className="animate-spin" /> : <PenLine />}Update {changed.length} changed act{changed.length > 1 ? "s" : ""}
+          </Button>
+        </div>
+        {changed.map(([id, c]) => (
+          <Fold key={id} title={<span><span className="font-mono font-semibold">{id}</span> · {c.notes.length ? `${c.notes.length} plan note${c.notes.length > 1 ? "s" : ""} · ` : ""}what was said before and now</span>}>
+            <div className="grid gap-1 pb-2 pl-5">
+              <div><span className="text-muted-foreground">before: </span>{c.before}</div>
+              <div><span className="text-muted-foreground">now: </span><span className="text-foreground">{c.now}</span></div>
+              {c.notes.map((n, i) => <div key={i} className="text-warning">{n}</div>)}
+            </div>
+          </Fold>
+        ))}
+        <span className="text-[11px] text-subtle-foreground">A drawn act gets one update round in its author's session (old lines → new lines, the rest kept), {schema["acts.changed"]?.paid}. Model and parallel acts: Batch options below.</span>
+      </section>
+    )}
     <section aria-label="Acts" className="overflow-hidden rounded-lg border bg-background shadow-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b bg-raised/60 px-3 py-2 text-xs">
         <b className="text-[12.5px] font-semibold">All acts</b>
@@ -60,7 +84,8 @@ export function ActsHeader() {
                 <Checkbox className="relative z-10" checked={on} onCheckedChange={(v) => toggle(x.id, v === true)} aria-label={`Pick ${x.id} for a batch`} />
                 {job ? <Loader2 className="size-3.5 animate-spin text-warning" aria-label="running" /> : <StatusDot s={x.status} />}
                 <span className="font-mono text-[13px] font-semibold">{x.id}</span>
-                <span className="ml-auto text-[11px] text-muted-foreground">{rv ? `sync ${rv.sync}/10` : x.critic ? `critic ${x.critic.score}/10` : ""}</span>
+                {d.plan.changed?.[x.id] ? <span className="ml-auto rounded bg-warning/15 px-1.5 text-[10.5px] text-warning" title="The script change rewrote this act's narration: Update changed acts">narration changed</span>
+                  : <span className="ml-auto text-[11px] text-muted-foreground">{rv ? `sync ${rv.sync}/10` : x.critic ? `critic ${x.critic.score}/10` : ""}</span>}
               </div>
               <button type="button" onClick={() => go({ act: x.id })} className="min-w-0 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:underline">
                 <span className="block truncate text-[12.5px]">{x.title}</span>
@@ -90,9 +115,11 @@ export function ActsHeader() {
         <div className="grid gap-3 pb-3">
           <div className="rounded-md border"><div className="px-3 pt-2 text-xs font-semibold">Author</div><ActionCard bare id="acts.all" hide={["acts", "models"]} /></div>
           <div className="rounded-md border"><div className="px-3 pt-2 text-xs font-semibold">Review</div><ActionCard bare id="acts.reviewAll" hide={["acts"]} /></div>
+          <div className="rounded-md border"><div className="px-3 pt-2 text-xs font-semibold">Update changed acts</div><ActionCard bare id="acts.changed" /></div>
         </div>
       </Fold>
     </section>
+    </>
   );
 }
 

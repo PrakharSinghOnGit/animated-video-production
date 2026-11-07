@@ -112,7 +112,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
       <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1 text-[14px] leading-relaxed">
         {parts.map((p, pi) => (
           <section key={pi} className="grid gap-2">
-            {p.title && <h4 className="m-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{p.title}</h4>}
+            {p.title && <h4 className="m-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground" title="Part number for Write script → Only revise parts"><span className="mr-1.5 font-mono text-subtle-foreground">{pi + 1}</span>{p.title}</h4>}
             {p.paras.map((para, ri) => {
               const key = `${pi}.${ri}`, on = key === activeKey;
               return (

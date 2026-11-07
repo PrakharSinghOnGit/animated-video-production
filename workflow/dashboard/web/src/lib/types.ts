@@ -96,7 +96,8 @@ export interface Details {
   align: { holds: HoldsSummary; voice: FileInfo | null; post: { speed: number; gap: number; chapterGap: number; maxPause: number } | null; master: FileInfo | null; masterReport: MasterReport | null; rawVoice: FileInfo | null;
     transcript: { model: string | null; at: string | null; clips: { id: string; startMs: number; durationMs: number; matchedPct: number | null; text: string; words: number }[] } | null;
     srt: FileInfo | null; words: number | null; durationMs: number | null; chapters: { n: number; title: string; startMs: number }[] };
-  plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[]; approval: { at: string; valid: boolean } | null };
+  plan: { file: FileInfo | null; logline: string | null; style: string | null; treatment: Record<string, string>; acts: PlanAct[]; unverified: string[]; approval: { at: string; valid: boolean } | null;
+    changed: Record<string, ChangedAct> };
   acts: ActRow[];
   publish: PublishInfo;
   shorts: ShortsInfo;
@@ -106,6 +107,8 @@ export interface Details {
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St; seams: SeamsReport | null };
   timings: Timing[]; jobs: Job[];
 }
+/** An act whose narration a script change rewrote: what was said, what is said now, plan items that went with it. */
+export interface ChangedAct { before: string; now: string; notes: string[]; at: string }
 export interface WsSummary { id: string; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
 export interface DawInfo {
   setUp: boolean; bundle: FileInfo | null; mix: FileInfo | null; autoMix: FileInfo | null; bundleStale: boolean;

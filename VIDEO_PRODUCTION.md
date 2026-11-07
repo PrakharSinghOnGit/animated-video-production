@@ -210,6 +210,21 @@ the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overla
    `bun run shorts:export --video <ID>` → `shorts/export/`: S1.mp4, S1.txt (title, description with sources, credits,
    disclaimer, hashtags), S1.srt, upload.md. In Studio set each short's **Related video** to the long video.
 
+## Changing the script after approval (only the changed part is redone)
+1. Change it: edit lines in Script → Edit the full script, or write feedback and run Write script with
+   **Only revise parts** (`bun run write --video <ID> --parts 2,4`: only those parts are rewritten; every other part
+   is restored character for character). Approve again.
+2. **Script → Apply script changes** (one button) = `tts:format` → `voice:sync --generate` (takes whose words are
+   unchanged are kept and renamed if lines moved; only new or changed lines are voiced; deleted lines' takes go to
+   `audio/stale/`) → Align all, which ends with `replan --auto`: the plan's acts and beats move to the new voice by
+   their words (free, no model; refuses if more than half the narration changed; then plan again).
+3. Acts whose words did not change keep their drawing. Acts whose narration changed are listed in
+   `05-video/changed_acts.json` (Acts page: what was said before and now) → **Update changed acts**
+   (`bun run act --video <ID> --changed`): one update round per drawn act in its author's session.
+4. Re-run Sound (cues/mix) and render as usual. A tone-note change with the same words keeps the take (redo it in
+   Voice → Review if it matters). Adding or removing a whole chapter is a new structure: plan again.
+`replan` also covers a speed or gap change in Align (before, that needed a new plan).
+
 ## Downloads, SFX review and Final Cut Pro
 - **SFX review** (dashboard Sound / Shorts → Sound): every SFX the acts declare, with play, remove/restore and gain. Edits
   live in `05-video/sfx_edits.json` (`{"off":[key],"gainDb":{key:dB}}`, key `A01@12.40:card_slap`); `bun run cues` applies
