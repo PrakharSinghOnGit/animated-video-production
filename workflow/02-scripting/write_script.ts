@@ -9,6 +9,9 @@
  *   → 02-scripting/approved.json  written by --approve (sha256 of script_raw.md); tts:format refuses without it
  *
  * Usage: bun run write --video <ID> [--model <provider:model>] [--minutes 9]   write or revise the script (paid)
+ *        bun run write --video <ID> --parts 2,4                            revise only parts 2 and 4 with feedback.md;
+ *                                                                          every other part stays exactly as it is, so
+ *                                                                          only their lines are voiced again (voice:sync)
  *        bun run write --video <ID> --approve                              approve the current script_raw.md
  *        bun run write --video <ID> --status                               show approval state
  */
@@ -81,11 +84,25 @@ if (!fs.existsSync(F.idea)) {
 }
 const model = roleModel("writer", flag("--model"));
 const minutes = parseFloat(flag("--minutes") ?? "9");
-const revising = fs.existsSync(F.script) && fs.existsSync(F.feedback) && fs.statSync(F.feedback).mtimeMs > fs.statSync(F.script).mtimeMs;
+// --parts 2,4: by position of the "### " headings (1 = the first part), as the dashboard lists them
+const onlyParts = flag("--parts") ? [...new Set(flag("--parts")!.split(/[\s,]+/).filter(Boolean).map(Number))] : null;
+/** [text before the first heading, each "### " part with its lines] */
+const splitParts = (t: string) => { const b = t.split(/^(?=### )/m); return { head: b[0].startsWith("### ") ? "" : b[0], parts: b[0].startsWith("### ") ? b : b.slice(1) }; };
+const oldScript = fs.existsSync(F.script) ? fs.readFileSync(F.script, "utf-8") : "";
+if (onlyParts) {
+  const n = splitParts(oldScript).parts.length;
+  if (!oldScript) { console.error("❌ --parts revises an existing script: there is none yet"); process.exit(1); }
+  if (onlyParts.some((p) => !Number.isInteger(p) || p < 1 || p > n)) { console.error(`❌ --parts: the script has parts 1-${n}`); process.exit(1); }
+  if (!fs.existsSync(F.feedback) || !fs.readFileSync(F.feedback, "utf-8").trim()) { console.error("❌ --parts needs feedback.md: write what to change in those parts"); process.exit(1); }
+}
+const revising = !!onlyParts || (fs.existsSync(F.script) && fs.existsSync(F.feedback) && fs.statSync(F.feedback).mtimeMs > fs.statSync(F.script).mtimeMs);
 if (fs.existsSync(F.script)) fs.copyFileSync(F.script, F.script.replace(/\.md$/, `.${Date.now()}.bak.md`));
 if (fs.existsSync(F.approved)) fs.rmSync(F.approved);   // a new script needs a new approval
 
-const previous = revising
+const partTitles = splitParts(oldScript).parts.map((p, i) => `${i + 1}. ${p.split("\n")[0].replace(/^###\s*/, "")}`);
+const previous = onlyParts
+  ? `4. This is a **partial revision**. Your previous script: \`${F.script}\`. The creator's feedback: \`${F.feedback}\`. Rewrite ONLY these parts: ${onlyParts.map((p) => partTitles[p - 1]).join("; ")}. Every other part must stay exactly as it is, character for character (its lines are already voiced), and keep the same number of "### " parts in the same order. Make the rewritten parts flow into the unchanged parts around them. In the notes, say what changed.`
+  : revising
   ? `4. This is a **revision**. Your previous script: \`${F.script}\`. The creator's feedback on it: \`${F.feedback}\`. Apply every point of the feedback; keep what they didn't criticise.`
   : "";
 const prompt = loadPrompt("WRITER", { video: videoId })
@@ -104,6 +121,19 @@ console.log(`   ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costU
 if (!fs.existsSync(F.script) || !/^\*\*VO:\*\*/im.test(fs.readFileSync(F.script, "utf-8"))) {
   console.error("❌ no usable script_raw.md was written");
   process.exit(1);
+}
+if (onlyParts) {
+  // enforce it: the untouched parts come from the previous script, whatever the model did to them
+  const was = splitParts(oldScript), now = splitParts(fs.readFileSync(F.script, "utf-8"));
+  if (now.parts.length !== was.parts.length) {
+    fs.writeFileSync(F.script, oldScript);
+    console.error(`❌ the writer changed the number of parts (${was.parts.length} → ${now.parts.length}); the previous script is restored. Run again, or edit by hand.`);
+    process.exit(1);
+  }
+  const touched = was.parts.map((p, i) => (onlyParts.includes(i + 1) ? now.parts[i] : p));
+  const strayEdits = was.parts.filter((p, i) => !onlyParts.includes(i + 1) && p !== now.parts[i]).length;
+  fs.writeFileSync(F.script, was.head + touched.join(""));
+  console.log(`✂️  revised part(s) ${onlyParts.join(", ")} only${strayEdits ? ` (the writer also touched ${strayEdits} other part(s): those edits were discarded)` : ""}`);
 }
 console.log(`✅ ${path.relative(REPO, F.script)} + ${path.relative(REPO, F.notes)}`);
 console.log(`   Review it (edit freely, or write feedback.md and run again), then: bun run write --video ${videoId} --approve`);

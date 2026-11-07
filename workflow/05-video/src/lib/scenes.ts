@@ -57,14 +57,19 @@ export function planChanged(outputDir: string, id: string, sceneFile: string): b
   const actsFile = path.join(outputDir, "acts.json"), f = hashFile(outputDir, id);
   const scene = mt(sceneFile), plan = mt(actsFile), h = mt(f);
   if (!scene) return false;
-  const trusted = h >= scene && !(scene < plan && plan < h);
+  const [hash, mark] = h ? fs.readFileSync(f, "utf-8").trim().split("\n") : [""];
+  // "kept": a times-only plan change (replan, pauses) re-stamped an act whose words did not change
+  const trusted = h >= scene && (mark === "kept" || !(scene < plan && plan < h));
   if (!trusted) return plan > scene;
-  return fs.readFileSync(f, "utf-8").trim() !== actPlanHash(actsFile, id);
+  return hash.trim() !== actPlanHash(actsFile, id);
 }
 
-/** Record the plan entry an act was just written (or fixed) against. */
-export function recordPlanHash(outputDir: string, id: string): void {
+/**
+ * Record the plan entry an act was just written (or fixed) against. kept = the scene was not rewritten, the plan only
+ * moved its times (the scene stays current although it is older than the new plan).
+ */
+export function recordPlanHash(outputDir: string, id: string, kept = false): void {
   const f = hashFile(outputDir, id);
   fs.mkdirSync(path.dirname(f), { recursive: true });
-  fs.writeFileSync(f, actPlanHash(path.join(outputDir, "acts.json"), id));
+  fs.writeFileSync(f, actPlanHash(path.join(outputDir, "acts.json"), id) + (kept ? "\nkept" : ""));
 }

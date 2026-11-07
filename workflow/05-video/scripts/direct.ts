@@ -18,6 +18,7 @@ import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes } from "../src/lib/scenes";
+import { snapshotPlanCaptions, changedActsPath } from "../src/lib/replan";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -81,6 +82,11 @@ function finish(): void {
     }
   }
   fs.writeFileSync(storyboardFile, JSON.stringify(actsToStoryboard(plan), null, 2), "utf-8");
+  if (!checkOnly) {
+    // the captions this plan is timed against (replan moves it to a later voice), and a fresh plan has no pending changes
+    snapshotPlanCaptions(paths.outputDir);
+    fs.rmSync(changedActsPath(paths.outputDir), { force: true });
+  }
   // a new plan can reuse act IDs for different acts: the old plan's scene files are moved aside so they are not used
   const moved = retireOldScenes(paths.outputDir, plan.acts);
   if (moved.length) console.log(`🗄  ${moved.length} scene file(s) from the previous plan moved aside:\n${moved.map((m) => "   " + m).join("\n")}`);

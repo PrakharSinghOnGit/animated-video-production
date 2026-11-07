@@ -22,6 +22,7 @@ import {
   readHolds, writeHolds, readJson, holdsPy, pointsPath, retimePath, wordsPath, toBase, fromBase, MAX_HOLD_MS,
   type Hold, type PointsFile, type Point,
 } from "./src/holdlib";
+import { snapshotPlanCaptions, currentActs, keepActsCurrent } from "../05-video/src/lib/replan";
 
 const argv = process.argv.slice(2);
 const flag = (n: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
@@ -126,7 +127,7 @@ function shiftPlan() {
   if (!rt || !fs.existsSync(planPath)) { console.log("nothing to shift (no retime record or no plan)"); return; }
   if (rt.shifted) { console.log("plan already matches the last merge"); return; }
   if (!rt.changed) { console.log("pauses unchanged: plan times stay"); rt.shifted = true; fs.writeFileSync(retimePath(root), JSON.stringify(rt, null, 2)); return; }
-  if (!rt.baseSame) { console.log("⚠️  the voice itself changed (speed, gaps or regenerated sections), not only the pauses: the plan's times can't be moved safely. Re-run Plan (or approve the plan as is)."); return; }
+  if (!rt.baseSame) { console.log("ℹ️  the voice itself changed (speed, gaps or regenerated sections), not only the pauses: replan moves the plan by its words instead"); return; }
   const raw = fs.readFileSync(planPath, "utf-8"), plan = JSON.parse(raw);
   const approvedPath = path.join(root, "05-video/plan_approved.json");
   const wasApproved = (() => { try { return JSON.parse(fs.readFileSync(approvedPath, "utf-8")).sha256 === crypto.createHash("sha256").update(raw).digest("hex"); } catch { return false; } })();
@@ -143,10 +144,14 @@ function shiftPlan() {
   walk(plan.acts);
   // the last act always runs to the end of the (longer or shorter) voice
   const delta = rt.new.reduce((s: number, h: any) => s + h.ms, 0) - rt.old.reduce((s: number, h: any) => s + h.ms, 0);
+  const current = currentActs(path.join(root, "05-video"), plan.acts.map((a: any) => a.id));
   fs.copyFileSync(planPath, planPath.replace(/\.json$/, `.${Date.now()}.preshift.json`));
   const out = JSON.stringify(plan, null, 2);
   fs.writeFileSync(planPath, out);
   if (wasApproved) fs.writeFileSync(approvedPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(approvedPath, "utf-8")), sha256: crypto.createHash("sha256").update(out).digest("hex"), shiftedAt: new Date().toISOString() }, null, 2));
+  // moved acts are not changed acts: they keep their drawing; and the plan is now timed against these captions
+  keepActsCurrent(path.join(root, "05-video"), current);
+  snapshotPlanCaptions(path.join(root, "05-video"));
   rt.shifted = true; fs.writeFileSync(retimePath(root), JSON.stringify(rt, null, 2));
   console.log(`🧭 plan moved to the new pauses: ${n} times shifted, voice ${delta >= 0 ? "+" : ""}${(delta / 1000).toFixed(1)} s${wasApproved ? " (your approval kept)" : ""}. Acts use word-relative times, so their code still fits; render their frames again to see the extra room.`);
 }

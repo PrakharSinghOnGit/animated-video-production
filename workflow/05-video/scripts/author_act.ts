@@ -9,6 +9,10 @@
  *
  * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]]
  *
+ * --changed: only the acts whose narration a script change rewrote (05-video/changed_acts.json, written by replan):
+ *   an act that is drawn gets one update round in its author's session (what was said before, what is said now, keep
+ *   the rest); an act not drawn yet is authored. Each one leaves the list when it succeeds.
+ *
  * Batch controls (so a run doesn't die half way on a plan limit):
  *   --models A01=claude:sonnet,A04=codex:gpt-6-luna   per-act model (others use --model / the default)
  *   --stop-at 90        start no new act once Claude's 5-hour usage is at or above 90% (status-line file, see limitPct)
@@ -29,6 +33,7 @@ import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes";
+import { changedActsPath } from "../src/lib/replan";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {
@@ -36,7 +41,10 @@ const flag = (n: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const videoId = flag("--video") ?? flag("-v");
-const only = flag("--act")?.toUpperCase().split(",");
+const changedMode = args.includes("--changed");
+const changedFile = () => { try { return JSON.parse(fs.readFileSync(changedActsPath(resolveJobPaths(flag("--video") ?? flag("-v") ?? "").outputDir), "utf-8")); } catch { return { acts: {} }; } };
+const changedList: Record<string, { before: string; now: string; notes: string[] }> = changedMode ? changedFile().acts ?? {} : {};
+const only = changedMode ? Object.keys(changedList) : flag("--act")?.toUpperCase().split(",");
 const parallel = Math.max(1, parseInt(flag("--parallel") ?? "2", 10));
 const criticModel = roleModel("critic", flag("--critic"));
 const useCritic = !args.includes("--no-critic");
@@ -210,6 +218,15 @@ async function authorAct(act: Act): Promise<Outcome> {
     if (!fs.existsSync(file)) { console.log(`❌ ${act.id}: no act file to fix (${path.basename(file)}); author it first`); return "failed"; }
     return fixAct(act, file, reviewDir);
   }
+  if (changedMode && fs.existsSync(file)) {
+    const c = changedList[act.id];
+    const notes = `The script changed and this act's narration was re-voiced. The plan (acts.json) already has the new times and beat narration for ${act.id}; act-relative word times moved with it.
+What was said before: "${c.before}"
+What is said now: "${c.now}"
+${c.notes.length ? `Plan changes that came with it:\n${c.notes.map((n) => "- " + n).join("\n")}\n` : ""}Update the act so it fits the new narration: any ctx.word() lookups of words that are gone, hits and text that quoted the old lines, and timing around the changed stretch. Keep everything else exactly as it is (this is not a redesign).`;
+    console.log(`✏️  ${act.id}: narration changed, updating the drawn act`);
+    return fixAct(act, file, reviewDir, notes);
+  }
   if (fs.existsSync(file) && !force) {
     if (!planChanged(paths.outputDir, act.id, file)) {
       console.log(`⏩ ${act.id} exists (${path.basename(file)}); --force to redo`);
@@ -292,8 +309,8 @@ function lastSession(reviewDir: string): string | undefined {
   return undefined;
 }
 
-async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcome> {
-  const extra = fixNotesFile ? fs.readFileSync(fixNotesFile, "utf-8") : "";
+async function fixAct(act: Act, file: string, reviewDir: string, notes?: string): Promise<Outcome> {
+  const extra = notes ?? (fixNotesFile ? fs.readFileSync(fixNotesFile, "utf-8") : "");
   // with your review notes the critic is skipped (the review already looked at the act); without, it finds the issues
   let critic = "";
   if (!extra) {
@@ -337,6 +354,7 @@ async function fixAct(act: Act, file: string, reviewDir: string): Promise<Outcom
 }
 
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));
+if (changedMode && !todo.length) { console.log("✅ no act's narration changed: nothing to update"); process.exit(0); }
 const t0 = Date.now();
 const results: Record<string, Outcome> = {};
 const skipped: string[] = [];
@@ -354,6 +372,12 @@ await Promise.all(
   })
 );
 try { fs.rmSync(stopFile); } catch {}
+if (changedMode) {
+  // updated acts leave the list; the rest stay for the next run
+  const f = changedActsPath(paths.outputDir), cur = changedFile();
+  for (const [id, o] of Object.entries(results)) if (o === "ok" || o === "notes") delete cur.acts?.[id];
+  if (Object.keys(cur.acts ?? {}).length) fs.writeFileSync(f, JSON.stringify(cur, null, 2)); else fs.rmSync(f, { force: true });
+}
 spawnSync("bun", ["run", "assemble", "--video", paths.jobId], { stdio: "inherit" });
 const mark = { ok: "✅", notes: "📝", failed: "❌", limit: "⛔" } as const;
 if (skipped.length) console.log(`⏸  Not started: ${skipped.join(", ")}. Run Author acts again later (acts that have a file are skipped).`);

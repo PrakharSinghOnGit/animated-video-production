@@ -10,6 +10,7 @@ import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { probeAudio } from "../src/lib/audioProbe";
 import { normalizeTranscript } from "../src/lib/normalizeTranscript";
+import { planCaptionsPath } from "../src/lib/replan";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -55,6 +56,11 @@ async function main() {
 
   fs.mkdirSync(paths.outputDir, { recursive: true });
   const out = path.join(paths.outputDir, "captions.json");
+  // a plan made before plan_captions.json existed is timed against the captions about to be replaced: keep them, so
+  // replan can move the plan to the new voice (only when the plan is newer than them, i.e. made from them)
+  const acts = path.join(paths.outputDir, "acts.json");
+  if (fs.existsSync(out) && fs.existsSync(acts) && !fs.existsSync(planCaptionsPath(paths.outputDir)) && fs.statSync(acts).mtimeMs >= fs.statSync(out).mtimeMs)
+    fs.copyFileSync(out, planCaptionsPath(paths.outputDir));
   fs.writeFileSync(out, JSON.stringify(result.captions, null, 2), "utf-8");
   console.log(`✓ Saved ${out}`);
   await writeChapters(paths.outputDir, parsed);
