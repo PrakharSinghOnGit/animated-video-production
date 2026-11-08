@@ -137,7 +137,9 @@ export interface PieceOpts {
  * then the piece with a soft paper shadow. In a silhouette layer pieces merge instead.
  */
 export function piece(g: G, polys: Pt[] | Pt[][], col: string, opt: PieceOpts = {}): void {
-  const P = (Array.isArray(polys[0][0]) ? polys : [polys]) as Pt[][];
+  if (!polys.length || !polys[0]?.length) return;                 // nothing to cut (e.g. every contour filtered out this frame)
+  const P = ((Array.isArray(polys[0][0]) ? polys : [polys]) as Pt[][]).filter((p) => p.length > 1);
+  if (!P.length) return;
   const sc = curScale(g), st = state(g), rule = opt.rule ?? "evenodd";
   g.beginPath(); for (const p of P) pathPoly(g, p);
   if (isLayer(g) && !opt.force) {
