@@ -9,3 +9,4 @@ export * from "./scene";
 export * from "./mascot";
 export { DraftCanvas } from "./DraftCanvas";
 export * from "./motion";
+export * from "./logo";

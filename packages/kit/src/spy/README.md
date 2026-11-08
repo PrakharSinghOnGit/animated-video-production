@@ -53,6 +53,12 @@ One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = bet
 - `shortCaption(g, ctx, { inks, y?, size?, maxWords?, active?, hideAt? })`: kinetic captions for 9:16 shorts (screen space, in `drawAct`'s overlay): 1–3 spoken words at a time in cut League Gothic on a scissor-cut paper strip at ~74% height, stamping in on each chunk's first word, the spoken word in `active` (default `inks.hot`); shrinks to the safe width. `hideAt(t)` hides it while a giant impact number says the same thing.
 - `shortChunks(words, maxWords, gap)`, `capText(word)`, `vertical()`.
 
+## Logos and icons (logo.ts, data in paper/icons.ts)
+Company logos (Simple Icons, ~3,500, CC0) and generic icons (Material Design Icons, ~7,400, Apache-2.0, names prefixed `mdi:`), cut out of paper like any other piece. **Find names with `bun run icons <words>`** (e.g. `bun run icons hdfc`, `bun run icons --mdi piggy`); `bun run icons --check tesla mdi:bank` confirms a list.
+- `logo(g, name, x, y, size, col, {anchor, rot, fit, amp, seed, ...PieceOpts})` -> placed rect `[x0, y0, x1, y1]`. `anchor` `"center"` (default) | `"top-left"` | `"bottom"` (sits on a line); `fit` `"fit"` (default: the drawn shape's longest side = `size`) | `"box"` (the 24-unit icon box = `size`, so a row of icons matches); `amp` scissor wobble (default size/140, 0 = clean). Animate with `g.translate`/`g.scale` around the anchor (`pop`, `bounce`, `land`), keep `size` fixed. Works inside `silhouette`.
+- `logoPolys(name, x, y, size, opts)` -> `Pt[][]` placed outlines for your own `piece(..., {rule: "nonzero"})`; `iconOutline(polys)` = the largest one. `icon(name)` -> `{title, hex, polys, bounds}` on the 24 box (`hex` = the brand's colour); `hasIcon(name)`; `findIcons(query)`.
+- Colour: the chapter's inks (STYLE.md colour logic still rules; brand `hex` only as a deliberate exception). Logos are trademarks: only for a company the narration is about, never implying endorsement. No logo for a company (`hasIcon` false / not found) -> set its name as cut type, never draw an imitation logo. Unknown names throw with close matches.
+
 ## Brand (brand.ts)
 - `brandEndCard(g, t, at, { tag? })`: the channel end card in screen space, complete on the act-relative second `at` (the spoken "subscribe"). Uses `brand-assets/Logo.png` (loaded with the fonts). `BRAND` = the logo's colours, `BRAND_TAGLINE`.
 

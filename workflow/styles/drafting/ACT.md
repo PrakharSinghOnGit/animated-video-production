@@ -60,6 +60,7 @@ export default function Act() {
 - **3D**: `drawMesh` for single wireframes (hidden edges dashed), `drawSolids` for solids that hide each other (bars on a floor, stacked cubes, a drum with words via `faceDraw`); turn objects, never the view.
 - **Penny** (optional, ~half the acts): `penny(h, x, y, {ink: INKNAME, s ≤ 2.5, pose, mood, t})`; her mood follows the narration; at most one on screen; never text or speech bubbles on her.
 - **Colour**: the ink's line colour for structure, its accent for the one thing that matters; no other colours, no gradients, no glows.
+- **Logos and icons**: `logo(h, name, x, y, size, {ink: INKNAME, progress, fillProgress})` draws a company logo (`"tesla"`, `"hdfcbank"`) or a generic icon (`"mdi:bank"`, `"mdi:piggy-bank"`) in the ink, drawn on and hatched in. Search names with `bun run icons <words>` before using them (unknown names throw). Make it out of the previous shape: `morph` the last shape into `iconOutline(logoPolys(...))`, then the full logo. Use them where they carry meaning (the company the narration names), ≥ 120 px. A company with no logo: its name in `text`, never a drawn imitation.
 - **Brand end card**: the act containing the subscribe line ends on the end title: `text(..., "THE WEALTH GAP", { fill: "scan" | "auto" })` with a rail and Penny waving, complete at `w("subscribe")`; events `sweep` at subscribe − 0.6, `click` at the word. If it is the video's last act, hold it to the end.
 
 ## Sound

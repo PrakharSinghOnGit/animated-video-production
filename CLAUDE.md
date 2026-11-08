@@ -7,7 +7,7 @@ in a house style: **Briefing** (`packages/kit/src/spy/`) or **Drafting** (`packa
 
 ## Layout
 - `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `draft/` the Drafting engine (API in `draft/README.md`, demo `bun run studio --style drafting`); characters (Penny, the Agent) in `brand-assets/mascot/`; `paper/{lib,engine,transitions,
-  CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template.
+  CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template; `paper/icons.ts` = company logos + icons for both styles (`spy.logo`/`draft.logo`, search with `bun run icons <words>`).
 - `workflow/`: `styles/briefing/`, `styles/drafting/` (STYLE.md + ACT.md; pick per video with `direct --style`), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
   `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export),
   `08-shorts` (2–3 vertical shorts per video, style `styles/shorts/`), `09-analytics` (YouTube numbers → diagnosis → reviewer; lessons in `learning/`, appended to prompts by `loadPrompt` only after approval), `deliver/` (downloads + Final Cut Pro project), `dashboard/`, `lib/models.ts` (which model/provider runs each agent step;

@@ -14,6 +14,8 @@ The Briefing style engine is adapted from LemoLab's lemo-opuscar (MIT, Copyright
 ## Libraries
 
 - opentype.js (MIT), Frederik De Bleser, https://github.com/opentypejs/opentype.js: reads the League Gothic outlines.
+- Simple Icons (CC0 1.0), https://simpleicons.org: brand logo paths for `logo()` (Briefing and Drafting, via `paper/icons.ts`). The icon data is public domain, but the logos are trademarks of their owners: use only to refer to the company (editorial use), never to imply endorsement. See the package's DISCLAIMER.md.
+- Material Design Icons (Apache License 2.0), Pictogrammers, https://pictogrammers.com/library/mdi/ (`@mdi/js`): generic icon paths (`mdi:` names).
 
 ## MIT License (lemo-opuscar)
 

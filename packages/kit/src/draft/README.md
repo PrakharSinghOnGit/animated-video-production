@@ -44,6 +44,12 @@ Rules: everything is a pure function of the `t` that `drawAct` passes to your sc
 - `chapterCard(g, t, {ink, n, title, t0, pressAt})` → `{rail, pressed}`: CHAPTER nn + the title dropping in, rail above; at `pressAt` the rail presses the title into one line (`rail`) the act continues from.
 - `scanWipe(g, u, from, to, {up, ink})`, `floodWipe(g, u, from, to, shape)`, `corners(g, ink, fig, meta)`.
 
+## Logos and icons (logo.ts, data in paper/icons.ts)
+Company logos (Simple Icons, ~3,500, CC0) and generic icons (Material Design Icons, ~7,400, Apache-2.0, names prefixed `mdi:`) as outlines in the ink. **Find names with `bun run icons <words>`** (e.g. `bun run icons hdfc`, `bun run icons --mdi piggy`); `bun run icons --check tesla mdi:bank` confirms a list.
+- `logo(g, name, x, y, size, {ink, fill?, fillProgress?, progress?, col?, fillCol?, w?, opaque?, anchor?, rot?, fit?})` -> `{rect, polys}`. Outlines in the ink's line (`progress` draws them on), filled with the ink's fill (`fill` default `"auto"` = hatch / scan; `"none"` = outline only; `fillProgress` hatches it in). `anchor` `"center"` | `"top-left"` | `"bottom"`; `fit` `"fit"` (default: longest side = `size`) | `"box"` (24-unit box = `size`, for a matching row).
+- Made out of the previous shape: `morph(prev, iconOutline(logoPolys(name, x, y, size)), u, {closedA, closedB: true, key})` grows the logo's main outline from the last shape, then draw the full `logo(...)` once `u = 1`. `logoPolys`, `iconOutline`, `icon(name)` (`{title, hex, polys, bounds}` on the 24 box), `hasIcon`, `findIcons`. Fill your own outlines with `rule: "nonzero"` (`shape`/`fill`/`occlude` take `rule`).
+- Colour: the ink's line, accent for the one that matters; no brand colours (STYLE.md). Logos are trademarks: only for a company the narration is about, never implying endorsement. No logo for a company -> its name in `text`, never an imitation logo. Unknown names throw with close matches.
+
 ## Penny (mascot.ts)
 `penny(g, x, y, {ink, s=2.5, pose, mood, t, turn, look, aim, flip, blink, squash})` → `{center, top, hand, feet}`. Origin = between her feet; s = 2.5 is ~250 px wide (keep ≤ ~25 % of frame height). `pose`: `stand | walk | run | point | present | shrug | pencil | wave | sit`; `mood`: `happy | neutral | surprised | worried | smug`; `turn` radians (PI/2 = edge-on coin); `t` drives run/walk/wave cycles and blinks; `aim` = pointing angle. Run speed for non-sliding feet: `pennyRunSpeed(s)` px/s. Spec: `brand-assets/mascot/CHARACTER.md`.
 

@@ -3,7 +3,7 @@ import { Composition, registerRoot } from "remotion";
 import { SceneProvider, type SpokenWord } from "../../scene";
 import { SpyCanvas, type SpyCtx } from "../SpyCanvas";
 import {
-  INKS, W, H, clear, paperFinish, piece, roughC, rectP, applyCam, frameRect, clamp, seg, lerp, outBack, outCubic, vnoise,
+  INKS, W, H, clear, paperFinish, piece, withBg, roughC, rectP, applyCam, frameRect, clamp, seg, lerp, outBack, outCubic, vnoise,
   type G, type Pt, type Cam, type Rect,
 } from "../engine";
 import { layout, drawLine, landEach, lineRect } from "../glyph";
@@ -13,6 +13,7 @@ import { drawAct, irisWipe, stripWipe, pixelWipe, fillScreen, chapterCard, chapt
 import { autoSubtitle } from "../subtitle";
 import { brandEndCard } from "../brand";
 import { drawTitle } from "../title";
+import { logo } from "../logo";
 
 const FPS = 30, DUR = 20;
 const IN = INKS.noir, IN2 = INKS.teal;
@@ -156,8 +157,25 @@ function drawAgent(g: G, c: SpyCtx) {
 }
 const AgentSheet: React.FC = () => <SpyCanvas draw={drawAgent} />;
 
+// Logos and icons as cut paper (spy.logo): brand logos (Simple Icons) and generic icons (MDI, "mdi:" names).
+function drawLogos(g: G) {
+  const K = INKS.noir;
+  clear(g, K.paper);
+  const lab = (t: string, x: number, y: number, col = K.ink) => { g.save(); g.font = '600 22px "League Spartan"'; g.fillStyle = col; g.textAlign = "center"; g.fillText(t, x, y); g.restore(); };
+  g.save(); g.font = '700 28px "League Spartan"'; g.fillStyle = K.ink; g.fillText("LOGOS + ICONS — spy.logo (BRIEFING)", 80, 70); g.restore();
+  const brands = ["tesla", "visa", "hdfcbank", "zerodha", "bitcoin", "apple", "nvidia", "paypal"];
+  brands.forEach((n, i) => { const x = 170 + i * 225; logo(g, n, x, 230, 150, K.ink); lab(n.toUpperCase(), x, 360); });
+  piece(g, roughC("logoBand", () => rectP(0, 420, 1920, 300), 7, 2.4, 20), K.hot, { gap: 0 });
+  withBg(g, K.hot, () => brands.slice(0, 6).forEach((n, i) => { const x = 220 + i * 300; logo(g, n, x, 570, 190, i % 2 ? K.warm : K.paper); }));
+  const icons = ["mdi:bank", "mdi:piggy-bank", "mdi:home-city", "mdi:cash-multiple", "mdi:chart-line", "mdi:factory", "mdi:credit-card", "mdi:gold"];
+  icons.forEach((n, i) => { const x = 170 + i * 225; logo(g, n, x, 880, 150, i === 0 ? K.hot : K.ink, { fit: "box" }); lab(n, x, 1010); });
+  paperFinish(g);
+}
+const LogoSheet: React.FC = () => <SpyCanvas draw={drawLogos} />;
+
 const PreviewRoot: React.FC = () => (
   <>
+  <Composition id="LogoSheet" durationInFrames={1} fps={FPS} width={1920} height={1080} component={LogoSheet} />
   <Composition id="AgentSheet" durationInFrames={1} fps={FPS} width={1920} height={1080} component={AgentSheet} />
   <Composition id="SpyEndCard" durationInFrames={5 * FPS} fps={FPS} width={1920} height={1080} component={EndCard} />
   <Composition id="SpyWipes" durationInFrames={13 * FPS} fps={FPS} width={1920} height={1080} component={Wipes} />

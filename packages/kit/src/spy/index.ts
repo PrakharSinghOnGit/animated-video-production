@@ -10,3 +10,4 @@ export * from "./brand";
 export { SpyCanvas, type SpyCtx } from "./SpyCanvas";
 export * from "./shorts";
 export * from "./motion";
+export * from "./logo";

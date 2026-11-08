@@ -8,7 +8,7 @@ import {
   text, label, fitSize, dropIn, typeOn, whipIn, capHeight,
   cube, box, drawMesh, drawSolids, globe,
   bars, graph, counter, panel, toggle, cursor, ruler, dimension, diamond,
-  drawAct, chapterCard, penny, blinking,
+  drawAct, chapterCard, penny, blinking, logo,
   type G, type Pt, type DraftCtx, type InkName, type PennyPose, type PennyMood,
 } from "../index";
 
@@ -223,6 +223,22 @@ function sheet(g: G, ctx: DraftCtx, ink: InkName) {
   });
 }
 
+
+// Logos and icons in the ink (draft.logo): outline + the ink's fill; the last row is drawn on / hatched in part-way.
+function logoSheet(g: G, ctx: DraftCtx, ink: InkName) {
+  setInkTime(1.0);
+  background(g, ink);
+  inkLayer(g, ink, (h) => {
+    const k = INK[ink];
+    label(h, `LOGOS + ICONS — draft.logo — ${ink.toUpperCase()}`, 110, 90, { ink: k, size: 26, track: 0.22 });
+    const brands = ["tesla", "visa", "hdfcbank", "zerodha", "bitcoin", "apple"];
+    brands.forEach((n, i) => { const x = 270 + i * 276; logo(h, n, x, 300, 180, { ink, col: i === 0 ? k.accent : undefined }); label(h, n.toUpperCase(), x, 440, { ink: k, size: 20, align: "center" }); });
+    const icons = ["mdi:bank", "mdi:piggy-bank", "mdi:home-city", "mdi:cash-multiple", "mdi:chart-line", "mdi:factory"];
+    icons.forEach((n, i) => { const x = 270 + i * 276; logo(h, n, x, 600, 150, { ink, fit: "box", fill: "none" }); label(h, n, x, 710, { ink: k, size: 20, align: "center" }); });
+    [0.3, 0.6, 1].forEach((u, i) => { const x = 500 + i * 460; logo(h, "nvidia", x, 880, 200, { ink, progress: u, fillProgress: clamp(u * 2 - 1) }); label(h, `progress ${u}`, x, 1010, { ink: k, size: 20, align: "center" }); });
+  });
+}
+
 const actsTotal = 20 * FPS;
 const Preview: React.FC = () => (
   <>
@@ -235,6 +251,9 @@ const Preview: React.FC = () => (
 export const RemotionRoot: React.FC = () => (
   <>
     <Composition id="DraftPreview" component={Preview} durationInFrames={actsTotal} fps={FPS} width={1920} height={1080} />
+    <Composition id="LogoPaper" component={() => <DraftCanvas draw={(g, c) => logoSheet(g, c, "paper")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />
+    <Composition id="LogoBlueprint" component={() => <DraftCanvas draw={(g, c) => logoSheet(g, c, "blueprint")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />
+    <Composition id="LogoHologram" component={() => <DraftCanvas draw={(g, c) => logoSheet(g, c, "hologram")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />
     <Composition id="PennyPaper" component={() => <DraftCanvas draw={(g, c) => sheet(g, c, "paper")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />
     <Composition id="PennyBlueprint" component={() => <DraftCanvas draw={(g, c) => sheet(g, c, "blueprint")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />
     <Composition id="PennyHologram" component={() => <DraftCanvas draw={(g, c) => sheet(g, c, "hologram")} />} durationInFrames={1} fps={FPS} width={1920} height={1080} />

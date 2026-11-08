@@ -86,7 +86,7 @@ let limitSwitch: string | null | undefined;
 /** The model for an act: after a usage limit the fallback, else its own (--models), else the batch model. */
 const modelFor = (id: string) => (limitSwitch ? limitSwitch : perActModel[id] ?? authorModel);
 const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style);
-const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)"];
+const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)", "Bash(bun run icons:*)"];
 
 // Timeline + registry must exist before any act can be previewed
 const assemble = spawnSync("bun", ["run", "assemble", "--video", paths.jobId], { encoding: "utf-8" });

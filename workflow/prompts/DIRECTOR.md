@@ -30,6 +30,8 @@ If the inputs list chapters, each one opens a new act that starts at the chapter
 ## 4. Beats
 Split every act into beats of 6–20 s that follow the narration. For each beat: what is drawn or moved (name the style's primitives and native moves from STYLE.md §8, and the camera move), and its **hits**: spoken words on which something must be *complete* (a number readable, a stamp down, a mark landed). 1–4 hits per beat; not every sentence needs one.
 
+Company logos and generic icons are available to the animator in both styles (Simple Icons brands such as Tesla, Visa, HDFC Bank; Material Design icons such as bank, piggy bank, factory). Name the company or object in `visual` when a logo or icon would carry the beat; the animator checks it exists and falls back to the name as type. Only logos of companies the narration is about.
+
 ## 5. Data honesty
 Only show numbers the narration states, or numbers with a real source. Every `data` item carries a `source`. If the only source is the narration, write `"source": "narration (unverified)"` — the build flags these for fact-checking. Never invent a figure to fill a chart; draw the empty cell (STYLE.md §8) instead.
 

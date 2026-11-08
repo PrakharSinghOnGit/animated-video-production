@@ -206,12 +206,14 @@ export interface FillOpts {
   light?: number;
   alpha?: number;
   seed?: number;
+  /** fill rule for several outlines (default evenodd: inner outlines are holes; icons/logos use nonzero) */
+  rule?: CanvasFillRule;
 }
 
-function clipTo(g: G, polys: Pt[][]) {
+function clipTo(g: G, polys: Pt[][], rule: CanvasFillRule = "evenodd") {
   g.beginPath();
   for (const p of polys) { if (p.length < 3) continue; g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); g.closePath(); }
-  g.clip("evenodd");
+  g.clip(rule);
 }
 const bbox = (polys: Pt[][]) => {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -230,7 +232,7 @@ export function fill(g: G, shape: Pt[] | Pt[][], o: FillOpts): void {
   const prog = clamp(o.progress ?? 1), alpha = o.alpha ?? 1;
   if (prog <= 0) return;
   g.save();
-  clipTo(g, polys);
+  clipTo(g, polys, o.rule);
   const [x0, y0, x1, y1] = bbox(polys);
   if (kind === "solid") {
     g.globalAlpha = alpha; g.fillStyle = o.col ?? k.accent;
@@ -265,20 +267,20 @@ export function fill(g: G, shape: Pt[] | Pt[][], o: FillOpts): void {
 }
 
 /** Paint a shape with the ground colour (an opaque solid hides what is behind it). */
-export function occlude(g: G, shape: Pt[] | Pt[][], ink: InkName | Ink): void {
+export function occlude(g: G, shape: Pt[] | Pt[][], ink: InkName | Ink, rule: CanvasFillRule = "evenodd"): void {
   const k = inkOf(ink);
   // on paper the scene is multiplied onto the paper, so white is "nothing" (the paper shows through, lines below are hidden)
   g.save(); g.fillStyle = k.name === "paper" ? "#ffffff" : k.bg; g.globalAlpha = 1;
   g.beginPath();
   for (const p of asPolys(shape)) { if (p.length < 3) continue; g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); g.closePath(); }
-  g.fill("evenodd"); g.restore();
+  g.fill(rule); g.restore();
 }
 
 /** Outline + fill in one call. */
-export function shape(g: G, pts: Pt[] | Pt[][], o: LineOpts & { fill?: FillKind; fillProgress?: number; fillCol?: string; light?: number; gap?: number; opaque?: boolean }): void {
+export function shape(g: G, pts: Pt[] | Pt[][], o: LineOpts & { fill?: FillKind; fillProgress?: number; fillCol?: string; light?: number; gap?: number; opaque?: boolean; rule?: CanvasFillRule }): void {
   const polys = asPolys(pts);
-  if (o.opaque) occlude(g, polys, o.ink);
-  if (o.fill && o.fill !== "none") fill(g, polys, { ink: o.ink, kind: o.fill, progress: o.fillProgress, col: o.fillCol, light: o.light, gap: o.gap, seed: o.seed });
+  if (o.opaque) occlude(g, polys, o.ink, o.rule);
+  if (o.fill && o.fill !== "none") fill(g, polys, { ink: o.ink, kind: o.fill, progress: o.fillProgress, col: o.fillCol, light: o.light, gap: o.gap, seed: o.seed, rule: o.rule });
   for (const p of polys) line(g, p, { ...o, closed: o.closed ?? true });
 }
 
