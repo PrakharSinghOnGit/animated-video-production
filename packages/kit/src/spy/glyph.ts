@@ -5,7 +5,7 @@ import { parse, type Font } from "opentype.js";
 import gothicUrl from "./fonts/LeagueGothic-Regular.ttf";
 import { hash, clamp, outBack } from "../paper/lib";
 import type { G, Pt } from "../paper/engine";
-import { rough, piece, type PieceOpts } from "./engine";
+import { rough, piece, curScale, state, type PieceOpts } from "./engine";
 
 let font: Font | null = null, loading: Promise<void> | null = null;
 /** Fetch and parse the bundled League Gothic. Resolves immediately when already loaded. ensureSpyFonts() calls this. */
@@ -89,12 +89,12 @@ export function cutLetter(L: Letter, seed: number, amp = 1.6): Pt[][] {
 
 /** Per-letter adjustment returned by the `each` callback of drawLine. */
 export interface LetterFx { dx?: number; dy?: number; rot?: number; s?: number; hide?: boolean; col?: string }
-export interface LineOpts extends Pick<PieceOpts, "gap" | "shadow" | "shA"> {
+export interface LineOpts extends Pick<PieceOpts, "gap" | "gapCol" | "shadow" | "shA"> {
   col?: string;
   seed?: number;
   /** strength of the random rotation / baseline offset, in degrees (default 1; 0 = set straight) */
   jit?: number;
-  /** edge noise amplitude in px (default 1.6) */
+  /** edge noise amplitude in px (default scales with size: 1.6 from size 130 up, less below so thin strokes keep their shape) */
   amp?: number;
   /** x is the left edge (default), centre or right edge of the line */
   align?: "left" | "center" | "right";
@@ -103,17 +103,21 @@ export interface LineOpts extends Pick<PieceOpts, "gap" | "shadow" | "shA"> {
 /**
  * Draw one line of cut-paper letters; (x, y) = baseline. Each letter is its own piece: edge noise, +-0.8 deg rotation at jit 1,
  * +-1.5 px baseline jitter at jit 1, slit and shadow. Use `each` to land letters one by one (see landEach).
+ * Small on screen = finer cut: the slit, shadow and edge noise shrink with the letters' on-screen cap height (full at >= 120 px
+ * caps, down to 30 % for tiny type), so counters (B, $, 0, %) stay open and small type doesn't go bold.
  */
 export function drawLine(g: G, lay: Layout, x: number, y: number, opt: LineOpts = {}): void {
   const col = opt.col ?? "#000", seed = opt.seed ?? 1, jit = opt.jit ?? 1;
   if (opt.align === "center") x -= lay.width / 2; else if (opt.align === "right") x -= lay.width;
+  const amp = opt.amp ?? Math.min(1.6, lay.size / 80), gap0 = opt.gap ?? state(g).gap, sc = curScale(g);
   for (const L of lay.letters) {
     const e = opt.each ? opt.each(L, L.i) : null; if (e?.hide) continue;
     const r = ((hash(seed * 31 + L.i * 7.3) - 0.5) * jit * Math.PI / 180) * 2 + (e?.rot || 0);
     const dy = (hash(seed * 11 + L.i * 3.1) - 0.5) * jit * 3 + (e?.dy || 0);
     const mid = (L.x0 + L.x1) / 2, cx = x + L.x + mid + (e?.dx || 0);
     g.save(); g.translate(cx, y + dy); g.rotate(r); if (e?.s) g.scale(e.s, e.s); g.translate(-mid, 0);
-    piece(g, cutLetter(L, seed + L.i, opt.amp ?? 1.6), e?.col ?? col, { gap: opt.gap, shadow: opt.shadow, shA: opt.shA, rule: "nonzero" });
+    const k = 0.3 + 0.7 * clamp((lay.size * 0.76 * sc * (e?.s || 1)) / 120);       // on-screen cap height -> how much cut effect
+    piece(g, cutLetter(L, seed + L.i, amp), e?.col ?? col, { gap: gap0 * k, gapCol: opt.gapCol, shadow: opt.shadow, shA: opt.shA, shB: 5 * k, shX: 2.5 * k, shY: 3.5 * k, rule: "nonzero" });
     g.restore();
   }
 }
