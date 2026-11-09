@@ -58,6 +58,7 @@
     "learn": "bun run workflow/learning/notes.ts",
     "research": "bun run workflow/02-scripting/research.ts",
     "seams": "bun run workflow/05-video/scripts/seams.ts",
+    "profile": "bun run workflow/05-video/scripts/profile.ts",
     "cues": "bun run workflow/05-video/scripts/cues.ts",
     "timings": "bun run workflow/05-video/scripts/timings.ts",
     "tts:gaps": "bun run workflow/03-voiceover/gaps.ts",

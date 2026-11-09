@@ -5,6 +5,7 @@ import { hash } from "./lib";
 import { W, H, setFrameSize, checkCaches, resetCaches, type G } from "./engine";
 import { setSeams, type SeamPlan, type SeamSide } from "./seam";
 import type { SceneSeamSide, SceneMusic } from "../scene";
+import { profiling, installProfiler, flushProfile } from "./profile";
 
 /** The neighbour frames a seam needs (decoded once per page; a missing file falls back to the act's own transition). */
 const seamImgs = new Map<string, Promise<HTMLImageElement | null>>();
@@ -115,7 +116,10 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     if ((g as unknown as { isContextLost?: () => boolean }).isContextLost?.()) throw new Error(`[CanvasHost] frame ${frame}: the canvas context was lost (render again; it would be a blank frame)`);
     g.clearRect(0, 0, W, H);
     setSeams(seamRef.current);
+    installProfiler();
+    const tDraw = profiling ? performance.now() : 0;
     draw(g, ctx);
+    const tCheck = profiling ? performance.now() : 0;
     // a blank frame shows the dark backdrop under the acts: rebuild every cache and draw again, else fail loudly
     if (blank(g, width, height)) {
       console.warn(`[CanvasHost] frame ${frame}: drew nothing; rebuilding cached canvases and drawing again`);
@@ -125,6 +129,7 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
       draw(g, ctx);
       if (blank(g, width, height)) throw new Error(`[CanvasHost] frame ${frame}: the act drew a blank frame twice (render again; a canvas or the GPU failed)`);
     }
+    if (profiling) flushProfile(frame, tCheck - tDraw, performance.now() - tCheck);
     if (!released.current) { released.current = true; continueRender(handle); }
   });
 
