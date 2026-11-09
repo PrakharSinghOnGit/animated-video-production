@@ -207,7 +207,7 @@ Parts 1..N of one story (each ends on the question the next answers; Add short t
 the script is the same pipeline below.
 1. `bun run shorts:write --video <ID> [--count 3] [--model opus|sonnet]` (~$0.5–1.5) → `shorts/shorts.json` + `S<n>/02-scripting/
    script_raw.md` + `short.json` (kind, title, hook, payoff, loop, data, description, hashtags, checks). Checked in code: 70–140
-   spoken words per 60 s of the short's limit (140 for 60 s, 373 for 2:40, 420 for 3 min; the limit is the short's config.json `maxS`, used by the director, the act check and QC too), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
+   spoken words per 60 s of the short's limit (140 for 60 s, 373 for 2:40, 420 for 3 min; the limit is the short's config.json `maxS`, used by the director, the act check and QC too; a longer script within 3 min raises it to the next length that fits, with a warning), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
    3 hashtags with #Shorts. Needs the long video's `acts.json` for the figures.
 2. **SG1:** the user reads each script (edit + `--check`, or `S2/02-scripting/feedback.md` + `--short S2` to revise one, or
    `shorts/feedback.md` + `--force` to redo all), then `bun run shorts:write --video <ID> --approve S1|all` (only the user decides).

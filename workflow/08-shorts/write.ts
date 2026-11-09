@@ -27,7 +27,7 @@ import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
 import { researchNote, verifiedResearchText } from "../02-scripting/research_lib";
-import { lengthLabel } from "../05-video/src/lib/format";
+import { lengthLabel, SHORT_LENGTHS, SHORT_CAP_S } from "../05-video/src/lib/format";
 import {
   REPO, WS_ROOT, SHORT_ID, MIN_WORDS, maxWords, lengthOf, setLength, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
   spokenWords, spokenText, approvalState, scaffoldShort, linkWorkspaces, isShortsProject, briefPath, briefNumbers, briefWritten, type ShortEntry,
@@ -55,7 +55,14 @@ function check(entry: ShortEntry): ShortEntry {
   const errors: string[] = [], warnings: string[] = [];
   if (!/^\*\*VO:\*\*/im.test(script)) errors.push("no **VO:** lines in script_raw.md");
   const words = spokenWords(script), maxS = lengthOf(vid!, entry.id), cap = maxWords(maxS);
-  if (words > cap) errors.push(`${words} spoken words: over ${cap} (the short would run past its ${lengthLabel(maxS)} limit)`);
+  // the chosen length is a target; only past the platforms' 3 min cap is an error. A longer script that still fits
+  // (e.g. notes asked for "make it 2 min") moves the short up to the next offered length, so the director, act check and QC agree
+  if (words > maxWords(SHORT_CAP_S)) errors.push(`${words} spoken words: over ${maxWords(SHORT_CAP_S)} (the short would run past the platforms' ${lengthLabel(SHORT_CAP_S)} cap)`);
+  else if (words > cap) {
+    const fit = SHORT_LENGTHS.find((l) => l > maxS && maxWords(l) >= words) ?? SHORT_CAP_S;
+    setLength(vid!, entry.id, fit);
+    warnings.push(`${words} spoken words: over ${cap} for ${lengthLabel(maxS)}, so the short's length is now ${lengthLabel(fit)}`);
+  }
   if (words < MIN_WORDS) warnings.push(`${words} spoken words: under ${MIN_WORDS}, likely under 25 s`);
   const np = numberProblems(spokenText(script), pn);
   if (np.missing.length && (plan || standalone)) errors.push(`numbers not in ${standalone ? "your brief (02-scripting/idea.md) or its ✓ research facts" : "the long video's sourced plan"}: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
