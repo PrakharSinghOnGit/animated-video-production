@@ -45,6 +45,8 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
         loops: [{ from: "approve", to: "write", label: "feedback → rewrite", ran: reruns(d, "Write script") }],
         blocks: [
           { id: "draft", title: "Draft", desc: "Your idea in plain text. [Square brackets] are instructions to the writer, never narration.", done: !!s.idea.trim() },
+          { id: "research", title: "Web research (optional)", desc: "Facts for your idea from the web, each with its link and a quoted sentence; the program marks ✓ only what it finds on the page. The writer and the director use the ✓ facts as sources.", action: "script.research", label: "Research",
+            done: !!s.research.trim() || !!s.file, outAt: s.researchInfo?.mtime, costRe: /^research/i, note: !s.research.trim() && s.file ? "Skipped (optional)." : undefined },
           { id: "write", title: "Script written", action: "script.write", label: "Write script", done: !!s.file, outAt: s.file?.mtime, costRe: /^write script/i },
           { id: "approve", title: "Reviewed & approved", desc: "Gate G1a: read it, edit it, or write feedback and rewrite. Approving locks this exact script for voicing.", action: "script.approve", label: "Approve script", done: approved,
             note: s.file ? undefined : "Write or paste a script first." },

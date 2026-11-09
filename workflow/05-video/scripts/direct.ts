@@ -19,6 +19,7 @@ import { isShortWorkspace } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes } from "../src/lib/scenes";
 import { snapshotPlanCaptions, changedActsPath } from "../src/lib/replan";
+import { researchNote } from "../../02-scripting/research_lib";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -124,7 +125,7 @@ const prompt = `${director}
 
 # Inputs for ${paths.jobId}
 - Style (Read it first): workflow/styles/${style}/STYLE.md
-${shortFigures}${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
+${shortFigures}${short ? "" : researchNote(wsDir, "director")}${scriptHints ? `- The writer's script with **[ON SCREEN]** hints per beat (suggestions: use them where they serve the style, ignore them where they don't): ${scriptHints}\n` : ""}- Narration: ${captions.length} words, ${Math.round(captions[captions.length - 1].endMs / 1000)} s. One sentence per line, [startMs-endMs]:
 
 ${compactTranscript(captions)}
 ${rhythm ? `\nMusic: the short is cut to ${rhythm.title} at ${rhythm.bpm} BPM (a bar every ${((4 * 60) / rhythm.bpm).toFixed(2)} s). Put beat changes and the big reveal on bar starts where the narration allows; bar starts (ms): ${rhythm.downbeats.map((t: number) => Math.round(t * 1000)).join(", ")}. Big accents (ms): ${rhythm.accents.filter((a: any) => a.s >= 0.5).map((a: any) => Math.round(a.t * 1000)).join(", ") || "none"}.\n` : ""}${chapters.length ? `\nChapters (from the script; the narration is silent from pauseStartMs to startMs while the chapter card shows). Each chapter must open a new act that starts at its pauseStartMs and has "chapter": {"n", "title"}:\n${chapters.map((c) => `- ${c.n}. ${c.title}: pause ${c.pauseStartMs}–${c.startMs} ms`).join("\n")}\n` : ""}

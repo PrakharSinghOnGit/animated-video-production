@@ -52,7 +52,7 @@ export const api = {
   lastLog: (ws: string, step: string) => call<string>(`${w(ws)}/log?step=${encodeURIComponent(step)}`),
   script: (ws: string) => call<string>(`${w(ws)}/script`),
   saveScript: (ws: string, text: string) => call<unknown>(`${w(ws)}/script`, { method: "PUT", body: text }),
-  saveText: (ws: string, which: "idea" | "feedback", text: string) => call<unknown>(`${w(ws)}/text/${which}`, { method: "PUT", body: text }),
+  saveText: (ws: string, which: "idea" | "feedback" | "research", text: string) => call<unknown>(`${w(ws)}/text/${which}`, { method: "PUT", body: text }),
   saveNotes: (ws: string, act: string, text: string) => call<unknown>(`${w(ws)}/notes/${act}`, { method: "PUT", body: text }),
 
   approveAct: (ws: string, act: string) => call<unknown>(`${w(ws)}/approve/${act}`, { method: "POST", body: {} }),

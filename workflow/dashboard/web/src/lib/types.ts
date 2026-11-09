@@ -90,7 +90,7 @@ export interface ShortsInfo {
 export interface Details {
   /** "shorts" = a shorts project (SH…): no long video, its shorts are written from the brief (script.idea) */
   id: string; kind: "video" | "shorts"; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
-  script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
+  script: { file: FileInfo | null; sections: number; idea: string; /** 02-scripting/research.md (bun run research) */ research: string; researchInfo: FileInfo | null; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
   runs: Run[]; totals: { ms: number; costUsd: number };
   voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean;
     sections: VoiceSection[]; scanned: boolean; baseStyle: string | null; engine: string | null };

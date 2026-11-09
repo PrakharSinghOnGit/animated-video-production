@@ -22,6 +22,7 @@ import { runAgentAsync } from "../05-video/src/lib/agent";
 import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
+import { researchNote } from "./research_lib";
 
 const args = process.argv.slice(2);
 const flag = (name: string) => {
@@ -108,7 +109,8 @@ const previous = onlyParts
 const prompt = loadPrompt("WRITER", { video: videoId })
   .replace(/{{IDEA}}/g, F.idea).replace(/{{PREVIOUS}}/g, previous)
   .replace(/{{SCRIPT}}/g, F.script).replace(/{{NOTES}}/g, F.notes).replace(/{{HOOKS}}/g, F.hooks)
-  .replace(/{{MINUTES}}/g, String(minutes)).replace(/{{WORDS}}/g, `${Math.round(minutes * 140)}–${Math.round(minutes * 160)}`);
+  .replace(/{{MINUTES}}/g, String(minutes)).replace(/{{WORDS}}/g, `${Math.round(minutes * 140)}–${Math.round(minutes * 160)}`)
+  + researchNote(ws, "writer");
 
 console.log(`✍️  ${revising ? "Revising" : "Writing"} the script for ${videoId} (${model}, ~${minutes} min)...`);
 const r = await runAgentAsync({

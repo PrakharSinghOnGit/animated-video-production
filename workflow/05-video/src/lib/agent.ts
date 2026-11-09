@@ -152,7 +152,8 @@ function plan(opts: AgentOptions, sp: Spec): Plan {
     // write steps: accept-edits mode (file edits allowed) + only the step's commands allowed; read-only steps: plan mode
     const w = writes(opts.tools);
     const args = ["-p", opts.prompt, "--model", sp.model, "--mode", w ? "accept-edits" : "plan", "--output-format", "json", "--add-dir", opts.cwd ?? REPO];
-    if (w) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
+    // web steps read untrusted pages: no shell commands at all (agy then searches with its own web tools)
+    if (w || opts.tools.includes("WebSearch")) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
     if (opts.resume) args.push("--conversation", opts.resume);
     if (opts.timeoutS) args.push("--print-timeout", `${opts.timeoutS}s`);
     return {

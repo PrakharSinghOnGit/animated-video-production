@@ -24,6 +24,7 @@ import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
+import { researchNote, verifiedResearchText } from "../02-scripting/research_lib";
 import {
   REPO, WS_ROOT, SHORT_ID, MIN_WORDS, MAX_WORDS, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
   spokenWords, spokenText, approvalState, scaffoldShort, linkWorkspaces, isShortsProject, briefPath, briefNumbers, briefWritten, type ShortEntry,
@@ -42,7 +43,8 @@ const dir = shortsDir(vid);
 const standalone = isShortsProject(vid);
 const brief = standalone ? readText(briefPath(vid)) : "";
 const plan = standalone ? null : readJson(path.join(parent, "05-video", "acts.json"));
-const pn = standalone ? briefNumbers(brief) : planNumbers(plan);
+// a shorts project may also say the numbers of its ✓ web research facts
+const pn = standalone ? briefNumbers(`${brief}\n${verifiedResearchText(parent)}`) : planNumbers(plan);
 
 /** Check one short against the rules the writer was given; writes S/02-scripting/short.json. */
 function check(entry: ShortEntry): ShortEntry {
@@ -53,7 +55,7 @@ function check(entry: ShortEntry): ShortEntry {
   if (words > MAX_WORDS) errors.push(`${words} spoken words: over ${MAX_WORDS} (the short would run past 60 s)`);
   if (words < MIN_WORDS) warnings.push(`${words} spoken words: under ${MIN_WORDS}, likely under 25 s`);
   const np = numberProblems(spokenText(script), pn);
-  if (np.missing.length && (plan || standalone)) errors.push(`numbers not in ${standalone ? "your brief (02-scripting/idea.md)" : "the long video's sourced plan"}: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
+  if (np.missing.length && (plan || standalone)) errors.push(`numbers not in ${standalone ? "your brief (02-scripting/idea.md) or its ✓ research facts" : "the long video's sourced plan"}: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
   if (!plan && !standalone) warnings.push("the long video has no acts.json yet: numbers could not be checked against its sources");
   if (np.unverified.length) warnings.push(`sourced only from the narration, fact-check: ${[...new Set(np.unverified)].join(", ").replace(/,(?=,|$)/g, "")}`);
   for (const d of entry.data ?? []) if (!d.source?.trim()) errors.push(`data "${d.label}" has no source`);
@@ -202,7 +204,7 @@ move or an idea that does not need a full video. They are narrated by the channe
 The aim: views and new viewers. Each short must work for someone who has never seen the channel; there is no long video behind it.`,
   SOURCES: `1. The creator's brief: \`${briefPath(vid)}\` (what happened, the angle, the facts with their sources: your only raw material).
 2. The figures you may use are the ones in the brief, with the source it gives for each; anything else is off limits.
-3. Dated news: use the date the brief gives when timing matters; never "today" or "yesterday" (a short is watched for weeks).`,
+3. Dated news: use the date the brief gives when timing matters; never "today" or "yesterday" (a short is watched for weeks).${researchNote(parent, "shorts") ? `\n   ${researchNote(parent, "shorts")}` : ""}`,
   KINDS: `- **Different kinds** when the shorts are separate (a series may repeat kinds), unless the brief or the notes say otherwise:
   \`news\` (what happened, the one number, why it matters to the viewer), \`market\` (a move in a price, rate or index and the
   mechanism behind it), \`fact\` (one jaw-drop number explained), \`myth\` (a common belief, then the number that breaks it),

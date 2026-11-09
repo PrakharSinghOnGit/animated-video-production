@@ -24,6 +24,7 @@ import { TextEditor, useDraft } from "@/components/TextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Fold } from "@/components/ui/collapsible";
+import { ResearchPanel } from "@/components/ResearchPanel";
 
 /** A short is <= 60 s; the voice runs about 2.4 spoken words per second including the pauses. */
 const WPS = 2.4;
@@ -260,6 +261,9 @@ export function ShortsPage() {
               <TextEditor title="Brief" sub="02-scripting/idea.md" rows={14} draft={brief} spellCheck
                 hint={<>The writer's only source. Put every number a short may say under <b>Facts and sources</b>, each with its source on the same line; the check flags any number that is not here. The first <code>#</code> heading names the project.</>}
                 onSave={async (t) => { await api.saveText(ws, "idea", t); await refresh(); }} />
+              <Fold title={<b className="text-[13px] text-foreground">Web research (optional): sourced facts for the brief</b>} defaultOpen={!!d.script.research.trim()} className="rounded-lg border px-3">
+                <div className="pb-3"><ResearchPanel actions /></div>
+              </Fold>
               {!sh.items.length && (
                 <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.add" /></ActionGrid>
               )}

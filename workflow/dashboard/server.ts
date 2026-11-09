@@ -419,6 +419,18 @@ const SOUND_MIX_OPTS: Opt[] = [
 const SHORT_STAGES = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"] as const;
 
 const ACTIONS: Record<string, Action> = {
+  "script.research": {
+    step: "script", label: "Research", help: "Optional, before Write script (or Write shorts in a shorts project): the researcher picks the claims and figures in your idea that need a source, searches the web for each (no shell commands, web only), and returns facts with their link and a sentence quoted from the page, plus a check of your idea's claims. Then the program opens every page and marks a fact ✓ only if that sentence is really there. Saved to 02-scripting/research.md (edit it freely); the script writer, the director and the shorts writer use the ✓ facts as sources.",
+    paid: "free with agy (Claude: ~$0.5–2)", long: "~5–20 min",
+    opts: [
+      { key: "focus", label: "Focus", help: "optional: what to dig into, e.g. the latest Nvidia earnings and hyperscaler capex", type: "text", flag: "--focus" },
+      { key: "max", label: "Questions", help: "how many claims and figures to research (one web search each, ~1–2 min each on agy)", type: "number", min: 1, max: 15, step: 1, def: 8, flag: "--max" },
+      modelOpt("researcher", "Model", "--model"),
+    ],
+    build: (ws, o) => (sh.briefWritten(ws) ? [B("research", "--video", ws, ...args(o, "script.research"))] : sh.isShortsProject(ws) ? "write the brief first" : "write your draft (idea.md) first"),
+  },
+  "script.research.verify": { step: "script", label: "Re-check sources", help: "Opens every source page again and re-marks each fact (✓ quote found, ~ numbers only, ✗ not there, ? page unreadable). Free, no model.", long: "seconds",
+    build: (ws) => (exists(path.join(wsDir(ws), "02-scripting/research.json")) ? [B("research", "--video", ws, "--verify")] : "run Research first") },
   "script.write": {
     step: "script", label: "Write script", help: "Turns your draft (idea.md) into a chunked, hook-scored script with on-screen hints. With feedback.md newer than the script, it revises instead.",
     paid: "~$1–2", long: "3–6 min",
@@ -1405,6 +1417,7 @@ function details(ws: string) {
     script: {
       file: scriptInfo, sections: sectionCount, sectionsInfo: fileInfo(ws, "03-voiceover/sections/index.ts"),
       idea: readText(path.join(d, "02-scripting/idea.md")), ideaInfo: fileInfo(ws, "02-scripting/idea.md"),
+      research: readText(path.join(d, "02-scripting/research.md")), researchInfo: fileInfo(ws, "02-scripting/research.md"),
       feedback: readText(path.join(d, "02-scripting/feedback.md")), notes: readText(path.join(d, "02-scripting/script_notes.md")),
       approval: approvalState(ws), approvedAt: readJson<any>(path.join(d, "02-scripting/approved.json"))?.at ?? null,
       words: spokenWords(readText(path.join(d, "02-scripting/script_raw.md"))),
@@ -1826,7 +1839,7 @@ async function appFetch(req: Request): Promise<Response> {
     }
 
     // the creator's text files: draft, feedback on the last script, the script itself
-    const tm = rest.match(/^\/text\/(idea|feedback)$/);
+    const tm = rest.match(/^\/text\/(idea|feedback|research)$/);
     if (tm && req.method === "PUT") {
       const text = await req.text();
       if (text.length > 1_000_000) return bad("too large");

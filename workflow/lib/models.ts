@@ -34,6 +34,7 @@ export const CLAUDE_DIRS: Record<"claude" | "claude-iit", string> = {
 /** Agent steps. `edits`: the step writes files (needs a provider that can edit). */
 export interface Role { label: string; def: string; env?: string; edits: boolean; group: string }
 export const ROLES: Record<string, Role> = {
+  researcher: { label: "Web research", def: "agy:gemini-3.8-flash-medium", edits: false, group: "Script" },
   writer: { label: "Script writer", def: "claude:opus", env: "WRITER_MODEL", edits: true, group: "Script" },
   director: { label: "Director (act plan)", def: "claude:opus", env: "DIRECTOR_MODEL", edits: true, group: "Video" },
   actAuthor: { label: "Act author", def: "claude:opus", env: "ACT_MODEL", edits: true, group: "Video" },

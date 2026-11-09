@@ -56,6 +56,7 @@
     "frames": "bun run workflow/05-video/scripts/frames.ts",
     "icons": "bun run workflow/05-video/scripts/icons.ts",
     "learn": "bun run workflow/learning/notes.ts",
+    "research": "bun run workflow/02-scripting/research.ts",
     "seams": "bun run workflow/05-video/scripts/seams.ts",
     "cues": "bun run workflow/05-video/scripts/cues.ts",
     "timings": "bun run workflow/05-video/scripts/timings.ts",

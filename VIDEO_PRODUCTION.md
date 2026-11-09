@@ -53,6 +53,12 @@ Times and costs are measured on VID02 (10:25 of narration, Apple-silicon Mac). E
 1. `bun run new-video <ID>` with an ID like `VID03_Short_Topic_Name` (or the dashboard's "Create workspace").
 2. The user writes their draft in **plain text** in `workspace/<ID>/02-scripting/idea.md`. Anything in
    `[square brackets]` is an instruction to the writer, never narration.
+   Optional, free: `bun run research --video <ID> [--focus "..."] [--max 8]` (dashboard: Script → Web research; a shorts
+   project: Shorts → Brief). The researcher (role `researcher`, agy by default, web search only, no shell commands) picks
+   the idea's claims and missing figures, searches each one, and returns facts with a link and a quoted sentence plus a
+   check of the idea's claims; then the program opens every page and marks a fact ✓ only if the sentence is there
+   (`--verify` re-checks). `02-scripting/research.md` is editable; the writer, the director and the shorts writer use
+   its ✓ facts as sources (a shorts project's number check also allows them).
 3. `bun run write --video <ID> [--model opus|sonnet] [--minutes 9]` → `script_raw.md` (chunked into
    `### Part`/`### CHAPTER n: Title` sections and `**VO:**` beats, plus a `**[ON SCREEN]:**` hint per beat)
    and `script_notes.md` (5 hooks scored with `workflow/02-scripting/yt-script/hookscore.py`, numbers to verify,

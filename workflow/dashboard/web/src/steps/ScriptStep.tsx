@@ -10,6 +10,7 @@ import { TextEditor, useDraft } from "@/components/TextEditor";
 import { Prose } from "@/components/FileLine";
 import { Cols } from "@/components/Layout";
 import { ScriptReader } from "@/components/ScriptReader";
+import { ResearchPanel } from "@/components/ResearchPanel";
 
 export function ScriptStep() {
   const { d, ws, refresh } = useApp();
@@ -24,6 +25,7 @@ export function ScriptStep() {
   const kids: Record<string, React.ReactNode> = {
     draft: <TextEditor title="Your draft" sub="02-scripting/idea.md" rows={12} draft={idea} onSave={saveText("idea")}
       placeholder={"What the video is about, the points you want to make, facts with their sources, examples...\n\n[make the hook about the money that never reaches companies]\n[keep it under 9 minutes]"} />,
+    research: <ResearchPanel />,
     write: (
       <div className="grid gap-3">
         <Cols>
