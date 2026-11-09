@@ -124,12 +124,12 @@ Show the user the act list (the command prints it) and the unverified figures. W
    `review/<act>/director_notes.md` (the dashboard has "Add note at current time" on the preview).
 5. Small fixes: edit the act file yourself, re-run `frames`/`preview`, look again (see §5).
    Big rework: `bun run act --video <ID> --act A01 --fix workspace/<ID>/05-video/review/A01/director_notes.md`
-   (resumes the author's session: **expensive**, $5–11; the usage page shows fix rounds are the biggest cost). With
-   notes the critic is skipped. A session only resumes under the same model profile (a `claude-iit` author can't be
-   resumed as `claude`): with the model left at default the fix follows the profile that wrote the act; an explicit
-   other profile starts a fresh session with the full brief (plan + timed narration; dearer, still works). A fix that
-   runs out of turns keeps its edits (📝: render frames and look); a fix that edits acts.json (an act boundary a note
-   asked for) keeps it only if the plan still validates.
+   (a fresh session: the brief + plan + timed narration, then it reads the act file, makes targeted edits and checks
+   only the changed times; collect every note on an act into one round). With notes the critic is skipped.
+   `--resume` continues the author's own session instead: **dearer** (it re-reads the whole history every turn and
+   re-caches it after a break; measured ~$5 per fix vs ~$3.7 to write the act) and only under the profile that wrote
+   it. A fix that runs out of turns keeps its edits (📝: render frames and look); a fix that edits acts.json (an act
+   boundary a note asked for) keeps it only if the plan still validates.
 6. After approval: `bun run act --video <ID> --act A02,A03,... --parallel 2` (no `--act` = every act that has no file
    yet or whose plan changed since it was written). Result marks: ✅ written, 📝 written + critic notes to look at,
    ❌ not written (only ❌ fails the run). Run the free review on every act and fix obvious problems cheaply before
@@ -220,7 +220,7 @@ the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overla
    their words (free, no model; refuses if more than half the narration changed; then plan again).
 3. Acts whose words did not change keep their drawing. Acts whose narration changed are listed in
    `05-video/changed_acts.json` (Acts page: what was said before and now) → **Update changed acts**
-   (`bun run act --video <ID> --changed`): one update round per drawn act in its author's session.
+   (`bun run act --video <ID> --changed`): one update round per drawn act (fresh session on the act file; `--resume` for the author's).
 4. Re-run Sound (cues/mix) and render as usual. A tone-note change with the same words keeps the take (redo it in
    Voice → Review if it matters). Adding or removing a whole chapter is a new structure: plan again.
 `replan` also covers a speed or gap change in Align (before, that needed a new plan).

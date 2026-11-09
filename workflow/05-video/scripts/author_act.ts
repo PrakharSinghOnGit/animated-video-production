@@ -7,10 +7,13 @@
  * (`--critic sonnet` uses Claude instead). The act brief is workflow/prompts/ACT.md with
  * the plan's style filled in (workflow/styles/<style>/STYLE.md + ACT.md).
  *
- * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]]
+ * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]] [--resume]
+ *
+ * --fix: one fix round on a drawn act, in a fresh session (reads the act file, edits it, checks the changed times);
+ *   --resume continues the author's own session instead (costs more: it re-reads the whole history every turn).
  *
  * --changed: only the acts whose narration a script change rewrote (05-video/changed_acts.json, written by replan):
- *   an act that is drawn gets one update round in its author's session (what was said before, what is said now, keep
+ *   an act that is drawn gets one update round (what was said before, what is said now, keep
  *   the rest); an act not drawn yet is authored. Each one leaves the list when it succeeds.
  *
  * Batch controls (so a run doesn't die half way on a plan limit):
@@ -50,10 +53,18 @@ const criticModel = roleModel("critic", flag("--critic"));
 const useCritic = !args.includes("--no-critic");
 const force = args.includes("--force");
 const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round
-// --fix [notes.md]: one fix round on an existing act, in the author's own session, with the critic's notes (+ yours)
+// --fix [notes.md]: one fix round on an existing act, with the critic's notes (+ yours)
 const fixMode = args.includes("--fix");
 const fixNotesFile = fixMode && flag("--fix") && !flag("--fix")!.startsWith("--") ? flag("--fix") : undefined;
 const MAX_FIX_ROUNDS = 1;
+// --resume: a --fix / --changed round continues the author's session instead of starting fresh (see fixAct)
+const resumeFix = args.includes("--resume");
+/** How a fresh fix session works: on the existing file, with targeted edits and a short check (overrides "Process"). */
+const FRESH_FIX = (act: Act, file: string) => `# Fix round (this replaces the Process section above)
+The act is already drawn in ${file}. You are revising it, not redrawing it.
+1. Read the scene file first. Then read only the parts of STYLE.md, ACT.md and the engine files you need for these fixes (skip what the file already shows you how to use).
+2. Change it with Edit, in targeted edits; don't rewrite the whole file. Keep everything the notes don't mention exactly as it is.
+3. Check: \`bun run assemble --video ${paths.jobId}\`, then frames for the times you changed: \`bun run frames --video ${paths.jobId} --scene ${act.id} --at <t1,t2,...> --only\` (use \`--every 4 --words\` instead if the change runs through the whole act). Fix any layout flag, look at the sheet, and stop; at most 2 check rounds.`;
 // per-act models: "A01=claude:sonnet,A04=opus"
 const perActModel: Record<string, string> = Object.fromEntries((flag("--models") ?? "").split(",").map((x) => x.trim()).filter((x) => x.includes("="))
   .map((x) => { const i = x.indexOf("="); return [x.slice(0, i).trim().toUpperCase(), roleModel("actAuthor", x.slice(i + 1).trim())]; }));
@@ -319,10 +330,14 @@ async function fixAct(act: Act, file: string, reviewDir: string, notes?: string)
     if (v.pass) { console.log(`   ✅ ${act.id}: critic passes, nothing to fix`); return "ok"; }
     critic = v.notes;
   }
-  const resume = lastSession(reviewDir);
+  // A fix round starts a fresh session by default. Resuming the author's session re-reads its whole history (every
+  // earlier contact sheet and file version, ~300-600k tokens) on every turn, and by review time its cache has expired,
+  // so the whole history is written to cache again: measured over VID03-06 a resumed fix cost ~$5, more than writing
+  // the act ($3.7). A fresh session reads the act file and the docs it needs (~30-60k). --resume keeps the old way.
+  const resume = resumeFix ? lastSession(reviewDir) : undefined;
   const n = fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length;
-  // model left at default: follow the Claude profile that wrote the act, so its session can be resumed (much cheaper
-  // than a fresh session re-reading everything). An explicit --model is always used as given.
+  // resuming with the model left at default: follow the Claude profile that wrote the act, so its session can be
+  // resumed. An explicit --model is always used as given.
   let model = modelFor(act.id);
   const sp = parseSpec(model);
   if (resume && !flag("--model") && !perActModel[act.id] && !limitSwitch && (sp.provider === "claude" || sp.provider === "claude-iit")) {
@@ -334,11 +349,11 @@ async function fixAct(act: Act, file: string, reviewDir: string, notes?: string)
   }
   const fix = `Review of ${act.id} (${file}). Fix these, then re-run assemble and frames, check the layout report and the sheet once:\n${extra ? `Director's notes (most important):\n${extra}\n` : ""}${critic ? `Critic (advisory, from the contact sheet):\n${critic}\n` : ""}Keep everything that works. Reply with 2 lines when done.`;
   // a fresh session gets the full brief (plan + timed narration), so it doesn't spend turns hunting for them
-  const fresh = `${briefFor(act, file)}\n\n# Fix round\nThe scene file exists: Read it first and revise it, don't start over.\n${fix}`;
+  const fresh = `${briefFor(act, file)}\n\n${FRESH_FIX(act, file)}\n${fix}`;
   const before = { acts: fs.readFileSync(path.join(paths.outputDir, "acts.json"), "utf-8"), board: (() => { try { return fs.readFileSync(path.join(paths.outputDir, "storyboard.json"), "utf-8"); } catch { return null; } })() };
   const sceneBefore = fs.statSync(file).mtimeMs;
-  console.log(`🔧 ${act.id} fix round (${model}${resume ? ", resuming the author's session" : ""})...`);
-  const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, freshMaxTurns: 80, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
+  console.log(`🔧 ${act.id} fix round (${model}, ${resume ? "resuming the author's session" : "fresh session"})...`);
+  const r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 60, freshMaxTurns: 60, resume, logPath: path.join(reviewDir, `author_${n}.log`) });
   account(`act ${act.id} fix`, model, r);
   if (r.limit && fs.statSync(file).mtimeMs <= sceneBefore) return hitLimit(act, model);
   const edited = fs.statSync(file).mtimeMs > sceneBefore;
