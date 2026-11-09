@@ -24,8 +24,29 @@ function loadSeamImg(rel: string): Promise<HTMLImageElement | null> {
 }
 const seamProbe = (() => { try { return !!(getInputProps() as { seamProbe?: boolean }).seamProbe; } catch { return false; } })();
 
+/**
+ * How the blank-frame check reads the canvas (inputProps.wgBlankCheck; compare with bun run profile --bench):
+ *  "light" (default) = one read of an 8x8 copy made on the GPU. "full" = 5 one-pixel reads of the canvas itself: reading
+ *  the visible canvas back every frame makes Chrome move it to slow CPU drawing (measured: heavy acts 1.4 fps on one tab
+ *  vs 13 with "light"; 31 vs 43 fps with 5 tabs). "off" = no check. Output is the same (≤ 4/255 on a few antialiased pixels).
+ */
+const blankMode = (() => { try { return String((getInputProps() as { wgBlankCheck?: string }).wgBlankCheck ?? "light"); } catch { return "light"; } })();
+let probe: OffscreenCanvasRenderingContext2D | null = null;
+/** One 8x8 copy of the frame, read once: blank when every sample is transparent. */
+function blankLight(c: HTMLCanvasElement): boolean {
+  try {
+    probe ??= new OffscreenCanvas(8, 8).getContext("2d")!;
+    probe.clearRect(0, 0, 8, 8); probe.drawImage(c, 0, 0, c.width, c.height, 0, 0, 8, 8);
+    const d = probe.getImageData(0, 0, 8, 8).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return false;
+    return true;
+  } catch { return false; }
+}
+
 /** Fully transparent at the centre and four inner points: nothing was drawn (a lost canvas), the old backdrop would show. */
 function blank(g: CanvasRenderingContext2D, w: number, h: number): boolean {
+  if (blankMode === "off") return false;
+  if (blankMode === "light") return blankLight(g.canvas);
   try {
     return [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]].every(([x, y]) => g.getImageData(Math.floor(w * x), Math.floor(h * y), 1, 1).data[3] === 0);
   } catch { return false; }

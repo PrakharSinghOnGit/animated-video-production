@@ -304,6 +304,12 @@ bunx remotion render ../../workspace/<ID>/05-video/src/index.ts A01 /tmp/A01.mp4
 # then mux the act's window of 06-audio/mix.wav (act start/end from acts.json) with ffmpeg
 ```
 Always pass `--gl=angle` (GPU canvas): without it a 44 s act took 15 min instead of 25 s.
+Render speed: `bun run profile --video <ID>` shows, per act, the speed and where a frame's time goes (the act's drawing,
+the blank-frame check, the costliest canvas calls); `--scene A10 --bench 1,3,5,8 [--audio]` times the full video at each
+number of tabs (5 is best on the M2 Pro; 8 is no faster). Never read the visible canvas back every frame (getImageData on
+it): Chrome then moves it to CPU drawing and heavy acts fall to ~1 fps; the blank-frame check reads an 8x8 copy instead.
+Half-size output (`--scale 0.5`) does not speed up drawing: the acts still draw on full-size canvases. Renders run best on
+an otherwise idle Mac.
 Interactive: `bun run studio --video <ID>` (Remotion Studio, scrub every act), or the dashboard.
 
 ## 5. Fixing act problems (cheap, by hand)

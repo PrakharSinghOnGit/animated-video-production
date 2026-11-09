@@ -34,7 +34,10 @@ const serveUrl = await bundle({ entryPoint: path.join(out, "src", "index.ts"), p
 const bench = flag("--bench")?.split(",").map(Number).filter((n) => n >= 1 && n <= 16);
 if (bench?.length) {
   const propsFile = path.join(out, "render-props.json");
-  const inputProps = fs.existsSync(propsFile) ? JSON.parse(fs.readFileSync(propsFile, "utf-8")) : {};
+  // --prop key=value (repeatable): extra inputProps for the test, e.g. --prop wgBlankCheck=light
+  const extra = Object.fromEntries(args.flatMap((a, i) => (a === "--prop" && args[i + 1]?.includes("=") ? [args[i + 1].split("=", 2)] : [])));
+  const inputProps = { ...(fs.existsSync(propsFile) ? JSON.parse(fs.readFileSync(propsFile, "utf-8")) : {}), ...extra };
+  const scale = Number(flag("--scale") ?? 1);
   console.log("🎞  loading the full video...");
   const composition = await selectComposition({ serveUrl, id: "Main", inputProps });
   const len = Math.max(30, parseInt(flag("--frames") ?? "240", 10));
@@ -49,7 +52,7 @@ if (bench?.length) {
         mark = Math.floor((renderedFrames / len) * 10) / 10; const now = Date.now();
         console.log(`   ${Math.round(mark * 100)}%: ${((renderedFrames - last) / ((now - tm) / 1000)).toFixed(1)} fps`); tm = now; last = renderedFrames;
       };
-      await renderMedia({ serveUrl, composition, inputProps, codec: "h264", crf: 16, outputLocation: path.join(tmp, "bench.mp4"), frameRange: [from, from + len - 1], concurrency: c, chromiumOptions: { gl: "angle" }, muted: !args.includes("--audio"), logLevel: "error", ...(len >= 1000 ? { onProgress } : {}) });
+      await renderMedia({ serveUrl, composition, inputProps, codec: "h264", crf: 16, outputLocation: path.join(tmp, "bench.mp4"), frameRange: [from, from + len - 1], concurrency: c, scale, chromiumOptions: { gl: "angle" }, muted: !args.includes("--audio"), logLevel: "error", ...(len >= 1000 ? { onProgress } : {}) });
       console.log(`${s.id} frames ${from}–${from + len - 1}, ${c} tab${c > 1 ? "s" : ""}: ${(len / ((Date.now() - t) / 1000)).toFixed(1)} fps`);
     }
   }
