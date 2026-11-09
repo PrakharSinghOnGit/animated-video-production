@@ -41,14 +41,17 @@ export function brandEndCard(g: G, t: number, at: number, o: { tag?: string } = 
   piece(g, card, BRAND.ground, { gap: 0, shA: 0.45, shB: 14, shX: -8, shY: 0 });
   if (k < 0.98) { g.restore(); return; }
 
-  const cx = 600, cy = 470, size = 420;
+  const cx = 600, cy = 440, size = 420;
+  // held: the lockup breathes (slow bob) so the card is never a still frame
+  const held = Math.max(0, t - at), bob = 5 * Math.sin(held * 1.1) * clamp(held / 0.6);
+  g.translate(0, bob);
   // three slanted bars sweeping in behind the logo, like the logo's own
   [BRAND.green, BRAND.orange, BRAND.red].forEach((c, i) => {
     const u = outCubic(seg(t, at - 0.95 + i * 0.07, at - 0.55 + i * 0.07));
     if (u <= 0) return;
     // continue the logo's own bars (Logo.png rows 175–232, 250–298, 318–375 of 800, scaled to `size`)
     const [r0, r1] = [[175, 232], [250, 298], [318, 375]][i].map((v) => (v / 800) * size - size / 2);
-    const y = cy + r0, hh = r1 - r0, len = 1500 * u, x = cx + size / 2 - 4;
+    const y = cy + r0 + 3 * Math.sin(held * 0.8 + i * 0.9) * clamp(held / 0.6), hh = r1 - r0, len = 1500 * u, x = cx + size / 2 - 4;
     piece(g, roughC(`brandBar${i}`, () => [[0, 0], [1500, 0], [1500, hh], [0, hh]] as Pt[], 510 + i, 0.8, 14).map(([px, py]) => [x + Math.min(px, len), y + py] as Pt), c, { gap: 0, shA: 0.3 });
   });
   // the logo: a cut card dropping onto the sheet, settling with a little rotation
@@ -69,14 +72,14 @@ export function brandEndCard(g: G, t: number, at: number, o: { tag?: string } = 
   const tl = outCubic(seg(t, at - 0.45, at - 0.05));
   if (tl > 0) {
     g.save(); g.globalAlpha = clamp(tl * 2);
-    label(g, BRAND_TAGLINE, cx - size / 2 + (1 - tl) * -60, cy + size / 2 + 86, `600 46px "${SPY_FONT.sans}"`, BRAND.text, "left", 1, { halo: 0 });
+    label(g, BRAND_TAGLINE, cx - size / 2 + (1 - tl) * -60, cy + size / 2 + 100, `600 60px "${SPY_FONT.sans}"`, BRAND.text, "left", 1, { halo: 0 });
     g.restore();
   }
-  // SUBSCRIBE: a red cut tag stamped on the word
+  // SUBSCRIBE: a red cut tag stamped on the word, under the bars on the right (balances the logo), swaying gently
   const st = seg(t, at - 0.12, at + 0.08);
   if (st > 0) {
-    const txt = (o.tag ?? "SUBSCRIBE").toUpperCase(), sc = lerp(1.6, 1, outCubic(st)), x = cx - size / 2, y = cy + size / 2 + 128;
-    g.save(); g.translate(x, y); g.rotate(-0.05); g.scale(sc, sc); g.globalAlpha = clamp(st * 3);
+    const txt = (o.tag ?? "SUBSCRIBE").toUpperCase(), sc = 1.3 * lerp(1.6, 1, outCubic(st)), x = cx + size / 2 + 260, y = cy + 40;
+    g.save(); g.translate(x, y); g.rotate(-0.05 + 0.015 * Math.sin(held * 1.4) * clamp(held / 0.6)); g.scale(sc, sc); g.globalAlpha = clamp(st * 3);
     g.font = `700 64px "${SPY_FONT.sans}"`; (g as any).letterSpacing = "6px";
     const w = g.measureText(txt).width + 72;
     withBg(g, BRAND.ground, () => piece(g, roughC(`brandTag${Math.round(w)}`, () => [[0, 0], [w, -4], [w + 26, 50], [w, 104], [0, 100]] as Pt[], 530, 1.4, 12), BRAND.red, { shA: 0.4 }));

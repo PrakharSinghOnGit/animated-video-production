@@ -1,1 +1,44 @@
-{ "version": 0, "lessons": [], "log": [] }
+{
+  "version": 1,
+  "lessons": [
+    {
+      "id": "L001",
+      "target": "WRITER",
+      "rule": "After the cold open, do not pause for setup, recap or a channel intro; deliver a new concrete claim or number in the first 45 seconds, before the context-setting section begins.",
+      "why": "Two of three videos lose viewers at the opening-to-body transition: -15.0% at 0:30 (LeqxLnVyKZE) and -10.9% at 0:37 (cLX1a7KkO0w).",
+      "evidence": [
+        {
+          "video": "LeqxLnVyKZE",
+          "metric": "sharp drop near 0:30",
+          "value": "15.0%",
+          "baseline": "no channel median yet (fewer than 3 videos with 100 or more views)",
+          "note": "Drop follows the strongest opening (0.77 early relative retention)."
+        },
+        {
+          "video": "cLX1a7KkO0w",
+          "metric": "sharp drop near 0:37",
+          "value": "10.9%",
+          "baseline": "no channel median yet",
+          "note": "Early relative retention 0.47 equals the channel median, which is this video alone."
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-08T09:09:37.260Z",
+      "source": {
+        "review": "2026-11-08T09-09-12",
+        "agent": "claude:sonnet"
+      },
+      "verify": "Compare the next video's retention at 0:20–0:50 against these two. Before publishing, read the script at 0:25–0:40 to see what the drop point actually contains. Any drop over 8% there means the cause is something else (for example the transition or visuals)."
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-11-08T09:09:37.260Z",
+      "action": "propose",
+      "id": "L001",
+      "version": 1
+    }
+  ]
+}

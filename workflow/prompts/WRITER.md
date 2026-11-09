@@ -80,7 +80,7 @@ Markdown with these sections:
 Reply with one line when done.
 
 Custom Scriptwriting Prompt
-Write the script using a conversational, slightly cynical, and narrative-driven tone that mirrors a retail trader's internal monologue. Do not use dry, corporate, or overly clinical phrasing. Speak directly to the viewer's emotional state and use irony to highlight market traps (e.g., "you entered all happy," "but you are smart... what could go wrong"). Build tension using a stream-of-consciousness flow and ask rhetorical questions that challenge assumptions (e.g., "are you unlucky?") before delivering the hard truth that they were used as liquidity. Use this approach to make the viewer feel understood before breaking down the mechanical data.
+Write the script using a conversational, slightly cynical, and narrative-driven tone that mirrors a retail trader's internal monologue. Do not use dry, corporate, or overly clinical phrasing. Speak directly to the viewer's emotional state and use irony to highlight market traps  Build tension using a stream-of-consciousness flow and ask rhetorical questions that challenge assumptionsbefore delivering the hard truth. Use this approach to make the viewer feel understood before breaking down the mechanical data.
 
 this might increase the video length but its fine
 
