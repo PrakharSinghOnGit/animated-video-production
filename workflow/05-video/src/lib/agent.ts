@@ -57,6 +57,8 @@ export interface AgentOptions {
   freshMaxTurns?: number;
   /** Tag for the live lines (default: the act id from the log path, e.g. "A03"). */
   label?: string;
+  /** Stop the run after this many seconds (it then fails with "timed out"). Default: no limit. */
+  timeoutS?: number;
 }
 
 /** "review/A03/author_1.log" -> "A03"; "write_123.log" -> "" (one agent at a time needs no tag). */
@@ -152,6 +154,7 @@ function plan(opts: AgentOptions, sp: Spec): Plan {
     const args = ["-p", opts.prompt, "--model", sp.model, "--mode", w ? "accept-edits" : "plan", "--output-format", "json", "--add-dir", opts.cwd ?? REPO];
     if (w) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
     if (opts.resume) args.push("--conversation", opts.resume);
+    if (opts.timeoutS) args.push("--print-timeout", `${opts.timeoutS}s`);
     return {
       cmd: "agy", args, stdin: "",
       parse: (o, st, out, err, e, ms) => {
@@ -297,8 +300,15 @@ function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
       }
     });
     child.stderr.on("data", (d) => (stderr += d));
-    child.on("error", (e) => resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))));
-    child.on("close", (code) => resolve(noteLimit(opts, pl.parse(opts, code, stdout, stderr, "", Date.now() - t0))));
+    // a hard limit (a stuck CLI otherwise blocks the job forever): TERM, then KILL if it ignores that
+    let timedOut = false;
+    const timer = opts.timeoutS ? setTimeout(() => {
+      timedOut = true; child.kill("SIGTERM");
+      setTimeout(() => { try { child.kill("SIGKILL"); } catch {} }, 5000).unref();
+    }, (opts.timeoutS + 10) * 1000) : null;
+    const why = () => (timedOut ? `timed out after ${opts.timeoutS} s` : "");
+    child.on("error", (e) => { if (timer) clearTimeout(timer); resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))); });
+    child.on("close", (code) => { if (timer) clearTimeout(timer); const r = pl.parse(opts, code, stdout, stderr, why(), Date.now() - t0); resolve(noteLimit(opts, timedOut ? { ...r, ok: false } : r)); });
     child.stdin.end(pl.stdin);
   });
 }

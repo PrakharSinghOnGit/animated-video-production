@@ -21,7 +21,13 @@
  *    default; --no-review skips) rates it 1-10 and says which side is broken: the end of A, the start of B, or both.
  * Acts are not edited; re-run after any act changes (the draft/final chains run it after Assemble).
  *
- *   --only A03-A04        plan as usual, but check/clip/review only these seams (merged into the report)
+ * Unchanged seams are reused: each seam's key is a hash of both acts' code and their timeline entries, so a re-run only
+ * renders seams whose acts changed and only reviews seams without a review (a stopped run loses nothing: the report is
+ * written after the renders and after every review). Reviews on agy run one at a time (parallel agy calls slow each other
+ * down to many minutes) with a time limit; a timed-out seam is retried on the next run.
+ *
+ *   --force               render and review every seam again
+ *   --only A03-A04        plan as usual, but check/clip/review only these seams, always afresh (merged into the report)
  *   --fix A03-A04 [--notes "..."] [--side auto|a|b|both]
  *                         one fix round on the act(s) at that seam (bun run act --fix with seam notes: the review's issues,
  *                         your note, the wide strip to look at), then re-check that seam. auto = the sides the review blamed.
@@ -29,6 +35,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import { bundle } from "@remotion/bundler";
 import { renderStill, renderMedia, selectComposition } from "@remotion/renderer";
 import { spawnSync } from "node:child_process";
@@ -42,6 +49,7 @@ const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i 
 const videoId = flag("--video") ?? flag("-v");
 if (!videoId) { console.error("Usage: bun run seams --video <ID> [--check-only] [--only A03-A04,...] [--no-review] [--fix A03-A04 [--notes ..] [--side auto|a|b|both]]"); process.exit(1); }
 const checkOnly = args.includes("--check-only");
+const force = args.includes("--force");
 const onlySeams = flag("--only")?.toUpperCase().split(",").filter(Boolean);
 const fixSeam = flag("--fix")?.toUpperCase();
 const SEAM_ID = /^A\d+-A\d+$/;
@@ -129,9 +137,33 @@ function plan(asks: Record<string, Ask>) {
 /** Frames around a cut for the wide strip: 7 before, 5 after (seconds from the cut). */
 const WIDE = [-1.6, -1.2, -0.8, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 0.9, 1.3];
 const CLIP_S = 1.5;
+/** Review time limit per seam (agy usually answers in 30–120 s). */
+const REVIEW_TIMEOUT_S = 240;
+
+const sceneSrc = (id: string) => {
+  const d = path.join(out, "src", "scenes");
+  const f = fs.existsSync(d) ? fs.readdirSync(d).find((n) => n.startsWith(`${id}_`) && n.endsWith(".tsx")) : undefined;
+  return f ? fs.readFileSync(path.join(d, f), "utf-8") : "";
+};
+/** What a seam's frames depend on: both acts' code, their place in the timeline and their transition plan. */
+function seamKey(s: { a: string; b: string; how: string }): string {
+  const t = (id: string) => { const x = scenes.find((y) => y.id === id) ?? {}; return [x.windowStartFrame, x.durationFrames, x.seams ?? null]; };
+  return crypto.createHash("sha1").update(JSON.stringify([sceneSrc(s.a), sceneSrc(s.b), t(s.a), t(s.b), s.how, WIDE, CLIP_S, fps])).digest("hex").slice(0, 16);
+}
+const here = (rel?: string) => !!rel && fs.existsSync(path.join(out, "..", rel));
 
 async function check(seams: { a: string; b: string; owner: string; kind: string; how: string }[]) {
-  console.log("📦 Bundling (check)...");
+  // unchanged seams keep their frames, clip and review (--force or --only redo them)
+  const prev = new Map(readReport().map((x) => [`${x.a}-${x.b}`, x]));
+  const reused = new Map<string, any>();
+  for (const s of seams) {
+    const id = `${s.a}-${s.b}`, p = prev.get(id), key = seamKey(s);
+    if (!force && !onlySeams?.includes(id) && p?.key === key && here(p.strip) && here(p.wide)) reused.set(id, { ...p, ...s, key });
+  }
+  if (reused.size) console.log(`♻️  ${reused.size} unchanged seam${reused.size > 1 ? "s" : ""} reused (${[...reused.keys()].join(", ")})${force ? "" : "; --force redoes them"}`);
+  seams = seams.filter((s) => !reused.has(`${s.a}-${s.b}`));
+  if (!seams.length) return [...reused.values()];
+  console.log(`📦 Bundling (check: ${seams.length} seam${seams.length > 1 ? "s" : ""} to render)...`);
   const serveUrl = await bundle({ entryPoint: entry, publicDir });
   const composition = await selectComposition({ serveUrl, id: "Main", inputProps: {} });
   const jobs: { seam: string; cut: number; files: string[]; wide: [string, number][] }[] = [];
@@ -157,7 +189,7 @@ async function check(seams: { a: string; b: string; owner: string; kind: string;
     try {
       await renderMedia({ serveUrl, composition, codec: "h264", outputLocation: path.join(reviewDir, `${id}.mp4`), frameRange: [from, to], scale: 0.5, muted: true, logLevel: "error" });
     } catch (e: any) { console.warn(`  ⚠️  ${id}: clip failed (${e.message?.slice(0, 120)})`); }
-    console.log(`  🎞  ${id}: frames + clip`);
+    console.log(`  🎞  ${id}: frames + clip (${jobs.length + 1}/${seams.length})`);
     jobs.push({ seam: id, cut, files, wide });
   }
   const jobFile = path.join(reviewDir, ".jobs.json");
@@ -166,17 +198,18 @@ async function check(seams: { a: string; b: string; owner: string; kind: string;
   const res = JSON.parse(execFileSync(python, [path.join(import.meta.dir, "seams_check.py"), jobFile, reviewDir], { encoding: "utf-8" }));
   fs.rmSync(jobFile, { force: true });
   for (const j of jobs) for (const f of [...j.files, ...j.wide.map((w) => w[0])]) fs.rmSync(f, { force: true });
-  return seams.map((s) => {
+  const fresh = seams.map((s) => {
     const id = `${s.a}-${s.b}`;
     const r = res[id] ?? {};
     const cut = scenes.find((x) => x.id === s.b)!.windowStartFrame;
     const clip = fs.existsSync(path.join(reviewDir, `${id}.mp4`)) ? `05-video/review/seams/${id}.mp4` : undefined;
-    return { ...s, cutFrame: cut, atS: Math.round((cut / fps) * 10) / 10, ...r, strip: `05-video/review/seams/${id}.jpg`, wide: `05-video/review/seams/${id}_wide.jpg`, clip };
+    return { ...s, key: seamKey(s), cutFrame: cut, atS: Math.round((cut / fps) * 10) / 10, ...r, strip: `05-video/review/seams/${id}.jpg`, wide: `05-video/review/seams/${id}_wide.jpg`, clip };
   });
+  return [...reused.values(), ...fresh];
 }
 
-/** Vision review of one seam from its wide strip: a 1-10 score and which side is broken. Never blocks (null on failure). */
-async function reviewSeam(s: any, asks: Record<string, Ask> | undefined, model: string): Promise<any> {
+/** Vision review of one seam from its wide strip: a 1-10 score and which side is broken. Never throws ({ error } on failure). */
+async function reviewSeam(s: any, asks: Record<string, Ask> | undefined, model: string): Promise<{ review?: any; error?: string }> {
   const img = path.join(out, "..", s.wide);
   const prompt = `You review one transition (a cut between two animated acts) of a finance explainer video.
 Image to look at: ${img}
@@ -188,10 +221,11 @@ A good transition: A's last ~1 s shows a finished, settled, uncluttered picture 
 Rate it and say which side causes each problem. Reply with ONLY this JSON:
 {"score": 1-10, "verdict": "ok" | "fix", "summary": "one sentence", "issues": [{"side": "A_end" | "B_start" | "both", "problem": "what you see, with the frame time", "fix": "what to change"}]}`;
   try {
-    const r = await runAgentAsync({ prompt, model, tools: ["Read"], maxTurns: 4, cwd: path.resolve(out, "../../.."), logPath: path.join(reviewDir, `${s.a}-${s.b}_review.log`) });
+    const r = await runAgentAsync({ prompt, model, tools: ["Read"], maxTurns: 4, timeoutS: REVIEW_TIMEOUT_S, cwd: path.resolve(out, "../../.."), logPath: path.join(reviewDir, `${s.a}-${s.b}_review.log`) });
+    if (!r.ok && !r.text) return { error: r.durationMs >= REVIEW_TIMEOUT_S * 1000 ? `timed out after ${REVIEW_TIMEOUT_S} s` : "the reviewer failed (see its log)" };
     const j = extractJson(r.text);
-    return { score: Math.max(1, Math.min(10, Number(j.score) || 0)), verdict: j.verdict === "ok" ? "ok" : "fix", summary: String(j.summary ?? ""), issues: (Array.isArray(j.issues) ? j.issues : []).slice(0, 6).map((i: any) => ({ side: ["A_end", "B_start", "both"].includes(i.side) ? i.side : "both", problem: String(i.problem ?? ""), fix: String(i.fix ?? "") })), model };
-  } catch { return null; }
+    return { review: { score: Math.max(1, Math.min(10, Number(j.score) || 0)), verdict: j.verdict === "ok" ? "ok" : "fix", summary: String(j.summary ?? ""), issues: (Array.isArray(j.issues) ? j.issues : []).slice(0, 6).map((i: any) => ({ side: ["A_end", "B_start", "both"].includes(i.side) ? i.side : "both", problem: String(i.problem ?? ""), fix: String(i.fix ?? "") })), model } };
+  } catch (e: any) { return { error: `no usable reply (${String(e?.message ?? e).slice(0, 80)})` }; }
 }
 
 const seamsJson = path.join(out, "seams.json");
@@ -249,18 +283,40 @@ if (checkOnly) {
   for (const s of p.seams) console.log(`  ${s.a} → ${s.b}: ${s.how}`);
 }
 const todo = onlySeams ? seamList.filter((x) => onlySeams.includes(`${x.a}-${x.b}`)) : seamList;
-const checked: any[] = await check(todo);
+/** Merge into the earlier report (--only keeps the other seams; seams that no longer exist drop out) and write it. */
+function saveReport(done: any[]): any[] {
+  const prev = new Map(readReport().map((x) => [`${x.a}-${x.b}`, x]));
+  const fresh = new Map(done.map((x) => [`${x.a}-${x.b}`, x]));
+  const r: any[] = seamList.map((x) => fresh.get(`${x.a}-${x.b}`) ?? prev.get(`${x.a}-${x.b}`)).filter(Boolean);
+  fs.writeFileSync(reportFile, JSON.stringify({ at: new Date().toISOString(), seams: r }, null, 2));
+  return r;
+}
+const order = new Map(todo.map((x, i) => [`${x.a}-${x.b}`, i]));
+const checked: any[] = (await check(todo)).sort((a, b) => order.get(`${a.a}-${a.b}`)! - order.get(`${b.a}-${b.b}`)!);
+let report = saveReport(checked);   // frames and clips are on disk now, before any review
 const critic = roleModel("critic");
 if (!args.includes("--no-review") && critic !== "off") {
-  console.log(`👁  reviewing ${checked.length} transitions (${critic})...`);
-  const queue = [...checked];
-  await Promise.all(Array.from({ length: 3 }, async () => { while (queue.length) { const s = queue.shift()!; s.review = await reviewSeam(s, asksNow, critic); } }));
+  const pending = checked.filter((s) => !s.review);
+  // agy calls in parallel slow each other down (30 s alone, 10+ min three at a time): one at a time there
+  const lanes = critic.startsWith("agy") ? 1 : 3;
+  if (!pending.length) console.log("👁  every seam already has a review (unchanged since)");
+  else console.log(`👁  reviewing ${pending.length} transition${pending.length > 1 ? "s" : ""} with ${critic}${lanes === 1 ? ", one at a time" : ""} (limit ${REVIEW_TIMEOUT_S} s each)...`);
+  const queue = [...pending];
+  let n = 0;
+  await Promise.all(Array.from({ length: lanes }, async () => {
+    while (queue.length) {
+      const s = queue.shift()!, id = `${s.a}-${s.b}`, i = ++n, t = Date.now();
+      console.log(`  👁  ${id} (${i}/${pending.length})...`);
+      const beat = setInterval(() => console.log(`     … ${id} still being reviewed (${Math.round((Date.now() - t) / 1000)} s)`), 30_000);
+      const r = await reviewSeam(s, asksNow, critic);
+      clearInterval(beat);
+      const secs = Math.round((Date.now() - t) / 1000);
+      if (r.review) { s.review = r.review; console.log(`     ${r.review.verdict === "ok" ? "✓" : "⚠️ "} ${id}: ${r.review.score}/10 in ${secs} s`); }
+      else console.log(`     ⚠️  ${id}: no review, ${r.error} (run Seams again: it retries only the seams without a review)`);
+      report = saveReport(checked);
+    }
+  }));
 }
-// --only: merge into the earlier report (seams that no longer exist drop out)
-const prev = new Map(readReport().map((x) => [`${x.a}-${x.b}`, x]));
-const fresh = new Map(checked.map((x) => [`${x.a}-${x.b}`, x]));
-const report: any[] = seamList.map((x) => fresh.get(`${x.a}-${x.b}`) ?? prev.get(`${x.a}-${x.b}`)).filter(Boolean);
-fs.writeFileSync(reportFile, JSON.stringify({ at: new Date().toISOString(), seams: report }, null, 2));
 const bad = report.filter((r: any) => (r.flag && r.flag !== "ok") || r.review?.verdict === "fix");
 for (const r of checked) console.log(`  ${r.flag === "ok" && r.review?.verdict !== "fix" ? "✓" : "⚠️ "} ${r.a} → ${r.b} at ${r.atS}s: ${r.kind}${r.flag !== "ok" ? ` — ${r.note}` : ""}${r.review ? ` · ${r.review.score}/10 ${r.review.summary}` : ""}`);
 const ms = Date.now() - t0;

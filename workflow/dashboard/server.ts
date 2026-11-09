@@ -641,9 +641,10 @@ const ACTIONS: Record<string, Action> = {
     ],
     build: (ws, o) => [B("daw", "--video", ws, ...args(o, "daw.build"))] },
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
-  "render.seams": { step: "render", label: "Seams", help: "Plans every act-to-act transition (one owner per seam, the neighbours' real frames) and checks the frames around each cut for flicker, jumps and empty screens.", long: "~1–2 min",
-    build: (ws) => [B("seams", "--video", ws)] },
-  "render.seamcheck": { step: "render", perAct: true, label: "Re-check transition", help: "Re-plans the seams, then renders the frames and clip around this act's cut into the next act and reviews it (free with the default critic).", long: "~1–2 min",
+  "render.seams": { step: "render", label: "Seams", help: "Plans every act-to-act transition (one owner per seam, the neighbours' real frames), renders the frames and a clip around each cut, checks them for flicker, jumps and empty screens, and has the critic review each one. Seams whose two acts did not change are reused, and only seams without a review are reviewed, so a stopped run picks up where it was. Reviews on agy run one at a time (~30–120 s each); the log shows each one.", long: "~2–25 min (less when reused)",
+    opts: [{ key: "force", label: "Redo every seam", help: "renders and reviews all seams again, even unchanged ones", type: "bool", def: false, flag: "--force" }],
+    build: (ws, o) => [B("seams", "--video", ws, ...args(o, "render.seams"))] },
+  "render.seamcheck": { step: "render", perAct: true, label: "Re-check transition", help: "Re-plans the seams, then renders the frames and clip around this act's cut into the next act again and reviews it afresh (free with the default critic).", long: "~1–3 min",
     build: (ws, _o, act) => { const s = seamAfter(ws, act!); return s ? [B("seams", "--video", ws, "--only", s)] : "this act has no next act"; } },
   "render.seamfix": { step: "render", perAct: true, label: "Fix transition", help: "One fix round on the end of this act and/or the start of the next (fresh author session with the review's issues, your note and the frames around the cut), then the transition is checked again.", paid: "~$2–4 per side", long: "~5–20 min",
     opts: [
