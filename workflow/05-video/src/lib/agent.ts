@@ -84,16 +84,22 @@ function finish(opts: AgentOptions, status: number | null, stdout: string, stder
   } catch {
     parsed = { is_error: true };
   }
-  const usage = parsed.usage ?? {};
+  // `usage` covers only part of the run; `modelUsage` has the whole run's totals per model (output includes thinking)
+  const u = parsed.usage ?? {};
+  const mu = Object.values(parsed.modelUsage ?? {}) as any[];
+  const sum = (k: string) => mu.reduce((a, m) => a + Number(m?.[k] ?? 0), 0);
+  const tok = mu.length
+    ? { inp: sum("inputTokens") + sum("cacheCreationInputTokens"), out: sum("outputTokens"), cr: sum("cacheReadInputTokens") }
+    : { inp: Number(u.input_tokens ?? 0) + Number(u.cache_creation_input_tokens ?? 0), out: Number(u.output_tokens ?? 0), cr: Number(u.cache_read_input_tokens ?? 0) };
   return {
     ok: status === 0 && !parsed.is_error,
     text: typeof parsed.result === "string" ? parsed.result : "",
     durationMs,
     costUsd: Number(parsed.total_cost_usd ?? 0),
     numTurns: Number(parsed.num_turns ?? 0),
-    inputTokens: Number(usage.input_tokens ?? 0) + Number(usage.cache_creation_input_tokens ?? 0),
-    outputTokens: Number(usage.output_tokens ?? 0),
-    cacheReadTokens: Number(usage.cache_read_input_tokens ?? 0),
+    inputTokens: tok.inp,
+    outputTokens: tok.out,
+    cacheReadTokens: tok.cr,
     logPath: opts.logPath,
     sessionId: typeof parsed.session_id === "string" ? parsed.session_id : "",
   };
