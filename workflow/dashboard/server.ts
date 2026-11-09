@@ -914,6 +914,8 @@ function args(o: Record<string, any>, key: string): string[] {
         continue;
       }
       case "select":
+        // an old saved model name without its provider ("sonnet" from before provider:model) means Claude's
+        if (!(dynChoices(opt) ?? []).includes(String(v)) && (dynChoices(opt) ?? []).includes(`claude:${v}`)) v = `claude:${v}`;
         if (!(dynChoices(opt) ?? []).includes(String(v))) throw new Error(`${opt.label}: "${v}" is not offered any more (pick again; offered: ${(dynChoices(opt) ?? []).slice(0, 8).join(", ")})`);
         out.push(...(opt.map ? opt.map(String(v)) : [opt.flag!, String(v)]));
         continue;

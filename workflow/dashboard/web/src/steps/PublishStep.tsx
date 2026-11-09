@@ -247,7 +247,7 @@ export function PublishStep() {
         <div className="flex flex-wrap items-center gap-2.5 text-[12.5px]">
           <span className="w-24">Titles</span>
           <RunButton running={busy?.label === "Titles & description"} disabled={!!busy || !p.metaNotes.trim() || pubMetaApplied(d, p.metaNotesMtime)} label="Revise with notes"
-            onClick={() => void run("publish.meta", undefined, { model: "sonnet", notes: true })} />
+            onClick={() => void run("publish.meta", undefined, { notes: true })} />
           <span className="text-muted-foreground">{!p.metaNotes.trim() ? "no notes" : pubMetaApplied(d, p.metaNotesMtime) ? "notes applied" : "notes open"}</span>
         </div>
       </div>),
