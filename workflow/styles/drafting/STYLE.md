@@ -41,7 +41,7 @@ Prefer the order paper → blueprint → hologram → paper (each accent is the 
 - **No running subtitles.** On-screen words are impact text staged in the drawing: a figure as big type, a key term between rails, a label on a part. YouTube captions come from `bun run srt`.
 - Big type takes the ink's fill: hatched on paper, solid or clean outline on the blueprint, scan lines or solid cyan on the hologram.
 - **Corner labels on every frame** (drawn by `drawAct`): top left `FIG. 07 — GEAR` (the act's number in the video and its one-word name), bottom right a counter (`SHEET 07 / 12`, or a running value that fits the act).
-- Show a small source note next to any figure from the plan's `data`.
+- Sources live in the video description, not on screen. A small source note only for a figure that needs it to be believed, and only where it overlaps nothing.
 
 ## 5. Motion
 

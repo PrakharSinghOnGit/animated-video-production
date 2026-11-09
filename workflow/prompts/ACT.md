@@ -15,7 +15,7 @@ Don't explore the rest of the repo; everything you need is there.
   - *Drafting*: a locked camera; each beat is made out of the previous one's shapes (morph, press, unfold, extrude), centred inside the border.
 - **Long-form pace.** One idea at a time; build it while it is explained, then hold while the narrator finishes. No move or reveal shorter than 0.4 s except a deliberate punch-in, whip or stop-time.
 - **Layout.** Each beat's drawing stays inside its region (Briefing) or the border (Drafting). Text must be ≥ 30 px on screen (world size × camera zoom); headline numbers ≥ 90 px. One idea at a time; if it is crowded, split it. Follow the style's text rule (STYLE.md §4): no running subtitles in either style, only impact text staged in the scene.
-- **Data honesty.** Only the plan's `data` numbers, with their units; show the source as a small note beside the figure. Never invent a number to fill a chart: draw the empty slot.
+- **Data honesty.** Only the plan's `data` numbers, with their units. Never invent a number to fill a chart: draw the empty slot. Sources go in the video description (added automatically from the plan), not on screen. Add a small on-screen source note only when a figure needs it to be believed (a surprising or contested number) and only in clear space where it touches nothing.
 - **No boxes with text in them.** If a frame looks like a slide, restage it in the style's own terms (STYLE.md §8).
 - **Logos and icons.** Company logos and generic icons come from the kit's `logo()` (see the style's ACT.md); find names with `bun run icons <words>`. Never draw a company logo by hand.
 - **Sound.** Export `events(word)` with foley for every visible action (types listed in the style's ACT.md), act-relative seconds.
