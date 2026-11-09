@@ -76,7 +76,7 @@ export const api = {
   saveSfx: (ws: string, short: string | null | undefined, edits: SfxEdits) => call<{ ok: true; edits: SfxEdits }>(`${w(ws)}/sfx${short ? `?short=${short}` : ""}`, { method: "PUT", body: edits }),
 
   analytics: (mock = false) => call<AnalyticsData>(`/api/analytics${mock ? "?mock=1" : ""}`),
-  analyticsRun: (action: "auth" | "fetch" | "mock" | "review", extra: { agent?: string; video?: string; mock?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
+  analyticsRun: (action: "auth" | "fetch" | "mock" | "review" | "learn", extra: { agent?: string; video?: string; mock?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
   analyticsLink: (ws: string, id: string | null) => call<{ ok: true; id: string | null }>("/api/analytics/link", { method: "PUT", body: { ws, id } }),
   lesson: (id: string, action: "approve" | "reject" | "retire" | "restore" | "edit", extra: { reason?: string; rule?: string } = {}) => call<{ ok: true; lessons: LessonStore }>(`/api/analytics/lessons/${id}`, { method: "POST", body: { action, ...extra } }),
   analyticsLogUrl: (job: string) => `/api/analytics/log/${job}`,

@@ -4,7 +4,7 @@
  * so it shows in Activity and streams its log. Everything else reads the cache in workspace/_analytics.
  *
  *   GET  /api/analytics[?mock=1]            snapshot + diagnosis + lessons + links + latest review + auth state
- *   POST /api/analytics/run {action, agent?, video?, mock?}   action: auth | fetch | mock | review
+ *   POST /api/analytics/run {action, agent?, video?, mock?}   action: auth | fetch | mock | review | learn (review notes → lessons)
  *   PUT  /api/analytics/link {ws, id|null}  link a workspace to its YouTube upload (id or URL)
  *   POST /api/analytics/lessons/:id {action, reason?, rule?}  approve | reject | retire | restore | edit
  *   GET  /api/analytics/log/:job            live log of an analytics job
@@ -64,6 +64,8 @@ export async function analyticsRoute(req: Request, url: URL, ctx: AnalyticsCtx):
     if (b.action === "auth") return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "yt:auth", "Connect YouTube", [B("yt:auth")])) });
     if (b.action === "fetch") return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "yt:fetch", "Refresh YouTube analytics", [B("yt:fetch")])) });
     if (b.action === "mock") return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "yt:mock", "Write mock analytics", [B("yt:mock")])) });
+    // general rules from every act's review notes (each note is learned once); repeats become proposed lessons
+    if (b.action === "learn") return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "learn", `Learn from review notes (${roleModel("notesLearner")})`, [B("learn", "--backfill")])) });
     if (b.action === "review") {
       // "default" or empty = Settings → Models (analytics); anything else must be a known model
       const agent = b.agent && b.agent !== "default" && allSpecs().includes(String(b.agent)) ? String(b.agent) : roleModel("analytics");

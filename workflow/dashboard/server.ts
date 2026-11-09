@@ -561,12 +561,12 @@ const ACTIONS: Record<string, Action> = {
     build: (ws, o, act) => [B("act", "--video", ws, "--act", act!, ...args(o, "acts.act"))],
   },
   "acts.changed": {
-    step: "acts", label: "Update changed acts", help: "Only the acts whose narration a script change rewrote: a drawn act gets one update round in its author's session (old lines → new lines, keep the rest); an act not drawn yet is authored. Each one leaves the list once done.", paid: "~$2–5 per act", long: "~5–15 min per act",
+    step: "acts", label: "Update changed acts", help: "Only the acts whose narration a script change rewrote: a drawn act gets one update round (old lines → new lines, keep the rest); an act not drawn yet is authored. Each one leaves the list once done.", paid: "~$2–5 per act", long: "~5–15 min per act",
     opts: [modelOpt("actAuthor", "Author model", "--model"), { key: "parallel", label: "Acts at once", type: "number", min: 1, max: 4, step: 1, def: 2, flag: "--parallel" }],
     build: (ws, o) => [B("act", "--video", ws, "--changed", ...args(o, "acts.changed"))],
   },
   "acts.fix": {
-    step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to the act's author for one revision. Leave the model at default: it then continues the session of the profile that wrote the act (cheapest). Another model or profile starts a fresh session (re-reads everything, dearer).", paid: "~$5–11", long: "~3–15 min",
+    step: "acts", perAct: true, label: "Fix with notes", help: "Sends the review notes to a fresh author session for one revision: it reads the act file, makes targeted edits and checks the changed times. Put every note for the act in one round. Afterwards the general rules in your notes are learned (a rule that comes up on 2 acts is proposed as a lesson: Analytics → Lessons).", paid: "~$2–4", long: "~3–15 min",
     opts: [modelOpt("actAuthor", "Author model", "--model")],
     build: (ws, o, act) => {
       const rel = path.join("workspace", ws, notesRel(act!));

@@ -44,7 +44,7 @@ export function Lessons({ store, cap, targetInfo, reviews, onChange, only }: { s
     <Card>
       <CardHeader className="flex-wrap">
         <CardTitle>Lessons</CardTitle>
-        <CardSub>What the reviewer learned, waiting for you. Approved lessons are appended to the prompt they name; max {cap} per prompt. Version {store.version}.</CardSub>
+        <CardSub>What the analytics reviewer learned, and mistakes that keep coming up in your act review notes, waiting for you. Approved lessons are appended to the prompt they name; max {cap} per prompt. Version {store.version}.</CardSub>
         <div role="tablist" className="ml-auto flex gap-1">
           {([["proposed", `Proposed ${proposed.length}`], ["active", `Active ${active.length}`], ["history", `History ${past.length}`]] as const).map(([k, label]) => (
             <Button key={k} role="tab" aria-selected={tab === k} size="sm" variant={tab === k ? "default" : "ghost"} onClick={() => setTab(k)}>{label}</Button>
@@ -53,7 +53,7 @@ export function Lessons({ store, cap, targetInfo, reviews, onChange, only }: { s
       </CardHeader>
       <CardBody>
         {tab === "active" && activeBy.length > 0 && <div className="flex flex-wrap gap-1.5">{activeBy.map(([t, n]) => <Badge key={t} tone={n >= cap ? "warning" : "neutral"}>{t}.md · {n}/{cap}</Badge>)}</div>}
-        {!list.length && <p className="m-0 text-muted-foreground">{tab === "proposed" ? "Nothing waiting. Run the reviewer after a refresh to get proposals." : tab === "active" ? "No active lessons: the prompts are exactly as written." : "No rejected or retired lessons yet."}</p>}
+        {!list.length && <p className="m-0 text-muted-foreground">{tab === "proposed" ? "Nothing waiting. Run the reviewer after a refresh, or Learn from notes, to get proposals." : tab === "active" ? "No active lessons: the prompts are exactly as written." : "No rejected or retired lessons yet."}</p>}
         {list.map((l) => <LessonCard key={l.id} l={l} info={targetInfo[l.target]} hint={retireHints.get(l.id)} onAct={act} replaces={l.replaces ? store.lessons.find((x) => x.id === l.replaces) : undefined} />)}
         {tab === "history" && store.log.length > 0 && (
           <details className="text-[12px] text-muted-foreground"><summary className="cursor-pointer">Change log ({store.log.length})</summary>

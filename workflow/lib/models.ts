@@ -39,6 +39,7 @@ export const ROLES: Record<string, Role> = {
   actAuthor: { label: "Act author", def: "claude:opus", env: "ACT_MODEL", edits: true, group: "Video" },
   critic: { label: "Act critic", def: "agy:gemini-3.8-flash-medium", env: "CRITIC_MODEL", edits: false, group: "Video" },
   actReview: { label: "Sync review", def: "agy:gemini-3.8-flash-medium", edits: false, group: "Video" },
+  notesLearner: { label: "Lessons from fix notes", def: "claude:haiku", edits: false, group: "Video" },
   meta: { label: "Titles & description", def: "claude:sonnet", edits: false, group: "Publish" },
   thumbs: { label: "Thumbnail designer", def: "claude:sonnet", edits: true, group: "Publish" },
   thumbsReview: { label: "Thumbnail review", def: "claude:haiku", edits: false, group: "Publish" },

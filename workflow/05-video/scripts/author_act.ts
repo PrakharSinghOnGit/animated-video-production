@@ -10,6 +10,7 @@
  * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]] [--resume]
  *
  * --fix: one fix round on a drawn act, in a fresh session (reads the act file, edits it, checks the changed times);
+ *   with a notes file, the general rules in your notes are then learned (bun run learn; --no-learn skips it);
  *   --resume continues the author's own session instead (costs more: it re-reads the whole history every turn).
  *
  * --changed: only the acts whose narration a script change rewrote (05-video/changed_acts.json, written by replan):
@@ -362,6 +363,9 @@ async function fixAct(act: Act, file: string, reviewDir: string, notes?: string)
   const planNote = checkPlanEdit(before);
   if (planNote) console.log(planNote);
   if (r.ok || edited) recordPlanHash(paths.outputDir, act.id);
+  // your notes (not the critic's, not a narration update) teach the act prompt once a mistake repeats: workflow/learning/notes.ts
+  if (fixNotesFile && (r.ok || edited) && !args.includes("--no-learn"))
+    spawnSync("bun", ["run", "learn", "--video", paths.jobId, "--act", act.id, "--notes", fixNotesFile], { stdio: "inherit" });
   if (r.ok) return "ok";
   // its edits are on disk: keep them and say so, instead of calling the whole run a failure
   if (edited) { console.log(`   📝 ${act.id}: the fix's edits are kept (it stopped before its final check): render frames / preview and look`); return "notes"; }

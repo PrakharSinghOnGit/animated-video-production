@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import { Brain, FlaskConical, PlugZap, RefreshCw, Unlink } from "lucide-react";
+import { Brain, FlaskConical, GraduationCap, PlugZap, RefreshCw, Unlink } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
@@ -38,7 +38,7 @@ export function AnalyticsPage() {
   }, [mock, toast]);
   useEffect(() => { void load(); }, [load]);
 
-  const run = async (action: "auth" | "fetch" | "mock" | "review", extra: { video?: string } = {}) => {
+  const run = async (action: "auth" | "fetch" | "mock" | "review" | "learn", extra: { video?: string } = {}) => {
     if (action === "review" && /^(claude|opus|sonnet|haiku)/.test(effective) && !window.confirm(`Run the analytics reviewer with ${effective}? It uses your Claude plan. Its lessons wait for your approval.`)) return;
     try {
       const r = await api.analyticsRun(action, { ...extra, agent, mock: action === "review" ? mock : undefined });
@@ -63,6 +63,7 @@ export function AnalyticsPage() {
         {data.auth.state === "ok"
           ? <Button disabled={!!data.running} onClick={() => run("fetch")}><RefreshCw />Refresh</Button>
           : data.auth.state !== "no-client" && <Button variant="default" disabled={!!data.running} onClick={() => run("auth")}><PlugZap />{data.auth.state === "expired" ? "Reconnect" : "Connect YouTube"}</Button>}
+        <Button disabled={!!data.running} onClick={() => run("learn")} title="Pull general rules out of every act's review notes (each note is read once; cheap model, Settings → Agent models → Lessons from fix notes). A rule that comes up on 2 acts is proposed below. Fix with notes does this by itself."><GraduationCap />Learn from notes</Button>
         <div className="flex items-center">
           <NativeSelect aria-label="Reviewer model" value={agent} onChange={(e) => setAgent(e.target.value)} className="w-auto rounded-r-none border-r-0 text-xs">
             <option value="default">Default ({analyticsDefault})</option>

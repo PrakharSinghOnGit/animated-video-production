@@ -1,7 +1,8 @@
 /**
  * The learning layer: lessons learned from channel analytics, kept apart from the hand-written prompts.
  *
- * - `workflow/learning/lessons.json` (in git) holds every lesson the analytics reviewer proposed, with its status:
+ * - `workflow/learning/lessons.json` (in git) holds every lesson proposed (by the analytics reviewer, or learned from
+ *   repeated review notes on acts: notes.ts), with its status:
  *   proposed → active (approved) → retired (rolled back), or proposed → rejected. Nothing becomes active without a click.
  * - `loadPrompt(name)` returns `workflow/prompts/<name>.md` plus the active lessons for that prompt, so every pipeline
  *   step that loads a prompt picks them up. With `{ video }` it also records which lessons that video was made with
@@ -134,13 +135,26 @@ export function decide(id: string, action: "approve" | "reject" | "retire" | "re
   return s;
 }
 
+/** More evidence for an existing lesson (a review note that repeats it): appended, `basis` = distinct videos. */
+export function addEvidence(id: string, ev: Evidence[]): void {
+  const s = readStore();
+  const l = s.lessons.find((x) => x.id === id);
+  if (!l || !ev.length) return;
+  l.evidence = [...l.evidence, ...ev].slice(-12);
+  l.basis = new Set(l.evidence.map((e) => e.video)).size;
+  if (l.status === "proposed") l.confidence = l.evidence.length >= 4 ? "high" : l.evidence.length >= 3 ? "medium" : "low";
+  s.version++;
+  s.log.push({ at: new Date().toISOString(), action: "edit", id, note: `+${ev.length} evidence`, version: s.version });
+  writeStore(s);
+}
+
 export const activeLessons = (target: string, s = readStore()) => s.lessons.filter((l) => l.target === target && l.status === "active");
 
 /** The block appended to a prompt (empty when it has no active lessons). */
 export function lessonsBlock(target: string, s = readStore()): string {
   const act = activeLessons(target, s);
   if (!act.length) return "";
-  return `\n\n## Channel lessons (learned from this channel's YouTube analytics, approved by the creator)
+  return `\n\n## Channel lessons (learned from this channel's YouTube analytics and the creator's review notes, approved by the creator)
 Apply these on top of the rules above. If one conflicts with a hard rule above (facts, sourcing, format), the rule above wins.
 ${act.map((l) => `- ${l.rule}${l.why ? ` (Why: ${l.why})` : ""}`).join("\n")}\n`;
 }
