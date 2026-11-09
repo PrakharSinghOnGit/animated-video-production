@@ -587,7 +587,7 @@ const ACTIONS: Record<string, Action> = {
   },
   "acts.preview": {
     step: "acts", perAct: true, label: "Render preview", help: "The act as a video with voice + effects, to watch and annotate.", long: "~30 s–2 min",
-    opts: [{ key: "scale", label: "Scale", type: "select", choices: ["1", "0.5"], def: "1", flag: "--scale" }],
+    opts: [{ key: "scale", label: "Scale", type: "select", choices: ["1", "0.5", "0.25"], def: "1", flag: "--scale", help: "0.5 = 960×540, 0.25 = 480×270: faster renders for checking timing" }],
     build: (ws, o, act) => [B("preview", "--video", ws, "--act", act!, ...args(o, "acts.preview"))],
   },
   "acts.review": {
