@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 57,
   "lessons": [
     {
       "id": "L001",
@@ -31,6 +31,990 @@
         "agent": "claude:sonnet"
       },
       "verify": "Compare the next video's retention at 0:20–0:50 against these two. Before publishing, read the script at 0:25–0:40 to see what the drop point actually contains. Any drop over 8% there means the cause is something else (for example the transition or visuals)."
+    },
+    {
+      "id": "L002",
+      "target": "ACT",
+      "rule": "Reveal each label and illustration at the start of its spoken word, not when a later figure or hit lands.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A03:",
+          "value": "\"item names and illustrations wait 1.0 to 1.5 seconds for the percentage figures\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"the reveal comes about 2.4 s before the word\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"The '2×' tag is already visible... before the word\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"FUEL is present by 28.65, about 1.2 s after 'fuel' is spoken\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"stamp FILL slightly before 73.1 s\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"SUBSCRIBE tag already present\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"the Agent appears late\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"Hold the coin and its '$100B' cut until 'Nvidia'\""
+        }
+      ],
+      "confidence": "high",
+      "basis": 3,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:37:51.833Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L003",
+      "target": "ACT",
+      "rule": "Do not place markers or pivot circles over text; move them behind the words or clear of the letters so type stays legible.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A03:",
+          "value": "\"yellow fulcrum pivot circle renders directly over the hyphen and letters\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"The falling Agent is drawn between the S and E of SELL, with its body hidden behind the letters\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:37:51.835Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L004",
+      "target": "ACT",
+      "rule": "Make a key visual change, such as a tear or cut, clearly readable by the word that cues it, not barely visible.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"the tear is barely visible: the strip still reads as one unbroken line\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"Make the two phone glances land on 'check'\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"A heatmap pool is not visible in the P's bowl\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.723Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L005",
+      "target": "ACT",
+      "rule": "Do not draw decorative shapes, such as outlines or icons, beside a figure or word unless they carry meaning; remove them so the number or word stands alone.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A02:",
+          "value": "\"outline of a cup drawn next to 82k text which is not needed\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"a dark floor bar sits oddly at lower left\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.723Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L006",
+      "target": "ACT",
+      "rule": "Never frame a figure so only a sliver touches the frame edge; keep it fully in frame or fully out.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"a sliver of hat and torso at x≈940–960\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"STOPPED is half cut by the bottom edge\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.724Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L007",
+      "target": "ACT",
+      "rule": "Size key labels so they are legible at 1080p in the widest framing; check the smallest label on a wide shot.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"the TARGET label is tiny (about 20 px tall at 1080p)\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"the Agent and the ledger very small and cramped\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"only a few pixels tall at 960 px width and would be unreadable at 1080p\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"Enlarge the STOP label\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"BUY tag (about 25 px) on the low. The BUY text is too small to read at 1080p\""
+        }
+      ],
+      "confidence": "high",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.725Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L008",
+      "target": "ACT",
+      "rule": "Remove leftover stray outlines and cut lines once their beat ends; nothing from a finished beat should stay on screen.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A02:",
+          "value": "\"remove the dotted cut outline at 1:21\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"Drop the PATTERN title from this shot\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"A shrunken FUEL label is still stuck on the leftover pile\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"Hide or remove the previous beat's LIQUIDITY TAKEN label\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"A stray black bar fragment sits at the right edge\""
+        }
+      ],
+      "confidence": "high",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.726Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L009",
+      "target": "ACT",
+      "rule": "During camera moves and splits, keep every label and prop inside the frame; never let them slide off-screen.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A03:",
+          "value": "\"three of the five left tags slide off-screen\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"'RISK' clipped by the right edge\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"WHO BENEFITS? is clipped at the right edge\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"The push-in cuts off the chart.\""
+        }
+      ],
+      "confidence": "high",
+      "basis": 3,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.727Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L010",
+      "target": "ACT",
+      "rule": "Show the opening title card on the first frame; never start on blank background before the narration begins.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A03:",
+          "value": "\"Frame t_000.00.jpg is completely blank paper\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"The frame is a solid dark screen at 0 s\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"A fully empty dark frame at the start of the act\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:14.728Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L011",
+      "target": "ACT",
+      "rule": "Keep each beat on screen until its last spoken word ends; never start an exit or leave an empty frame while the narration still refers to it.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"the whip-out empties the frame by 24.35 s, so 'liquidity' (24.4 s) is spoken over a blank screen\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A03:",
+          "value": "\"blank from sec 43.6 to 44.7 when the VO says think of fish\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"The act ends on an empty frame with only the chapter chip\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"mostly empty frame\""
+        }
+      ],
+      "confidence": "high",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:21.005Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A03",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L012",
+      "target": "ACT",
+      "rule": "Keep every label clear of dotted lines and other text; never let type overlap a line or sit under another label.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"the label overlaps the dotted line\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"The PUSHED and DRAWN labels sit right on the ground line.\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:38:42.482Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A06",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L013",
+      "target": "ACT",
+      "rule": "Start every motion early enough that it completes on the word it is meant to land on, not after that word.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"landing on peak so it completes at ctx.word('top', 1)\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"start the wall build a little earlier\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"Start the coin-loop emblem sliding in at 'money' so it is complete by 'loop'\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:06.245Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A07",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L014",
+      "target": "ACT",
+      "rule": "Give bare data marks a visible reference such as an axis, baseline, cluster or price context so they carry meaning on screen.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"The two bare identical candles have no axis, cluster or price context.\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"bars on a volume baseline aligned under the wick tip\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:06.245Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A07",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L015",
+      "target": "ACT",
+      "rule": "Make the figure the narration focuses on distinct in size or colour from identical background figures so it can be picked out.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"The Agent in front is not distinguishable\""
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"nothing marks which cluster is the 'obvious spot'\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"scale it to be clearly much taller than the Agent\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:06.247Z",
+      "source": {
+        "review": "notes VID04_Stop_Hunt/A07",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L016",
+      "target": "ACT",
+      "rule": "Keep motion smooth: ease in and out of fast moves so nothing reads as jerky or stuttering.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID05_Inducement_Trap).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A03:",
+          "value": "\"super fast and jurky\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A03:",
+          "value": "\"they snap in the final position\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:37.532Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/A03",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L017",
+      "target": "ACT",
+      "rule": "Check every drawn chart mark and shape on a rendered frame for broken or mis-rendered geometry, and fix it before accepting the act.",
+      "why": "Came up in review notes on 2 acts (VID05_Inducement_Trap).",
+      "evidence": [
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A02:",
+          "value": "\"the green candle looks broken dosnt render correctly fix that\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A04:",
+          "value": "\"vertical line\" is akward and dosnt show the price being shot up its not connected to the market\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A06:",
+          "value": "\"the dollor sign inverted\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:44.052Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/A04",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L018",
+      "target": "ACT",
+      "rule": "Draw every cut-in mark and overlay in an ink that contrasts with the shape or background beneath it so it stays visible.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID05_Inducement_Trap).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A06:",
+          "value": "\"The question mark cut into him is only faintly visible\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A05:",
+          "value": "\"the left page is same color as the bakcgorund\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:39:49.452Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/A05",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L019",
+      "target": "ACT",
+      "rule": "End each act on its final finished drawing and hold it; do not close the act with a colour wipe or swipe into a new colour.",
+      "why": "Came up in review notes on 2 acts (VID05_Inducement_Trap).",
+      "evidence": [
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A06:",
+          "value": "\"do not do the left to right swipe to a different color just keep and hold the last drawings\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A07:",
+          "value": "\"dont suddenly change it\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"Delay the exit transition until the act ends\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:40:11.615Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/A07",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L020",
+      "target": "ACT",
+      "rule": "Animate every prop and label in and out with a short eased fade or slide; never let elements pop on or off screen instantly.",
+      "why": "Came up in review notes on 2 acts (VID03_Pseudo_Rich, VID05_Inducement_Trap).",
+      "evidence": [
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "note on A04:",
+          "value": "\"things should be animated in rather than put in at an instant\""
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A08:",
+          "value": "\"will suddenly appear on screen\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:40:18.712Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/A08",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L021",
+      "target": "SHORT_ACT",
+      "rule": "Keep labels and tick marks inside the frame's safe margins so nothing is clipped by the frame edge.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"is clipped into 'UR STOP' by the frame border\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"runs off the right edge\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.500Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L022",
+      "target": "SHORT_ACT",
+      "rule": "Place caption and impact banners in clear space so they never cover charts, characters or the focal illustration.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"sits directly on top of the candles\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"The caption bar covers the truck's '10,000' label\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.501Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L023",
+      "target": "SHORT_ACT",
+      "rule": "Keep an element that enters on a spoken word hidden off-screen until that word starts, then enter it on that word.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"already fully visible on screen\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"gives away the reveal\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.502Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L024",
+      "target": "SHORT_ACT",
+      "rule": "Draw every planned hit on its cue word; a planned hit animation that never appears is a defect.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"the planned visual hit ... is completely absent\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"planned row of seller silhouettes entering from the left is missing\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.502Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L025",
+      "target": "SHORT_ACT",
+      "rule": "Remove icons and marks once the narration moves past the word they illustrate.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"the '?' stays on screen past 11.02 s\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"Remove the competing arrow\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.503Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L026",
+      "target": "SHORT_ACT",
+      "rule": "Balance composition so chart and text fill the frame vertically; avoid large dead empty areas.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt/shorts/S1, VID05_Inducement_Trap/shorts/S1).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"Over half of the vertical composition below the floor line is dead empty red space\""
+        },
+        {
+          "video": "VID05_Inducement_Trap/shorts/S1",
+          "metric": "note on A01:",
+          "value": "\"There is a lot of empty space\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:02.504Z",
+      "source": {
+        "review": "notes VID05_Inducement_Trap/shorts/S1/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L027",
+      "target": "ACT",
+      "rule": "Never end a beat on a blurred, half-drawn or near-empty frame; hold on a finished, legible image.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"avoid ending on a blurred, empty frame\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"The closing frame is near-empty\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A03:",
+          "value": "\"the last frames dosnt have a clear freame this may lead to choppy transition\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.197Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L028",
+      "target": "ACT",
+      "rule": "Show the motion behind a change, such as a strip being dragged or snapping back, rather than only its end state.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"no visible stop strip being dragged down and no snap-back\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"Start the coin inside NVIDIA at 'invest'\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.198Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L029",
+      "target": "ACT",
+      "rule": "Hold a short freeze or punch-in on the key phrase so the emphasised beat registers before the camera moves on.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A02:",
+          "value": "\"freeze the frame and punch in on the Agent\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"hold the camera still at 'wrong'\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.201Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L030",
+      "target": "ACT",
+      "rule": "Keep the subject that the narration refers to, such as 'you', visible in frame while that phrase is spoken.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A01:",
+          "value": "\"The Agent ('you') is nowhere in frame from roughly 12.5 s to 17 s\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"The giant silhouette that should be walking down ahead of the Agent is absent\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.202Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L031",
+      "target": "ACT",
+      "rule": "Keep each prop a clear gap from neighbouring figures and scenery so it does not crowd or touch them.",
+      "why": "Came up in review notes on 2 acts (VID05_Inducement_Trap, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A05:",
+          "value": "\"the book is too close to house and face of chahracter\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"the silhouette overlaps the rug's right end\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A03:",
+          "value": "\"the house and character and banks are overlapping\""
+        }
+      ],
+      "confidence": "medium",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.204Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L032",
+      "target": "ACT",
+      "rule": "Show only the headline and key visual a beat needs; remove secondary props so the beat does not read as cluttered.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"The 'THE GAP' beat is cluttered\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A01:",
+          "value": "\"the red man walking serves no purpose\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:41:38.207Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L033",
+      "target": "ACT",
+      "rule": "Draw each figure's arms, hands and facing so they match the prop or direction the narration refers to, and check the pose on a frame.",
+      "why": "Came up in review notes on 2 acts (VID05_Inducement_Trap, VID06_AI_Bubble).",
+      "evidence": [
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "note on A02:",
+          "value": "\"the people standing have their hands backwards either bring the clock to other side or make them look towards the clock\""
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "note on A04:",
+          "value": "\"the leg of character sitting it wrong they are poking up remove the legs thet are not needed\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-09T09:44:06.863Z",
+      "source": {
+        "review": "notes VID06_AI_Bubble/A04",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
     }
   ],
   "log": [
@@ -39,6 +1023,366 @@
       "action": "propose",
       "id": "L001",
       "version": 1
+    },
+    {
+      "at": "2026-11-09T09:37:51.833Z",
+      "action": "propose",
+      "id": "L002",
+      "version": 2
+    },
+    {
+      "at": "2026-11-09T09:37:51.835Z",
+      "action": "propose",
+      "id": "L003",
+      "version": 3
+    },
+    {
+      "at": "2026-11-09T09:38:14.722Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 4
+    },
+    {
+      "at": "2026-11-09T09:38:14.723Z",
+      "action": "propose",
+      "id": "L004",
+      "version": 5
+    },
+    {
+      "at": "2026-11-09T09:38:14.723Z",
+      "action": "propose",
+      "id": "L005",
+      "version": 6
+    },
+    {
+      "at": "2026-11-09T09:38:14.724Z",
+      "action": "propose",
+      "id": "L006",
+      "version": 7
+    },
+    {
+      "at": "2026-11-09T09:38:14.725Z",
+      "action": "propose",
+      "id": "L007",
+      "version": 8
+    },
+    {
+      "at": "2026-11-09T09:38:14.726Z",
+      "action": "propose",
+      "id": "L008",
+      "version": 9
+    },
+    {
+      "at": "2026-11-09T09:38:14.727Z",
+      "action": "propose",
+      "id": "L009",
+      "version": 10
+    },
+    {
+      "at": "2026-11-09T09:38:14.728Z",
+      "action": "propose",
+      "id": "L010",
+      "version": 11
+    },
+    {
+      "at": "2026-11-09T09:38:21.005Z",
+      "action": "propose",
+      "id": "L011",
+      "version": 12
+    },
+    {
+      "at": "2026-11-09T09:38:42.478Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 13
+    },
+    {
+      "at": "2026-11-09T09:38:42.479Z",
+      "action": "edit",
+      "id": "L007",
+      "note": "+1 evidence",
+      "version": 14
+    },
+    {
+      "at": "2026-11-09T09:38:42.480Z",
+      "action": "edit",
+      "id": "L011",
+      "note": "+1 evidence",
+      "version": 15
+    },
+    {
+      "at": "2026-11-09T09:38:42.480Z",
+      "action": "edit",
+      "id": "L010",
+      "note": "+1 evidence",
+      "version": 16
+    },
+    {
+      "at": "2026-11-09T09:38:42.481Z",
+      "action": "edit",
+      "id": "L008",
+      "note": "+1 evidence",
+      "version": 17
+    },
+    {
+      "at": "2026-11-09T09:38:42.482Z",
+      "action": "propose",
+      "id": "L012",
+      "version": 18
+    },
+    {
+      "at": "2026-11-09T09:39:06.245Z",
+      "action": "propose",
+      "id": "L013",
+      "version": 19
+    },
+    {
+      "at": "2026-11-09T09:39:06.245Z",
+      "action": "propose",
+      "id": "L014",
+      "version": 20
+    },
+    {
+      "at": "2026-11-09T09:39:06.246Z",
+      "action": "edit",
+      "id": "L008",
+      "note": "+1 evidence",
+      "version": 21
+    },
+    {
+      "at": "2026-11-09T09:39:06.247Z",
+      "action": "edit",
+      "id": "L011",
+      "note": "+1 evidence",
+      "version": 22
+    },
+    {
+      "at": "2026-11-09T09:39:06.247Z",
+      "action": "propose",
+      "id": "L015",
+      "version": 23
+    },
+    {
+      "at": "2026-11-09T09:39:06.248Z",
+      "action": "edit",
+      "id": "L008",
+      "note": "+1 evidence",
+      "version": 24
+    },
+    {
+      "at": "2026-11-09T09:39:06.248Z",
+      "action": "edit",
+      "id": "L009",
+      "note": "+1 evidence",
+      "version": 25
+    },
+    {
+      "at": "2026-11-09T09:39:06.249Z",
+      "action": "edit",
+      "id": "L004",
+      "note": "+1 evidence",
+      "version": 26
+    },
+    {
+      "at": "2026-11-09T09:39:06.250Z",
+      "action": "edit",
+      "id": "L007",
+      "note": "+1 evidence",
+      "version": 27
+    },
+    {
+      "at": "2026-11-09T09:39:06.250Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 28
+    },
+    {
+      "at": "2026-11-09T09:39:06.251Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 29
+    },
+    {
+      "at": "2026-11-09T09:39:37.532Z",
+      "action": "propose",
+      "id": "L016",
+      "version": 30
+    },
+    {
+      "at": "2026-11-09T09:39:44.052Z",
+      "action": "propose",
+      "id": "L017",
+      "version": 31
+    },
+    {
+      "at": "2026-11-09T09:39:49.452Z",
+      "action": "propose",
+      "id": "L018",
+      "version": 32
+    },
+    {
+      "at": "2026-11-09T09:40:00.937Z",
+      "action": "edit",
+      "id": "L017",
+      "note": "+1 evidence",
+      "version": 33
+    },
+    {
+      "at": "2026-11-09T09:40:11.615Z",
+      "action": "propose",
+      "id": "L019",
+      "version": 34
+    },
+    {
+      "at": "2026-11-09T09:40:18.712Z",
+      "action": "propose",
+      "id": "L020",
+      "version": 35
+    },
+    {
+      "at": "2026-11-09T09:41:02.500Z",
+      "action": "propose",
+      "id": "L021",
+      "version": 36
+    },
+    {
+      "at": "2026-11-09T09:41:02.501Z",
+      "action": "propose",
+      "id": "L022",
+      "version": 37
+    },
+    {
+      "at": "2026-11-09T09:41:02.502Z",
+      "action": "propose",
+      "id": "L023",
+      "version": 38
+    },
+    {
+      "at": "2026-11-09T09:41:02.502Z",
+      "action": "propose",
+      "id": "L024",
+      "version": 39
+    },
+    {
+      "at": "2026-11-09T09:41:02.503Z",
+      "action": "propose",
+      "id": "L025",
+      "version": 40
+    },
+    {
+      "at": "2026-11-09T09:41:02.504Z",
+      "action": "propose",
+      "id": "L026",
+      "version": 41
+    },
+    {
+      "at": "2026-11-09T09:41:38.196Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 42
+    },
+    {
+      "at": "2026-11-09T09:41:38.197Z",
+      "action": "propose",
+      "id": "L027",
+      "version": 43
+    },
+    {
+      "at": "2026-11-09T09:41:38.198Z",
+      "action": "propose",
+      "id": "L028",
+      "version": 44
+    },
+    {
+      "at": "2026-11-09T09:41:38.199Z",
+      "action": "edit",
+      "id": "L002",
+      "note": "+1 evidence",
+      "version": 45
+    },
+    {
+      "at": "2026-11-09T09:41:38.200Z",
+      "action": "edit",
+      "id": "L015",
+      "note": "+1 evidence",
+      "version": 46
+    },
+    {
+      "at": "2026-11-09T09:41:38.200Z",
+      "action": "edit",
+      "id": "L009",
+      "note": "+1 evidence",
+      "version": 47
+    },
+    {
+      "at": "2026-11-09T09:41:38.201Z",
+      "action": "propose",
+      "id": "L029",
+      "version": 48
+    },
+    {
+      "at": "2026-11-09T09:41:38.202Z",
+      "action": "propose",
+      "id": "L030",
+      "version": 49
+    },
+    {
+      "at": "2026-11-09T09:41:38.202Z",
+      "action": "edit",
+      "id": "L013",
+      "note": "+1 evidence",
+      "version": 50
+    },
+    {
+      "at": "2026-11-09T09:41:38.204Z",
+      "action": "propose",
+      "id": "L031",
+      "version": 51
+    },
+    {
+      "at": "2026-11-09T09:41:38.205Z",
+      "action": "edit",
+      "id": "L019",
+      "note": "+1 evidence",
+      "version": 52
+    },
+    {
+      "at": "2026-11-09T09:41:38.206Z",
+      "action": "edit",
+      "id": "L007",
+      "note": "+1 evidence",
+      "version": 53
+    },
+    {
+      "at": "2026-11-09T09:41:38.207Z",
+      "action": "propose",
+      "id": "L032",
+      "version": 54
+    },
+    {
+      "at": "2026-11-09T09:41:47.818Z",
+      "action": "edit",
+      "id": "L031",
+      "note": "+1 evidence",
+      "version": 55
+    },
+    {
+      "at": "2026-11-09T09:41:47.820Z",
+      "action": "edit",
+      "id": "L027",
+      "note": "+1 evidence",
+      "version": 56
+    },
+    {
+      "at": "2026-11-09T09:44:06.863Z",
+      "action": "propose",
+      "id": "L033",
+      "version": 57
     }
   ]
 }
