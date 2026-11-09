@@ -220,7 +220,7 @@ the script is the same pipeline below.
 4. **SG2:** the user watches `S1/05-video/draft.mp4` (dashboard: Shorts). Fix cheaply by hand, or notes in
    `review/A01/director_notes.md` + `bun run act --video <ID>/shorts/S1 --act A01 --fix <notes>` (paid), then
    `bun run shorts --video <ID> --short S1 --step sound` if the act's events changed.
-5. `bun run shorts --video <ID> --short S1 --step render` (final 1080x1920 + QC: within the short's length limit, 9:16, loudness), then
+5. `bun run shorts --video <ID> --short S1 --step render` (final 1080x1920 + QC: 9:16, loudness, at most 3 min (an error); past the chosen length is only a warning), then
    `bun run shorts:export --video <ID>` → `shorts/export/`: S1.mp4, S1.txt (title, description with sources, credits,
    disclaimer, hashtags), S1.srt, upload.md. In Studio set each short's **Related video** to the long video.
 

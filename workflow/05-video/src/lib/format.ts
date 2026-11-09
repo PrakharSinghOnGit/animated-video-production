@@ -9,6 +9,8 @@ export const SHORT_CONFIG = { format: "short", width: 1080, height: 1920, fps: 3
 /** The default length limit of a short; a short's config.json "maxS" can raise it (YouTube Shorts and Reels allow 3 min). */
 export const SHORT_MAX_S = 60;
 /** The lengths offered for a short (seconds): 60 s is the classic short, 160 s = 2:40, 180 s = the platforms' 3 min cap. */
+/** The platforms' cap (YouTube Shorts and Reels): QC fails a short only past this. */
+export const SHORT_CAP_S = 180;
 export const SHORT_LENGTHS = [60, 90, 120, 160, 180] as const;
 
 export function workspaceConfig(wsDir: string): Record<string, any> {

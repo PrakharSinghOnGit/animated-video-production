@@ -5,6 +5,7 @@ import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { probeAudio } from "../src/lib/audioProbe";
 import { END_HOLD_S } from "../../../packages/kit/src/main/hold";
 import { readRenderManifest, staleInputs } from "../src/lib/sceneCoverage";
+import { SHORT_CAP_S } from "../src/lib/format";
 
 interface QCIssue {
   type: "ERROR" | "WARN" | "INFO";
@@ -138,11 +139,13 @@ async function main() {
         });
       }
 
-      // Shorts (config.json format "short"): 9:16 and at most the short's length limit (maxS, default 60 s)
+      // Shorts (config.json format "short"): 9:16, at most the platforms' 3 min cap (an error), and ideally within the
+      // short's chosen length (maxS, default 60 s; going past it is only a warning: YouTube Shorts and Reels allow 3 min)
       if (shortFormat && vStream) {
         const dur = parseFloat(data.format?.duration || "0");
         if (vStream.width !== 1080 || vStream.height !== 1920) issues.push({ type: "ERROR", rule: "short_format", message: `A short must be 1080x1920, got ${vStream.width}x${vStream.height}.` });
-        if (dur > shortMax + 0.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; its limit is ${shortMax} s. Tighten the script (shorts:write --short <S> with notes), or give it a longer limit (--length).` });
+        if (dur > SHORT_CAP_S + 0.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; YouTube Shorts and Reels allow at most ${SHORT_CAP_S} s. Tighten the script (shorts:write --short <S> with notes).` });
+        else if (dur > shortMax + 0.05) issues.push({ type: "WARN", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s, past its chosen length of ${shortMax} s (fine: the platforms allow ${SHORT_CAP_S} s). Tighten the script, or choose a longer length, if you want it shorter.` });
         else issues.push({ type: "INFO", rule: "short_duration", message: `Short runs ${dur.toFixed(1)} s (<= ${shortMax} s).` });
       }
 
