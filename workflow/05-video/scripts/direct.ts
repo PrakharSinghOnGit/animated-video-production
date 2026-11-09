@@ -11,7 +11,7 @@ import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { compactTranscript } from "../src/lib/transcript";
 import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
-import { runAgent } from "../src/lib/agent";
+import { runAgentAsync } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
@@ -137,7 +137,7 @@ for (let attempt = 1; attempt <= 3; attempt++) {
     ? prompt
     : `${actsFile} failed validation. Read it, fix ONLY what these errors require, and Write the full corrected JSON back to the same path:\n${feedback.map((e) => "- " + e).join("\n")}`;
   console.log(`\n🎬 Director attempt ${attempt}/3 (${model})...`);
-  const res = runAgent({ prompt: task, model, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `direct_${attempt}.log`) });
+  const res = await runAgentAsync({ prompt: task, model, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `direct_${attempt}.log`) });
   recordTiming(wsDir, {
     step: `direct (attempt ${attempt})`, ms: res.durationMs, model, costUsd: res.costUsd,
     inputTokens: res.inputTokens, outputTokens: res.outputTokens, cacheReadTokens: res.cacheReadTokens,

@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { runAgent } from "../05-video/src/lib/agent";
+import { runAgentAsync } from "../05-video/src/lib/agent";
 import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
@@ -192,7 +192,7 @@ if (!one) for (const sid of existing.filter((s) => !targets.includes(s))) consol
 for (const sid of targets) scaffoldShort(vid, sid);   // the writer writes into S<n>/02-scripting/
 
 console.log(`✂️  ${one ? `Revising ${one}` : added ? `Adding ${added}` : `Writing ${count} shorts`} for ${vid} (${model})...`);
-const r = runAgent({
+const r = await runAgentAsync({
   prompt, model, maxTurns: 30, cwd: REPO, tools: ["Read", "Write", "Bash(python3 workflow/02-scripting/yt-script/hookscore.py:*)"],
   logPath: path.join(dir, `write_${stamp}.log`),
 });

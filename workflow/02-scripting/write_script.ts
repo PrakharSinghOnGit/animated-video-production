@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { runAgent } from "../05-video/src/lib/agent";
+import { runAgentAsync } from "../05-video/src/lib/agent";
 import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
@@ -111,7 +111,7 @@ const prompt = loadPrompt("WRITER", { video: videoId })
   .replace(/{{MINUTES}}/g, String(minutes)).replace(/{{WORDS}}/g, `${Math.round(minutes * 140)}–${Math.round(minutes * 160)}`);
 
 console.log(`✍️  ${revising ? "Revising" : "Writing"} the script for ${videoId} (${model}, ~${minutes} min)...`);
-const r = runAgent({
+const r = await runAgentAsync({
   prompt, model, maxTurns: 30, cwd: REPO,
   tools: ["Read", "Write", "Bash(python3 workflow/02-scripting/yt-script/hookscore.py:*)"],
   logPath: path.join(dir, `write_${Date.now()}.log`),

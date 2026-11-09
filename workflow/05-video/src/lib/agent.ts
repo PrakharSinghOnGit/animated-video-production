@@ -3,7 +3,8 @@
  * `model` is a spec from workflow/lib/models.ts: claude / claude-iit (Claude Code, tools pre-approved via
  * --allowedTools), codex (codex exec, workspace-write sandbox), opencode (opencode run --auto), ollama (a local
  * model through opencode) or agy (plan mode for read-only steps, accept-edits for write steps). The prompt goes over stdin, the full output is logged, and cost,
- * tokens and wall time come back in one shape so every stage can be accounted for.
+ * tokens and wall time come back in one shape so every stage can be accounted for. Claude runs (async) print each step
+ * live as one line (💬 text, 💭 thinking, 🔧 tool), which the dashboard shows in the job log; WG_LIVE=0 turns that off.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -54,7 +55,12 @@ export interface AgentOptions {
   fresh?: string;
   /** Turn limit for that fresh run (it has to read the files a resumed session already knew). Default: maxTurns. */
   freshMaxTurns?: number;
+  /** Tag for the live lines (default: the act id from the log path, e.g. "A03"). */
+  label?: string;
 }
+
+/** "review/A03/author_1.log" -> "A03"; "write_123.log" -> "" (one agent at a time needs no tag). */
+const defaultLabel = (logPath: string) => { const d = path.basename(path.dirname(logPath)); return /^(A\d+|S\d+)$/i.test(d) ? d : ""; };
 
 /** Whether a Claude profile has this session on disk (sessions are per config dir: a claude-iit session can't be
  *  resumed as claude). Other providers are checked by trying. */
@@ -67,23 +73,42 @@ const sessionMissing = (r: AgentResult) => {
 };
 
 function cliArgs(opts: AgentOptions, model: string): string[] {
-  const args = ["-p", "--model", model, "--output-format", "json", "--permission-mode", "acceptEdits"];
+  // stream-json: one event per line, so the run can be shown live (see describe); the last line is the usual result
+  const args = ["-p", "--model", model, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits"];
   if (opts.maxTurns) args.push("--max-turns", String(opts.maxTurns));
   if (opts.resume) args.push("--resume", opts.resume);
   args.push("--allowedTools", ...opts.tools);
   return args;
 }
 
-function finish(opts: AgentOptions, status: number | null, stdout: string, stderr: string, errMsg: string, durationMs: number): AgentResult {
-  fs.mkdirSync(path.dirname(opts.logPath), { recursive: true });
-  fs.writeFileSync(opts.logPath, `model: ${opts.model}\nexit: ${status}\nerror: ${errMsg}\n\n--- stdout ---\n${stdout}\n\n--- stderr ---\n${stderr}\n`, "utf-8");
+const clip = (s: string, n: number) => { const t = s.replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
+const short = (p: string) => (p.startsWith(REPO + "/") ? p.slice(REPO.length + 1) : p).replace(/^workspace\/[^/]+\/05-video\//, "");
+/** One Claude stream-json event as short display lines ("💬 text", "🔧 Edit A03_x.tsx", "💭 thinking"); [] for the rest. */
+export function describe(ev: any): string[] {
+  if (ev?.type !== "assistant" || !Array.isArray(ev.message?.content)) return [];
+  return ev.message.content.flatMap((c: any) => {
+    if (c.type === "text" && c.text?.trim()) return [`💬 ${clip(c.text, 240)}`];
+    if (c.type === "thinking") return [c.thinking?.trim() ? `💭 ${clip(c.thinking, 200)}` : "💭 thinking…"];
+    if (c.type === "tool_use") {
+      const i = c.input ?? {};
+      const arg = i.file_path ? short(String(i.file_path)) : i.command ? clip(String(i.command), 160) : i.pattern ?? i.path ?? "";
+      const size = c.name === "Write" && typeof i.content === "string" ? ` (${i.content.split("\n").length} lines)` : c.name === "Edit" && typeof i.new_string === "string" ? ` (${i.new_string.split("\n").length} lines)` : "";
+      return [`🔧 ${c.name}${arg ? " " + arg : ""}${size}`];
+    }
+    return [];
+  });
+}
 
-  let parsed: any = {};
-  try {
-    parsed = JSON.parse(stdout || "{}");
-  } catch {
-    parsed = { is_error: true };
-  }
+function finish(opts: AgentOptions, status: number | null, stdout: string, stderr: string, errMsg: string, durationMs: number): AgentResult {
+  // stream-json: the result is the last "result" event; the rest becomes a readable transcript in the log (tool
+  // results, e.g. contact-sheet images, are left out so the log stays small). A plain JSON reply still parses.
+  const events = jsonLines(stdout);
+  let parsed: any = [...events].reverse().find((e) => e.type === "result");
+  if (!parsed) { try { parsed = JSON.parse(stdout || "{}"); } catch { parsed = { is_error: true }; } }
+  const transcript = events.flatMap(describe).join("\n");
+  const out = events.length ? JSON.stringify(parsed) : stdout;
+  fs.mkdirSync(path.dirname(opts.logPath), { recursive: true });
+  fs.writeFileSync(opts.logPath, `model: ${opts.model}\nexit: ${status}\nerror: ${errMsg}\n\n--- stdout ---\n${out}\n\n--- stderr ---\n${stderr}\n${transcript ? `\n--- transcript ---\n${transcript}\n` : ""}`, "utf-8");
   // `usage` covers only part of the run; `modelUsage` has the whole run's totals per model (output includes thinking)
   const u = parsed.usage ?? {};
   const mu = Object.values(parsed.modelUsage ?? {}) as any[];
@@ -256,7 +281,21 @@ function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
     const child = spawn(pl.cmd, pl.args, { cwd: opts.cwd ?? process.cwd(), env: { ...process.env, ...pl.env } });
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d) => (stdout += d));
+    // live: each step of a Claude run as one line on our stdout (the dashboard streams it in the job log)
+    const live = (sp.provider === "claude" || sp.provider === "claude-iit") && process.env.WG_LIVE !== "0";
+    const tag = opts.label ?? defaultLabel(opts.logPath);
+    let buf = "";
+    child.stdout.on("data", (d) => {
+      stdout += d;
+      if (!live) return;
+      buf += d;
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 1);
+        if (!line.startsWith("{")) continue;
+        try { for (const l of describe(JSON.parse(line))) console.log(`   ${tag ? `[${tag}] ` : ""}${l}`); } catch {}
+      }
+    });
     child.stderr.on("data", (d) => (stderr += d));
     child.on("error", (e) => resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))));
     child.on("close", (code) => resolve(noteLimit(opts, pl.parse(opts, code, stdout, stderr, "", Date.now() - t0))));
