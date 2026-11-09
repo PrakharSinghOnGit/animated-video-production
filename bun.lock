@@ -93,8 +93,8 @@
         "vite": "^8.3.5",
       },
     },
-    "workspace/SH01_Nvidia_Honey_Trap/shorts/S1/05-video": {
-      "name": "@wealthgap-video/sh01_nvidia_honey_trap-shorts-s1",
+    "workspace/SH01_Honey_Trao/shorts/S1/05-video": {
+      "name": "@wealthgap-video/sh01_honey_trao-shorts-s1",
       "version": "1.0.0",
       "dependencies": {
         "@wealthgap/kit": "workspace:*",
@@ -158,6 +158,20 @@
     },
     "workspace/VID06_AI_Bubble/05-video": {
       "name": "@wealthgap-video/vid05_ai_bubble",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
+    "workspace/VID06_AI_Bubble/shorts/S1/05-video": {
+      "name": "@wealthgap-video/vid06_ai_bubble-shorts-s1",
+      "version": "1.0.0",
+      "dependencies": {
+        "@wealthgap/kit": "workspace:*",
+      },
+    },
+    "workspace/VID06_AI_Bubble/shorts/S2/05-video": {
+      "name": "@wealthgap-video/vid06_ai_bubble-shorts-s2",
       "version": "1.0.0",
       "dependencies": {
         "@wealthgap/kit": "workspace:*",
@@ -735,7 +749,7 @@
 
     "@vitejs/plugin-react": ["@vitejs/plugin-react@6.1.2", "", { "dependencies": { "@rolldown/pluginutils": "^1.0.1" }, "peerDependencies": { "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0", "babel-plugin-react-compiler": "^1.0.0", "oxc-transform-react": "^0.152.0", "vite": "^8.0.0" }, "optionalPeers": ["@rolldown/plugin-babel", "babel-plugin-react-compiler", "oxc-transform-react"] }, "sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw=="],
 
-    "@wealthgap-video/sh01_nvidia_honey_trap-shorts-s1": ["@wealthgap-video/sh01_nvidia_honey_trap-shorts-s1@workspace:workspace/SH01_Nvidia_Honey_Trap/shorts/S1/05-video"],
+    "@wealthgap-video/sh01_honey_trao-shorts-s1": ["@wealthgap-video/sh01_honey_trao-shorts-s1@workspace:workspace/SH01_Honey_Trao/shorts/S1/05-video"],
 
     "@wealthgap-video/vid03_pseudo_rich": ["@wealthgap-video/vid03_pseudo_rich@workspace:workspace/VID03_Pseudo_Rich/05-video"],
 
@@ -754,6 +768,10 @@
     "@wealthgap-video/vid05_inducement_trap": ["@wealthgap-video/vid05_inducement_trap@workspace:workspace/VID05_Inducement_Trap/05-video"],
 
     "@wealthgap-video/vid05_inducement_trap-shorts-s1": ["@wealthgap-video/vid05_inducement_trap-shorts-s1@workspace:workspace/VID05_Inducement_Trap/shorts/S1/05-video"],
+
+    "@wealthgap-video/vid06_ai_bubble-shorts-s1": ["@wealthgap-video/vid06_ai_bubble-shorts-s1@workspace:workspace/VID06_AI_Bubble/shorts/S1/05-video"],
+
+    "@wealthgap-video/vid06_ai_bubble-shorts-s2": ["@wealthgap-video/vid06_ai_bubble-shorts-s2@workspace:workspace/VID06_AI_Bubble/shorts/S2/05-video"],
 
     "@wealthgap/dashboard-web": ["@wealthgap/dashboard-web@workspace:workflow/dashboard/web"],
 

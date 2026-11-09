@@ -4,6 +4,8 @@
  * capturing and encoding the frame), the blank-frame check, and the canvas calls that cost the most.
  *
  * Usage: bun run profile --video <ID> [--scene A09,A10] [--at 0.25,0.5,0.75] [--frames 30]      free, ~1–3 min
+ *        bun run profile --video <ID> --scene A10 --bench 1,3,5,8 [--frames 240] [--audio]
+ *            the full video (as the render runs it) over a stretch of each act, at each number of tabs (concurrency)
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -27,6 +29,33 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wg-profile-"));
 
 console.log("📦 Bundling...");
 const serveUrl = await bundle({ entryPoint: path.join(out, "src", "index.ts"), publicDir: path.join(out, "public") });
+
+// --bench 1,3,5,8: the full video (Main, as the render runs it) over a stretch of each --scene act, at each concurrency
+const bench = flag("--bench")?.split(",").map(Number).filter((n) => n >= 1 && n <= 16);
+if (bench?.length) {
+  const propsFile = path.join(out, "render-props.json");
+  const inputProps = fs.existsSync(propsFile) ? JSON.parse(fs.readFileSync(propsFile, "utf-8")) : {};
+  console.log("🎞  loading the full video...");
+  const composition = await selectComposition({ serveUrl, id: "Main", inputProps });
+  const len = Math.max(30, parseInt(flag("--frames") ?? "240", 10));
+  for (const s of scenes) {
+    const from = s.windowStartFrame + Math.round((at[0] ?? 0.5) * Math.max(0, s.durationFrames - len));
+    for (const c of bench) {
+      const t = Date.now();
+      // --audio: with the soundtrack, as the real render; the speed is printed every 10% (a long run shows any slowdown)
+      let mark = 0, tm = t, last = 0;
+      const onProgress = ({ renderedFrames }: { renderedFrames: number }) => {
+        if (renderedFrames < (mark + 0.1) * len) return;
+        mark = Math.floor((renderedFrames / len) * 10) / 10; const now = Date.now();
+        console.log(`   ${Math.round(mark * 100)}%: ${((renderedFrames - last) / ((now - tm) / 1000)).toFixed(1)} fps`); tm = now; last = renderedFrames;
+      };
+      await renderMedia({ serveUrl, composition, inputProps, codec: "h264", crf: 16, outputLocation: path.join(tmp, "bench.mp4"), frameRange: [from, from + len - 1], concurrency: c, chromiumOptions: { gl: "angle" }, muted: !args.includes("--audio"), logLevel: "error", ...(len >= 1000 ? { onProgress } : {}) });
+      console.log(`${s.id} frames ${from}–${from + len - 1}, ${c} tab${c > 1 ? "s" : ""}: ${(len / ((Date.now() - t) / 1000)).toFixed(1)} fps`);
+    }
+  }
+  fs.rmSync(tmp, { recursive: true, force: true });
+  process.exit(0);
+}
 type Row = { act: string; fps: number; drawMs: number; checkMs: number; frames: number; ops: Record<string, [number, number]> };
 const rows: Row[] = [];
 for (const s of scenes) {
