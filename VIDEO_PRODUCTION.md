@@ -19,7 +19,8 @@ Everything else is this pipeline. Read this whole file before running anything.
 - **Gates:** stop and wait for the user at **G1a script approval** (only the user approves a script), **G1 plan**, **G2 first act**, **G3 draft**, **G4 publish packages**, and for shorts **SG1 short scripts** and **SG2 short drafts**. Never author all acts before
   the user has approved the first one.
 - **Cheap helper:** `agy` (Antigravity CLI, Gemini Flash, free) may do boring read-only work (the frame critic already
-  uses it). Always use `--mode plan`; never give it a decision or a write.
+  uses it). When you call it yourself, use `--mode plan`; never give it a decision or a write. (Pipeline steps can
+  run on agy when the user picks it in Settings → Agent models: write steps then run in accept-edits mode.)
 - **Git:** `workspace/VID*` is gitignored on purpose. Commit pipeline changes only when the user asks.
 
 ## 1. Where things live
@@ -327,7 +328,7 @@ Every agent step goes through `workflow/05-video/src/lib/agent.ts`; the model is
 (`workflow/lib/models.ts`): `claude:opus` (default profile), `claude-iit:sonnet` (`CLAUDE_CONFIG_DIR=~/.claude-iit`),
 `codex:gpt-6-luna` (codex exec, workspace-write sandbox), `opencode:opencode/glm-5.3-flash-free` (opencode run --auto),
 `ollama:<model>` (local, through opencode with `workspace/.opencode-ollama.json`; needs a model with tool calling,
-e.g. `ollama pull qwen3`), `agy:gemini-3.8-flash-medium` (read-only: review steps only). Bare `opus`/`sonnet`/`haiku`
+e.g. `ollama pull qwen3`), `agy:gemini-3.8-flash-medium` (free; review steps run read-only, write steps in accept-edits with only the step's commands allowed). Bare `opus`/`sonnet`/`haiku`
 = the default Claude profile.
 - Defaults per step: `workflow/models.json`, edited in the dashboard (Settings → Agent models) or
   `bun run models --set writer codex:gpt-6-luna` / `--reset writer`; `bun run models` lists steps and found models.

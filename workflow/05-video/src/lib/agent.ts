@@ -2,7 +2,7 @@
  * Headless agent runs for the agent stages (writer, director, act author, critic, packaging, reviewers).
  * `model` is a spec from workflow/lib/models.ts: claude / claude-iit (Claude Code, tools pre-approved via
  * --allowedTools), codex (codex exec, workspace-write sandbox), opencode (opencode run --auto), ollama (a local
- * model through opencode) or agy (read-only). The prompt goes over stdin, the full output is logged, and cost,
+ * model through opencode) or agy (plan mode for read-only steps, accept-edits for write steps). The prompt goes over stdin, the full output is logged, and cost,
  * tokens and wall time come back in one shape so every stage can be accounted for.
  */
 import fs from "node:fs";
@@ -114,7 +114,32 @@ const logRun = (opts: AgentOptions, status: number | null, stdout: string, stder
 };
 const jsonLines = (s: string) => s.split("\n").flatMap((l) => { try { return l.trim().startsWith("{") ? [JSON.parse(l)] : []; } catch { return []; } });
 
+/** Claude-style tool names -> agy's permission rules: "Bash(bun run frames:*)" -> "command(bun run frames)".
+ *  Read/Write/Edit need no rule (accept-edits mode allows file edits in the workspace). */
+const agyAllow = (tools: string[]) => tools.flatMap((t) => { const m = t.match(/^Bash\((.+?)(:\*)?\)$/); return m ? [`command(${m[1]})`] : []; });
+/** A step that writes files: whether its tool list asks for more than reading. */
+const writes = (tools: string[]) => tools.some((t) => /^(Write|Edit|Bash)/.test(t));
+
 function plan(opts: AgentOptions, sp: Spec): Plan {
+  if (sp.provider === "agy") {
+    // write steps: accept-edits mode (file edits allowed) + only the step's commands allowed; read-only steps: plan mode
+    const w = writes(opts.tools);
+    const args = ["-p", opts.prompt, "--model", sp.model, "--mode", w ? "accept-edits" : "plan", "--output-format", "json", "--add-dir", opts.cwd ?? REPO];
+    if (w) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
+    if (opts.resume) args.push("--conversation", opts.resume);
+    return {
+      cmd: "agy", args, stdin: "",
+      parse: (o, st, out, err, e, ms) => {
+        logRun(o, st, out, err, e);
+        let p: any = {};
+        try { p = JSON.parse(out || "{}"); } catch {}
+        const u = p.usage ?? {};
+        return { ok: st === 0 && p.status === "SUCCESS", text: typeof p.response === "string" ? p.response : "", durationMs: ms, costUsd: 0, numTurns: Number(p.num_turns ?? 0),
+          inputTokens: Number(u.input_tokens ?? 0), outputTokens: Number(u.output_tokens ?? 0) + Number(u.thinking_tokens ?? 0), cacheReadTokens: Number(u.cache_read_tokens ?? 0),
+          logPath: o.logPath, sessionId: typeof p.conversation_id === "string" ? p.conversation_id : "" };
+      },
+    };
+  }
   if (sp.provider === "claude" || sp.provider === "claude-iit") {
     return {
       cmd: "claude", args: cliArgs(opts, sp.model), stdin: opts.prompt,
@@ -161,12 +186,6 @@ function plan(opts: AgentOptions, sp: Spec): Plan {
   };
 }
 
-/** agy is read-only (plan mode): fine for reviews and JSON answers, not for steps that write files. */
-async function viaAgy(opts: AgentOptions, sp: Spec): Promise<AgentResult> {
-  if (opts.tools.some((t) => /^(Write|Edit|Bash)/.test(t))) throw new Error(`${opts.model}: agy is read-only and this step writes files; pick another model in Settings → Models`);
-  return runAgy({ prompt: opts.prompt, logPath: opts.logPath, model: sp.model, cwd: opts.cwd, conversation: opts.resume });
-}
-
 /** Ollama's server must be up for opencode to reach it; start it in the background if it is not. */
 function ensureOllama() {
   const up = () => spawnSync("curl", ["-s", "-m", "2", "http://127.0.0.1:11434/api/version"], { encoding: "utf-8" }).status === 0;
@@ -195,7 +214,6 @@ export function writeOllamaConfig() {
 
 export function runAgent(opts: AgentOptions): AgentResult {
   const sp = parseSpec(opts.model);
-  if (sp.provider === "agy") throw new Error("agy runs asynchronously: use runAgentAsync for read-only steps");
   if (sp.provider === "ollama") ensureOllama();
   const pl = plan(opts, sp);
   const t0 = Date.now();
@@ -231,7 +249,6 @@ export async function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
 
 function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
   const sp = parseSpec(opts.model);
-  if (sp.provider === "agy") return viaAgy(opts, sp);
   if (sp.provider === "ollama") ensureOllama();
   const pl = plan(opts, sp);
   const t0 = Date.now();

@@ -1,7 +1,7 @@
 /**
  * Which model runs each agent step. A model is "<provider>:<model>":
  *   claude:opus, claude-iit:sonnet (CLAUDE_CONFIG_DIR=~/.claude-iit), codex:gpt-6-luna, opencode:opencode/glm-5.3-flash-free,
- *   ollama:gemma3 (local, run through opencode so it can use tools), agy:gemini-3.8-flash-medium (read-only).
+ *   ollama:gemma3 (local, run through opencode so it can use tools), agy:gemini-3.8-flash-medium (Antigravity CLI; plan mode for read-only steps, accept-edits for steps that write).
  * Bare "opus" / "sonnet" / "haiku" mean the default Claude profile; bare "agy" is agy's default model.
  *
  * Defaults per step live in workflow/models.json (Settings → Agent models in the dashboard); a step's --model flag
@@ -24,14 +24,14 @@ export const PROVIDERS: Record<Provider, ProviderInfo> = {
   codex: { label: "Codex", billing: "subscription", edits: true, note: "codex exec, workspace-write sandbox (no per-tool allow list)" },
   opencode: { label: "OpenCode", billing: "free", edits: true, note: "opencode run --auto (no per-tool allow list); some models are free" },
   ollama: { label: "Ollama", billing: "local", edits: true, note: "local model through opencode; needs a model with tool calling to edit files" },
-  agy: { label: "agy", billing: "free", edits: false, note: "Antigravity CLI in plan mode: read-only, review steps only" },
+  agy: { label: "agy", billing: "free", edits: true, note: "Antigravity CLI: plan mode for review steps; accept-edits + the step's allowed commands for steps that write" },
 };
 export const CLAUDE_DIRS: Record<"claude" | "claude-iit", string> = {
   claude: path.join(os.homedir(), ".claude"),
   "claude-iit": path.join(os.homedir(), ".claude-iit"),
 };
 
-/** Agent steps. `edits`: the step writes files (agy cannot run it). */
+/** Agent steps. `edits`: the step writes files (needs a provider that can edit). */
 export interface Role { label: string; def: string; env?: string; edits: boolean; group: string }
 export const ROLES: Record<string, Role> = {
   writer: { label: "Script writer", def: "claude:opus", env: "WRITER_MODEL", edits: true, group: "Script" },

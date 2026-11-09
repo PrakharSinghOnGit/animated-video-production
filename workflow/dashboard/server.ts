@@ -378,7 +378,7 @@ const activeVoice = () => { try { return fs.readFileSync(path.join(VOICES, "ACTI
 /** Cloneable voices (picked reference), read on every schema/run so new ones show up without a restart. */
 const voiceProfiles = () => ["channel voice", ...ls(VOICES).filter((d) => exists(path.join(VOICES, d, "reference.wav"))), ...(exists(path.join(REPO, "workflow/03-voiceover/voice_profile/reference.wav")) ? ["legacy"] : [])];
 const geminiDesigned = () => ls(VOICES).filter((d) => exists(path.join(VOICES, d, "gemini.json")));
-/** Models a step can use: write steps skip read-only providers (agy). */
+/** Models a step can use: write steps skip providers that cannot edit files. */
 const roleChoices = (role: RoleKey) => ["default", ...allSpecs().filter((s) => !ROLES[role].edits || PROVIDERS[parseSpec(s).provider].edits), ...(role === "critic" ? ["off"] : [])];
 /** Music & beat: keep the chosen track, no track, or any library track (assets/music/index.json). */
 const beatTracks = () => { try { return ["keep", "none", ...JSON.parse(fs.readFileSync(path.join(REPO, "assets/music/index.json"), "utf-8")).tracks.map((t: any) => String(t.file))]; } catch { return ["keep", "none"]; } };

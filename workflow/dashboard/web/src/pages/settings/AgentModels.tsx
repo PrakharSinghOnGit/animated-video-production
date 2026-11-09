@@ -47,7 +47,7 @@ export function AgentModels() {
         <CardTitle>Agent models</CardTitle>
         <CardSub className="max-sm:hidden">which model runs each step · workflow/models.json</CardSub>
         <InfoTip label="About agent models">
-          A run's own model option overrides this for one run ("default" there means this table). Claude runs keep their per-tool allow list; Codex and OpenCode run with a workspace-write sandbox instead. Ollama models run through OpenCode, so they can read and write files only if the model supports tool calling. agy is read-only, so it is offered only for review steps.
+          A run's own model option overrides this for one run ("default" there means this table). Claude runs keep their per-tool allow list; Codex and OpenCode run with a workspace-write sandbox instead. Ollama models run through OpenCode, so they can read and write files only if the model supports tool calling. agy runs review steps read-only and write steps in accept-edits mode with only the step's commands allowed.
         </InfoTip>
         <span className="flex-1" />
         <Button size="sm" variant="secondary" disabled={busy} onClick={() => load(true)}><RefreshCw className={cn(busy && "animate-spin")} />Rescan models</Button>
