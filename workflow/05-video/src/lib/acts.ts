@@ -90,8 +90,8 @@ export function findWord(captions: Caption[], word: string, occurrence: number, 
   return undefined;
 }
 
-/** opts.short: a 9:16 short is exactly one act of 10–75 s (narration ≤ 60 s plus tail) at 70–130 BPM. */
-export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter[] = [], opts: { short?: boolean } = {}): string[] {
+/** opts.short: a 9:16 short is exactly one act of 10 s to its length limit (opts.maxS, default 60) plus a 15 s tail, at 70–130 BPM. */
+export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter[] = [], opts: { short?: boolean; maxS?: number } = {}): string[] {
   const errors: string[] = [];
   const acts = plan.acts ?? [];
   if (acts.length === 0) return ["acts: no acts"];
@@ -118,7 +118,7 @@ export function checkActs(plan: ActsPlan, captions: Caption[], chapters: Chapter
       if (!act[k] || String(act[k]).trim() === "") errors.push(`${where}: missing "${k}"`);
     }
     const len = act.endMs - act.startMs;
-    const min = opts.short ? 10_000 : i === 0 ? COLD_OPEN_MIN_MS : ACT_MIN_MS, max = opts.short ? 75_000 : ACT_MAX_MS;
+    const min = opts.short ? 10_000 : i === 0 ? COLD_OPEN_MIN_MS : ACT_MIN_MS, max = opts.short ? ((opts.maxS ?? 60) + 15) * 1000 : ACT_MAX_MS;
     if (len < min || len > max) errors.push(`${where}: ${Math.round(len / 1000)} s long; ${opts.short ? "a short's act" : i === 0 ? "the cold open" : "acts"} must be ${min / 1000}-${max / 1000} s`);
     if (i > 0 && Math.abs(act.startMs - acts[i - 1].endMs) > SLACK_MS) {
       errors.push(`${where}: starts at ${act.startMs} ms but ${acts[i - 1].id} ends at ${acts[i - 1].endMs} ms (acts must be contiguous)`);

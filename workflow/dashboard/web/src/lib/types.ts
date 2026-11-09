@@ -71,7 +71,7 @@ export interface ShortFiles { draft: FileInfo | null; final: FileInfo | null; sh
 export const SHORT_STAGES = ["script", "approved", "voice", "align", "beat", "plan", "act", "sound", "render", "qc", "exported"] as const;
 export type ShortProgress = Record<(typeof SHORT_STAGES)[number], boolean>;
 export interface ShortItem {
-  id: string;
+  id: string; /** length limit in seconds (config.json maxS, 60 by default) */ maxS: number;
   entry: { kind?: string; title?: string; hook?: string; payoff?: string; loop?: string; why?: string; words?: number; description?: string; hashtags?: string[]; data?: { label: string; value: number | string; unit?: string; source: string }[] };
   checks: PubChecks | null; progress: ShortProgress;
   /** Music & beat (06-audio/rhythm.json): the track the short is cut to, times in seconds on the short's clock */

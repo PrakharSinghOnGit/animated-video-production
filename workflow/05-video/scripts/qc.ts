@@ -42,12 +42,15 @@ async function main() {
   let tailPaddingMs = 1100;
   let failOnWarnings = false;
   let shortFormat = false;
+  let shortMax = 60;
   if (paths.configFile && fs.existsSync(paths.configFile)) {
     try {
       const cfg = JSON.parse(fs.readFileSync(paths.configFile, "utf-8"));
       if (typeof cfg.tailPaddingMs === "number") tailPaddingMs = cfg.tailPaddingMs;
       if (typeof cfg.qc?.failOnWarnings === "boolean") failOnWarnings = cfg.qc.failOnWarnings;
       if (cfg.format === "short") shortFormat = true;
+      // a short's length limit: config.json "maxS" (chosen when the short was written; YouTube and Reels allow up to 180 s)
+      if (Number(cfg.maxS) >= 15 && Number(cfg.maxS) <= 180) shortMax = Number(cfg.maxS);
     } catch {
       // ignore
     }
@@ -135,12 +138,12 @@ async function main() {
         });
       }
 
-      // Shorts (config.json format "short"): 9:16 and at most 60 s (the creator's limit for the channel's shorts)
+      // Shorts (config.json format "short"): 9:16 and at most the short's length limit (maxS, default 60 s)
       if (shortFormat && vStream) {
         const dur = parseFloat(data.format?.duration || "0");
         if (vStream.width !== 1080 || vStream.height !== 1920) issues.push({ type: "ERROR", rule: "short_format", message: `A short must be 1080x1920, got ${vStream.width}x${vStream.height}.` });
-        if (dur > 60.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; the limit is 60 s. Tighten the script (shorts:write --short <S> with notes).` });
-        else issues.push({ type: "INFO", rule: "short_duration", message: `Short runs ${dur.toFixed(1)} s (<= 60 s).` });
+        if (dur > shortMax + 0.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; its limit is ${shortMax} s. Tighten the script (shorts:write --short <S> with notes), or give it a longer limit (--length).` });
+        else issues.push({ type: "INFO", rule: "short_duration", message: `Short runs ${dur.toFixed(1)} s (<= ${shortMax} s).` });
       }
 
       // Check duration match against original audio or timeline specification

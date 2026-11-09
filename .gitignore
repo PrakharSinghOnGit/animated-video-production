@@ -23,6 +23,7 @@ workspace/**/audio-bank/*
 *.mov
 _baseline_stills/
 workspace/VID*
+workspace/SH*
 
 # Python
 .venv/

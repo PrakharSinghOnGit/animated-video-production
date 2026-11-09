@@ -21,7 +21,7 @@ import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { actsToStoryboard, checkActs, findWord, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
 import { capWords, changedActsPath, currentActs, keepActsCurrent, matchWords, planCaptionsPath, snapshotPlanCaptions, spoken, timeMap } from "../src/lib/replan";
-import { isShortWorkspace } from "../src/lib/format";
+import { isShortWorkspace, shortMaxS } from "../src/lib/format";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -145,7 +145,7 @@ plan.acts.forEach((a, k) => {
   };
 });
 
-const errs = checkActs(plan, newC, chapters, { short: isShortWorkspace(wsDir) });
+const errs = checkActs(plan, newC, chapters, { short: isShortWorkspace(wsDir), maxS: shortMaxS(wsDir) });
 const moved = plan.acts.map((a, k) => ({ id: a.id, d: a.startMs - oldActs[k].startMs, len: Math.round((a.endMs - a.startMs) / 1000), was: Math.round((oldActs[k].endMs - oldActs[k].startMs) / 1000) }));
 for (const m of moved) console.log(`   ${m.id} ${report[m.id] ? "✏️  narration changed" : m.d ? "↔ moved" : "  unchanged"}  start ${m.d >= 0 ? "+" : ""}${(m.d / 1000).toFixed(1)} s · ${m.was} s → ${m.len} s`);
 for (const [id, r] of Object.entries(report)) {

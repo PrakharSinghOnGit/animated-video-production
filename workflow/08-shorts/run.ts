@@ -15,7 +15,7 @@
  *   act     act --act A01 (SHORT_ACT.md, Opus) + frames                                          💲 ~$2–4
  *   sound   cues + audio:music + audio:mix --with-music (voice + foley + the beat stage's track, else the generated bed, ducked)
  *   draft   draft render (review it: dashboard Shorts → the short)                                    free
- *   render  final 1080x1920 render + qc (≤ 60 s, 9:16, loudness)                                     free
+ *   render  final 1080x1920 render + qc (length limit, 9:16, loudness)                                  free
  * Default: --from voice --to draft, so a run stops at the draft for the creator's review (gate SG2); then --step render.
  */
 import path from "node:path";

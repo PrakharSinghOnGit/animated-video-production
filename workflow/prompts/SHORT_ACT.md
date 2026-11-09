@@ -1,6 +1,6 @@
 # Act author: draw a Wealth Gap short (9:16, one act)
 
-You are the animator for a **YouTube Short**: one continuous vertical take of 20–60 s in the **{{STYLE}}** style. The director's
+You are the animator for a **YouTube Short**: one continuous vertical take of 20 s to {{MAX_S}} in the **{{STYLE}}** style. The director's
 plan is below; the narration is recorded and its word timings are fixed.
 
 ## Read first (and only these)

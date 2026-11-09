@@ -26,9 +26,9 @@ import { Button } from "@/components/ui/button";
 import { Fold } from "@/components/ui/collapsible";
 import { ResearchPanel } from "@/components/ResearchPanel";
 
-/** A short is <= 60 s; the voice runs about 2.4 spoken words per second including the pauses. */
+/** The voice runs about 2.4 spoken words per second including the pauses (a short's limit: its maxS, 60 s by default). */
 const WPS = 2.4;
-const DESC = "2–3 standalone 9:16 shorts (≤ 60 s) from this video's script and sourced data. Each short is its own nested workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Approval is a human gate; paid stages (writing, planning, the act author, fixes) are never started by Write shorts alone.";
+const DESC = "2–3 standalone 9:16 shorts (60 s by default, up to 3 min with Max length) from this video's script and sourced data. Each short is its own nested workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Approval is a human gate; paid stages (writing, planning, the act author, fixes) are never started by Write shorts alone.";
 const DESC_PROJECT = "Shorts only, no long video: write the brief (what happened, the angle, every fact with its source), then write one short or a series of parts from it. Each short is its own workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Numbers a short says must be in the brief.";
 /** Same test as the server (08-shorts briefWritten): the scaffold's headings and (guidance) do not count. */
 const briefWritten = (t: string) => t.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length >= 30;
@@ -293,7 +293,7 @@ export function ShortsPage() {
               <b className="font-mono text-[15px]">{cur.id}</b>
               {cur.entry.kind && <Badge tone="info">{cur.entry.kind}</Badge>}
               <h2 className="m-0 min-w-0 flex-1 basis-56 text-[15px] font-semibold">{cur.entry.title || "(untitled)"}</h2>
-              <span className={cn("text-xs text-muted-foreground", Math.round(cur.words / WPS) > 60 && "text-destructive")}>{cur.words} words · ~{Math.round(cur.words / WPS)} s</span>
+              <span className={cn("text-xs text-muted-foreground", Math.round(cur.words / WPS) > cur.maxS && "text-destructive")}>{cur.words} words · ~{Math.round(cur.words / WPS)} s of {cur.maxS >= 60 && cur.maxS % 60 === 0 ? `${cur.maxS / 60} min` : `${Math.floor(cur.maxS / 60)}:${String(cur.maxS % 60).padStart(2, "0")}`} max</span>
               {cur.timings.runs > 0 && <span className="text-xs text-muted-foreground">{dur(cur.timings.ms)}{cur.timings.costUsd ? ` · ${money(cur.timings.costUsd)}` : ""}</span>}
             </div>
             <ShortStepBar s={cur} cur={stage} onPick={(k) => go({ step: k })} />

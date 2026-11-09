@@ -1,5 +1,5 @@
 /**
- * Shorts script stage: the long video's approved script + its sourced figures → 2–3 standalone short scripts (≤ 60 s),
+ * Shorts script stage: the long video's approved script + its sourced figures → 2–3 standalone short scripts (60 s by default),
  * one nested workspace each, then the creator approves each script before any voice (same gate as the long video).
  *
  * Usage: bun run shorts:write --video <VID> [--count 3] [--model opus|sonnet] [--force]   write all shorts (paid, ~$0.5–1.5)
@@ -10,6 +10,8 @@
  *        bun run shorts:write --video <VID> --approve S1|S1,S3|all                       approve scripts (only the creator decides)
  *        bun run shorts:write --video <VID> --check                                      re-run the checks after a hand edit
  *        bun run shorts:write --video <VID> --status
+ *        --length 60|90|120|160|180   the length limit in seconds for the shorts written (default 60; Revise keeps the short's own;
+ *                                     YouTube Shorts and Reels allow up to 3 min). Stored in each short's config.json "maxS".
  *        add --series to a set: the shorts are Parts 1..N of one story, in order (kept for later Add/Revise)
  *
  * A shorts project (SH<n>_<Name>, no long video) writes from its brief, 02-scripting/idea.md, instead of a long script:
@@ -25,8 +27,9 @@ import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
 import { researchNote, verifiedResearchText } from "../02-scripting/research_lib";
+import { lengthLabel } from "../05-video/src/lib/format";
 import {
-  REPO, WS_ROOT, SHORT_ID, MIN_WORDS, MAX_WORDS, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
+  REPO, WS_ROOT, SHORT_ID, MIN_WORDS, maxWords, lengthOf, setLength, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
   spokenWords, spokenText, approvalState, scaffoldShort, linkWorkspaces, isShortsProject, briefPath, briefNumbers, briefWritten, type ShortEntry,
 } from "./lib";
 
@@ -51,8 +54,8 @@ function check(entry: ShortEntry): ShortEntry {
   const ws = shortWs(vid!, entry.id), script = readText(path.join(ws, "02-scripting", "script_raw.md"));
   const errors: string[] = [], warnings: string[] = [];
   if (!/^\*\*VO:\*\*/im.test(script)) errors.push("no **VO:** lines in script_raw.md");
-  const words = spokenWords(script);
-  if (words > MAX_WORDS) errors.push(`${words} spoken words: over ${MAX_WORDS} (the short would run past 60 s)`);
+  const words = spokenWords(script), maxS = lengthOf(vid!, entry.id), cap = maxWords(maxS);
+  if (words > cap) errors.push(`${words} spoken words: over ${cap} (the short would run past its ${lengthLabel(maxS)} limit)`);
   if (words < MIN_WORDS) warnings.push(`${words} spoken words: under ${MIN_WORDS}, likely under 25 s`);
   const np = numberProblems(spokenText(script), pn);
   if (np.missing.length && (plan || standalone)) errors.push(`numbers not in ${standalone ? "your brief (02-scripting/idea.md) or its ✓ research facts" : "the long video's sourced plan"}: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
@@ -82,7 +85,7 @@ function report(entries: ShortEntry[]): boolean {
   return ok;
 }
 
-const index = () => readJson<{ shorts: ShortEntry[]; notes?: string; series?: boolean }>(indexPath(vid!));
+const index = () => readJson<{ shorts: ShortEntry[]; notes?: string; series?: boolean; maxS?: number }>(indexPath(vid!));
 
 if (args.includes("--status")) {
   const ix = index();
@@ -132,10 +135,16 @@ function nextId(): string {
   return `S${Math.max(0, ...used.filter((x) => SHORT_ID.test(x)).map((x) => parseInt(x.slice(1), 10))) + 1}`;
 }
 const adding = args.includes("--add"), idea = flag("--idea")?.trim();
+// the length limit for the shorts this run writes: --length, else the set's (index), else 60 s; Revise keeps the short's own
+const lengthArg = flag("--length");
+const length = lengthArg && lengthArg !== "keep" && lengthArg !== "set" ? Number(lengthArg) : undefined;   // keep / set: no change
+if (length !== undefined && !(Number.isInteger(length) && length >= 15 && length <= 180)) { console.error("❌ --length is seconds, 15–180 (e.g. 60, 90, 120, 160, 180)"); process.exit(1); }
+const setLengthS = length ?? index()?.maxS ?? 60;
 
 if (adding && args.includes("--blank")) {
   const sid = nextId();
   scaffoldShort(vid, sid);
+  setLength(vid, sid, setLengthS);
   const sp = path.join(shortWs(vid, sid), "02-scripting", "script_raw.md");
   if (!exists(sp)) fs.writeFileSync(sp, `### Part 1: ${idea ?? "Untitled short"}\n**VO:** \`[VO: punchy, fast]\` \n**[ON SCREEN]:** \n`, "utf-8");
   const ix = index() ?? { shorts: [] };
@@ -172,6 +181,8 @@ if (one && !existing.includes(one)) { console.error(`❌ no short ${one} (have: 
 const stamp = Date.now();
 const added = adding ? nextId() : null;
 const targets = one ? [one] : added ? [added] : Array.from({ length: count }, (_, i) => `S${i + 1}`);
+/** This run's length limit: a revision keeps its short's own unless --length is given. */
+const runLength = one && length === undefined ? lengthOf(vid, one) : setLengthS;
 
 const allFeedback = path.join(dir, "feedback.md");
 let previous = "";
@@ -199,7 +210,7 @@ payoff. Every part but the last ends on the open question the next part answers,
 `;
 // what the shorts are written from: the long video (VID…) or the creator's brief (SH… shorts project)
 const BLOCKS: Record<string, string> = standalone ? {
-  INTRO: `You write **{{COUNT}} YouTube Shorts** (9:16, at most 60 s each) for **The Wealth Gap** from the creator's brief: news, a market
+  INTRO: `You write **{{COUNT}} YouTube Shorts** (9:16, at most {{MAX_S}} each) for **The Wealth Gap** from the creator's brief: news, a market
 move or an idea that does not need a full video. They are narrated by the channel's cloned voice over cut-paper motion graphics.
 The aim: views and new viewers. Each short must work for someone who has never seen the channel; there is no long video behind it.`,
   SOURCES: `1. The creator's brief: \`${briefPath(vid)}\` (what happened, the angle, the facts with their sources: your only raw material).
@@ -216,7 +227,7 @@ The aim: views and new viewers. Each short must work for someone who has never s
   may be used but goes in the notes as a fact-check.`,
   FROM: "which part of the brief it comes from", DATA_SOURCE: "the source the brief gives for it, copied exactly",
 } : {
-  INTRO: `You turn one finished **Wealth Gap** long-form video into **{{COUNT}} standalone YouTube Shorts** (9:16, at most 60 s each),
+  INTRO: `You turn one finished **Wealth Gap** long-form video into **{{COUNT}} standalone YouTube Shorts** (9:16, at most {{MAX_S}} each),
 narrated by the same cloned voice over cut-paper motion graphics. The aims: Shorts bring **views and new viewers**; the long
 video keeps them. Each short must work for someone who has never seen the channel, then make the long video the obvious next watch.`,
   SOURCES: `1. The long video's approved script: \`{{SCRIPT}}\` (what the channel actually says; your raw material).
@@ -239,7 +250,8 @@ const prompt = loadPrompt("SHORTS_WRITER", { video: parent })
   .replace(/{{COUNT}}/g, String(one ? existing.length : added ? 1 : count)).replace(/{{IDS}}/g, targets.join(", ")).replace(/{{SCRIPT}}/g, parentScript)
   .replace(/{{IDEA}}/g, exists(path.join(parent, "02-scripting", "idea.md")) ? path.join(parent, "02-scripting", "idea.md") : "(none)")
   .replace(/{{FIGURES}}/g, figures).replace(/{{PREVIOUS}}/g, previous).replace(/{{SHORTS_DIR}}/g, dir).replace(/{{INDEX}}/g, indexPath(vid))
-  .replace(/{{MIN_WORDS}}/g, String(MIN_WORDS)).replace(/{{MAX_WORDS}}/g, String(MAX_WORDS));
+  .replace(/{{MIN_WORDS}}/g, String(MIN_WORDS)).replace(/{{MAX_WORDS}}/g, String(maxWords(runLength))).replace(/{{MAX_S}}/g, lengthLabel(runLength))
+  + (runLength > 60 ? `\n## Length\nThese shorts may run up to ${lengthLabel(runLength)} (YouTube Shorts and Reels allow up to 3 min). That is a ceiling, not a target: use the room only when the idea needs it; a tight 45 s short beats a padded long one. Past a minute, re-hook every ~20 s (a new number, a turn, a question) so viewers don't swipe away, and keep the payoff for the last third.\n` : "");
 if (args.includes("--dry-run")) { console.log(prompt); process.exit(0); }   // free: show the brief the writer would get
 
 fs.mkdirSync(dir, { recursive: true });
@@ -250,7 +262,7 @@ for (const sid of targets) {
 }
 if (exists(indexPath(vid))) fs.copyFileSync(indexPath(vid), indexPath(vid).replace(/\.json$/, `.${stamp}.bak.json`));
 if (!one) for (const sid of existing.filter((s) => !targets.includes(s))) console.warn(`⚠️  ${sid} is not part of the new set: its folder is left as is (delete it by hand if unwanted)`);
-for (const sid of targets) scaffoldShort(vid, sid);   // the writer writes into S<n>/02-scripting/
+for (const sid of targets) { scaffoldShort(vid, sid); if (!one || length !== undefined) setLength(vid, sid, runLength); }   // the writer writes into S<n>/02-scripting/
 
 console.log(`✂️  ${one ? `Revising ${one}` : added ? `Adding ${added}` : `Writing ${count} shorts`} for ${vid} (${model})...`);
 const r = await runAgentAsync({
@@ -262,8 +274,12 @@ console.log(`   ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costU
 
 const ix = index();
 if (!ix?.shorts?.length) { console.error(`❌ no usable ${path.relative(REPO, indexPath(vid))} was written`); process.exit(1); }
-// the set's series choice lives in the index, so Add and Revise keep writing parts
-if (!!ix.series !== series) { if (series) ix.series = true; else delete ix.series; fs.writeFileSync(indexPath(vid), JSON.stringify(ix, null, 2), "utf-8"); }
+// the set's series choice and length live in the index, so Add and Revise keep them
+if (!!ix.series !== series || (!one && !adding && ix.maxS !== runLength)) {
+  if (series) ix.series = true; else delete ix.series;
+  if (!one && !adding) ix.maxS = runLength;
+  fs.writeFileSync(indexPath(vid), JSON.stringify(ix, null, 2), "utf-8");
+}
 const fresh = ix.shorts.map((s) => s.id).filter((sid) => SHORT_ID.test(sid)).map((sid) => scaffoldShort(vid, sid)).some(Boolean);
 if (fresh || !one) linkWorkspaces();
 const ok = report(ix.shorts.map(check));

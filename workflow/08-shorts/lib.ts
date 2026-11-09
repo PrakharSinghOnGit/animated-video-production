@@ -1,5 +1,5 @@
 /**
- * Shorts: 2–3 standalone 9:16 shorts (≤ 60 s) per long video. Each short is a nested workspace with the same layout as a video,
+ * Shorts: 2–3 standalone 9:16 shorts (60 s by default, up to 3 min: config.json "maxS") per long video. Each short is a nested workspace with the same layout as a video,
  * so every pipeline command runs on it with `--video <VID>/shorts/S1`:
  *
  *   workspace/<VID>/shorts/
@@ -18,13 +18,21 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execSync } from "node:child_process";
-import { SHORT_CONFIG } from "../05-video/src/lib/format";
+import { SHORT_CONFIG, SHORT_MAX_S, shortMaxS } from "../05-video/src/lib/format";
 
 export const REPO = path.resolve(import.meta.dir, "../..");
 export const WS_ROOT = path.join(REPO, "workspace");
 export const SHORT_ID = /^S\d{1,2}$/;
-/** Spoken words per short: the voice runs ~130–155 wpm at pace 1.0, so 140 words stays under 60 s with the pauses. */
-export const MIN_WORDS = 70, MAX_WORDS = 140;
+/** Spoken words per short: the voice runs ~130–155 wpm at pace 1.0, so 140 words per minute stays inside the limit with the pauses. */
+export const MIN_WORDS = 70;
+export const maxWords = (maxS: number) => Math.floor((maxS * 140) / 60);
+/** A short's length limit (its config.json "maxS"; 60 s when not set). */
+export const lengthOf = (vid: string, sid: string) => (exists(path.join(shortWs(vid, sid), "config.json")) ? shortMaxS(shortWs(vid, sid)) : SHORT_MAX_S);
+/** Set a short's length limit (seconds). */
+export function setLength(vid: string, sid: string, maxS: number): void {
+  const p = path.join(shortWs(vid, sid), "config.json");
+  fs.writeFileSync(p, JSON.stringify({ ...(readJson(p) ?? {}), maxS }, null, 2), "utf-8");
+}
 /** Voice settings for shorts: quicker than the long video (pace 0.9, 0.9 s between beats) without sounding rushed. */
 export const SHORT_TTS = ["--pace", "1.0", "--sentence-gap", "0.3", "--section-gap", "0.35"];
 

@@ -192,7 +192,7 @@ three **packages A/B/C**. The rules (thumbnail, title, description, A/B, the cri
 Dashboard "Publish all" = meta, thumbs, review.
 
 ### Step 9: Shorts 💲 (~$3–5 per short) → **SG1 scripts**, **SG2 drafts**
-2–3 standalone 9:16 shorts (≤ 60 s) per video: a fact, a myth, a teaser, a quick math or a story cut from the video, each
+2–3 standalone 9:16 shorts (60 s by default; up to 3 min with `--length 90|120|160|180`, dashboard "Max length") per video: a fact, a myth, a teaser, a quick math or a story cut from the video, each
 with its own script, voice and one-act vertical animation, so the shorts bring views and point at the long video. A short is
 a nested workspace `workspace/<ID>/shorts/S1/`; every command above runs on it with `--video <ID>/shorts/S1`.
 Style: `workflow/styles/shorts/` (Briefing re-staged for 9:16: hook on frame 1, faster tempo, kinetic captions via
@@ -207,7 +207,7 @@ Parts 1..N of one story (each ends on the question the next answers; Add short t
 the script is the same pipeline below.
 1. `bun run shorts:write --video <ID> [--count 3] [--model opus|sonnet]` (~$0.5–1.5) → `shorts/shorts.json` + `S<n>/02-scripting/
    script_raw.md` + `short.json` (kind, title, hook, payoff, loop, data, description, hashtags, checks). Checked in code: 70–140
-   spoken words (≤ 60 s), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
+   spoken words per 60 s of the short's limit (140 for 60 s, 373 for 2:40, 420 for 3 min; the limit is the short's config.json `maxS`, used by the director, the act check and QC too), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
    3 hashtags with #Shorts. Needs the long video's `acts.json` for the figures.
 2. **SG1:** the user reads each script (edit + `--check`, or `S2/02-scripting/feedback.md` + `--short S2` to revise one, or
    `shorts/feedback.md` + `--force` to redo all), then `bun run shorts:write --video <ID> --approve S1|all` (only the user decides).
@@ -220,7 +220,7 @@ the script is the same pipeline below.
 4. **SG2:** the user watches `S1/05-video/draft.mp4` (dashboard: Shorts). Fix cheaply by hand, or notes in
    `review/A01/director_notes.md` + `bun run act --video <ID>/shorts/S1 --act A01 --fix <notes>` (paid), then
    `bun run shorts --video <ID> --short S1 --step sound` if the act's events changed.
-5. `bun run shorts --video <ID> --short S1 --step render` (final 1080x1920 + QC: ≤ 60 s, 9:16, loudness), then
+5. `bun run shorts --video <ID> --short S1 --step render` (final 1080x1920 + QC: within the short's length limit, 9:16, loudness), then
    `bun run shorts:export --video <ID>` → `shorts/export/`: S1.mp4, S1.txt (title, description with sources, credits,
    disclaimer, hashtags), S1.srt, upload.md. In Studio set each short's **Related video** to the long video.
 

@@ -726,11 +726,12 @@ const ACTIONS: Record<string, Action> = {
   "publish.export": { step: "publish", label: "Export", help: "Copies the thumbnails, titles.txt (A: ...), description, tags and the .srt into 07-publish/export/.", long: "seconds", build: (ws) => [B("publish:export", "--video", ws)] },
   // ── shorts: 2–3 standalone 9:16 shorts per video (workspace/<ID>/shorts/S1.., CLI in workflow/08-shorts) ──
   "shorts.write": {
-    step: "shorts", label: "Write shorts", help: "Writes standalone short scripts (≤ 60 s each, one nested workspace per short) from the approved long script and its sourced figures, or in a shorts project from your brief. Existing shorts are kept unless you tick Overwrite. shorts/feedback.md is read on a full rewrite. Each script still needs your approval before any voice.",
+    step: "shorts", label: "Write shorts", help: "Writes standalone short scripts (60 s each by default, up to 3 min with Max length; one nested workspace per short) from the approved long script and its sourced figures, or in a shorts project from your brief. Existing shorts are kept unless you tick Overwrite. shorts/feedback.md is read on a full rewrite. Each script still needs your approval before any voice.",
     paid: "~$0.5–1.5", long: "~2–5 min",
     opts: [
       { key: "count", label: "How many", type: "number", min: 1, max: 5, step: 1, def: 3, flag: "--count" },
       modelOpt("shortsWriter", "Writer model", "--model"),
+      { key: "length", label: "Max length", help: "the longest each short may run: 60 s is the classic short; YouTube Shorts and Reels allow up to 3 min (160 = 2:40). A ceiling, not a target. Longer shorts mean a longer act to draw (more cost)", type: "select", choices: ["60", "90", "120", "160", "180"], def: "60", flag: "--length" },
       { key: "series", label: "A series (parts in order)", help: "S1 = Part 1 …: each part works alone, ends on the question the next part answers, the last loops back to Part 1. Add short then writes the next part", type: "bool", def: false, flag: "--series" },
       { key: "force", label: "Overwrite existing shorts", help: "rewrites every short script, including ones you edited", type: "bool", def: false, flag: "--force" },
     ],
@@ -745,6 +746,7 @@ const ACTIONS: Record<string, Action> = {
     opts: [
       { key: "idea", label: "Idea for this short", help: "optional: an angle, a number, an example from the video or the brief", type: "text", flag: "--idea" },
       { key: "blank", label: "Blank (I write it)", type: "bool", def: false, flag: "--blank" },
+      { ...{ key: "length", label: "Max length", help: "the longest each short may run: 60 s is the classic short; YouTube Shorts and Reels allow up to 3 min (160 = 2:40). A ceiling, not a target. Longer shorts mean a longer act to draw (more cost)", type: "select", choices: ["60", "90", "120", "160", "180"], def: "60", flag: "--length" }, def: "set", choices: ["set", "60", "90", "120", "160", "180"], help: "set = the same as the shorts written with Write shorts (60 s if none); YouTube Shorts and Reels allow up to 3 min (160 = 2:40)" },
       modelOpt("shortsWriter", "Writer model", "--model"),
     ],
     build: (ws, o) => [B("shorts:write", "--video", ws, "--add", ...args(o, "shorts.add"))],
@@ -753,7 +755,7 @@ const ACTIONS: Record<string, Action> = {
   "shorts.check": { step: "shorts", label: "Check scripts", help: "Re-runs the checks (word count, numbers against the plan's data, banned phrases) after a hand edit. No model.", long: "seconds", build: (ws) => [B("shorts:write", "--video", ws, "--check")] },
   "shorts.revise": {
     step: "shorts", perShort: true, label: "Revise", help: "Rewrites this one short from its feedback (shorts/<S>/02-scripting/feedback.md). Save the feedback first; the new script needs approval again.", paid: "~$0.3–0.8", long: "~1–2 min",
-    opts: [modelOpt("shortsWriter", "Writer model", "--model")],
+    opts: [modelOpt("shortsWriter", "Writer model", "--model"), { ...{ key: "length", label: "Max length", help: "the longest each short may run: 60 s is the classic short; YouTube Shorts and Reels allow up to 3 min (160 = 2:40). A ceiling, not a target. Longer shorts mean a longer act to draw (more cost)", type: "select", choices: ["60", "90", "120", "160", "180"], def: "60", flag: "--length" }, def: "keep", choices: ["keep", "60", "90", "120", "160", "180"], help: "keep = this short's current limit; or give it a new one (YouTube Shorts and Reels allow up to 3 min; 160 = 2:40)" }],
     build: (ws, o, s) => {
       if (!readText(path.join(sh.shortWs(ws, s!), "02-scripting/feedback.md")).trim()) return "save feedback for this short first";
       return [B("shorts:write", "--video", ws, "--short", s!, ...args(o, "shorts.revise"))];
@@ -821,7 +823,7 @@ const ACTIONS: Record<string, Action> = {
   },
   "fcp.open": { step: "deliver", label: "Open in Final Cut Pro", help: "Writes the Final Cut Pro project (video, voice, every SFX on its own clip, music) and opens it.", long: "seconds", build: (ws) => [B("fcp", "--video", ws, "--open")] },
   "fcp.short": { step: "deliver", perShort: true, label: "Open in Final Cut Pro", help: "Writes this short's Final Cut Pro project and opens it.", long: "seconds", build: (ws, _o, s) => [B("fcp", "--video", sh.shortVideoId(ws, s!), "--open")] },
-  "shorts.qc": { step: "shorts", perShort: true, label: "QC", help: "Hard checks on this short: placeholders, loudness, duration (≤ 60 s), 9:16.", long: "seconds", build: (ws, _o, s) => [B("qc", "--video", sh.shortVideoId(ws, s!))] },
+  "shorts.qc": { step: "shorts", perShort: true, label: "QC", help: "Hard checks on this short: placeholders, loudness, duration (within its length limit), 9:16.", long: "seconds", build: (ws, _o, s) => [B("qc", "--video", sh.shortVideoId(ws, s!))] },
   "shorts.sound.apply": {
     step: "shorts", perShort: true, label: "Apply SFX edits", help: "Re-reads this short's foley edits: sound stage (cues + mix), then a new draft render.", long: "~2–3 min",
     opts: [{ key: "noMusic", label: "No music bed", help: "voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" }],
@@ -871,7 +873,7 @@ const SHORT_STAGE_ACTIONS: Record<string, Partial<Action> & { label: string; hel
     opts: [{ key: "noMusic", label: "No music bed", help: "voice + foley only (to add a sound in the YouTube app instead)", type: "bool", def: false, flag: "--no-music" }],
   },
   draft: { label: "Draft", help: "Renders the draft 1080x1920 to watch.", long: "~1–2 min" },
-  render: { label: "Render final", help: "Final 1080x1920 render, then QC (≤ 60 s, 9:16, loudness).", long: "~2–4 min" },
+  render: { label: "Render final", help: "Final 1080x1920 render, then QC (within its length limit, 9:16, loudness).", long: "~2–4 min" },
 };
 for (const [stage, def] of Object.entries(SHORT_STAGE_ACTIONS)) {
   const key = `shorts.${stage}`;
@@ -1250,7 +1252,7 @@ function shortsDetails(ws: string) {
     const feedbackP = path.join(sw, "02-scripting/feedback.md"), notesP = path.join(sw, SHORT_NOTES);
     const timings = (readJson<any[]>(path.join(sw, "timings.json")) ?? []).filter((r) => r && typeof r.step === "string");
     return {
-      id, entry, checks: entry.checks ?? null, progress: sh.shortProgress(ws, id),
+      id, entry, checks: entry.checks ?? null, progress: sh.shortProgress(ws, id), maxS: sh.lengthOf(ws, id),
       rhythm: (() => {
         const r = readJson<any>(path.join(sw, "06-audio/rhythm.json"));
         return r ? { track: r.track, title: r.title, license: r.license ?? null, bpm: r.bpm, start: r.start, dur: r.dur, confidence: r.confidence, beats: r.beats, downbeats: r.downbeats, accents: r.accents, energy: r.energy, at: r.at } : null;

@@ -1,6 +1,6 @@
 # Shorts — Briefing, vertical and loud
 
-> The Wealth Gap's 9:16 shorts (≤ 60 s): the same cut-paper spy world as the long-form **Briefing** style (read
+> The Wealth Gap's 9:16 shorts (60 s by default; a short may be given up to 3 min): the same cut-paper spy world as the long-form **Briefing** style (read
 > `workflow/styles/briefing/STYLE.md` §1–3 for materials, inks and colour logic; they all still apply), re-staged for a phone
 > held in one hand, a thumb ready to swipe, and the sound often off. Same paper, same inks, same honesty; double the tempo.
 
@@ -9,7 +9,7 @@
 | | Briefing (long-form) | Shorts |
 |---|---|---|
 | Frame | 1920×1080 | **1080×1920**, safe area `SAFE` = x 64..930, y 220..1440 (YouTube's buttons cover the right ~12%, the title/channel overlay the bottom ~22%, the top bar ~11%) |
-| Length | 8–10 min, acts of 45–120 s | **one act, 20–60 s**, one continuous take |
+| Length | 8–10 min, acts of 45–120 s | **one act, 20 s up to the short's limit** (60 s default, up to 180 s), one continuous take; past a minute, a new visual idea or reveal every ~15–20 s keeps it moving |
 | First second | hook within 10 s | **the hook is on screen in frame 1**: the biggest number or the question already cut and landing; no whip-in, no empty ground |
 | Tempo | calm, one idea at a time | **fast but readable**: a new visual hit every 1.5–3 s, impact text held ≥ (characters ÷ 15 + 0.8) s |
 | Camera | calm focus moves 1.1–2.8 s | `focusCam(…, { pace: 0.45, hold: 0.3, snap: true })`: 0.5–1.3 s moves, punch-ins, whips **allowed every ~5 s**; still never leaves unfinished work |

@@ -15,7 +15,7 @@ import { runAgentAsync } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
-import { isShortWorkspace } from "../src/lib/format";
+import { isShortWorkspace, shortMaxS, lengthLabel } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes } from "../src/lib/scenes";
 import { snapshotPlanCaptions, changedActsPath } from "../src/lib/replan";
@@ -65,7 +65,7 @@ function validate(): string[] {
   } catch (e: any) {
     return [`acts.json is not valid JSON: ${e.message}`];
   }
-  return checkActs(plan, captions, chapters, { short });
+  return checkActs(plan, captions, chapters, { short, maxS: short ? shortMaxS(wsDir) : undefined });
 }
 
 function finish(): void {
@@ -113,7 +113,8 @@ if (checkOnly) {
 
 const scriptFile = path.join(wsDir, "02-scripting", "script_raw.md");
 const scriptHints = fs.existsSync(scriptFile) && /\*\*\[ON SCREEN\]:\*\*/i.test(fs.readFileSync(scriptFile, "utf-8")) ? scriptFile : "";
-const director = loadPrompt(short ? "SHORT_DIRECTOR" : "DIRECTOR", { video: wsDir }).replace(/{{STYLE}}/g, style);
+const director = loadPrompt(short ? "SHORT_DIRECTOR" : "DIRECTOR", { video: wsDir }).replace(/{{STYLE}}/g, style)
+  .replace(/{{MAX_S}}/g, lengthLabel(short ? shortMaxS(wsDir) : 60));
 // A short's sourced figures come from its short.json (copied by shorts:write from the long video's plan)
 const shortInfo = short ? (() => { try { return JSON.parse(fs.readFileSync(path.join(wsDir, "02-scripting", "short.json"), "utf-8")); } catch { return null; } })() : null;
 const shortFigures = shortInfo?.data?.length

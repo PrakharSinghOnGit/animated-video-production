@@ -34,7 +34,7 @@ import { runAgentAsync, runAgy, runAgyJson, extractJson, claudeHasSession, type 
 import { roleModel, isAgy, agyModel, parseSpec } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
 import { recordTiming, formatDuration } from "../src/lib/timings";
-import { isShortWorkspace } from "../src/lib/format";
+import { isShortWorkspace, shortMaxS, lengthLabel } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes";
 import { changedActsPath } from "../src/lib/replan";
@@ -97,7 +97,7 @@ const authorModel = roleModel(short ? "shortsAct" : "actAuthor", flag("--model")
 let limitSwitch: string | null | undefined;
 /** The model for an act: after a usage limit the fallback, else its own (--models), else the batch model. */
 const modelFor = (id: string) => (limitSwitch ? limitSwitch : perActModel[id] ?? authorModel);
-const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style);
+const actPrompt = loadPrompt(short ? "SHORT_ACT" : "ACT", { video: wsDir }).replace(/{{STYLE}}/g, style).replace(/{{MAX_S}}/g, lengthLabel(short ? shortMaxS(wsDir) : 60));
 const AUTHOR_TOOLS = ["Read", "Write", "Edit", "Bash(bun run assemble:*)", "Bash(bun run frames:*)", "Bash(bun run icons:*)"];
 
 // Timeline + registry must exist before any act can be previewed

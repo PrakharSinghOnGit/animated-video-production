@@ -19,7 +19,7 @@
 
 ## Hard rules
 {{FIGURE_RULE}}
-- **Length: {{MIN_WORDS}}–{{MAX_WORDS}} spoken words** per short (≤ 60 s at the voice's pace, with pauses). Count them.
+- **Length: {{MIN_WORDS}}–{{MAX_WORDS}} spoken words** per short (≤ {{MAX_S}} at the voice's pace, with pauses). Count them.
 - Spoken English only in `**VO:**` lines: no parentheses, lists or markdown inside narration.
 - No get-rich wording (guaranteed, secret, overnight, never lose, get rich), no financial advice phrasing ("you should buy").
 
