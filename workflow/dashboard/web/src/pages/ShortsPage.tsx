@@ -28,6 +28,9 @@ import { Fold } from "@/components/ui/collapsible";
 /** A short is <= 60 s; the voice runs about 2.4 spoken words per second including the pauses. */
 const WPS = 2.4;
 const DESC = "2–3 standalone 9:16 shorts (≤ 60 s) from this video's script and sourced data. Each short is its own nested workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Approval is a human gate; paid stages (writing, planning, the act author, fixes) are never started by Write shorts alone.";
+const DESC_PROJECT = "Shorts only, no long video: write the brief (what happened, the angle, every fact with its source), then write one short or a series of parts from it. Each short is its own workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Numbers a short says must be in the brief.";
+/** Same test as the server (08-shorts briefWritten): the scaffold's headings and (guidance) do not count. */
+const briefWritten = (t: string) => t.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length >= 30;
 const STAGES = [["script", "Script"], ["voice", "Voice"], ["align", "Align"], ["beat", "Music & beat"], ["plan", "Plan"], ["act", "Act"], ["sound", "Sound"], ["draft", "Draft"], ["render", "Render + QC"], ["export", "Export"]] as const;
 const REDO = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"];
 const APPROVAL_TONE = { approved: "success", "changed since approval": "warning", "not approved": "neutral", "no script": "danger" } as const;
@@ -235,20 +238,34 @@ function ShortStepBar({ s, cur, onPick }: { s: ShortItem; cur: string; onPick: (
 export function ShortsPage() {
   const { d, ws, route, go, refresh } = useApp();
   const fb = useDraft(d?.shorts.feedback ?? "");
+  const brief = useDraft(d?.script.idea ?? "");
   const [adding, setAdding] = useState(false);
   const sid = route.short && d?.shorts.items.some((s) => s.id === route.short) ? route.short : d?.shorts.items[0]?.id;
   if (!d || !ws) return null;
   const sh = d.shorts, st = d.statuses.shorts ?? "none", ex = sh.items.filter((s) => s.progress.exported).length;
   const cur = sh.items.find((s) => s.id === sid);
   const m = d.meta.shorts;
-  const scriptOk = d.script.approval === "approved" || d.script.approval === "legacy";
+  const only = d.kind === "shorts";
+  const scriptOk = only ? briefWritten(d.script.idea) : d.script.approval === "approved" || d.script.approval === "legacy";
   const state = st === "done" ? "done" : st === "running" ? "running" : scriptOk ? "next" : "blocked";
   const stage = cur ? (STAGES.some(([k]) => k === route.step) ? route.step! : nextStage(cur, d)) : null;
-  const addOpen = adding || sh.items.length === 0;
+  const addOpen = adding || (sh.items.length === 0 && !only);
   return (
-    <StepPage title="Shorts" desc={DESC} status={st} state={state} todo={todoText("shorts", st, d)}
+    <StepPage title="Shorts" desc={only ? DESC_PROJECT : DESC} status={st} state={state} todo={todoText("shorts", st, d)}
       stats={<><StatTile value={sh.items.length ? `${ex}/${sh.items.length}` : "—"} label="exported" />{m && <StatTile value={dur(m.totalMs)} label={`${m.runs} runs`} />}{m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Claude cost" />}</>}>
       <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0">
+        {only && (
+          <Fold defaultOpen={!sh.items.length || !scriptOk} title={<b className="text-[13px] text-foreground">Brief{d.title ? `: ${d.title}` : ""}</b>} className="rounded-lg border bg-card px-3.5">
+            <div className="grid gap-2 pb-3.5">
+              <TextEditor title="Brief" sub="02-scripting/idea.md" rows={14} draft={brief} spellCheck
+                hint={<>The writer's only source. Put every number a short may say under <b>Facts and sources</b>, each with its source on the same line; the check flags any number that is not here. The first <code>#</code> heading names the project.</>}
+                onSave={async (t) => { await api.saveText(ws, "idea", t); await refresh(); }} />
+              {!sh.items.length && (
+                <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.add" /></ActionGrid>
+              )}
+            </div>
+          </Fold>
+        )}
         <section aria-label="Shorts" className="grid min-w-0 gap-2">
           <div role="tablist" aria-label="Shorts" className="flex snap-x gap-2 overflow-x-auto pb-1">
             {sh.items.map((s) => <ShortChip key={s.id} s={s} on={s.id === sid} onPick={() => go({ short: s.id, step: null })} />)}
@@ -261,7 +278,7 @@ export function ShortsPage() {
             <div className="grid gap-2 rounded-lg border bg-card p-3">
               <div className="text-xs text-muted-foreground">{sh.items.length ? `The writer reads the ${sh.items.length} short${sh.items.length > 1 ? "s" : ""} that exist and writes one that repeats none of them (other kind, hook, number and payoff). Give an idea to steer it, or tick Blank to write it yourself.` : "Add one short at a time (the writer avoids repeating earlier ones), or write a whole set at once under All shorts."}</div>
               <ActionCard id="shorts.add" />
-              {!scriptOk && <Note>The long script is not approved yet: shorts are cut from the approved script and the plan's sourced data.</Note>}
+              {!scriptOk && <Note>{only ? "Write the brief first: the writer works only from it." : "The long script is not approved yet: shorts are cut from the approved script and the plan's sourced data."}</Note>}
             </div>
           )}
         </section>

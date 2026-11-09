@@ -43,35 +43,39 @@ export function ProjectOverview() {
   const finalV = d.render.videos.find((v) => v.path.endsWith("final.mp4")), draftV = d.render.videos.find((v) => v.path.endsWith("draft.mp4"));
   const staleLong = Math.max(finalV?.mtime ?? 0, d.sound.files.find((f) => f.path.endsWith("mix.wav"))?.mtime ?? 0);
   const freed = d.shorts.compact.reduce((a, c) => a + c.bytes, 0);
-  const sections: { sec: Section; title: string; status: string; line: string; dots: { k: string; label: string; s: string }[]; ms: number; cost: number; open: string }[] = [
+  // a shorts project (SH…): no long video or packaging, the brief stands in for the idea
+  const only = d.kind === "shorts";
+  const allSections: { sec: Section; title: string; status: string; line: string; dots: { k: string; label: string; s: string }[]; ms: number; cost: number; open: string }[] = [
     { sec: "video", title: "Video", status: videoStatus(st), line: next ? `Next: ${next.label}` : "All steps done", dots: STEPS.map((s) => ({ k: s.key, label: s.label, s: st[s.key] ?? "none" })), ...(({ ms, cost }) => ({ ms, cost }))(meta(STEPS.map((s) => s.key))), open: "Open the video steps" },
     { sec: "shorts", title: "Shorts", status: st.shorts ?? "none", line: items.length ? `${exported}/${items.length} exported` : "No shorts yet", dots: items.map((s) => ({ k: s.id, label: s.id, s: s.progress.exported ? "done" : s.progress.script || s.progress.approved ? "partial" : "none" })), ...(({ ms, cost }) => ({ ms, cost }))(meta(["shorts"])), open: "Open the shorts" },
     { sec: "packaging", title: "Packaging", status: st.publish ?? "none", line: `${nThumbs}/3 thumbnails${pub.metadata ? " · titles written" : ""}${pub.approval?.valid ? " · approved" : ""}`, dots: ["A", "B", "C"].map((v) => ({ k: v, label: v, s: pub.thumbs.find((t) => t.id === v)?.file ? "done" : "none" })), ...(({ ms, cost }) => ({ ms, cost }))(meta(["publish"])), open: "Open packaging" },
   ];
+  const sections = only ? allSections.filter((s) => s.sec === "shorts") : allSections;
 
   return (
     <div className="mx-auto grid max-w-[1400px] gap-7 px-6 pb-12 pt-6 max-sm:px-4">
       <PageHeader
         eyebrow={<span className="font-mono normal-case tracking-normal">{d.id}{d.style ? ` · ${d.style}` : ""}</span>}
         title={d.title ?? (firstLine(idea) || "Untitled project")}
-        sub={!idea ? "No idea written yet: start with the Script step." : undefined}
-        actions={next ? <Button variant="default" onClick={() => go({ sec: "video", step: next.key, act: null, short: null })}>Continue: {next.label}<ArrowRight /></Button> : undefined}
+        sub={!idea ? (only ? "No brief yet: write it in Shorts." : "No idea written yet: start with the Script step.") : only ? "Shorts project: shorts only, written from the brief." : undefined}
+        actions={only ? <Button variant="default" onClick={() => go({ sec: "shorts", step: null, act: null, short: null })}>Open shorts<ArrowRight /></Button>
+          : next ? <Button variant="default" onClick={() => go({ sec: "video", step: next.key, act: null, short: null })}>Continue: {next.label}<ArrowRight /></Button> : undefined}
       />
       {idea && (
-        <Fold title="Idea" className="-mt-3 max-w-4xl">
+        <Fold title={only ? "Brief" : "Idea"} className="-mt-3 max-w-4xl">
           <div className="rounded-lg border bg-card px-4 py-3"><Markdown>{idea}</Markdown></div>
         </Fold>
       )}
       <div className="wg-stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Narration" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} />
-        <StatCard label="Acts" value={d.acts.length ? String(d.acts.length) : "—"} />
+        {!only && <StatCard label="Narration" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} />}
+        {!only && <StatCard label="Acts" value={d.acts.length ? String(d.acts.length) : "—"} />}
         <StatCard label="Shorts exported" value={items.length ? `${exported}/${items.length}` : "—"} />
         <StatCard label="Recorded time" value={dur(d.totals.ms)} />
         <StatCard label="Model cost" value={money(d.totals.costUsd)} />
         <StatCard label="On disk" value={ov ? mb(ov.bytes.total) : "…"} />
       </div>
 
-      <section aria-label="Sections" className="grid gap-3 md:grid-cols-3">
+      <section aria-label="Sections" className={only ? "grid max-w-md gap-3" : "grid gap-3 md:grid-cols-3"}>
         {sections.map((s) => (
           <button key={s.sec} onClick={() => go({ sec: s.sec, step: null, act: null, short: null })}
             className="group flex flex-col gap-3 rounded-[10px] border bg-card p-4 text-left shadow-sm outline-none transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/60">
@@ -88,10 +92,10 @@ export function ProjectOverview() {
 
       <section aria-label="Downloads" className="grid gap-3">
         <SubHead>Downloads</SubHead>
-        <Card>
+        {!only && <Card>
           <CardHeader><CardTitle>Long video</CardTitle><CardSub>{finalV ? `final ${ago(finalV.mtime)}` : draftV ? `draft ${ago(draftV.mtime)} (no final yet)` : "not rendered yet"}</CardSub></CardHeader>
           <CardBody><Downloads info={ov?.deliver.video} staleAfter={staleLong} /></CardBody>
-        </Card>
+        </Card>}
         {items.map((s) => (
           <Card key={s.id}>
             <Fold className="px-3.5" title={<span className="flex min-w-0 items-center gap-2"><b className="font-mono text-[13px] text-foreground">{s.id}</b><span className="truncate text-foreground">{s.entry.title ?? "(untitled)"}</span><span className="text-muted-foreground">{ov?.deliver.shorts[s.id] ? `${ov.deliver.shorts[s.id]!.items.length} files` : "not built yet"}</span></span>}>
@@ -108,8 +112,8 @@ export function ProjectOverview() {
           <Card>
             <CardHeader><CardTitle>QC</CardTitle><CardSub>{d.render.qc ? `report ${ago(d.render.qc.mtime)}` : "no report yet"}</CardSub></CardHeader>
             <CardBody>
-              <ActionGrid className="sm:grid-cols-1"><ActionCard id="render.qc" /></ActionGrid>
-              {d.render.qc && <Fold title="Long-video QC report" className="rounded-lg border px-3"><div className="pb-3"><Prose>{d.render.qc.text}</Prose></div></Fold>}
+              {!only && <ActionGrid className="sm:grid-cols-1"><ActionCard id="render.qc" /></ActionGrid>}
+              {!only && d.render.qc && <Fold title="Long-video QC report" className="rounded-lg border px-3"><div className="pb-3"><Prose>{d.render.qc.text}</Prose></div></Fold>}
               {items.map((s) => (
                 <div key={s.id} className="flex flex-wrap items-center gap-2.5 text-[12.5px]">
                   <b className="font-mono">{s.id}</b>

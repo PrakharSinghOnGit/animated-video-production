@@ -12,6 +12,7 @@ if (!videoId) {
 
 Usage:
   bun run new-video <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
+  bun run new-video SH<n>_<Name>          a shorts project: shorts only, written from your brief (no long video)
   bun run scripts/new_video.ts <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
 
 Examples:
@@ -30,6 +31,32 @@ const targetDir = path.join(workspaceRoot, videoId);
 if (fs.existsSync(targetDir)) {
   console.error(`❌ Workspace folder already exists at: ${targetDir}`);
   process.exit(1);
+}
+
+// A shorts project (SH<n>_<Name>): shorts only, no long video. The shorts start from the brief (02-scripting/idea.md);
+// each short gets its own nested workspace (shorts/S1, …) when shorts:write creates it, as in a long video's Shorts.
+if (/^SH\d+_/.test(videoId)) {
+  for (const sub of ["02-scripting", "shorts"]) fs.mkdirSync(path.join(targetDir, sub), { recursive: true });
+  fs.writeFileSync(path.join(targetDir, "config.json"), JSON.stringify({ kind: "shorts" }, null, 2) + "\n", "utf-8");
+  // no digits in the template: every number in the brief becomes a number the shorts may say
+  fs.writeFileSync(path.join(targetDir, "02-scripting", "idea.md"), `# ${videoId.replace(/^SH\d+_/, "").replace(/_/g, " ")}
+
+## What happened
+(The news, the market move or the idea, in your own words.)
+
+## Facts and sources
+(Every number a short may say, each with its source on the same line: what, value, who said it, date or link.
+The writer may use only these; the check flags any other number.)
+
+## Angle
+(What the viewer should take away; why it matters to them.)
+
+## Shorts
+(One short, or a series: how many parts and what each covers. Optional.)
+`, "utf-8");
+  console.log(`✅ Shorts project created: ${path.relative(process.cwd(), targetDir)}`);
+  console.log(`Next: write the brief in 02-scripting/idea.md, then: bun run shorts:write --video ${videoId} --count 1   (add --series for parts)`);
+  process.exit(0);
 }
 
 function copyDirRecursive(src: string, dest: string, videoId: string) {

@@ -88,7 +88,8 @@ export interface ShortsInfo {
   items: ShortItem[]; notes: string | null; indexFile: FileInfo | null; feedback: string; feedbackMtime: number; exported: FileInfo[]; compact: CompactEntry[];
 }
 export interface Details {
-  id: string; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
+  /** "shorts" = a shorts project (SH…): no long video, its shorts are written from the brief (script.idea) */
+  id: string; kind: "video" | "shorts"; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
   script: { file: FileInfo | null; sections: number; idea: string; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };
   runs: Run[]; totals: { ms: number; costUsd: number };
   voice: { parts: { part: string; files: FileInfo[] }[]; combined: FileInfo[]; sectionCount: number; freshWavs: number; running: boolean;
@@ -109,7 +110,7 @@ export interface Details {
 }
 /** An act whose narration a script change rewrote: what was said, what is said now, plan items that went with it. */
 export interface ChangedAct { before: string; now: string; notes: string[]; at: string }
-export interface WsSummary { id: string; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
+export interface WsSummary { id: string; kind: "video" | "shorts"; /** shorts project: one status per short */ shorts: string[]; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
 export interface DawInfo {
   setUp: boolean; bundle: FileInfo | null; mix: FileInfo | null; autoMix: FileInfo | null; bundleStale: boolean;
   build: { builtAt: number; regions: number; samples: number; bytes: number; events: number; music: boolean; tracks: string[] } | null;

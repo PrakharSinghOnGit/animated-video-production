@@ -83,6 +83,7 @@ export function WorkspacePage() {
     <>
       <SectionTabs />
       {mode === "nodes" ? <Suspense fallback={<div className="p-6 text-muted-foreground">Loading…</div>}><NodeView /></Suspense>
+        : d.kind === "shorts" && route.sec ? scroll(<ShortsPage />)
         : route.sec === "video" ? <VideoSection />
         : route.sec === "shorts" ? scroll(<ShortsPage />)
         : route.sec === "packaging" ? scroll(<PackagingPage />)

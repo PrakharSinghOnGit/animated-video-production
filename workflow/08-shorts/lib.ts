@@ -9,6 +9,10 @@
  *     S1/config.json               { format: "short", width: 1080, height: 1920, endHoldS: 0, fadeOutFrames: 0 }
  *     S1/02-scripting/             script_raw.md, short.json (its index entry + checks), approved.json, feedback.md
  *     S1/03-voiceover … 07-assembly the usual stages
+ *
+ * A shorts project (workspace/SH<n>_<Name>, `bun run new-video SH01_Fed_Cut`) is the same folder of shorts with no long video:
+ * the shorts start from the creator's brief (02-scripting/idea.md: what happened, the angle, every fact with its source)
+ * instead of a long script. For news, a market move, anything not worth a full video; one short or a series of parts.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -23,6 +27,17 @@ export const SHORT_ID = /^S\d{1,2}$/;
 export const MIN_WORDS = 70, MAX_WORDS = 140;
 /** Voice settings for shorts: quicker than the long video (pace 0.9, 0.9 s between beats) without sounding rushed. */
 export const SHORT_TTS = ["--pace", "1.0", "--sentence-gap", "0.3", "--section-gap", "0.35"];
+
+/** Workspace ids: VID<n>_<Name> is a long video (with optional shorts), SH<n>_<Name> a shorts project (shorts only). */
+export const PROJECT_ID = /^(VID|SH)\d+_[A-Za-z0-9_]+$/;
+export const isShortsProject = (vid: string) => /^SH\d+_/.test(vid);
+/** The creator's brief of a shorts project (the source of its shorts and of every number they may say). */
+export const briefPath = (vid: string) => path.join(WS_ROOT, vid, "02-scripting", "idea.md");
+/** The scaffold's brief is headings + (guidance in parentheses): it counts as written once there is real text. */
+export function briefWritten(vid: string): boolean {
+  let t = ""; try { t = fs.readFileSync(briefPath(vid), "utf-8"); } catch { return false; }
+  return t.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length >= 30;
+}
 
 export const shortsDir = (vid: string) => path.join(WS_ROOT, vid, "shorts");
 export const shortWs = (vid: string, sid: string) => path.join(shortsDir(vid), sid);
@@ -42,6 +57,23 @@ export function listShorts(vid: string): string[] {
   if (!exists(d)) return [];
   return fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory() && SHORT_ID.test(e.name)).map((e) => e.name)
     .sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
+}
+
+const SCALE: Record<string, number> = { thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12, k: 1e3, m: 1e6, mn: 1e6, b: 1e9, bn: 1e9, t: 1e12, tn: 1e12 };
+/**
+ * The numbers a shorts project's brief carries, in the shape the number check takes (07-publish numberProblems): each value
+ * as written and scaled by its word or suffix ("1.2 trillion", "$40B", "0.25%"), so the script may say it either way.
+ * The brief is the creator's own sourced text, so its numbers count as verified.
+ */
+export function briefNumbers(text: string): { allowed: Set<number>; unverified: Set<number>; lines: string[] } {
+  const allowed = new Set<number>();
+  for (const m of text.matchAll(/(\d[\d,]*(?:\.\d+)?)\s?(thousand|million|billion|trillion|bn|mn|tn|[kmbt])?(?![a-z0-9])/gi)) {
+    const v = parseFloat(m[1].replace(/,/g, ""));
+    if (!Number.isFinite(v)) continue;
+    allowed.add(v);
+    if (m[2]) allowed.add(v * (SCALE[m[2].toLowerCase()] ?? 1));
+  }
+  return { allowed, unverified: new Set(), lines: [] };
 }
 
 export interface ShortEntry {

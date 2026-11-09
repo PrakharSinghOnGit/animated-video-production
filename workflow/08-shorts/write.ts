@@ -10,6 +10,10 @@
  *        bun run shorts:write --video <VID> --approve S1|S1,S3|all                       approve scripts (only the creator decides)
  *        bun run shorts:write --video <VID> --check                                      re-run the checks after a hand edit
  *        bun run shorts:write --video <VID> --status
+ *        add --series to a set: the shorts are Parts 1..N of one story, in order (kept for later Add/Revise)
+ *
+ * A shorts project (SH<n>_<Name>, no long video) writes from its brief, 02-scripting/idea.md, instead of a long script:
+ *        bun run shorts:write --video SH01_Fed_Cut --count 1      one short     |  --count 3 --series   a three-part series
  *        add --dry-run to print the writer's brief without running it (free)
  */
 import fs from "node:fs";
@@ -22,7 +26,7 @@ import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
 import {
   REPO, WS_ROOT, SHORT_ID, MIN_WORDS, MAX_WORDS, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
-  spokenWords, spokenText, approvalState, scaffoldShort, linkWorkspaces, type ShortEntry,
+  spokenWords, spokenText, approvalState, scaffoldShort, linkWorkspaces, isShortsProject, briefPath, briefNumbers, briefWritten, type ShortEntry,
 } from "./lib";
 
 const args = process.argv.slice(2);
@@ -34,8 +38,11 @@ if (!vid || !exists(path.join(WS_ROOT, vid, "02-scripting"))) {
 }
 const parent = path.join(WS_ROOT, vid);
 const dir = shortsDir(vid);
-const plan = readJson(path.join(parent, "05-video", "acts.json"));
-const pn = planNumbers(plan);
+/** A shorts project: no long video, the shorts are written from the creator's brief (its numbers are the allowed ones). */
+const standalone = isShortsProject(vid);
+const brief = standalone ? readText(briefPath(vid)) : "";
+const plan = standalone ? null : readJson(path.join(parent, "05-video", "acts.json"));
+const pn = standalone ? briefNumbers(brief) : planNumbers(plan);
 
 /** Check one short against the rules the writer was given; writes S/02-scripting/short.json. */
 function check(entry: ShortEntry): ShortEntry {
@@ -46,8 +53,8 @@ function check(entry: ShortEntry): ShortEntry {
   if (words > MAX_WORDS) errors.push(`${words} spoken words: over ${MAX_WORDS} (the short would run past 60 s)`);
   if (words < MIN_WORDS) warnings.push(`${words} spoken words: under ${MIN_WORDS}, likely under 25 s`);
   const np = numberProblems(spokenText(script), pn);
-  if (plan && np.missing.length) errors.push(`numbers not in the long video's sourced plan: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
-  if (!plan) warnings.push("the long video has no acts.json yet: numbers could not be checked against its sources");
+  if (np.missing.length && (plan || standalone)) errors.push(`numbers not in ${standalone ? "your brief (02-scripting/idea.md)" : "the long video's sourced plan"}: ${[...new Set(np.missing)].join(", ").replace(/,(?=,|$)/g, "")}`);
+  if (!plan && !standalone) warnings.push("the long video has no acts.json yet: numbers could not be checked against its sources");
   if (np.unverified.length) warnings.push(`sourced only from the narration, fact-check: ${[...new Set(np.unverified)].join(", ").replace(/,(?=,|$)/g, "")}`);
   for (const d of entry.data ?? []) if (!d.source?.trim()) errors.push(`data "${d.label}" has no source`);
   if (BANNED.test(spokenText(script)) || BANNED.test(entry.title ?? "")) errors.push("get-rich wording (guaranteed / secret / overnight / get rich …)");
@@ -73,7 +80,7 @@ function report(entries: ShortEntry[]): boolean {
   return ok;
 }
 
-const index = () => readJson<{ shorts: ShortEntry[]; notes?: string }>(indexPath(vid!));
+const index = () => readJson<{ shorts: ShortEntry[]; notes?: string; series?: boolean }>(indexPath(vid!));
 
 if (args.includes("--status")) {
   const ix = index();
@@ -141,10 +148,14 @@ if (adding && args.includes("--blank")) {
 
 // ───────────── write / revise (paid) ─────────────
 const parentScript = path.join(parent, "02-scripting", "script_raw.md");
-if (!exists(parentScript)) { console.error(`❌ the long video has no script: ${path.relative(REPO, parentScript)}`); process.exit(1); }
-if (approvalState(parent) !== "approved" && exists(path.join(parent, "02-scripting", "idea.md")))
-  console.warn("⚠️  the long video's script is not approved (or changed since): the shorts will be cut from it anyway");
-if (!plan) console.warn("⚠️  no 05-video/acts.json: there are no sourced figures, so the shorts must not state numbers");
+if (standalone) {
+  if (!briefWritten(vid)) { console.error(`❌ write the brief first: ${path.relative(REPO, briefPath(vid))} (what happened, the angle, every fact with its source)`); process.exit(1); }
+} else {
+  if (!exists(parentScript)) { console.error(`❌ the long video has no script: ${path.relative(REPO, parentScript)}`); process.exit(1); }
+  if (approvalState(parent) !== "approved" && exists(path.join(parent, "02-scripting", "idea.md")))
+    console.warn("⚠️  the long video's script is not approved (or changed since): the shorts will be cut from it anyway");
+  if (!plan) console.warn("⚠️  no 05-video/acts.json: there are no sourced figures, so the shorts must not state numbers");
+}
 
 const one = flag("--short")?.toUpperCase();
 const count = Math.min(5, Math.max(1, parseInt(flag("--count") ?? "3", 10)));
@@ -174,7 +185,55 @@ if (one) {
   previous = `6. The creator's notes for these shorts (apply them): \`${allFeedback}\`.`;
 }
 const figures = pn.lines.length ? pn.lines.map((l) => `   - ${l}`).join("\n") : "   (none: the long video has no sourced plan yet. State no numbers except ones the long script says, and list them in notes.)";
+// a series (--series on a set; Add and Revise keep the set's choice): Parts 1..N of one story, in order
+const series = one || adding ? !!index()?.series : args.includes("--series");
+const parts = one ? existing.length : added ? existing.length + 1 : count;
+const SERIES = !series ? "" : `
+## Series
+These shorts are **one series, in order: S1 is Part 1 … S${parts} is Part ${parts}** of one story. Each part still works alone (a viewer
+may land on a later part first): Parts 2 and later fold a one-line catch-up into the hook, never a recap paragraph. Each part has its own
+payoff. Every part but the last ends on the open question the next part answers, instead of the loop line (put that line in
+"loop"); the last part loops back to Part 1's hook. Titles end with "(Part n)". Kinds may repeat across parts.${added ? ` ${added} is the new last part: if the part before it ends by looping back to Part 1, say in notes that it should now tease ${added}.` : ""}
+`;
+// what the shorts are written from: the long video (VID…) or the creator's brief (SH… shorts project)
+const BLOCKS: Record<string, string> = standalone ? {
+  INTRO: `You write **{{COUNT}} YouTube Shorts** (9:16, at most 60 s each) for **The Wealth Gap** from the creator's brief: news, a market
+move or an idea that does not need a full video. They are narrated by the channel's cloned voice over cut-paper motion graphics.
+The aim: views and new viewers. Each short must work for someone who has never seen the channel; there is no long video behind it.`,
+  SOURCES: `1. The creator's brief: \`${briefPath(vid)}\` (what happened, the angle, the facts with their sources: your only raw material).
+2. The figures you may use are the ones in the brief, with the source it gives for each; anything else is off limits.
+3. Dated news: use the date the brief gives when timing matters; never "today" or "yesterday" (a short is watched for weeks).`,
+  KINDS: `- **Different kinds** when the shorts are separate (a series may repeat kinds), unless the brief or the notes say otherwise:
+  \`news\` (what happened, the one number, why it matters to the viewer), \`market\` (a move in a price, rate or index and the
+  mechanism behind it), \`fact\` (one jaw-drop number explained), \`myth\` (a common belief, then the number that breaks it),
+  \`math\` (a quick worked example the viewer can redo), \`story\` (one person or event, told tight).`,
+  BRIDGE: `- **No bridge**: there is no long video to point at. Never "link in bio", never "subscribe".
+- **Original wording.** Use the brief's facts, not its sentences: short sentences (≤ 16 words), direct, spoken.`,
+  FIGURE_RULE: `- **Never invent a number, source, quote or event.** Every figure you say must be in the brief (same value; you may say
+  410 thousand for 410000), and its \`data\` entry carries the source the brief gives. A number the brief gives without a source
+  may be used but goes in the notes as a fact-check.`,
+  FROM: "which part of the brief it comes from", DATA_SOURCE: "the source the brief gives for it, copied exactly",
+} : {
+  INTRO: `You turn one finished **Wealth Gap** long-form video into **{{COUNT}} standalone YouTube Shorts** (9:16, at most 60 s each),
+narrated by the same cloned voice over cut-paper motion graphics. The aims: Shorts bring **views and new viewers**; the long
+video keeps them. Each short must work for someone who has never seen the channel, then make the long video the obvious next watch.`,
+  SOURCES: `1. The long video's approved script: \`{{SCRIPT}}\` (what the channel actually says; your raw material).
+2. The creator's original idea: \`{{IDEA}}\` (their angle and priorities).
+3. The sourced figures you may use (the long video's plan; anything else is off limits):
+{{FIGURES}}`,
+  KINDS: `- **Different kinds**, one per short unless the creator's notes say otherwise. Pick the strongest {{COUNT}} for this video:
+  \`fact\` (one jaw-drop number explained), \`myth\` (a common belief, then the number that breaks it), \`teaser\` (the long video's
+  central question, a real partial answer, the rest is in the video), \`math\` (a quick worked example the viewer can redo),
+  \`story\` (one person or event from the script, told tight).`,
+  BRIDGE: `- **Bridge (optional, max one short clause)**: point at the long video by its topic ("the full breakdown is on the channel"),
+  never "link in bio", never "subscribe".
+- **Original wording.** Reuse the long script's facts, not its paragraphs: shorter sentences (≤ 16 words), more direct.`,
+  FIGURE_RULE: `- **Never invent a number, source, quote or event.** Every figure you say must be in the figures list above (same value; you may
+  say 410 thousand for 410000). A figure marked "narration only, unverified" may be used but goes in the notes as a fact-check.`,
+  FROM: "which part/chapter of the long script it comes from", DATA_SOURCE: "copied exactly from the figures list",
+};
 const prompt = loadPrompt("SHORTS_WRITER", { video: parent })
+  .replace(/{{(INTRO|SOURCES|KINDS|BRIDGE|FIGURE_RULE|FROM|DATA_SOURCE)}}/g, (_, k) => BLOCKS[k]).replace(/{{SERIES}}/g, SERIES)
   .replace(/{{COUNT}}/g, String(one ? existing.length : added ? 1 : count)).replace(/{{IDS}}/g, targets.join(", ")).replace(/{{SCRIPT}}/g, parentScript)
   .replace(/{{IDEA}}/g, exists(path.join(parent, "02-scripting", "idea.md")) ? path.join(parent, "02-scripting", "idea.md") : "(none)")
   .replace(/{{FIGURES}}/g, figures).replace(/{{PREVIOUS}}/g, previous).replace(/{{SHORTS_DIR}}/g, dir).replace(/{{INDEX}}/g, indexPath(vid))
@@ -201,6 +260,8 @@ console.log(`   ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costU
 
 const ix = index();
 if (!ix?.shorts?.length) { console.error(`❌ no usable ${path.relative(REPO, indexPath(vid))} was written`); process.exit(1); }
+// the set's series choice lives in the index, so Add and Revise keep writing parts
+if (!!ix.series !== series) { if (series) ix.series = true; else delete ix.series; fs.writeFileSync(indexPath(vid), JSON.stringify(ix, null, 2), "utf-8"); }
 const fresh = ix.shorts.map((s) => s.id).filter((sid) => SHORT_ID.test(sid)).map((sid) => scaffoldShort(vid, sid)).some(Boolean);
 if (fresh || !one) linkWorkspaces();
 const ok = report(ix.shorts.map(check));

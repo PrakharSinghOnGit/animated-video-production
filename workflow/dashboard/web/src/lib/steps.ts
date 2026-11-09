@@ -64,7 +64,7 @@ export function todoText(key: StepKey, st: St, d: Details): string {
     case "render": return st === "done" ? "Rendered." : pre + "Assemble and render a draft, then the final.";
     case "shorts": {
       const it = d.shorts.items, ex = it.filter((s) => s.progress.exported).length;
-      if (!it.length) return pre + "Run Write shorts: 2–3 standalone 9:16 scripts from this video's script and data.";
+      if (!it.length) return pre + (d.kind === "shorts" ? "Write the brief, then Write shorts (one short or a series of parts)." : "Run Write shorts: 2–3 standalone 9:16 scripts from this video's script and data.");
       if (st === "done") return `All ${it.length} shorts exported: upload them from shorts/export.`;
       const todo = it.find((s) => !s.progress.exported);
       const where = !todo ? "" : todo.approval !== "approved" ? `${todo.id}: review and approve the script.` : !todo.progress.render ? `${todo.id}: run it to the draft, review, then render the final.` : !todo.progress.qc ? `${todo.id}: QC has not passed on the final.` : `${todo.id}: export it.`;

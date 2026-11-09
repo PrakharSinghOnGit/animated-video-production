@@ -22,7 +22,7 @@ export const ago = (t: string | number | null | undefined) => {
 export const mb = (b: number | null | undefined) => (b == null ? "—" : b > 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${(b / 1e6).toFixed(1)} MB`);
 export const tok = (n: number) => (n >= 1e9 ? `${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 export const basename = (p: string) => p.split("/").pop() ?? p;
-export const shortId = (ws: string) => ws.replace(/^(VID\d+)_.*/, "$1");
+export const shortId = (ws: string) => ws.replace(/^((?:VID|SH)\d+)_.*/, "$1");
 
 export const STATUS_LABEL: Record<string, string> = {
   none: "Not started", done: "Done", stale: "Out of date", partial: "In progress", running: "Running", failed: "Failed",

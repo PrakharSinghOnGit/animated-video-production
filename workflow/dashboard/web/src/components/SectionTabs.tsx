@@ -11,12 +11,14 @@ export function SectionTabs() {
   if (!d) return null;
   const st = d.statuses, items = d.shorts.items, exported = items.filter((s) => s.progress.exported).length;
   const pub = d.meta.publish;
-  const tabs: { sec: Section | null; label: string; icon: typeof Film; status: string; sub: string }[] = [
+  const all: { sec: Section | null; label: string; icon: typeof Film; status: string; sub: string }[] = [
     { sec: null, label: "Overview", icon: LayoutGrid, status: "", sub: "" },
     { sec: "video", label: "Video", icon: Clapperboard, status: videoStatus(st), sub: d.align.durationMs ? dur(d.align.durationMs) : "" },
     { sec: "shorts", label: "Shorts", icon: Film, status: st.shorts ?? "none", sub: items.length ? `${exported}/${items.length}` : "" },
     { sec: "packaging", label: "Packaging", icon: PackageOpen, status: st.publish ?? "none", sub: pub ? money(pub.totalCost) : "" },
   ];
+  // a shorts project has no long video and no packaging of its own
+  const tabs = d.kind === "shorts" ? all.filter((t) => t.sec === null || t.sec === "shorts") : all;
   return (
     <nav aria-label="Project sections" className="flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-background px-4 max-sm:px-2">
       {tabs.map((t) => {

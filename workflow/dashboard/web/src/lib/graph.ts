@@ -105,6 +105,8 @@ export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { no
   const acts = d.acts;
   const actEnds: { first: string; last: string }[] = [];
   const x0 = W + 128;
+  // a shorts project (SH…) has no long video and no packaging: only the brief and its shorts
+  const only = d.kind === "shorts";
   const vNav = (b: BlockSpec, step: StepKey): Partial<Route> => ({ sec: "video", step, act: b.act ?? null, short: null });
   const frame = (id: string, key: string, x: number, y: number, w: number, h: number, label: string, hint: string, state: StepState, done: number, total: number) =>
     c.nodes.push({ id, type: "frame", position: { x, y }, width: w, height: h, zIndex: -1, selectable: false, focusable: false, dragHandle: ".wg-drag",
@@ -112,7 +114,7 @@ export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { no
   let x = x0, bandH = 0;
 
   // ── branch 1: Video ──
-  for (const s of STEPS) {
+  for (const s of only ? [] : STEPS) {
     const frameId = `frame:${s.key}`;
     let w: number, h: number, done = 0, total = 0;
     c.frame = frameId;
@@ -152,15 +154,17 @@ export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { no
   c.frame = null;
   const trunk = (k: StepKey) => right.get(k)! + GAP_COL / 2;
   const cross = (a: StepKey, b: StepKey) => link(c, last.get(a)!, first.get(b)!, { sh: "out", th: "in", trunk: trunk(a) });
-  cross("script", "voice"); cross("voice", "align"); cross("align", "plan");
-  if (actEnds.length) {
-    if (collapsed.has("acts")) { link(c, last.get("plan")!, actEnds[0].first, { sh: "out", th: "in", trunk: trunk("plan") }); link(c, actEnds[0].last, first.get("sound")!, { sh: "out", th: "in", trunk: trunk("acts") }); }
-    else for (const e of actEnds) { link(c, last.get("plan")!, e.first, { sh: "out", th: "in", trunk: trunk("plan") }); link(c, e.last, first.get("sound")!, { sh: "out", th: "in", trunk: trunk("acts") }); }
-  } else cross("plan", "sound");
-  cross("sound", "render");
+  if (!only) {
+    cross("script", "voice"); cross("voice", "align"); cross("align", "plan");
+    if (actEnds.length) {
+      if (collapsed.has("acts")) { link(c, last.get("plan")!, actEnds[0].first, { sh: "out", th: "in", trunk: trunk("plan") }); link(c, actEnds[0].last, first.get("sound")!, { sh: "out", th: "in", trunk: trunk("acts") }); }
+      else for (const e of actEnds) { link(c, last.get("plan")!, e.first, { sh: "out", th: "in", trunk: trunk("plan") }); link(c, e.last, first.get("sound")!, { sh: "out", th: "in", trunk: trunk("acts") }); }
+    } else cross("plan", "sound");
+    cross("sound", "render");
+  }
 
   // ── branch 2: Shorts (one row per short) and branch 3: Packaging, side by side below the video ──
-  const y0 = bandH + BAND_GAP;
+  const y0 = only ? 0 : bandH + BAND_GAP;
   const items = d.shorts.items, rowH = ROW_LABEL + H + ROW_GAP;
   const shortFirst: string[] = [];
   let sw: number, sh: number;
@@ -182,29 +186,32 @@ export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { no
       });
     } else {
       const ids = flow(c, () => ({ sec: "shorts", short: null, step: "script", act: null }), "short:new",
-        [{ id: "write", title: "Write shorts", desc: "2–3 standalone 9:16 scripts from the approved script and its sourced data.", action: "shorts.write", label: "Write shorts", done: false }], [], () => ({ x: x0 + PAD, y: y0 + HEAD }), "h");
+        [{ id: "write", title: "Write shorts", desc: only ? "One short or a series of parts from your brief." : "2–3 standalone 9:16 scripts from the approved script and its sourced data.", action: "shorts.write", label: "Write shorts", done: false }], [], () => ({ x: x0 + PAD, y: y0 + HEAD }), "h");
       shortFirst.push(ids[0]);
     }
   }
   const shortsDone = items.filter((s) => s.progress.exported).length;
-  frame("frame:shorts", "shorts", x0, y0, sw, sh, "Shorts", "9:16 shorts from this video", secState(d.statuses.shorts), shortsDone, items.length);
+  frame("frame:shorts", "shorts", x0, y0, sw, sh, "Shorts", only ? "9:16 shorts from the brief" : "9:16 shorts from this video", secState(d.statuses.shorts), shortsDone, items.length);
 
-  const pub = stepSpec("publish", d), px = x0 + sw + GAP_COL;
-  let pw: number, ph: number, pFirst: string;
-  c.frame = "frame:publish";
-  if (collapsed.has("publish")) { pw = CW; ph = CH; pFirst = "frame:publish"; }
-  else {
-    pw = PAD + W + (pub.loops.length ? LOOP_PAD : PAD); ph = HEAD + pub.blocks.length * H + (pub.blocks.length - 1) * GAP_Y + PAD;
-    pFirst = flow(c, (b) => ({ sec: "packaging", step: b.id, act: null, short: null }), "publish", pub.blocks, pub.loops, (i) => ({ x: px + PAD, y: y0 + HEAD + i * (H + GAP_Y) }), "v")[0];
+  let pFirst: string | undefined;
+  if (!only) {
+    const pub = stepSpec("publish", d), px = x0 + sw + GAP_COL;
+    let pw: number, ph: number;
+    c.frame = "frame:publish";
+    if (collapsed.has("publish")) { pw = CW; ph = CH; pFirst = "frame:publish"; }
+    else {
+      pw = PAD + W + (pub.loops.length ? LOOP_PAD : PAD); ph = HEAD + pub.blocks.length * H + (pub.blocks.length - 1) * GAP_Y + PAD;
+      pFirst = flow(c, (b) => ({ sec: "packaging", step: b.id, act: null, short: null }), "publish", pub.blocks, pub.loops, (i) => ({ x: px + PAD, y: y0 + HEAD + i * (H + GAP_Y) }), "v")[0];
   }
   c.frame = null;
   frame("frame:publish", "publish", px, y0, pw, ph, "Packaging", "Thumbnails, titles, description", secState(d.statuses.publish), countDone(d, pub.blocks), pub.blocks.length);
+  }
 
   // ── root: the Idea ──
   const idea = d.script.idea;
-  c.nodes.push({ id: "root", type: "root", position: { x: 0, y: HEAD }, width: W, height: H + 16, connectable: false, data: { title: "Idea", sub: d.title ?? (firstLine(idea) || "No draft yet"), done: !!idea.trim() } });
+  c.nodes.push({ id: "root", type: "root", position: { x: 0, y: HEAD }, width: W, height: H + 16, connectable: false, data: { title: only ? "Brief" : "Idea", sub: d.title ?? (firstLine(idea) || "No draft yet"), done: !!idea.trim() } });
   const rootTrunk = x0 - 64;
-  for (const to of [first.get("script")!, ...shortFirst, pFirst]) link(c, "root", to, { sh: "out", th: "in", trunk: rootTrunk });
+  for (const to of [...(only ? [] : [first.get("script")!]), ...shortFirst, ...(pFirst ? [pFirst] : [])]) link(c, "root", to, { sh: "out", th: "in", trunk: rootTrunk });
 
   // children after their frame, with positions relative to it (React Flow sub-flows)
   const byId = new Map(c.nodes.map((n) => [n.id, n]));

@@ -48,7 +48,12 @@ let publicUrl: string | null = null;
 /** This machine's own IPv4 addresses on the network (the Host a phone at home uses with --host). */
 const lanIps = () => Object.values(os.networkInterfaces()).flat().filter((n) => n && n.family === "IPv4" && !n.internal).map((n) => n!.address);
 
-const WS_ID = /^VID\d+_[A-Za-z0-9_]+$/;
+/** VID<n>_<Name> = a long video (+ its shorts); SH<n>_<Name> = a shorts project (shorts only, written from a brief). */
+const WS_ID = sh.PROJECT_ID;
+/** "shorts" for a shorts project: the dashboard shows only its Overview and Shorts. */
+const kindOf = (ws: string): "video" | "shorts" => (sh.isShortsProject(ws) ? "shorts" : "video");
+/** A shorts project's name: the brief's first heading. */
+const briefTitle = (ws: string) => readText(sh.briefPath(ws)).match(/^#\s+(.+)$/m)?.[1]?.trim() || null;
 const ACT_ID = /^A\d{2,3}$/;
 const LOG_CAP = 4 * 1024 * 1024;
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g;
@@ -708,20 +713,24 @@ const ACTIONS: Record<string, Action> = {
   "publish.export": { step: "publish", label: "Export", help: "Copies the thumbnails, titles.txt (A: ...), description, tags and the .srt into 07-publish/export/.", long: "seconds", build: (ws) => [B("publish:export", "--video", ws)] },
   // ── shorts: 2–3 standalone 9:16 shorts per video (workspace/<ID>/shorts/S1.., CLI in workflow/08-shorts) ──
   "shorts.write": {
-    step: "shorts", label: "Write shorts", help: "Turns the approved long script and its sourced figures into standalone short scripts (≤ 60 s each, one nested workspace per short). Existing shorts are kept unless you tick Overwrite. shorts/feedback.md is read on a full rewrite. Each script still needs your approval before any voice.",
+    step: "shorts", label: "Write shorts", help: "Writes standalone short scripts (≤ 60 s each, one nested workspace per short) from the approved long script and its sourced figures, or in a shorts project from your brief. Existing shorts are kept unless you tick Overwrite. shorts/feedback.md is read on a full rewrite. Each script still needs your approval before any voice.",
     paid: "~$0.5–1.5", long: "~2–5 min",
     opts: [
       { key: "count", label: "How many", type: "number", min: 1, max: 5, step: 1, def: 3, flag: "--count" },
       modelOpt("shortsWriter", "Writer model", "--model"),
+      { key: "series", label: "A series (parts in order)", help: "S1 = Part 1 …: each part works alone, ends on the question the next part answers, the last loops back to Part 1. Add short then writes the next part", type: "bool", def: false, flag: "--series" },
       { key: "force", label: "Overwrite existing shorts", help: "rewrites every short script, including ones you edited", type: "bool", def: false, flag: "--force" },
     ],
-    build: (ws, o) => [B("shorts:write", "--video", ws, ...args(o, "shorts.write"))],
+    build: (ws, o) => {
+      if (sh.isShortsProject(ws) && !sh.briefWritten(ws)) return "write the brief first (what happened, the angle, every fact with its source)";
+      return [B("shorts:write", "--video", ws, ...args(o, "shorts.write"))];
+    },
   },
   "shorts.add": {
     step: "shorts", label: "Add short", help: "Adds one short. With the writer, it reads the shorts that exist and writes a new one that repeats none of them (another kind, hook, number and payoff), following your idea if you give one. Blank: an empty short you write yourself (free).",
     paid: "~$0.3–0.8 (blank: free)", long: "~1–2 min",
     opts: [
-      { key: "idea", label: "Idea for this short", help: "optional: an angle, a number, an example from the video", type: "text", flag: "--idea" },
+      { key: "idea", label: "Idea for this short", help: "optional: an angle, a number, an example from the video or the brief", type: "text", flag: "--idea" },
       { key: "blank", label: "Blank (I write it)", type: "bool", def: false, flag: "--blank" },
       modelOpt("shortsWriter", "Writer model", "--model"),
     ],
@@ -1387,8 +1396,9 @@ function details(ws: string) {
 
   return {
     id: ws,
+    kind: kindOf(ws),
     style: plan?.style ?? null,
-    title: plan?.video?.title ?? null,
+    title: sh.isShortsProject(ws) ? briefTitle(ws) : plan?.video?.title ?? null,
     statuses: stepStatuses(ws),
     meta,
     script: {
@@ -1604,7 +1614,10 @@ function listWorkspaces() {
     .filter((f) => WS_ID.test(f) && fs.statSync(path.join(WS_ROOT, f)).isDirectory())
     .map((id) => {
       const rows = timingsAll(id);
-      return { id, statuses: stepStatuses(id), running: runningJob(id) ? jobSummary(runningJob(id)!) : null, title: readJson(path.join(wsDir(id), "05-video/acts.json"))?.video?.title ?? null,
+      return { id, kind: kindOf(id), statuses: stepStatuses(id), running: runningJob(id) ? jobSummary(runningJob(id)!) : null,
+        title: sh.isShortsProject(id) ? briefTitle(id) : readJson(path.join(wsDir(id), "05-video/acts.json"))?.video?.title ?? null,
+        // a shorts project's progress: one entry per short (exported / started / not yet)
+        shorts: sh.listShorts(id).map((s) => { const p = sh.shortProgress(id, s); return p.exported ? "done" : p.script ? "partial" : "none"; }),
         totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) } };
     });
 }
@@ -1749,10 +1762,10 @@ async function appFetch(req: Request): Promise<Response> {
 
     if (p === "/api/workspaces" && req.method === "POST") {
       const { id } = await body(req);
-      if (typeof id !== "string" || !WS_ID.test(id)) return bad("ID must match VID<n>_<Name> (letters, digits, underscores)");
+      if (typeof id !== "string" || !WS_ID.test(id)) return bad("ID must match VID<n>_<Name> (a video) or SH<n>_<Name> (shorts), letters, digits, underscores");
       if (exists(wsDir(id))) return bad("workspace already exists", 409);
       if (runningJob(id)) return bad("already being created", 409);
-      const job = startJob(id, "new-video", `New video ${id}`, [B("new-video", id)]);
+      const job = startJob(id, "new-video", `New ${sh.isShortsProject(id) ? "shorts project" : "video"} ${id}`, [B("new-video", id)]);
       return json({ job: jobSummary(job) });
     }
 

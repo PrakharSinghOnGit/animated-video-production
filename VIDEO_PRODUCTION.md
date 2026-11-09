@@ -192,6 +192,13 @@ a nested workspace `workspace/<ID>/shorts/S1/`; every command above runs on it w
 Style: `workflow/styles/shorts/` (Briefing re-staged for 9:16: hook on frame 1, faster tempo, kinetic captions via
 `shortCaption`, a loop ending, no end card). Kit: the canvas follows the composition size (1080x1920), `SAFE` becomes
 the Shorts safe area (x 64..930, y 220..1440: YouTube's buttons and title overlay cover the rest).
+
+**Shorts projects (no long video):** for news, a market move or anything not worth a full video, create `SH<n>_<Name>`
+(dashboard: + New project → Shorts; CLI `bun run new-video SH01_Fed_Cut`). It has only Overview and Shorts. Write the brief in
+`02-scripting/idea.md` (what happened, the angle, every fact with its source); `shorts:write` writes from it instead of a long
+script, and the number check allows only numbers in the brief. `--count 1` for one short; `--series` (both kinds) makes the set
+Parts 1..N of one story (each ends on the question the next answers; Add short then writes the next part). Everything after
+the script is the same pipeline below.
 1. `bun run shorts:write --video <ID> [--count 3] [--model opus|sonnet]` (~$0.5–1.5) → `shorts/shorts.json` + `S<n>/02-scripting/
    script_raw.md` + `short.json` (kind, title, hook, payoff, loop, data, description, hashtags, checks). Checked in code: 70–140
    spoken words (≤ 60 s), **every number in the long video's sourced plan** (narration-only figures flagged), no get-rich wording,
