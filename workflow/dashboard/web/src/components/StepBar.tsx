@@ -19,28 +19,36 @@ export function Mark({ st, n }: { st: string; n: number }) {
   );
 }
 
-/** Pipeline stepper: one item per step (state mark, name, time/cost), connected left to right; Runs at the end. */
-export function StepBar({ current, onPick }: { current: string; onPick: (k: string) => void }) {
-  const { d } = useApp();
-  if (!d) return null;
-  const states = stepStates(d.statuses);
+export interface StepItem { key: string; label: string; st: string; sub?: string; next?: boolean }
+
+/** A stepper: one item per step (state mark, name, a line under it), connected left to right. The video's steps and a short's stages both use it. */
+export function Stepper({ items, current, onPick, label }: { items: StepItem[]; current: string; onPick: (k: string) => void; label: string }) {
   const item = "group relative flex min-w-[112px] flex-1 basis-0 flex-col justify-center gap-0.5 px-3 py-2.5 text-left outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent";
   return (
-    <nav aria-label="Pipeline steps" className="flex shrink-0 overflow-x-auto border-b bg-card">
-      {STEPS.map((s, i) => {
-        const st = d.statuses[s.key] ?? "none", on = current === s.key, next = states[s.key] === "next";
+    <nav aria-label={label} className="flex shrink-0 overflow-x-auto border-b bg-card">
+      {items.map((s, i) => {
+        const on = current === s.key;
         return (
-          <button key={s.key} onClick={() => onPick(s.key)} aria-current={on ? "step" : undefined} title={`${s.label}: ${STATUS_LABEL[st]}`} className={item}>
+          <button key={s.key} onClick={() => onPick(s.key)} aria-current={on ? "step" : undefined} title={`${s.label}: ${STATUS_LABEL[s.st] ?? s.st}`} className={item}>
             <span className="flex items-center gap-2">
-              <Mark st={st} n={i + 1} />
+              <Mark st={s.st} n={i + 1} />
               <span className={cn("truncate text-[13px] font-medium", on ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{s.label}</span>
-              {next && !on && <span className="size-1.5 shrink-0 rounded-full bg-brand" aria-label="next" />}
+              {s.next && !on && <span className="size-1.5 shrink-0 rounded-full bg-brand" aria-label="next" />}
             </span>
-            <span className="truncate pl-[26px] text-[11px] text-subtle-foreground">{stepMeta(s.key, d) || s.hint}</span>
+            {s.sub !== undefined && <span className="truncate pl-[26px] text-[11px] text-subtle-foreground">{s.sub}</span>}
             <span aria-hidden className={cn("absolute inset-x-3 bottom-0 h-[2px] rounded-full transition-colors", on ? "bg-brand" : "bg-transparent")} />
           </button>
         );
       })}
     </nav>
   );
+}
+
+/** The video's pipeline stepper: one item per step (state mark, name, time/cost). */
+export function StepBar({ current, onPick }: { current: string; onPick: (k: string) => void }) {
+  const { d } = useApp();
+  if (!d) return null;
+  const states = stepStates(d.statuses);
+  return <Stepper label="Pipeline steps" current={current} onPick={onPick}
+    items={STEPS.map((s) => ({ key: s.key, label: s.label, st: d.statuses[s.key] ?? "none", sub: stepMeta(s.key, d) || s.hint, next: states[s.key] === "next" }))} />;
 }

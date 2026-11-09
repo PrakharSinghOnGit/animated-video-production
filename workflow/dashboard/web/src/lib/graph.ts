@@ -185,7 +185,7 @@ export function buildGraph(d: Details, collapsed: Set<string> = new Set()): { no
         shortFirst.push(ids[0]);
       });
     } else {
-      const ids = flow(c, () => ({ sec: "shorts", short: null, step: "script", act: null }), "short:new",
+      const ids = flow(c, () => ({ sec: "shorts", short: null, step: "write", act: null }), "short:new",
         [{ id: "write", title: "Write shorts", desc: only ? "One short or a series of parts from your brief." : "2–3 standalone 9:16 scripts from the approved script and its sourced data.", action: "shorts.write", label: "Write shorts", done: false }], [], () => ({ x: x0 + PAD, y: y0 + HEAD }), "h");
       shortFirst.push(ids[0]);
     }

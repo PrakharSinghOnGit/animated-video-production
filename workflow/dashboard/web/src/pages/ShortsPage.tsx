@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, RotateCcw, X } from "lucide-react";
+import { PenLine, Plus, RotateCcw, X } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { api } from "@/lib/api";
@@ -19,7 +19,7 @@ import { SfxReview } from "@/components/SfxReview";
 import { StatTile } from "@/components/StatTile";
 import { StatusDot } from "@/components/Status";
 import { StepPage } from "@/components/StepPage";
-import { Mark } from "@/components/StepBar";
+import { Stepper } from "@/components/StepBar";
 import { TextEditor, useDraft } from "@/components/TextEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ const DESC = "2–3 standalone 9:16 shorts (60 s by default, up to 3 min with Ma
 const DESC_PROJECT = "Shorts only, no long video: write the brief (what happened, the angle, every fact with its source), then write one short or a series of parts from it. Each short is its own workspace run through the same stages: you approve its script, run voice, align, plan and act, shape the sound, watch the draft, render the final and export. Numbers a short says must be in the brief.";
 /** Same test as the server (08-shorts briefWritten): the scaffold's headings and (guidance) do not count. */
 const briefWritten = (t: string) => t.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length >= 30;
-const STAGES = [["script", "Script"], ["voice", "Voice"], ["align", "Align"], ["beat", "Music & beat"], ["plan", "Plan"], ["act", "Act"], ["sound", "Sound"], ["draft", "Draft"], ["render", "Render + QC"], ["export", "Export"]] as const;
 const REDO = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"];
 const APPROVAL_TONE = { approved: "success", "changed since approval": "warning", "not approved": "neutral", "no script": "danger" } as const;
 
@@ -187,131 +186,131 @@ const p = (s: ShortItem, k: keyof ShortItem["progress"]) => s.progress[k];
 /** The next stage a short needs (its step bar opens there). */
 const nextStage = (s: ShortItem, d: Parameters<typeof shortSpec>[1]) => shortSpec(s, d).blocks.find((b) => !b.done)?.id ?? "export";
 
-/** One short in the shorts bar: id, kind, title, where it stands; × removes it (after a confirm). */
-function ShortChip({ s, on, onPick }: { s: ShortItem; on: boolean; onPick: () => void }) {
-  const { d, run, canRun } = useApp();
-  if (!d) return null;
-  const next = s.progress.exported ? "exported" : `next: ${STAGES.find(([k]) => k === nextStage(s, d))?.[1] ?? "export"}`;
-  return (
-    <div role="tab" aria-selected={on} className={cn("group relative grid w-60 shrink-0 snap-start gap-0.5 rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent", on && "border-brand ring-1 ring-brand/50")}>
-      <button type="button" onClick={onPick} className="absolute inset-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand" aria-label={`Open ${s.id}`} />
-      <span className="flex items-center gap-1.5 pr-6"><StatusDot s={s.progress.exported ? "done" : s.approval === "approved" ? "partial" : "none"} /><b className="font-mono text-[13px]">{s.id}</b><span className="truncate text-xs text-muted-foreground">{s.entry.kind}</span></span>
-      <span className="truncate text-[12.5px]">{s.entry.title || "(untitled)"}</span>
-      <span className="truncate text-[11px] text-muted-foreground">{next} · {s.words} words · ~{Math.round(s.words / WPS)} s</span>
-      <button type="button" title={`Remove ${s.id}`} aria-label={`Remove ${s.id}`} disabled={!canRun("shorts.remove", s.id)}
-        className="absolute right-1.5 top-1.5 z-10 rounded p-1 text-subtle-foreground opacity-60 hover:bg-destructive/10 hover:text-destructive hover:opacity-100 disabled:opacity-30 group-hover:opacity-100"
-        onClick={() => { if (window.confirm(`Remove ${s.id} "${s.entry.title || "untitled"}"? Its folder moves to shorts/.removed/ (restore it by moving it back).`)) void run("shorts.remove", s.id); }}>
-        <X className="size-3.5" />
-      </button>
-    </div>
-  );
-}
+/** Minutes:seconds label of a length limit (2:40, 3 min). */
+const lenLabel = (s: number) => (s >= 60 && s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s} s`);
 
-/** The open short's stages, left to right like the video's step bar. */
-function ShortStepBar({ s, cur, onPick }: { s: ShortItem; cur: string; onPick: (k: string) => void }) {
-  const { d } = useApp();
+/**
+ * The shorts as tabs across the top (like the project's section tabs): the writing page first (the brief in a shorts
+ * project), then one tab per short with where it stands; × removes a short (after a confirm); + adds one.
+ */
+function ShortsTabs({ sid, writing, onAdd }: { sid: string | undefined; writing: boolean; onAdd: () => void }) {
+  const { d, go, run, canRun } = useApp();
   if (!d) return null;
-  const spec = shortSpec(s, d), next = nextStage(s, d);
+  const only = d.kind === "shorts";
+  const tab = "group relative flex shrink-0 items-center gap-2 px-3 text-[13px] font-medium outline-none transition-colors focus-visible:bg-accent";
+  const bar = (on: boolean) => <span aria-hidden className={cn("absolute inset-x-2 bottom-0 h-[2px] rounded-full", on ? "bg-brand" : "bg-transparent")} />;
   return (
-    <nav aria-label={`${s.id} stages`} className="flex overflow-x-auto rounded-lg border bg-card">
-      {spec.blocks.map((b, i) => {
-        const st = blockStatus(d, b), on = cur === b.id;
+    <nav aria-label="Shorts" className="flex h-11 shrink-0 items-stretch gap-1 overflow-x-auto border-b bg-background px-4 max-sm:px-2">
+      <button onClick={() => go({ short: null, step: "write" })} aria-current={writing ? "page" : undefined} className={cn(tab, writing ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+        <PenLine className="size-[15px] text-subtle-foreground" />{only ? "Brief & writing" : "Write shorts"}{bar(writing)}
+      </button>
+      <span aria-hidden className="my-3 w-px shrink-0 bg-border" />
+      {d.shorts.items.map((s) => {
+        const on = !writing && s.id === sid;
+        const st = s.progress.exported ? "done" : d.jobs.some((j) => j.status === "running" && j.label.endsWith(` ${s.id}`)) ? "running" : s.approval === "approved" ? "partial" : "none";
         return (
-          <button key={b.id} onClick={() => onPick(b.id)} aria-current={on ? "step" : undefined}
-            className="group relative flex min-w-[78px] flex-1 basis-0 flex-col justify-center gap-0.5 px-2.5 py-2.5 text-left outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent">
-            <span className="flex items-center gap-2">
-              <Mark st={st} n={i + 1} />
-              <span className={cn("truncate text-[12.5px] font-medium", on ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{b.title.replace(" + QC", "")}</span>
-              {next === b.id && !on && <span className="size-1.5 shrink-0 rounded-full bg-brand" aria-label="next" />}
-            </span>
-            <span aria-hidden className={cn("absolute inset-x-3 bottom-0 h-[2px] rounded-full", on ? "bg-brand" : "bg-transparent")} />
-          </button>
+          <div key={s.id} className={cn(tab, "pr-1.5", on ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            <button onClick={() => go({ short: s.id, step: null })} aria-current={on ? "page" : undefined} title={s.entry.title || s.id} className="flex items-center gap-2 outline-none">
+              <StatusDot s={st} /><b className="font-mono">{s.id}</b><span className="max-w-[180px] truncate font-normal">{s.entry.title || "(untitled)"}</span>
+            </button>
+            <button type="button" title={`Remove ${s.id}`} aria-label={`Remove ${s.id}`} disabled={!canRun("shorts.remove", s.id)}
+              className="rounded p-0.5 text-subtle-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 disabled:hidden group-hover:opacity-100 max-md:opacity-60"
+              onClick={() => { if (window.confirm(`Remove ${s.id} "${s.entry.title || "untitled"}"? Its folder moves to shorts/.removed/ (restore it by moving it back).`)) void run("shorts.remove", s.id); }}>
+              <X className="size-3.5" />
+            </button>
+            {bar(on)}
+          </div>
         );
       })}
+      <button onClick={onAdd} className={cn(tab, "text-muted-foreground hover:text-foreground")}><Plus className="size-[15px]" />Add short</button>
     </nav>
   );
 }
 
 /**
- * Shorts section: the shorts bar (one chip per short, + Add short, × to remove), then the open short as its own workspace:
- * its header, its stage bar, one stage below. Writing all at once and the shared feedback sit in a fold.
+ * Shorts section, laid out like the Video section: the shorts as tabs, the open short's stages as the step bar, and the
+ * open stage as its own page below. The first tab is the writing page (a shorts project's brief and research, writing a
+ * set, adding one, the shared feedback).
  */
 export function ShortsPage() {
   const { d, ws, route, go, refresh } = useApp();
   const fb = useDraft(d?.shorts.feedback ?? "");
   const brief = useDraft(d?.script.idea ?? "");
   const [adding, setAdding] = useState(false);
-  const sid = route.short && d?.shorts.items.some((s) => s.id === route.short) ? route.short : d?.shorts.items[0]?.id;
+  const sid = route.short && d?.shorts.items.some((s) => s.id === route.short) ? route.short : route.step === "write" ? undefined : d?.shorts.items[0]?.id;
   if (!d || !ws) return null;
   const sh = d.shorts, st = d.statuses.shorts ?? "none", ex = sh.items.filter((s) => s.progress.exported).length;
   const cur = sh.items.find((s) => s.id === sid);
+  const writing = !cur;
   const m = d.meta.shorts;
   const only = d.kind === "shorts";
   const scriptOk = only ? briefWritten(d.script.idea) : d.script.approval === "approved" || d.script.approval === "legacy";
   const state = st === "done" ? "done" : st === "running" ? "running" : scriptOk ? "next" : "blocked";
-  const stage = cur ? (STAGES.some(([k]) => k === route.step) ? route.step! : nextStage(cur, d)) : null;
-  const addOpen = adding || (sh.items.length === 0 && !only);
-  return (
-    <StepPage title="Shorts" desc={only ? DESC_PROJECT : DESC} status={st} state={state} todo={todoText("shorts", st, d)}
-      stats={<><StatTile value={sh.items.length ? `${ex}/${sh.items.length}` : "—"} label="exported" />{m && <StatTile value={dur(m.totalMs)} label={`${m.runs} runs`} />}{m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Claude cost" />}</>}>
-      <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0">
-        {only && (
-          <Fold defaultOpen={!sh.items.length || !scriptOk} title={<b className="text-[13px] text-foreground">Brief{d.title ? `: ${d.title}` : ""}</b>} className="rounded-lg border bg-card px-3.5">
-            <div className="grid gap-2 pb-3.5">
-              <TextEditor title="Brief" sub="02-scripting/idea.md" rows={14} draft={brief} spellCheck
-                hint={<>The writer's only source. Put every number a short may say under <b>Facts and sources</b>, each with its source on the same line; the check flags any number that is not here. The first <code>#</code> heading names the project.</>}
-                onSave={async (t) => { await api.saveText(ws, "idea", t); await refresh(); }} />
-              <Fold title={<b className="text-[13px] text-foreground">Web research (optional): sourced facts for the brief</b>} defaultOpen={!!d.script.research.trim()} className="rounded-lg border px-3">
-                <div className="pb-3"><ResearchPanel actions /></div>
-              </Fold>
-              {!sh.items.length && (
-                <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.add" /></ActionGrid>
+  const addOpen = adding || sh.items.length === 0;
+  const scroll = (el: React.ReactNode) => <div className="min-h-0 flex-1 overflow-y-auto" id="step-scroll">{el}</div>;
+  const tabs = <ShortsTabs sid={sid} writing={writing} onAdd={() => { setAdding(true); go({ short: null, step: "write" }); }} />;
+
+  if (writing) {
+    return (
+      <>
+        {tabs}
+        {scroll(
+          <StepPage title={only ? "Brief & writing" : "Write shorts"} desc={only ? DESC_PROJECT : DESC} status={st} state={state} todo={todoText("shorts", st, d)}
+            stats={<><StatTile value={sh.items.length ? `${ex}/${sh.items.length}` : "—"} label="exported" />{m && <StatTile value={dur(m.totalMs)} label={`${m.runs} runs`} />}{m && m.totalCost > 0 && <StatTile value={money(m.totalCost)} label="Claude cost" />}</>}>
+            <div className="grid grid-cols-1 gap-4 [&>*]:min-w-0">
+              {only && (
+                <section aria-label="Brief" className="grid gap-2">
+                  <TextEditor title="Brief" sub="02-scripting/idea.md" rows={14} draft={brief} spellCheck
+                    hint={<>The writer's only source. Put every number a short may say under <b>Facts and sources</b>, each with its source on the same line; the check flags any number that is not here. The first <code>#</code> heading names the project.</>}
+                    onSave={async (t) => { await api.saveText(ws, "idea", t); await refresh(); }} />
+                  <Fold title={<b className="text-[13px] text-foreground">Web research (optional): sourced facts for the brief</b>} defaultOpen={!!d.script.research.trim()} className="rounded-lg border px-3">
+                    <div className="pb-3"><ResearchPanel actions /></div>
+                  </Fold>
+                </section>
               )}
-            </div>
-          </Fold>
-        )}
-        <section aria-label="Shorts" className="grid min-w-0 gap-2">
-          <div role="tablist" aria-label="Shorts" className="flex snap-x gap-2 overflow-x-auto pb-1">
-            {sh.items.map((s) => <ShortChip key={s.id} s={s} on={s.id === sid} onPick={() => go({ short: s.id, step: null })} />)}
-            <button type="button" onClick={() => setAdding(!adding)} aria-expanded={addOpen}
-              className={cn("flex w-40 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground hover:border-brand hover:text-foreground", addOpen && "border-brand text-foreground")}>
-              <Plus className="size-4" />Add short
-            </button>
-          </div>
-          {addOpen && (
-            <div className="grid gap-2 rounded-lg border bg-card p-3">
-              <div className="text-xs text-muted-foreground">{sh.items.length ? `The writer reads the ${sh.items.length} short${sh.items.length > 1 ? "s" : ""} that exist and writes one that repeats none of them (other kind, hook, number and payoff). Give an idea to steer it, or tick Blank to write it yourself.` : "Add one short at a time (the writer avoids repeating earlier ones), or write a whole set at once under All shorts."}</div>
-              <ActionCard id="shorts.add" />
               {!scriptOk && <Note>{only ? "Write the brief first: the writer works only from it." : "The long script is not approved yet: shorts are cut from the approved script and the plan's sourced data."}</Note>}
+              <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.check" /></ActionGrid>
+              <Fold open={addOpen} onOpenChange={setAdding} title={<b className="text-[13px] text-foreground">Add one short</b>} className="rounded-lg border bg-card px-3.5">
+                <div className="grid gap-2 pb-3.5">
+                  <div className="text-xs text-muted-foreground">{sh.items.length ? `The writer reads the ${sh.items.length} short${sh.items.length > 1 ? "s" : ""} that exist and writes one that repeats none of them (other kind, hook, number and payoff). Give an idea to steer it, or tick Blank to write it yourself.` : "Write a whole set above, or add one short at a time (the writer avoids repeating earlier ones)."}</div>
+                  <ActionCard id="shorts.add" />
+                </div>
+              </Fold>
+              <TextEditor title="Feedback on all shorts" sub="shorts/feedback.md" rows={4} draft={fb} spellCheck
+                placeholder="Open with the number, not the question. Three shorts should not share one hook shape."
+                hint="Read by a full rewrite (Write shorts with Overwrite ticked) and by Add short. For one short, use its own feedback box and Revise."
+                onSave={async (t) => { await api.saveShortsFeedback(ws, t); await refresh(); }} />
+              {sh.notes && <Note>Writer's note: {sh.notes}</Note>}
             </div>
-          )}
-        </section>
-
-        {cur && stage && (
-          <section aria-label={cur.id} className="grid min-w-0 grid-cols-1 gap-3 [&>*]:min-w-0">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <b className="font-mono text-[15px]">{cur.id}</b>
-              {cur.entry.kind && <Badge tone="info">{cur.entry.kind}</Badge>}
-              <h2 className="m-0 min-w-0 flex-1 basis-56 text-[15px] font-semibold">{cur.entry.title || "(untitled)"}</h2>
-              <span className={cn("text-xs text-muted-foreground", Math.round(cur.words / WPS) > cur.maxS && "text-destructive")}>{cur.words} words · ~{Math.round(cur.words / WPS)} s of {cur.maxS >= 60 && cur.maxS % 60 === 0 ? `${cur.maxS / 60} min` : `${Math.floor(cur.maxS / 60)}:${String(cur.maxS % 60).padStart(2, "0")}`} max</span>
-              {cur.timings.runs > 0 && <span className="text-xs text-muted-foreground">{dur(cur.timings.ms)}{cur.timings.costUsd ? ` · ${money(cur.timings.costUsd)}` : ""}</span>}
-            </div>
-            <ShortStepBar s={cur} cur={stage} onPick={(k) => go({ step: k })} />
-            <ShortFlow key={`${cur.id}-${stage}`} s={cur} stage={stage} />
-          </section>
+          </StepPage>,
         )}
+      </>
+    );
+  }
 
-        <Fold title={<b className="text-[13px] text-foreground">All shorts: write a set at once, check, shared feedback</b>} className="rounded-lg border bg-card px-3.5">
-          <div className="grid gap-3 pb-3.5">
-            <ActionGrid><ActionCard id="shorts.write" /><ActionCard id="shorts.check" /></ActionGrid>
-            <TextEditor title="Feedback on all shorts" sub="shorts/feedback.md" rows={4} draft={fb} spellCheck
-              placeholder="Open with the number, not the question. Three shorts should not share one hook shape."
-              hint="Read by a full rewrite (Write shorts with Overwrite ticked) and by Add short. For one short, use its own feedback box and Revise."
-              onSave={async (t) => { await api.saveShortsFeedback(ws, t); await refresh(); }} />
-            {sh.notes && <Note>Writer's note: {sh.notes}</Note>}
-          </div>
-        </Fold>
-      </div>
-    </StepPage>
+  // one short: its stages are the step bar, the open stage is the page
+  const spec = shortSpec(cur, d), next = nextStage(cur, d);
+  const stage = spec.blocks.some((b) => b.id === route.step) ? route.step! : next;
+  const block = spec.blocks.find((b) => b.id === stage)!;
+  const bst = blockStatus(d, block);
+  const bstate = bst === "running" ? "running" : block.done ? "done" : stage === next ? "next" : "todo";
+  const secs = Math.round(cur.words / WPS);
+  return (
+    <>
+      {tabs}
+      <Stepper label={`${cur.id} stages`} current={stage} onPick={(k) => go({ short: cur.id, step: k })}
+        items={spec.blocks.map((b) => ({ key: b.id, label: b.title.replace(" + QC", ""), st: blockStatus(d, b), next: next === b.id }))} />
+      {scroll(
+        <StepPage key={`${cur.id}-${stage}`} title={`${block.title}`} desc={block.desc ?? ""} status={bst === "todo" ? "none" : bst} state={bstate}
+          todo={`${cur.id}${cur.entry.kind ? ` · ${cur.entry.kind}` : ""} · ${cur.entry.title || "(untitled)"}${block.note ? ` · ${block.note}` : ""}`}
+          stats={<>
+            <StatTile value={`~${secs} s`} label={`of ${lenLabel(cur.maxS)} max · ${cur.words} words`} />
+            {cur.timings.runs > 0 && <StatTile value={dur(cur.timings.ms)} label={`${cur.timings.runs} runs`} />}
+            {cur.timings.costUsd > 0 && <StatTile value={money(cur.timings.costUsd)} label="cost" />}
+          </>}>
+          <ShortFlow s={cur} stage={stage} />
+        </StepPage>,
+      )}
+    </>
   );
 }

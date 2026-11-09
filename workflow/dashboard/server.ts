@@ -51,6 +51,8 @@ const lanIps = () => Object.values(os.networkInterfaces()).flat().filter((n) => 
 /** VID<n>_<Name> = a long video (+ its shorts); SH<n>_<Name> = a shorts project (shorts only, written from a brief). */
 const WS_ID = sh.PROJECT_ID;
 /** "shorts" for a shorts project: the dashboard shows only its Overview and Shorts. */
+/** The stages of a short shown on a shorts project's progress bar (the beat is optional, so it is left out). */
+const SHORT_BAR = [["approved", "Script approved"], ["voice", "Voice"], ["align", "Align"], ["plan", "Plan"], ["act", "Act"], ["sound", "Sound"], ["render", "Render"], ["qc", "QC"], ["exported", "Exported"]] as const;
 const kindOf = (ws: string): "video" | "shorts" => (sh.isShortsProject(ws) ? "shorts" : "video");
 /** A shorts project's name: the brief's first heading. */
 const briefTitle = (ws: string) => readText(sh.briefPath(ws)).match(/^#\s+(.+)$/m)?.[1]?.trim() || null;
@@ -1632,8 +1634,11 @@ function listWorkspaces() {
       const rows = timingsAll(id);
       return { id, kind: kindOf(id), statuses: stepStatuses(id), running: runningJob(id) ? jobSummary(runningJob(id)!) : null,
         title: sh.isShortsProject(id) ? briefTitle(id) : readJson(path.join(wsDir(id), "05-video/acts.json"))?.video?.title ?? null,
-        // a shorts project's progress: one entry per short (exported / started / not yet)
-        shorts: sh.listShorts(id).map((s) => { const p = sh.shortProgress(id, s); return p.exported ? "done" : p.script ? "partial" : "none"; }),
+        // a shorts project's progress, like a video's steps: per stage, how many of its shorts have done it
+        shorts: (() => {
+          const ps = sh.listShorts(id).map((s) => sh.shortProgress(id, s));
+          return SHORT_BAR.map(([k, label]) => ({ key: k, label, done: ps.filter((p) => p[k]).length, total: ps.length }));
+        })(),
         totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) } };
     });
 }

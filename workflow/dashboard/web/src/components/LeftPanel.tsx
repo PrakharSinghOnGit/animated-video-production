@@ -25,12 +25,16 @@ export function Progress9({ statuses, className }: { statuses: Record<string, st
   );
 }
 
-/** A shorts project's bar: one segment per short (exported / started / not yet). */
-function ShortsBar({ shorts }: { shorts: string[] }) {
-  const list = shorts.length ? shorts : ["none"];
+/** A shorts project's bar, like a video's: one segment per stage (script approved … exported), done when every short has
+ *  done it, half-lit when some have. Hover a segment for the count. */
+function ShortsBar({ stages }: { stages: { key: string; label: string; done: number; total: number }[] }) {
+  const total = stages[0]?.total ?? 0;
   return (
-    <span className="flex h-1 gap-[2px]" aria-label={`${shorts.filter((s) => s === "done").length} of ${shorts.length} shorts exported`}>
-      {list.map((s, i) => <span key={i} title={shorts.length ? `S${i + 1}: ${STATUS_LABEL[s] ?? s}` : "no shorts yet"} className={cn("h-full flex-1 rounded-full", SEG[s] ?? SEG.none)} />)}
+    <span className="flex h-1 gap-[2px]" aria-label={total ? `${stages.at(-1)?.done ?? 0} of ${total} shorts exported` : "no shorts yet"}>
+      {stages.map((s) => {
+        const st = s.total && s.done === s.total ? "done" : s.done ? "partial" : "none";
+        return <span key={s.key} title={total ? `${s.label}: ${s.done}/${s.total} shorts` : `${s.label}: no shorts yet`} className={cn("h-full flex-1 rounded-full", SEG[st])} />;
+      })}
     </span>
   );
 }
@@ -129,9 +133,9 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
                   <span className={cn("min-w-0 truncate text-[13px] font-medium", on ? "text-foreground" : "text-foreground/90")}>{w.title ?? w.id.replace(/^(VID|SH)\d+_/, "").replace(/_/g, " ")}</span>
                   <span className="shrink-0 font-mono text-[10.5px] text-subtle-foreground">{shortId(w.id)}</span>
                 </span>
-                {w.kind === "shorts" ? <ShortsBar shorts={w.shorts} /> : <Progress9 statuses={w.statuses} />}
+                {w.kind === "shorts" ? <ShortsBar stages={w.shorts} /> : <Progress9 statuses={w.statuses} />}
                 <span className="flex items-center justify-between gap-2 text-[11px] text-subtle-foreground">
-                  {w.running ? <span className="flex min-w-0 items-center gap-1.5 text-warning"><StatusDot s="running" /><span className="truncate">{w.running.label}</span></span> : <span className="tabular-nums">{dur(w.totals.ms)}</span>}
+                  {w.running ? <span className="flex min-w-0 items-center gap-1.5 text-warning"><StatusDot s="running" /><span className="truncate">{w.running.label}</span></span> : <span className="tabular-nums">{w.kind === "shorts" ? `${w.shorts[0]?.total ?? 0} short${(w.shorts[0]?.total ?? 0) === 1 ? "" : "s"} · ` : ""}{dur(w.totals.ms)}</span>}
                   <span className="tabular-nums">{money(w.totals.costUsd)}</span>
                 </span>
               </button>
