@@ -2,7 +2,7 @@
 """Score the frames around each act cut and tile them into a strip.
 
   seams_check.py JOBS.json OUT_DIR  -> JSON {seam: {d: [before, cut, after], back, flag, note}} on stdout
-     JOBS: [{"seam": "A03-A04", "cut": frame, "files": [cut-2, cut-1, cut, cut+1]}]
+     JOBS: [{"seam": "A03-A04", "cut": frame, "files": [cut-2, cut-1, cut, cut+1], "wide": [[file, seconds from cut], ...]?}]
 
 d = mean absolute RGB change (0-255) between consecutive frames at 96x54; "cut" is frame cut-1 -> cut.
   flicker : the picture jumps at the cut and jumps back on the next frame (cut-1 and cut+1 look alike, cut doesn't)
@@ -48,4 +48,20 @@ for j in jobs:
         dr.text((x + 4, 5), ["cut-2", "cut-1", "cut", "cut+1"][i], fill=(230, 230, 230))
     dr.rectangle([2 * (w + 6) - 5, 0, 2 * (w + 6) - 2, h + 22], fill=(230, 80, 60))
     strip.save(f"{out_dir}/{j['seam']}.jpg", quality=85)
+    # wide strip (optional): frames from ~1.6 s before to ~1.3 s after the cut, 6 per row, labelled in seconds from the cut
+    if j.get("wide"):
+        ws = [(Image.open(p).convert("RGB"), dt) for p, dt in j["wide"]]
+        w, h = ws[0][0].size
+        cols = 6
+        rows = (len(ws) + cols - 1) // cols
+        sheet = Image.new("RGB", (cols * (w + 6) - 6, rows * (h + 22)), (24, 24, 24))
+        dr = ImageDraw.Draw(sheet)
+        for i, (im, dt) in enumerate(ws):
+            x, y = (i % cols) * (w + 6), (i // cols) * (h + 22)
+            sheet.paste(im, (x, y + 22))
+            after = dt >= 0
+            dr.text((x + 4, y + 5), f"{'B' if after else 'A'}  {dt:+.2f}s", fill=(120, 200, 255) if after else (230, 230, 230))
+            if after and (i == 0 or ws[i - 1][1] < 0):
+                dr.rectangle([x - 5, y, x - 2, y + h + 22], fill=(230, 80, 60))
+        sheet.save(f"{out_dir}/{j['seam']}_wide.jpg", quality=85)
 print(json.dumps(res))

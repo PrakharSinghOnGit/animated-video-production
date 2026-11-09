@@ -638,6 +638,14 @@ const ACTIONS: Record<string, Action> = {
   "render.assemble": { step: "render", label: "Assemble", help: "Registers every act in the video project.", build: (ws) => [B("assemble", "--video", ws)] },
   "render.seams": { step: "render", label: "Seams", help: "Plans every act-to-act transition (one owner per seam, the neighbours' real frames) and checks the frames around each cut for flicker, jumps and empty screens.", long: "~1–2 min",
     build: (ws) => [B("seams", "--video", ws)] },
+  "render.seamcheck": { step: "render", perAct: true, label: "Re-check transition", help: "Re-plans the seams, then renders the frames and clip around this act's cut into the next act and reviews it (free with the default critic).", long: "~1–2 min",
+    build: (ws, _o, act) => { const s = seamAfter(ws, act!); return s ? [B("seams", "--video", ws, "--only", s)] : "this act has no next act"; } },
+  "render.seamfix": { step: "render", perAct: true, label: "Fix transition", help: "One fix round on the end of this act and/or the start of the next (fresh author session with the review's issues, your note and the frames around the cut), then the transition is checked again.", paid: "~$2–4 per side", long: "~5–20 min",
+    opts: [
+      { key: "notes", label: "Your note", type: "text", flag: "--notes" },
+      { key: "side", label: "Which side", type: "select", choices: ["auto", "a", "b", "both"], def: "auto", flag: "--side" },
+    ],
+    build: (ws, o, act) => { const s = seamAfter(ws, act!); return s ? [B("seams", "--video", ws, "--fix", s, ...args(o, "render.seamfix"))] : "this act has no next act"; } },
   "render.draft": { step: "render", label: "Draft render", help: "Full video + QC.", long: "~3–5 min",
     opts: [TABS_OPT],
     chain: [{ label: "Assemble", action: "render.assemble" }, { label: "Seams", action: "render.seams" }, { label: "Render draft" }, { label: "QC", action: "render.qc" }], build: (ws, o) => [B("assemble", "--video", ws), B("seams", "--video", ws), B("draft", "--video", ws, ...tabs(o)), B("qc", "--video", ws, "--draft")] },
@@ -854,6 +862,12 @@ for (const [stage, def] of Object.entries(SHORT_STAGE_ACTIONS)) {
   };
 }
 
+/** "A03" -> "A03-A04" (the seam into the next act in timeline order), or "" for the last act. */
+function seamAfter(ws: string, act: string): string {
+  const ids = actIds(ws), i = ids.indexOf(act);
+  return i >= 0 && i < ids.length - 1 ? `${act}-${ids[i + 1]}` : "";
+}
+
 /** Validate client options against an action's schema and turn them into argv. Unknown keys are ignored. */
 let currentOpts: Record<string, any> = {};
 function args(o: Record<string, any>, key: string): string[] {
@@ -888,7 +902,7 @@ function args(o: Record<string, any>, key: string): string[] {
       case "text": {
         const s = String(v).trim();
         if (!s) continue;
-        if (s.length > (opt.key === "models" ? 2000 : 300) || s.startsWith("-") || /[\0\n\r]/.test(s)) throw new Error(`${opt.label}: invalid text`);
+        if (s.length > (opt.key === "models" ? 2000 : opt.key === "notes" ? 1500 : 300) || s.startsWith("-") || /[\0\n\r]/.test(s)) throw new Error(`${opt.label}: invalid text`);
         if (opt.key === "models" && !/^([A-Z]\d+=[\w:./@-]+)(,[A-Z]\d+=[\w:./@-]+)*$/.test(s)) throw new Error("Per-act models: A01=claude:sonnet,A02=opus");
         if (opt.key === "at" && !/^[\d.,\s]+$/.test(s)) throw new Error("Extra times: numbers separated by commas");
         if (opt.key === "only" && !/^[\w,]+$/.test(s)) throw new Error("Items: keys separated by commas");

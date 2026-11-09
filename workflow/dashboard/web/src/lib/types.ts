@@ -187,6 +187,10 @@ export interface SeamRow {
   a: string; b: string; owner: string; kind: string; how: string; cutFrame: number; atS: number;
   /** frame-to-frame change (0-255) before / at / after the cut */
   d?: number[]; back?: number; flag?: "ok" | "flicker" | "jump" | "empty"; note?: string; strip: string;
+  /** 12 frames around the cut, and a ~3 s silent clip of the transition */
+  wide?: string; clip?: string;
+  /** vision review (critic model): score 1-10 and which side is broken */
+  review?: { score: number; verdict: "ok" | "fix"; summary: string; model?: string; issues: { side: "A_end" | "B_start" | "both"; problem: string; fix: string }[] } | null;
 }
 export interface SeamsReport { at: string; mtime: number; seams: SeamRow[] }
 
