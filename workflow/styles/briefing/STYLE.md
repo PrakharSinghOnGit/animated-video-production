@@ -61,7 +61,7 @@ One continuous take per act, driven by **actions**: each thing that gets cut, pl
 | Move | Expresses | Use for |
 |---|---|---|
 | Wide on a full line of type, then truck in | read it, then act | a figure the scene is built from |
-| Push-in + spotlight vignette, held | the one thing to remember | the key number of the act |
+| Push-in + spotlight (a cut round window, not a box), held | the one thing to remember | the key number of the act |
 | Whip-pan with motion blur, one screen direction | cause here, effect there | money moving; "meanwhile"; act to act |
 | Lateral tracking with a walking figure | progress, a journey | a timeline, a career, compounding |
 | Vertical pan down a column of type | descent, a list | a ranking, a balance sheet |
@@ -70,7 +70,7 @@ One continuous take per act, driven by **actions**: each thing that gets cut, pl
 | Diagonal split into a grid | many at once | thousands of shareholders, diversification |
 | Push into a letter until it fills frame | a letter becomes a place | entering a company, a market |
 
-Framing: strong diagonals (a camera roll up to ~6° on a hold), big flat grounds, figures small against huge type. Subjects fill ≥ 1/3 of frame height at key moments.
+Framing: strong diagonals (a camera roll up to ~6° on a hold), big flat grounds that carry a set (huge type, a sheet of shadow paper, a horizon: never an empty colour with small objects on it), figures small against huge type. The beat's subject fills ≥ 1/3 of frame height at key moments. A pull-back never shrinks the whole act into thumbnails: frame the part that carries the comparison.
 
 **Transitions** (the only cuts, all designed; never dissolves or fades):
 - **Act to act**: the act whips out in the story's screen direction with motion blur and the next act whips in from the opposite side, so the seam hides inside the blur. A graphic match cut (same shape, same place: a coin → a planet → a clock) may replace the whip once or twice per video.

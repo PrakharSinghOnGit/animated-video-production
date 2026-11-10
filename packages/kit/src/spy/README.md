@@ -18,6 +18,7 @@ Coordinates: world px with a camera (`applyCam(g, cam)`); screen px 1920x1080 fo
 - Shapes: `rectP(x,y,w,h)`, `circP(cx,cy,r)`, `ellP(cx,cy,rx,ry)`, `arcP(cx,cy,r,a0,a1)`, `smooth(pts, it, closed)` (Chaikin; the easing smoothstep is `smoothstep`), `xf(pts, x, y, s, rot)`, `pathPoly`.
 - `silhouette(g, (L) => {...}, opts?)`: pieces drawn with `piece(L, ...)` merge into one contour, then pasted with one outer slit and shadow. `slit(L, x, y, ang, len, w)`, `cutPoly(L, pts)` cut joints inside it. Nested calls draw directly.
 - `paperFinish(g, amt)` texture (fixed seed, static), `label(g, text, x, y, font, col, align, letterSpacing)` for small text, `state(g)`, `curScale(g)`, `isLayer(g)`.
+- `atDepth(g, cam, depth, fn, anchor?)`: draw a plane of the set with camera parallax. `depth` 0 = with the action, 0.5 = moves and zooms half as much (behind), 1 = pinned to the screen, negative = foreground. `fn` draws in world coordinates. What you put there is yours (giant type, a skyline, a sheet of shadow paper); it turns camera moves into depth.
 - Re-exported helpers: `W H applyCam w2s s2w viewRect frameRect moveTime SAFE clamp lerp seg TAU inOutCubic inOutSine outCubic outBack outExpo hash vnoise mulberry`; types `G Pt Cam Rect Inks`.
 
 ## Type (glyph.ts, fonts.ts)
@@ -34,8 +35,11 @@ One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = bet
 - `onTwos(t)`: stepped to 12 fps. Sample puppet poses and puppet x with `onTwos(t)`; keep the camera and the type on ones.
 
 ## Camera (camera.ts)
-- `focusCam(t, focus, opts?)`, `focusCamFn(focus, opts)`: `focus = [{t0, t1, rect, fill?}]`, one entry per action (something being cut, placed, assembled or acted in world `rect` from t0 to t1). The camera frames the active action, never leaves a rect before `t1 + hold` (opts `hold` .6 s), arrives by the next action's `t0` (moves start earlier, never later), each move takes at least `moveTime()` (1.1-2.8 s, in-out ease), drifts <= 2% / 10 s while holding. Actions too close for a move (or overlapping) are merged into one union frame, so give each action its real `t0`/`t1` and let the plan decide. `pace` scales the move time (shorts: `{ pace: 0.45, hold: 0.3, snap: true }`). `planFocus(focus, opts)` shows the merged plan (`dwells`, `moves`).
-- `pushIn(cam, rect, u, fill=.55)`: eased push-in toward a world rect. `spotlight(g, screenRect, amount, color)`: flat dark paper with a scissor-cut window (the one number to remember); `rectToScreen(cam, worldRect)` maps the rect. Draw it in `overlay` or after the scene.
+- `focusCam(t, focus, opts?)`, `focusCamFn(focus, opts)`: `focus = [{t0, t1, rect, fill?, roll?}]`, one entry per action (something being cut, placed, assembled or acted in world `rect` from t0 to t1). The camera frames the active action, never leaves a rect before `t1 + hold` (opts `hold` .6 s), arrives by the next action's `t0` (moves start earlier, never later), each move takes at least `moveTime()` (1.1-2.8 s, in-out ease), drifts <= 2% / 10 s while holding. Actions too close for a move (or overlapping) are merged into one union frame, so give each action its real `t0`/`t1` and let the plan decide. `pace` scales the move time (shorts: `{ pace: 0.45, hold: 0.3, snap: true }`). `planFocus(focus, opts)` shows the merged plan (`dwells`, `moves`).
+  - **`widest`** (use `{ widest: 0.6 }` in new acts): a merge is refused when the union frame would be zoomed out past `widest` × the wider of the two actions (everything would turn tiny); the camera stays on the first action until it is finished, then makes a quick move (≥ 0.3 s, blurred like a whip) to the second. Overlapping actions still merge.
+  - **`roll`** per action (radians, clamped to ±6°): a held diagonal.
+- Rects from what you draw (so the camera frames things, not guessed regions): `rectOf(...rectsOrPoints)` (union), `padRect(rect, px, py?)`, `figureRect(x, y, s)`, plus `lineRect(lay, x, y, align)` and the rect `logo()` returns.
+- `pushIn(cam, rect, u, fill=.55)`: eased push-in toward a world rect. `spotlight(g, screenRect, amount, color, pad, { shape })`: flat dark paper with a scissor-cut window (the one number to remember); `shape: "round"` cuts an ellipse (prefer it around type: the default rounded box reads as a card with text in it); `rectToScreen(cam, worldRect)` maps the rect. Draw it in `overlay` or after the scene.
 - `whip(a, b, u)`: camera interpolation with a fast-in/fast-out curve (`whipEase`), 0.4-0.7 s. Pass `cam` to `drawAct` and the blur is automatic.
 - `motionBlur(g, src, vel, {dx, dy, dead, max})`, `camVelocity(camFn, t, fps)`, `scratchCanvas(i)`: the blur is a directional average of copies along the velocity (px/frame), zero below ~60 px/frame so ordinary moves stay sharp.
 
@@ -65,23 +69,28 @@ Company logos (Simple Icons, ~3,500, CC0) and generic icons (Material Design Ico
 ## Example act
 ```tsx
 import { spy } from "@wealthgap/kit";
-const { INKS, clear, applyCam, layout, drawLine, landEach, landEnd, lineRect, figureSide, walkPose, POSE, onTwos, walkStride,
-  focusCam, drawAct, autoSubtitle, actIn, actOut } = spy;
+const { INKS, clear, applyCam, atDepth, piece, roughC, rectP, layout, drawLine, landEach, landEnd, lineRect, figureSide, figureRect, padRect, walkPose, POSE,
+  onTwos, walkStride, focusCam, drawAct, actIn, actOut, shake, scraps, idle } = spy;
 const K = INKS.noir, FLOOR = 880;
 
 export function draw(g: spy.G, ctx: spy.SpyCtx) {          // inside <SpyCanvas draw={draw} />
-  const t = ctx.t, w = ctx.word("trillion"), land = landEnd(0, 5);
-  const lay = layout("$9.6T", 520), box = lineRect(lay, 150, 780);
-  const focus = [{ t0: w.t0 - land, t1: w.t1, rect: box },                 // the number lands, then the walk
-                 { t0: w.t1 + 3.0, t1: w.t1 + 6.5, rect: [1400, 360, 2700, 920] as spy.Rect }];
-  drawAct(g, ctx, { dur: ctx.duration, ground: K.hot, cam: (s) => focusCam(s, focus), overlay: (h) => autoSubtitle(h, ctx, { ground: K.hot }) }, (h) => {
-    clear(h, K.hot); applyCam(h, focusCam(t, focus));
-    spy.piece(h, spy.roughC("floor", () => spy.rectP(-700, FLOOR, 5200, 900), 3, 2.4, 20), K.ink, { gap: 0 });
+  const t = ctx.t, w = ctx.word("trillion"), fall = landEnd(0, 5);
+  const lay = layout("$9.6T", 520), box = lineRect(lay, 150, 780), WALK0 = 1550, walkT = w.t1 + 3.0;
+  const focus = [{ t0: w.t0 - fall, t1: w.t1, rect: padRect(box, 60), roll: -0.04 },                  // the number lands (held on a slight diagonal)
+                 { t0: walkT, t1: walkT + 3.5, rect: padRect(figureRect(WALK0 + 450, FLOOR, 0.6), 620, 90) }];   // then the walk: framed on the walker
+  const cam = (s: number) => shake(focusCam(s, focus, { widest: 0.6 }), s, [w.t0]);                    // the act's big hit thumps
+  drawAct(g, ctx, { dur: ctx.duration, ground: K.hot, cam }, (h) => {
+    clear(h, K.hot);
+    atDepth(h, cam(t), 0.5, () => piece(h, roughC("far", () => rectP(-900, 300, 5200, 420), 5, 3, 30), K.hotD, { gap: 0, shadow: false }));  // the set: a far wall, moving less than the action
+    applyCam(h, cam(t));
+    piece(h, roughC("floor", () => rectP(-700, FLOOR, 5200, 900), 3, 2.4, 20), K.ink, { gap: 0 });
     const ready = actIn(t) >= 1;                                                        // hold the first beat until the whip-in has landed
-    drawLine(h, lay, 150, 780, { col: K.ink, each: ready ? landEach(t, w.t0 - land) : () => ({ hide: true }) });   // complete when "trillion" starts
-    const u = Math.min(1, Math.max(0, (onTwos(t) - (w.t1 + 3.0)) / 3.5)), x = 1550 + 900 * u;
+    drawLine(h, lay, 150, 780, { col: K.ink, each: ready ? landEach(t, w.t0 - fall) : () => ({ hide: true }) });   // complete when "trillion" starts
+    scraps(h, t, w.t0, 150 + lay.width / 2, 780, K.ink);
+    const u = Math.min(1, Math.max(0, (onTwos(t) - walkT) / 3.5)), x = WALK0 + 900 * u;
     const walking = u > 0 && u < 1 && actOut(t, ctx.duration) === 0;                    // stop walking when the act whips out
-    figureSide(h, x, FLOOR + 6, 0.6, walking ? walkPose((x - 1550) / walkStride(0.6)) : POSE.stand, { col: K.ink, accent: K.warm, paper: K.paper });
+    const bob = walking ? 0 : idle(t, 2, 3, 2.8).dy;                                    // alive while he waits
+    figureSide(h, x, FLOOR + 6 + bob, 0.6, walking ? walkPose((x - WALK0) / walkStride(0.6)) : POSE.stand, { col: K.ink, accent: K.warm, paper: K.paper, hero: true });
   });
 }
 ```
@@ -98,4 +107,7 @@ All pure functions of `t` (act seconds).
 - `thump(t, t0, {amp=12, dur=0.4, punch=0.04})` -> `{dx, dy, s, rot}`; `shake(cam, t, [hitTimes])` adds thumps to a camera (only the act's biggest hits).
 - `idle(t, seed, amp=6, period=3)` -> `{dx, dy, s, rot}` slow bob/sway for held things; `stagger(t0, n, gap=0.06)` start times for a row.
 - `burst(t, t0, {n, speed, dir, spread, gravity, drag, size, dur, seed})` particle positions; `scraps(g, t, t0, x, y, col, opts)` draws them as small cut-paper pieces (world coords).
-- `label(...)` draws League Spartan at most weight 600 (`LABEL_MAX_WEIGHT`) with a 3 px outline in the ground colour (`{halo, haloCol}` as the 9th argument; `halo: 0` = none).
+- `label(...)` draws League Spartan at most weight 600 (`LABEL_MAX_WEIGHT`) with a 3 px outline in the ground colour (`{halo, haloCol}` as the 9th argument; `halo: 0` = none). `{ minPx: 30 }` keeps it at least 30 px on screen when the camera is wide (it scales up around its anchor; for a lone label, not a crowded row).
+
+## Measured sizes (review frames)
+While `bun run frames` renders, `label`, `drawLine`, `figureSide` and `logo` report their real on-screen size (`paper/measure.ts`; off in normal renders). The frames report lists what is too small to read ("small: label "SALES" is 14 px on screen at 36s"): labels under 26 px, cut type with capitals under 40 px, figures under 150 px, logos under 90 px, when seen in at least two frames. Nothing to call from an act.
