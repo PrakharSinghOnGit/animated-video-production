@@ -3,6 +3,7 @@
 // styles/spy-titles/demo/chars.js (MIT, "THE AGENT"). See CREDITS.md. Origin = midpoint between the feet, y down, facing +x.
 // Scale s = 1 is about 540 px tall.
 import type { G, Pt } from "../paper/engine";
+import { measure } from "../paper/measure";
 import { roughC, rough, smooth, piece, silhouette, slit, circP, INKS, type SilOpts } from "./engine";
 
 const R = Math;
@@ -105,6 +106,7 @@ export interface FigureOpts {
  */
 export function figureSide(g: G, x: number, y: number, s: number, pose: Pose, opt: FigureOpts = {}): { wrist: Pt } {
   let out: { wrist: Pt } = { wrist: [x, y] };
+  measure(g, "figure", opt.hero ? "the Agent" : "figure", 540 * s, x, y - 270 * s);
   silhouette(g, (L) => { out = figureRaw(L, x, y, s, pose, opt); }, opt.sil);
   return out;
 }

@@ -3,12 +3,14 @@
 // See CREDITS.md. Differences: TypeScript, the 2D context is passed explicitly (no module-level "current g"), per-context state
 // lives in a WeakMap, textures are generated once from a fixed seed (deterministic), palettes are ink sets (INKS).
 import { hash, vnoise, clamp } from "../paper/lib";
-import { W, H, frameCanvas, registerCache, type G, type Pt } from "../paper/engine";
+import { W, H, frameCanvas, registerCache, applyCam, type G, type Pt, type Cam } from "../paper/engine";
 
 export { W, H, setFrameSize, isVertical, frameCanvas, applyCam, w2s, s2w, viewRect, type G, type Pt, type Cam, type Rect } from "../paper/engine";
 export { frameRect, moveTime, SAFE } from "../paper/transitions";
 export { clamp, lerp, seg, TAU, inOutCubic, inOutSine, outCubic, outBack, outExpo, hash, vnoise, mulberry } from "../paper/lib";
 export { smooth as smoothstep } from "../paper/lib";
+import { measure } from "../paper/measure";
+export { measuring, type Measured } from "../paper/measure";
 
 // ---------- inks ----------
 /** One four-ink set. `ink`/`paper` are the dark and light stocks, `hot` and `warm` the two spot inks; `*D` are darker shadow-paper variants. */
@@ -239,6 +241,11 @@ export interface LabelOpts {
   halo?: number;
   /** default: the current ground (state(g).bg) */
   haloCol?: string;
+  /**
+   * Never smaller than this many px ON SCREEN (use 30, the legibility floor): when the camera is wide the label is scaled up
+   * around its anchor so it stays readable; at closer zooms it is drawn as written. Default: off.
+   */
+  minPx?: number;
 }
 /**
  * Plain canvas text for small labels (use drawLine for anything big). The weight in `font` is capped at 600, and text that
@@ -249,10 +256,31 @@ export function label(g: G, s: string, x: number, y: number, font: string, col: 
   g.font = font.replace(/^\s*(\d{3})\b/, (_, w) => String(Math.min(+w, LABEL_MAX_WEIGHT)));
   g.textAlign = align; g.textBaseline = "alphabetic";
   if (ls) (g as any).letterSpacing = ls + "px";
+  const fpx = parseFloat(/([\d.]+)px/.exec(font)?.[1] ?? "0");
+  if (o.minPx && fpx > 0) {
+    const on = fpx * curScale(g);
+    if (on > 0.01 && on < o.minPx) { const k = o.minPx / on; g.translate(x, y); g.scale(k, k); g.translate(-x, -y); }
+  }
+  measure(g, "label", s, fpx, x, y);
   const hc = o.haloCol ?? state(g).bg, isHex = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
   const halo = o.halo ?? (isHex(col) && isHex(hc) && Math.abs(luma(col) - luma(hc)) > 0.35 ? 3 : 0);
   if (halo > 0) { g.lineJoin = "round"; g.lineWidth = (halo * 2) / curScale(g); g.strokeStyle = hc; g.strokeText(s, x, y); }
   g.fillStyle = col; g.fillText(s, x, y); g.restore();
+}
+
+/**
+ * Draw a plane of the set at another depth, with camera parallax: everything `fn` draws moves and zooms less than the action
+ * (depth 0 = with the action, 0.5 = half as much, 1 = pinned to the screen) or more (negative depth = foreground, passing in
+ * front). `fn` draws in world coordinates as usual; the planes line up when the camera is centred on `anchor` (default: the
+ * centre of the first frame, [W/2, H/2]) at zoom 1. Use it for what stands behind the action (giant type, a skyline, a
+ * horizon in the shadow-paper inks) or passes in front of it: a camera move then reads as depth instead of a flat slide.
+ */
+export function atDepth(g: G, cam: Cam, depth: number, fn: () => void, anchor: Pt = [W / 2, H / 2]): void {
+  const k = 1 - depth;
+  g.save();
+  applyCam(g, { ...cam, x: anchor[0] + (cam.x - anchor[0]) * k, y: anchor[1] + (cam.y - anchor[1]) * k, zoom: Math.pow(cam.zoom, k) });
+  fn();
+  g.restore();
 }
 
 // ---------- silhouette layer ----------

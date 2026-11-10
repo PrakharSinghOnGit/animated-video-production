@@ -6,6 +6,7 @@ import { W, H, setFrameSize, checkCaches, resetCaches, type G } from "./engine";
 import { setSeams, type SeamPlan, type SeamSide } from "./seam";
 import type { SceneSeamSide, SceneMusic } from "../scene";
 import { profiling, installProfiler, flushProfile } from "./profile";
+import { setMeasuring, flushMeasure } from "./measure";
 
 /** The neighbour frames a seam needs (decoded once per page; a missing file falls back to the act's own transition). */
 const seamImgs = new Map<string, Promise<HTMLImageElement | null>>();
@@ -22,6 +23,8 @@ function loadSeamImg(rel: string): Promise<HTMLImageElement | null> {
   }
   return p;
 }
+/** Review frames (bun run frames) ask the kit to report on-screen sizes of text, figures and logos: see paper/measure.ts. */
+const measureOn = (() => { try { return !!(getInputProps() as { wgMeasure?: boolean }).wgMeasure; } catch { return false; } })();
 const seamProbe = (() => { try { return !!(getInputProps() as { seamProbe?: boolean }).seamProbe; } catch { return false; } })();
 
 /**
@@ -139,7 +142,9 @@ export const CanvasHost: React.FC<{ draw: (g: G, ctx: PaperCtx) => void; ensureF
     setSeams(seamRef.current);
     installProfiler();
     const tDraw = profiling ? performance.now() : 0;
+    if (measureOn) setMeasuring(true);
     draw(g, ctx);
+    if (measureOn) flushMeasure(frame);
     const tCheck = profiling ? performance.now() : 0;
     // a blank frame shows the dark backdrop under the acts: rebuild every cache and draw again, else fail loudly
     if (blank(g, width, height)) {

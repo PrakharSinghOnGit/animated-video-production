@@ -6,6 +6,7 @@ import gothicUrl from "./fonts/LeagueGothic-Regular.ttf";
 import { hash, clamp, outBack } from "../paper/lib";
 import type { G, Pt } from "../paper/engine";
 import { rough, piece, curScale, state, type PieceOpts } from "./engine";
+import { measure } from "../paper/measure";
 
 let font: Font | null = null, loading: Promise<void> | null = null;
 /** Fetch and parse the bundled League Gothic. Resolves immediately when already loaded. ensureSpyFonts() calls this. */
@@ -110,8 +111,10 @@ export function drawLine(g: G, lay: Layout, x: number, y: number, opt: LineOpts 
   const col = opt.col ?? "#000", seed = opt.seed ?? 1, jit = opt.jit ?? 1;
   if (opt.align === "center") x -= lay.width / 2; else if (opt.align === "right") x -= lay.width;
   const amp = opt.amp ?? Math.min(1.6, lay.size / 80), gap0 = opt.gap ?? state(g).gap, sc = curScale(g);
+  let shown = 0;
   for (const L of lay.letters) {
     const e = opt.each ? opt.each(L, L.i) : null; if (e?.hide) continue;
+    shown++;
     const r = ((hash(seed * 31 + L.i * 7.3) - 0.5) * jit * Math.PI / 180) * 2 + (e?.rot || 0);
     const dy = (hash(seed * 11 + L.i * 3.1) - 0.5) * jit * 3 + (e?.dy || 0);
     const mid = (L.x0 + L.x1) / 2, cx = x + L.x + mid + (e?.dx || 0);
@@ -120,6 +123,7 @@ export function drawLine(g: G, lay: Layout, x: number, y: number, opt: LineOpts 
     piece(g, cutLetter(L, seed + L.i, amp), e?.col ?? col, { gap: gap0 * k, gapCol: opt.gapCol, shadow: opt.shadow, shA: opt.shA, shB: 5 * k, shX: 2.5 * k, shY: 3.5 * k, rule: "nonzero" });
     g.restore();
   }
+  if (shown === lay.letters.length && shown) measure(g, "type", lay.str, lay.size * 0.76, x + lay.width / 2, y - lay.size * 0.38);
 }
 /** Width in px of the inked line (use for centring and for framing rects). */
 export const lineWidth = (lay: Layout): number => lay.width;
