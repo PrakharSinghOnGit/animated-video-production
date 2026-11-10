@@ -50,6 +50,8 @@ if (only && !extra.length) { console.error("❌ --only needs --at <times>"); pro
 const times = new Set<number>();
 if (!only) for (let t = 0; t < durSec; t += every) times.add(Math.round(t * 100) / 100);
 if (!only) times.add(Math.round((durSec - 1 / fps) * 100) / 100);
+// the settled first and last picture (after the whip-in, before the whip-out): what the neighbouring acts meet
+if (!only && durSec > 6) { times.add(1.2); times.add(Math.round((durSec - 1.2) * 100) / 100); }
 for (const t of extra) if (t >= 0 && t < durSec) times.add(t);
 // Only the Ledger style reserves a subtitle band; Briefing has none (impact text only)
 const planFile = path.join(paths.outputDir, "acts.json");
@@ -78,18 +80,35 @@ if (!only) for (const f of fs.readdirSync(outDir)) if (/^t_.*\.jpg$/.test(f)) fs
 
 console.log(`📦 Bundling ${path.relative(process.cwd(), entry)}...`);
 const serveUrl = await bundle({ entryPoint: entry, publicDir: fs.existsSync(publicDir) ? publicDir : undefined });
-const composition = await selectComposition({ serveUrl, id: sceneId, inputProps: {} });
+// wgMeasure: the kit reports the on-screen size of every text, figure and logo it draws (packages/kit/src/paper/measure.ts)
+const inputProps = { wgMeasure: true };
+const composition = await selectComposition({ serveUrl, id: sceneId, inputProps });
+const measured: { t: number; w: number; h: number; items: unknown[] }[] = [];
 
 console.log(`🖼  ${sorted.length} frames of ${sceneId} (${durSec.toFixed(1)} s) at ${scale}× ...`);
 const files: string[] = [];
 for (const t of sorted) {
   const frame = Math.min(composition.durationInFrames - 1, Math.round(t * fps));
   const file = path.join(outDir, `t_${t.toFixed(2).padStart(6, "0")}.jpg`);
-  await renderStill({ serveUrl, composition, frame, output: file, imageFormat: "jpeg", jpegQuality: 85, scale, logLevel: "error" });
+  let items: unknown[] = [];
+  const onBrowserLog = (l: { text: string }) => { const m = /WGMEASURE (\{.*\})/.exec(l.text); if (m) { try { items = JSON.parse(m[1]).items; } catch {} } };
+  await renderStill({ serveUrl, composition, frame, output: file, imageFormat: "jpeg", jpegQuality: 85, scale, logLevel: "error", inputProps, onBrowserLog });
+  measured.push({ t, w: timeline.width, h: timeline.height, items });
   files.push(file);
 }
 // --only: the sheet and the layout report cover every frame in the folder, old and new
 if (only) files.splice(0, files.length, ...fs.readdirSync(outDir).filter((f) => /^t_[\d.]+\.jpg$/.test(f)).sort().map((f) => path.join(outDir, f)));
+
+// on-screen sizes: --only keeps the earlier frames' measurements and replaces the re-rendered times
+const measureFile = path.join(outDir, "measure.json");
+let allMeasured = measured;
+if (only && fs.existsSync(measureFile)) {
+  try {
+    const old: typeof measured = JSON.parse(fs.readFileSync(measureFile, "utf-8"));
+    allMeasured = [...old.filter((o) => !measured.some((m) => m.t === o.t)), ...measured].sort((a, b) => a.t - b.t);
+  } catch {}
+}
+fs.writeFileSync(measureFile, JSON.stringify(allMeasured));
 
 // Contact sheet, 4 columns, each tile labelled with its time (Pillow: Homebrew ffmpeg lacks drawtext)
 const sheet = path.join(outDir, "sheet.jpg");
@@ -98,7 +117,7 @@ const python = process.env.WG_PYTHON ?? path.resolve(process.cwd(), ".venv/bin/p
 const vertical = timeline.height > timeline.width, cols = vertical ? 6 : 4;
 const layoutOut = execFileSync(
   python,
-  [path.join(import.meta.dir, "contact_sheet.py"), sheet, ...files, "--cols", String(cols), "--w", vertical ? "300" : "480", "--report", path.join(outDir, "layout.json"), "--dur", durSec.toFixed(2), ...(subtitles ? [] : ["--no-band"]), ...(vertical ? ["--vertical"] : [])],
+  [path.join(import.meta.dir, "contact_sheet.py"), sheet, ...files, "--cols", String(cols), "--w", vertical ? "300" : "480", "--report", path.join(outDir, "layout.json"), "--measure", measureFile, "--dur", durSec.toFixed(2), ...(subtitles ? [] : ["--no-band"]), ...(vertical ? ["--vertical"] : [])],
   { encoding: "utf-8" }
 );
 process.stdout.write(layoutOut);
