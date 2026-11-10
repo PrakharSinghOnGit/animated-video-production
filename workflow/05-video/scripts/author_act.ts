@@ -137,6 +137,16 @@ function account(step: string, m: string, r: AgentResult): void {
   recordTiming(wsDir, { step, ms: r.durationMs, model: m, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
 }
 
+/** The act summary and measured sizes the frames step wrote (layout_summary.json), as lines for the critic. */
+function summaryNote(reviewDir: string): string {
+  try {
+    const s = JSON.parse(fs.readFileSync(path.join(reviewDir, "layout_summary.json"), "utf-8"));
+    if (!s.frames) return "";
+    const small = (s.small ?? []).slice(0, 10).map((x: any) => `${x.kind} "${x.text}" ${x.px} px at ${x.times.slice(0, 3).join(", ")} s`);
+    return `\nAlso measured: content covers a median ${(s.medianCoverage * 100).toFixed(0)}% of the safe area; ${(s.sparseShare * 100).toFixed(0)}% of the frames are sparse (under 8% content); longest stretch where the picture barely changes: ${s.longestStill?.s ?? 0} s.${(s.notes ?? []).map((n: string) => `\n- ${n}`).join("")}${small.length ? `\nToo small on screen (measured by the engine, in px at 1080p): ${small.join("; ")}.` : ""}`;
+  } catch { return ""; }
+}
+
 async function critique(act: Act, round: number): Promise<{ pass: boolean; notes: string; layout?: boolean }> {
   const reviewDir = path.join(paths.outputDir, "review", act.id);
   const sheet = path.join(reviewDir, "sheet.jpg");
@@ -160,9 +170,11 @@ async function critique(act: Act, round: number): Promise<{ pass: boolean; notes
 
 The act's plan: ${plan_}
 
-The measured layout report (free pixel checks) is in ${path.join(reviewDir, "layout.json")}: treat its flags as facts.
+The measured layout report (free pixel checks) is in ${path.join(reviewDir, "layout.json")}: treat its flags as facts.${summaryNote(reviewDir)}
 
-Judge: (1) does it follow the style guide and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the subtitle band except the subtitle; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data. Look at individual frames in ${reviewDir} if a tile is unclear.
+Judge: (1) does it follow the style guide and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the subtitle band except the subtitle; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data.
+
+Staging, the most common weakness (name the tiles): (a) small objects on an empty flat ground: is there a set behind or under the action, and does the beat's subject fill about a third of the frame height at its hit? (b) a diagram instead of a scene: same-sized labelled icons joined by arrows or dashed lines, a box with a chart or text in it; (c) a wide shot that shrinks everything into thumbnails; (d) one flat ground colour for the whole act with no turn; (e) type that is label-sized where the style asks for type as architecture. Any of these that a viewer would notice caps the score at 6. Look at individual frames in ${reviewDir} if a tile is unclear.
 
 ${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} with the Write tool`} this JSON: {"pass": boolean, "score": 1-10, "issues": [{"time": "12.0s", "problem": "...", "fix": "..."}]}. pass = score >= 7 and no issue that a viewer would notice. Max 8 issues, most important first.${free ? "" : ' Then reply "done".'}`;
   const agy = free ? await runAgyJson({ prompt, model: agyModel(criticModel), logPath: path.join(reviewDir, `critic_${round}.log`) }).catch(() => null) : null;
