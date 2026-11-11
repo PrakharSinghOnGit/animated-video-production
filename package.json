@@ -85,7 +85,8 @@
     "yt:mock": "bun run workflow/09-analytics/mock.ts",
     "yt:review": "bun run workflow/09-analytics/review.ts",
     "yt:comments": "bun run workflow/09-analytics/comments.ts",
-    "ideas": "bun run workflow/01-ideation/ideas.ts"
+    "ideas": "bun run workflow/01-ideation/ideas.ts",
+    "concepts": "bun run workflow/01-ideation/concepts.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",

@@ -19,6 +19,15 @@ This step captures the raw creative inspiration, competitor analysis, reference 
 > the top N. About $0.2 + $0.15 per check; ~650 + 270 quota units per check. Runs: `workspace/_ideas/discover/`.
 > Keep `AUDIENCE.md` current: it is the brief every idea is judged against.
 >
+> **Packages first (automated):** before writing, `bun run concepts --topic "..."` (or `--idea I03` for an idea in the
+> bank, which adds its YouTube research) proposes **five title + thumbnail concepts**: five different levers, thumbnails
+> on different axes, each with the question it leaves open, the video's first sentence, the claims the script must
+> source and the finding that would kill it; a blind viewer then says which it would click (~$0.1–0.2). No sources exist
+> yet, so a figure the creator did not state is rejected in code: numbers are `{slots}` until research fills them.
+> `bun run concepts --pick I03 2 --to VID07_Name` writes the chosen package into the project's `02-scripting/idea.md`
+> ("Chosen package"): the writer keeps its promise and `bun run meta` keeps one final package faithful to it.
+> Results: `workspace/_ideas/concepts/<key>.md`. If none of the five is strong, change the angle before writing.
+>
 > The rest of this file is the manual workflow inside a project (references, notes).
 
 ---
