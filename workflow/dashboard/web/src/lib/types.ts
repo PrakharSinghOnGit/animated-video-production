@@ -206,6 +206,8 @@ export interface SeamRow {
   wide?: string; clip?: string;
   /** vision review (critic model): score 1-10 and which side is broken */
   review?: { score: number; verdict: "ok" | "fix"; summary: string; model?: string; issues: { side: "A_end" | "B_start" | "both"; problem: string; fix: string }[] } | null;
+  /** your verdict (Render → Seams); stale = the seam changed since you marked it */
+  mark?: { ok: boolean; note: string; side: "a" | "b" | "both"; at: string; stale: boolean };
 }
 export interface SeamsReport { at: string; mtime: number; seams: SeamRow[] }
 

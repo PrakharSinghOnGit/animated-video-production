@@ -67,6 +67,7 @@ export const api = {
   saveVoiceReview: (ws: string, rv: Record<string, unknown>) => call<unknown>(`${w(ws)}/voice/review`, { method: "PUT", body: rv }),
   holdPoints: (ws: string) => call<HoldPoints>(`${w(ws)}/align/holdpoints`),
   saveHolds: (ws: string, holds: HoldItem[]) => call<unknown>(`${w(ws)}/align/holds`, { method: "PUT", body: { holds: holds.map(({ status: _s, failWhy: _f, mergedAt: _m, ...h }) => h) } }),
+  seamMark: (ws: string, seam: string, mark: { ok: boolean; note: string; side: string } | null) => call<unknown>(`${w(ws)}/seams/mark`, { method: "POST", body: mark ? { seam, ...mark } : { seam, ok: null } }),
   stopBatch: (ws: string) => call<unknown>(`${w(ws)}/acts/stop-batch`, { method: "POST", body: {} }),
 
   saveMetadata: (ws: string, body: { titles?: Record<string, string>; description?: string; tags?: string[]; hashtags?: string[] }) => call<{ ok: true; checks: { errors: string[]; warnings: string[] } }>(`${w(ws)}/publish/metadata`, { method: "PUT", body }),

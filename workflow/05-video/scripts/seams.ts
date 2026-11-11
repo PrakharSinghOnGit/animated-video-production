@@ -1,7 +1,7 @@
 /**
  * Seams between acts: one owner per seam, the neighbours' real frames, and a check of every cut.
  *
- * Usage: bun run seams --video <ID> [--check-only]
+ * Usage: bun run seams --video <ID> [--plan-only | --check-only] [--review]
  *
  * 1. Probe: renders each act's first and last frame with transitions off (public/seams/<ACT>_first.jpg, _last.jpg) and
  *    reads what the act asked for (open / close / ground) from its drawAct.
@@ -17,9 +17,14 @@
  *    frame to frame, and flags flicker (jumps away and back) and hard jumps. Report: review/seams/report.json + a strip
  *    per seam (review/seams/<A>-<B>.jpg). Dashboard: Render → Seams.
  * 4. Per seam it also renders a short clip (review/seams/<A>-<B>.mp4, ~1.5 s each side, to watch the transition without
- *    a full render) and a wide strip (<A>-<B>_wide.jpg, 12 frames), and a vision reviewer (the critic model, free agy by
- *    default; --no-review skips) rates it 1-10 and says which side is broken: the end of A, the start of B, or both.
- * Acts are not edited; re-run after any act changes (the draft/final chains run it after Assemble).
+ *    a full render) and a wide strip (<A>-<B>_wide.jpg, 12 frames). With --review a vision reviewer (the critic model)
+ *    also rates it 1-10 and says which side is broken; off by default (slow): the creator watches the clips and marks
+ *    each seam fine / not fine with a note in the dashboard (review/seams/marks.json).
+ * Acts are not edited. The draft/final chains run only steps 1-2 (--plan-only, seconds), which the render needs.
+ *
+ *   --plan-only           probe + plan only (no frames, clips or review)
+ *   --fix-marked          one fix round for every seam the creator marked "not fine" (its note, its side), each
+ *                         re-checked after; marks made on an older version of the seam are skipped
  *
  * Unchanged seams are reused: each seam's key is a hash of both acts' code and their timeline entries, so a re-run only
  * renders seams whose acts changed and only reviews seams without a review (a stopped run loses nothing: the report is
@@ -47,8 +52,11 @@ import { recordTiming, formatDuration } from "../src/lib/timings";
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
 const videoId = flag("--video") ?? flag("-v");
-if (!videoId) { console.error("Usage: bun run seams --video <ID> [--check-only] [--only A03-A04,...] [--no-review] [--fix A03-A04 [--notes ..] [--side auto|a|b|both]]"); process.exit(1); }
+if (!videoId) { console.error("Usage: bun run seams --video <ID> [--plan-only | --check-only] [--only A03-A04,...] [--review] [--fix-marked] [--fix A03-A04 [--notes ..] [--side auto|a|b|both]]"); process.exit(1); }
 const checkOnly = args.includes("--check-only");
+const planOnly = args.includes("--plan-only");
+const doReview = args.includes("--review");
+const fixMarked = args.includes("--fix-marked");
 const force = args.includes("--force");
 const onlySeams = flag("--only")?.toUpperCase().split(",").filter(Boolean);
 const fixSeam = flag("--fix")?.toUpperCase();
@@ -231,6 +239,22 @@ Rate it and say which side causes each problem. Reply with ONLY this JSON:
 const seamsJson = path.join(out, "seams.json");
 const reportFile = path.join(reviewDir, "report.json");
 const readReport = (): any[] => { try { return JSON.parse(fs.readFileSync(reportFile, "utf-8")).seams ?? []; } catch { return []; } };
+/** The creator's verdicts from the dashboard: { "A03-A04": { ok, note, side, at, key } } (key = the seam version marked). */
+const readMarks = (): Record<string, { ok: boolean; note?: string; side?: string; key?: string }> => { try { return JSON.parse(fs.readFileSync(path.join(reviewDir, "marks.json"), "utf-8")); } catch { return {}; } };
+
+if (fixMarked) {
+  const report = new Map(readReport().map((x) => [`${x.a}-${x.b}`, x]));
+  const todo = Object.entries(readMarks()).filter(([id, m]) => !m.ok && report.get(id) && report.get(id).key === m.key);
+  if (!todo.length) { console.log("Nothing to fix: no seam is marked not fine (or the marked ones changed since: watch them again)."); process.exit(0); }
+  console.log(`🔧 fixing ${todo.length} marked seam${todo.length > 1 ? "s" : ""}: ${todo.map(([id]) => id).join(", ")}`);
+  let failed = 0;
+  for (const [id, m] of todo) {
+    const r = spawnSync("bun", ["run", "seams", "--video", paths.jobId, "--fix", id, "--side", m.side ?? "both", ...(m.note ? ["--notes", m.note] : [])], { stdio: "inherit" });
+    if (r.status !== 0) failed++;
+  }
+  console.log(`${failed ? "⚠️ " : "✅"} ${todo.length - failed}/${todo.length} marked seams fixed and re-checked: watch them again and mark them`);
+  process.exit(failed ? 1 : 0);
+}
 
 if (fixSeam) {
   // one fix round per broken side, with seam notes, then re-check this seam (a fresh run of this script)
@@ -262,7 +286,7 @@ Check with: bun run frames --video ${paths.jobId} --scene ${act} --at ${sd === "
     if (r.status !== 0) console.log(`   ⚠️  the fix of ${act} did not finish cleanly (see its log)`);
   }
   spawnSync("bun", ["run", "assemble", "--video", paths.jobId], { stdio: "inherit" });
-  const again = spawnSync("bun", ["run", "seams", "--video", paths.jobId, "--only", fixSeam], { stdio: "inherit" });
+  const again = spawnSync("bun", ["run", "seams", "--video", paths.jobId, "--only", fixSeam, ...(doReview ? ["--review"] : [])], { stdio: "inherit" });
   process.exit(again.status ?? 1);
 }
 
@@ -281,6 +305,7 @@ if (checkOnly) {
   fs.writeFileSync(seamsJson, JSON.stringify({ at: new Date().toISOString(), asks, seams: p.seams }, null, 2));
   console.log(`🧵 ${p.seams.length} seams planned:`);
   for (const s of p.seams) console.log(`  ${s.a} → ${s.b}: ${s.how}`);
+  if (planOnly) { recordTiming(path.dirname(out), { step: "seams", ms: Date.now() - t0 }); console.log(`✅ seams planned in ${formatDuration(Date.now() - t0)} (clips to watch: Render → Seams)`); process.exit(0); }
 }
 const todo = onlySeams ? seamList.filter((x) => onlySeams.includes(`${x.a}-${x.b}`)) : seamList;
 /** Merge into the earlier report (--only keeps the other seams; seams that no longer exist drop out) and write it. */
@@ -295,7 +320,7 @@ const order = new Map(todo.map((x, i) => [`${x.a}-${x.b}`, i]));
 const checked: any[] = (await check(todo)).sort((a, b) => order.get(`${a.a}-${a.b}`)! - order.get(`${b.a}-${b.b}`)!);
 let report = saveReport(checked);   // frames and clips are on disk now, before any review
 const critic = roleModel("critic");
-if (!args.includes("--no-review") && critic !== "off") {
+if (doReview && critic !== "off") {
   const pending = checked.filter((s) => !s.review);
   // agy calls in parallel slow each other down (30 s alone, 10+ min three at a time): one at a time there
   const lanes = critic.startsWith("agy") ? 1 : 3;

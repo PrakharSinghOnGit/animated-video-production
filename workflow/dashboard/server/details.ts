@@ -285,7 +285,9 @@ export function details(ws: string) {
       })() },
     render: { videos, qc, manifest, ...renderStates(ws), seams: (() => {
       const f = path.join(wsDir(ws), "05-video/review/seams/report.json"), r = readJson<{ at: string; seams: any[] }>(f);
-      return r ? { at: r.at, mtime: mtime(f), seams: r.seams } : null;
+      if (!r) return null;
+      const marks = readJson<Record<string, any>>(path.join(path.dirname(f), "marks.json")) ?? {};
+      return { at: r.at, mtime: mtime(f), seams: r.seams.map((s) => { const m = marks[`${s.a}-${s.b}`]; return m ? { ...s, mark: { ok: !!m.ok, note: m.note ?? "", side: m.side ?? "both", at: m.at, stale: m.key !== s.key } } : s; }) };
     })() },
     timings: allRows,
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),

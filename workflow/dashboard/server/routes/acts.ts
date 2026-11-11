@@ -6,6 +6,29 @@ import { runningJobs } from "../jobs";
 import { approvalPath, sceneFiles } from "../status";
 
 export async function actsRoutes(req: Request, url: URL, ws: string, rest: string): Promise<Response | null> {
+  // your verdict on one cut between acts (Render → Seams): fine / not fine + a note; null clears it. Kept with the seam's
+  // version (its key), so a mark made before the acts changed shows as out of date. seams.ts --fix-marked reads it.
+  if (rest === "/seams/mark" && req.method === "POST") {
+    const b = await req.json().catch(() => ({}));
+    const id = typeof b.seam === "string" ? b.seam.toUpperCase() : "";
+    const dir = path.join(wsDir(ws), "05-video/review/seams");
+    let report: any[] = [];
+    try { report = JSON.parse(fs.readFileSync(path.join(dir, "report.json"), "utf-8")).seams ?? []; } catch {}
+    const seam = report.find((x) => `${x.a}-${x.b}` === id);
+    if (!seam) return bad("unknown seam: run Seams first");
+    const f = path.join(dir, "marks.json");
+    let marks: Record<string, any> = {};
+    try { marks = JSON.parse(fs.readFileSync(f, "utf-8")); } catch {}
+    if (b.ok === null) delete marks[id];
+    else {
+      if (typeof b.ok !== "boolean") return bad("ok: true, false or null");
+      const side = ["a", "b", "both"].includes(b.side) ? b.side : "both";
+      marks[id] = { ok: b.ok, note: typeof b.note === "string" ? b.note.replace(/\s+/g, " ").trim().slice(0, 1500) : "", side, at: new Date().toISOString(), key: seam.key };
+    }
+    fs.writeFileSync(f, JSON.stringify(marks, null, 2));
+    return json({ ok: true });
+  }
+
   const nm = rest.match(/^\/notes\/(A\d{2,3})$/);
   if (nm && req.method === "PUT") {
     if (!actIds(ws).includes(nm[1])) return bad("unknown act");
