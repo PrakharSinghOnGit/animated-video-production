@@ -22,7 +22,7 @@ import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
-import { publishedSummaries } from "../09-analytics/lib";
+import { publishedSummaries, shortLinkMap } from "../09-analytics/lib";
 import { isUntitled, nameSource, nextUntitled, renameWorkspace } from "../lib/rename";
 import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
 import * as pub from "../07-publish/lib";
@@ -1699,7 +1699,9 @@ function listWorkspaces() {
         })(),
         totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
         // linked to its YouTube upload: the sidebar and overview show the upload's numbers instead of the pipeline
-        published: pub[id] ?? null };
+        published: pub[id] ?? null,
+        // a shorts project: each short's upload (S1 → id or null); it is published once all are linked
+        ...(sh.isShortsProject(id) ? { shortLinks: shortLinkMap(id) } : {}) };
     });
 }
 

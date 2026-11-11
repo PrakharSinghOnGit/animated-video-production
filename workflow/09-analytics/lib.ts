@@ -139,7 +139,8 @@ export function readSnapshot(mock = false): Snapshot | null {
 
 // ───────────── mapping ─────────────
 
-const WS_ID = /^VID\d+_[A-Za-z0-9_]+$/;
+/** videos (VID…) and shorts projects (SH…: shorts only, each short linked to its own upload) */
+const WS_ID = /^(VID|SH)\d+_[A-Za-z0-9_]+$/;
 export const wsDir = (id: string) => path.join(REPO, "workspace", id);
 export function workspaces(): string[] {
   try { return fs.readdirSync(path.join(REPO, "workspace")).filter((f) => WS_ID.test(f)).sort(); } catch { return []; }
@@ -160,18 +161,23 @@ export function mapping(): Record<string, string> {
 }
 export function setMapping(ws: string, ytId: string | null) {
   if (!WS_ID.test(ws) || !fs.existsSync(wsDir(ws))) throw new Error("no such workspace");
+  if (ws.startsWith("SH")) throw new Error("a shorts project has no long video: link each of its shorts");
   if (ytId === null) { try { fs.rmSync(mapFile(ws)); } catch {} return; }
   writeJson(mapFile(ws), { videoId: ytId, setAt: new Date().toISOString() });
 }
 
 const SHORT_ID = /^S\d+$/;
 export const shortMapFile = (ws: string, short: string) => path.join(wsDir(ws), "shorts", short, "07-publish", "youtube.json");
-function shortIds(ws: string): string[] { try { return fs.readdirSync(path.join(wsDir(ws), "shorts")).filter((s) => SHORT_ID.test(s)).sort(); } catch { return []; } }
+export function shortIds(ws: string): string[] { try { return fs.readdirSync(path.join(wsDir(ws), "shorts")).filter((s) => SHORT_ID.test(s)).sort(); } catch { return []; } }
 /** ytId → the short it was cut as (every VID workspace's shorts/S*). */
 export function shortLinks(): Record<string, { ws: string; short: string }> {
   const out: Record<string, { ws: string; short: string }> = {};
   for (const w of workspaces()) for (const s of shortIds(w)) { const id = readJson<{ videoId: string }>(shortMapFile(w, s))?.videoId; if (id) out[id] = { ws: w, short: s }; }
   return out;
+}
+/** S1 → its upload's id (or null), for one project. */
+export function shortLinkMap(ws: string): Record<string, string | null> {
+  return Object.fromEntries(shortIds(ws).map((s) => [s, readJson<{ videoId: string }>(shortMapFile(ws, s))?.videoId ?? null]));
 }
 export function setShortMapping(ws: string, short: string, ytId: string | null) {
   if (!WS_ID.test(ws) || !SHORT_ID.test(short) || !fs.existsSync(path.join(wsDir(ws), "shorts", short))) throw new Error("no such short");
@@ -181,20 +187,35 @@ export function setShortMapping(ws: string, short: string, ytId: string | null) 
 
 /** What the dashboard shows for a published video: its upload's numbers and its shorts' (from the cached snapshot). */
 export interface PublishedSummary {
-  ytId: string; title: string | null; publishedAt: string | null; thumb: string | null; views: number | null; ctr: number | null; avgPct: number | null;
+  /** "shorts": a shorts project, published once every short is linked; ytId is null and the numbers are its shorts' totals */
+  kind: "video" | "shorts";
+  ytId: string | null; title: string | null; publishedAt: string | null; thumb: string | null; views: number | null; ctr: number | null; avgPct: number | null;
   subsGained: number | null; comments: number | null; fetchedAt: string | null;
   shorts: { id: string; ytId: string | null; title: string | null; views: number | null }[];
 }
 export function publishedSummaries(): Record<string, PublishedSummary> {
   const links = mapping();
-  if (!Object.keys(links).length) return {};
-  const snap = readSnapshot();
   const shorts = shortLinks();
+  if (!Object.keys(links).length && !Object.keys(shorts).length) return {};
+  const snap = readSnapshot();
   const out: Record<string, PublishedSummary> = {};
+  // a shorts project is published when every one of its shorts is linked to its upload
+  for (const ws of workspaces().filter((w) => w.startsWith("SH"))) {
+    const m = shortLinkMap(ws), ids = Object.keys(m);
+    if (!ids.length || ids.some((s) => !m[s])) continue;
+    const vs = ids.map((s) => snap?.videos.find((x) => x.ytId === m[s]));
+    const sum = (k: "views" | "subsGained" | "comments") => (vs.some((v) => v?.[k] != null) ? vs.reduce((a, v) => a + (v?.[k] ?? 0), 0) : null);
+    const dates = vs.map((v) => v?.publishedAt).filter(Boolean).sort() as string[];
+    out[ws] = {
+      kind: "shorts", ytId: null, title: null, publishedAt: dates[0] ?? null, thumb: vs.find((v) => v?.thumb)?.thumb ?? null,
+      views: sum("views"), ctr: null, avgPct: null, subsGained: sum("subsGained"), comments: sum("comments"), fetchedAt: snap?.fetchedAt ?? null,
+      shorts: ids.map((s, i) => ({ id: s, ytId: m[s], title: vs[i]?.title ?? null, views: vs[i]?.views ?? null })),
+    };
+  }
   for (const [ytId, ws] of Object.entries(links)) {
     const v = snap?.videos.find((x) => x.ytId === ytId);
     out[ws] = {
-      ytId, title: v?.title ?? null, publishedAt: v?.publishedAt ?? null, thumb: v?.thumb ?? null, views: v?.views ?? null,
+      kind: "video", ytId, title: v?.title ?? null, publishedAt: v?.publishedAt ?? null, thumb: v?.thumb ?? null, views: v?.views ?? null,
       ctr: v?.ctr ?? null, avgPct: v?.avgPct ?? null, subsGained: v?.subsGained ?? null, comments: v?.comments ?? null, fetchedAt: snap?.fetchedAt ?? null,
       shorts: shortIds(ws).map((s) => {
         const sy = Object.entries(shorts).find(([, x]) => x.ws === ws && x.short === s)?.[0] ?? null;

@@ -36,13 +36,20 @@ export function PublishedOverview({ p }: { p: Published }) {
     if (!window.confirm(`Unlink ${ws} from its upload? It goes back to In progress with the pipeline as its overview.`)) return;
     try { await api.analyticsLink(ws!, null); await reloadList(); } catch (e) { toast((e as Error).message); }
   };
+  // a shorts project: unlinking its shorts moves it back to In progress
+  const unlinkShorts = async () => {
+    if (!window.confirm(`Unlink all ${p.shorts.length} shorts of ${ws} from their uploads? It goes back to In progress.`)) return;
+    try { for (const s of p.shorts) if (s.ytId) await api.analyticsLink(ws!, null, s.id); await reloadList(); } catch (e) { toast((e as Error).message); }
+  };
   if (!d || !ws) return null;
 
   const snap = data?.snapshot;
-  const v = snap?.videos.find((x) => x.ytId === p.ytId);
+  // a shorts project: no long video; the page is its shorts' numbers
+  const only = p.kind === "shorts";
+  const v = p.ytId ? snap?.videos.find((x) => x.ytId === p.ytId) : undefined;
   const shortsOf = snap?.videos.filter((x) => x.parent === ws) ?? [];
   const cs = comments?.store ? Object.values(comments.store.comments) : [];
-  const mineIds = new Set([p.ytId, ...p.shorts.map((s) => s.ytId).filter(Boolean) as string[]]);
+  const mineIds = new Set([p.ytId, ...p.shorts.map((s) => s.ytId)].filter(Boolean) as string[]);
   const myComments = cs.filter((c) => mineIds.has(c.videoId));
   const waiting = myComments.filter((c) => c.status === "todo").length;
   const busy = !!data?.running;
@@ -54,19 +61,19 @@ export function PublishedOverview({ p }: { p: Published }) {
         eyebrow={<span className="font-mono normal-case tracking-normal">{d.id} · published</span>}
         title={p.title ?? d.title ?? d.id}
         badges={p.thumb ? <img src={p.thumb} alt="" className="h-10 rounded border object-cover max-sm:hidden" /> : undefined}
-        sub={<>{p.publishedAt ? `Published ${new Date(p.publishedAt).toLocaleDateString()}` : "Not in the analytics snapshot yet"}{v ? ` · ${fmtTime(v.durationS)}` : ""}{snap ? ` · numbers from ${ago(snap.fetchedAt)}` : ""} · made for {money(d.totals.costUsd)}</>}
+        sub={<>{p.publishedAt ? `${only ? "First short published" : "Published"} ${new Date(p.publishedAt).toLocaleDateString()}` : "Not in the analytics snapshot yet"}{only ? ` · ${p.shorts.length} short${p.shorts.length === 1 ? "" : "s"}${p.views != null ? `, ${int(p.views)} views in all` : ""}` : ""}{v ? ` · ${fmtTime(v.durationS)}` : ""}{snap ? ` · numbers from ${ago(snap.fetchedAt)}` : ""} · made for {money(d.totals.costUsd)}</>}
         actions={<>
-          <Button variant="outline" asChild><a href={`https://www.youtube.com/watch?v=${p.ytId}`} target="_blank" rel="noreferrer"><ExternalLink />YouTube</a></Button>
-          <Button variant="outline" asChild><a href={`https://studio.youtube.com/video/${p.ytId}/analytics`} target="_blank" rel="noreferrer"><BarChart3 />Studio</a></Button>
+          {p.ytId && <Button variant="outline" asChild><a href={`https://www.youtube.com/watch?v=${p.ytId}`} target="_blank" rel="noreferrer"><ExternalLink />YouTube</a></Button>}
+          {p.ytId && <Button variant="outline" asChild><a href={`https://studio.youtube.com/video/${p.ytId}/analytics`} target="_blank" rel="noreferrer"><BarChart3 />Studio</a></Button>}
           <Button disabled={busy || data?.auth.state !== "ok"} onClick={() => run("fetch")} title="Pull fresh numbers for the whole channel (bun run yt:fetch)"><RefreshCw />Refresh</Button>
-          <Button variant="default" disabled={busy || !v} onClick={() => run("review")} title="The analytics reviewer reads this video's numbers, script and plan and proposes lessons"><Brain />Review</Button>
+          {!only && <Button variant="default" disabled={busy || !v} onClick={() => run("review")} title="The analytics reviewer reads this video's numbers, script and plan and proposes lessons"><Brain />Review</Button>}
         </>}
       />
       {job && <JobLog job={job.id} label={job.label} onEnd={() => { void load(); void reloadList(); }} onClose={() => setJob(null)} />}
 
-      {!data ? <div className="text-muted-foreground">Loading numbers…</div>
+      {only ? null : !data ? <div className="text-muted-foreground">Loading numbers…</div>
         : !v ? <Card><CardBody className="text-[13px]">This upload ({p.ytId}) isn't in the analytics snapshot yet. {data.auth.state === "ok" ? "Click Refresh to pull it." : "Connect YouTube on the Analytics page first."}</CardBody></Card>
-        : <VideoAnalytics embedded data={data} yt={p.ytId} onLessons={(s: LessonStore) => setData((x) => (x ? { ...x, lessons: s } : x))} onReview={() => run("review")} reload={() => void load()} />}
+        : <VideoAnalytics embedded data={data} yt={v.ytId} onLessons={(s: LessonStore) => setData((x) => (x ? { ...x, lessons: s } : x))} onReview={() => run("review")} reload={() => void load()} />}
       <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader><Film className="size-4 text-muted-foreground" /><CardTitle>Shorts</CardTitle><CardSub>Link each short to its upload to see its numbers here</CardSub></CardHeader>
@@ -111,16 +118,19 @@ export function PublishedOverview({ p }: { p: Published }) {
             <CardHeader><Wrench className="size-4 text-muted-foreground" /><CardTitle>Production</CardTitle><CardSub>read-only reference</CardSub></CardHeader>
             <CardBody>
               <div className="flex flex-wrap gap-1.5">
-                {prod("Script", FileText, { sec: "video", step: "script" })}
-                {prod("Video steps", Clapperboard, { sec: "video" })}
-                {prod("Shorts", Film, { sec: "shorts" })}
-                {prod("Packaging", PackageOpen, { sec: "packaging" })}
+                {!only && prod("Script", FileText, { sec: "video", step: "script" })}
+                {!only && prod("Video steps", Clapperboard, { sec: "video" })}
+                {prod(only ? "Shorts and brief" : "Shorts", Film, { sec: "shorts" })}
+                {!only && prod("Packaging", PackageOpen, { sec: "packaging" })}
                 {prod("Downloads & runs", Wrench, { sec: "production" })}
               </div>
-              <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              {only ? <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                <span>{p.shorts.length} short{p.shorts.length === 1 ? "" : "s"} linked</span>
+                <Button size="sm" variant="ghost" className="ml-auto" onClick={unlinkShorts}><Unlink />Unlink</Button>
+              </div> : <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                 <span>Linked to <code>{p.ytId}</code>{v?.ctr !== undefined ? ` · CTR ${pct(v.ctr)}` : ""}</span>
                 <Button size="sm" variant="ghost" className="ml-auto" onClick={unlink}><Unlink />Unlink</Button>
-              </div>
+              </div>}
             </CardBody>
           </Card>
         </div>
@@ -129,7 +139,7 @@ export function PublishedOverview({ p }: { p: Published }) {
   );
 }
 
-function LinkShort({ ws, short, onDone }: { ws: string; short: string; onDone: () => void }) {
+export function LinkShort({ ws, short, onDone }: { ws: string; short: string; onDone: () => void }) {
   const { toast } = useApp();
   const [id, setId] = useState("");
   const link = async () => {

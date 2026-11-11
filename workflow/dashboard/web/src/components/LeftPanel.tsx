@@ -47,8 +47,8 @@ function PublishedLine({ p }: { p: Published }) {
   return (
     <span className="flex items-center gap-2.5 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
       <span><b className="font-semibold text-foreground/90">{p.views == null ? "—" : p.views.toLocaleString()}</b> views</span>
-      <span title="Click-through rate">CTR {pct(p.ctr, 100, 1)}</span>
-      <span title="Average percentage viewed">{pct(p.avgPct, 1, 0)} viewed</span>
+      {p.kind !== "shorts" && <span title="Click-through rate">CTR {pct(p.ctr, 100, 1)}</span>}
+      {p.kind !== "shorts" && <span title="Average percentage viewed">{pct(p.avgPct, 1, 0)} viewed</span>}
       {p.shorts.some((s) => s.ytId) && <span className="ml-auto" title="Shorts linked to their uploads">{p.shorts.filter((s) => s.ytId).length} short{p.shorts.filter((s) => s.ytId).length === 1 ? "" : "s"}</span>}
     </span>
   );

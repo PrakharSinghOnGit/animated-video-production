@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Link2, MonitorPlay, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowRight, ExternalLink, Film, Link2, MonitorPlay, Pencil, Sparkles, Unlink, X } from "lucide-react";
+import { LinkShort } from "@/pages/PublishedOverview";
 import { Input } from "@/components/ui/fields";
 import { useApp } from "@/hooks/app";
 import { usePoll } from "@/hooks/usePoll";
@@ -99,6 +100,7 @@ export function ProjectOverview() {
         ))}
       </section>
 
+      {only && !published && items.length > 0 && <LinkShorts ws={ws} items={items.map((s) => ({ id: s.id, title: s.entry.title ?? null }))} links={list.find((w) => w.id === ws)?.shortLinks ?? {}} onDone={async () => { await reloadList(); }} />}
       {!only && !list.find((w) => w.id === ws)?.published && <LinkUpload ws={ws} onDone={async () => { await reloadList(); go({ sec: null, step: null, act: null, short: null }); }} />}
 
       <section aria-label="Downloads" className="grid gap-3">
@@ -186,6 +188,35 @@ function LinkUpload({ ws, onDone }: { ws: string; onDone: () => void }) {
           <Input aria-label="YouTube URL or video id" placeholder="https://youtu.be/… or the video id" value={id} onChange={(e) => setId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && id.trim() && void link()} className="min-w-56 flex-1" />
           <Button variant="default" disabled={!id.trim()} onClick={link}><Link2 />Link upload</Button>
         </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+/** A shorts project is done when its shorts are on YouTube: link each one; once all are linked the project moves to
+ *  Published and opens on its shorts' numbers. */
+function LinkShorts({ ws, items, links, onDone }: { ws: string; items: { id: string; title: string | null }[]; links: Record<string, string | null>; onDone: () => void }) {
+  const { toast } = useApp();
+  const n = items.filter((s) => links[s.id]).length;
+  const unlink = async (s: string) => {
+    try { await api.analyticsLink(ws, null, s); onDone(); } catch (e) { toast((e as Error).message); }
+  };
+  return (
+    <Card>
+      <CardHeader><MonitorPlay className="size-4 text-muted-foreground" /><CardTitle>Uploaded them?</CardTitle><CardSub>Paste each short's YouTube link ({n}/{items.length} linked): once all are linked the project moves to Published and opens on their numbers</CardSub></CardHeader>
+      <CardBody className="gap-2.5 text-[13px]">
+        {items.map((s) => (
+          <div key={s.id} className="grid gap-1">
+            <div className="flex min-w-0 items-center gap-2"><Film className="size-3.5 shrink-0 text-muted-foreground" /><b className="font-mono">{s.id}</b><span className="min-w-0 truncate">{s.title ?? "(untitled)"}</span></div>
+            {links[s.id]
+              ? <span className="flex flex-wrap items-center gap-1 pl-5.5">
+                  <Badge tone="success">linked</Badge>
+                  <Button size="sm" variant="ghost" asChild><a href={`https://www.youtube.com/shorts/${links[s.id]}`} target="_blank" rel="noreferrer"><ExternalLink />YouTube</a></Button>
+                  <Button size="sm" variant="ghost" onClick={() => unlink(s.id)}><Unlink />Unlink</Button>
+                </span>
+              : <span className="pl-5.5"><LinkShort ws={ws} short={s.id} onDone={onDone} /></span>}
+          </div>
+        ))}
       </CardBody>
     </Card>
   );

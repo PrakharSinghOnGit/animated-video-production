@@ -62,7 +62,7 @@ export async function analyticsRoute(req: Request, url: URL, ctx: AnalyticsCtx):
       auth: authState(), mock, mockAvailable: !!readSnapshot(true), realAvailable: !!readSnapshot(false),
       snapshot: snap, diagnosis: snap ? diagnose(snap) : null,
       lessons: readStore(), targets: TARGETS, targetInfo: TARGET_INFO, cap: ACTIVE_CAP,
-      workspaces: workspaces().map((w) => ({ id: w, ytId: Object.entries(links).find(([, x]) => x === w)?.[0] ?? null, title: readJson<any>(path.join(DIR, "..", w, "05-video/acts.json"))?.video?.title ?? null })),
+      workspaces: workspaces().filter((w) => w.startsWith("VID")).map((w) => ({ id: w, ytId: Object.entries(links).find(([, x]) => x === w)?.[0] ?? null, title: readJson<any>(path.join(DIR, "..", w, "05-video/acts.json"))?.video?.title ?? null })),
       acts, reviews: reviews(), fetchLog: (readJson<any[]>(path.join(DIR, "fetch_log.json")) ?? []).slice(-5),
       running: running ? ctx.jobSummary(running) : null,
     });
