@@ -12,7 +12,13 @@
  * index.ts (registerRoot) and registry.ts are generated here from the files in thumbs/, Root.tsx + Preview.tsx are synced
  * from workflow/07-publish/template/, and thumbs/<V>.tsx are the authored stills. Same node_modules resolution as 05-video
  * (the workspace sits under the repo), same renderer options (--gl=angle as chromiumOptions.gl).
- * The brief is workflow/prompts/THUMBS.md; the rules are workflow/07-publish/GUIDE.md.
+ * The brief is workflow/prompts/THUMBS.md plus the video style's workflow/styles/<style>/THUMB.md (the kit, the skeleton,
+ * the character); the rules are workflow/07-publish/GUIDE.md.
+ *
+ * Every render ends with the free checks (thumbnails.checks.json): file and size, words, sourced numbers, title overlap,
+ * the three-bets check (lib.ts checkBets) and the phone-size check (phone.ts: each thumbnail shrunk to 168 and 120 px in
+ * thumbnails/phone/, measured, and its words read back). An error there rejects the variant: the render exits 1 and the
+ * dashboard will not approve the packages.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -23,7 +29,8 @@ import { runAgentAsync } from "../05-video/src/lib/agent";
 import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
-import { REPO, VARIANTS, GUIDE, THUMB_MAX_BYTES, THUMB_MAX_WORDS, THUMB_W, THUMB_H, wsDir, pubDir, pubFile, readJson, readText, videoSeconds, badgeTime, planNumbers, numberProblems, thumbPath, type Metadata, type ThumbInfo, type Variant } from "./lib";
+import { REPO, VARIANTS, GUIDE, AXES, AXIS_KEYS, THUMB_MAX_BYTES, THUMB_MAX_WORDS, THUMB_W, THUMB_H, wsDir, pubDir, pubFile, readJson, readText, mtime, videoSeconds, badgeTime, planNumbers, numberProblems, thumbPath, checkBets, contentWords, usedThumbWords, type Metadata, type ThumbInfo, type Variant } from "./lib";
+import { PHONE_SIZES, shrink, measure, readWords, judge, blindProblems, type BlindFile, type PhoneMetrics } from "./phone";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -126,12 +133,35 @@ async function renderPreviews(): Promise<void> {
   } catch (e: any) { console.error(`❌ preview failed: ${String(e?.message ?? e).slice(0, 1500)}`); }
 }
 
-/** Mechanical checks on what the author declared and what was rendered; written to thumbnails.checks.json for the dashboard. */
-function check(): Record<string, { errors: string[]; warnings: string[] }> {
+export interface ThumbCheck { errors: string[]; warnings: string[]; phone?: PhoneMetrics | null; read?: string[] | null }
+/**
+ * Mechanical checks on what the author declared and what was rendered; written to thumbnails.checks.json for the dashboard.
+ * Errors reject the variant. Free: no model runs here.
+ */
+function check(): Record<string, ThumbCheck> {
   const info = readJson<Record<string, ThumbInfo>>(pubFile(videoId!, "thumbnails.json")) ?? {};
   const meta = readJson<Metadata>(pubFile(videoId!, "metadata.json"));
   const pn = planNumbers(readJson(path.join(ws, "05-video/acts.json")));
-  const out: Record<string, { errors: string[]; warnings: string[] }> = {};
+  const out: Record<string, ThumbCheck> = {};
+  const used = usedThumbWords(videoId!);
+
+  // the thumbnails at their real sizes, and the words read back from them (one reader run for all of them)
+  const phoneDir = path.join(outDir, "phone");
+  const small: Record<string, Record<number, string>> = {};
+  for (const v of VARIANTS) {
+    const p = thumbPath(videoId!, v);
+    for (const w of PHONE_SIZES) {
+      const f = path.join(phoneDir, `${v}_${w}.png`);
+      if (!p) fs.rmSync(f, { force: true });
+      else if ((mtime(f) > mtime(p) || shrink(p, w, f))) (small[v] ??= {})[w] = f;
+    }
+  }
+  const withText = VARIANTS.filter((v) => small[v]?.[168] && (info[v]?.text ?? "").trim());
+  const reads = readWords(withText.flatMap((v) => PHONE_SIZES.map((w) => small[v][w])));
+  const readOf = (v: string, w: number) => { const i = withText.indexOf(v as Variant); return reads && i >= 0 ? reads[i * PHONE_SIZES.length + PHONE_SIZES.indexOf(w as 168)] : null; };
+  // the blind read of the last review (review.ts), while the image is still the one it saw
+  const blind = readJson<BlindFile>(pubFile(videoId!, "phone.blind.json"));
+
   for (const v of VARIANTS) {
     const errors: string[] = [], warnings: string[] = [], p = thumbPath(videoId!, v);
     out[v] = { errors, warnings };
@@ -140,7 +170,12 @@ function check(): Record<string, { errors: string[]; warnings: string[] }> {
     if (size > THUMB_MAX_BYTES) errors.push(`${(size / 1048576).toFixed(2)} MB (max 2 MB)`);
     if (!dim || dim.w !== THUMB_W || dim.h !== THUMB_H) errors.push(`size is ${dim ? `${dim.w}x${dim.h}` : "unknown"}, expected ${THUMB_W}x${THUMB_H}`);
     const i = info[v];
-    if (!i) { warnings.push("thumbnails.json has no entry (concept, text and numbers are not declared)"); continue; }
+    const ph = judge(measure(p), i?.text ?? "", readOf(v, 168), readOf(v, 120));
+    out[v].phone = ph.metrics; out[v].read = ph.read;
+    errors.push(...ph.errors); warnings.push(...ph.warnings);
+    const b = blind?.variants?.[v];
+    if (b && Math.abs((blind.mtimes?.[v] ?? 0) - mtime(p)) < 1000) errors.push(...blindProblems(b));
+    if (!i) { warnings.push("thumbnails.json has no entry (concept, text and numbers are not declared), so the words were not checked"); continue; }
     const words = (i.text ?? "").trim().split(/\s+/).filter(Boolean);
     if (words.length > THUMB_MAX_WORDS) errors.push(`${words.length} words of text (max ${THUMB_MAX_WORDS})`);
     const np = numberProblems([i.text ?? "", ...(i.numbers ?? [])].join(" "), pn);
@@ -151,26 +186,41 @@ function check(): Record<string, { errors: string[]; warnings: string[] }> {
     const dup = words.map((w) => w.toLowerCase().replace(/[^a-z0-9%]+/g, "")).filter((w) => w.length > 2 && tw.has(w));
     if (words.length && dup.length === words.length) errors.push(`the text repeats the title ("${i.text}")`);
     else if (dup.length) warnings.push(`the text shares "${dup.join(", ")}" with the title`);
+    const again = contentWords(i.text ?? "").filter((w) => used.has(w));
+    if (again.length) warnings.push(`"${again.join(", ")}" is already on the thumbnail of ${[...new Set(again.flatMap((w) => used.get(w)!))].join(", ")}: a word on every thumbnail makes the channel look like one video`);
+    const want = meta?.titles?.[v]?.axes;
+    if (want && i.axes) { const off = AXIS_KEYS.filter((k) => i.axes![k] !== want[k]); if (off.length) warnings.push(`drawn as ${off.map((k) => `${k}: ${i.axes![k]}`).join(", ")} where the package asked for ${off.map((k) => `${k}: ${want[k]}`).join(", ")}`); }
   }
+  // three bets: judged on what was drawn (thumbnails.json), for the variants that declare their axes
+  const declared = Object.fromEntries(VARIANTS.filter((v) => thumbPath(videoId!, v) && info[v]).map((v) => [v, { axes: info[v].axes, text: info[v].text }]));
+  const needAxes = VARIANTS.some((v) => info[v]?.axes) || VARIANTS.some((v) => meta?.titles?.[v]?.axes);
+  const bets = checkBets(declared, "thumbnail", needAxes);
+  for (const [list, key] of [[bets.errors, "errors"], [bets.warnings, "warnings"]] as const)
+    for (const m of list) for (const v of VARIANTS) if (new RegExp(`^${v}\\b|\\band ${v}\\b`).test(m.split(":")[0])) out[v][key].push(m);
   fs.writeFileSync(pubFile(videoId!, "thumbnails.checks.json"), JSON.stringify(out, null, 2));
   return out;
 }
 
-function report(errs: Record<string, string>) {
-  const c = check();
+/** Prints the checks; returns the variants that are rejected (a render error or a check error). */
+function report(errs: Record<string, string>): Variant[] {
+  const c = check(), seen = new Set<string>(), rejected: Variant[] = [];
+  const say = (mark: string, v: string, m: string) => { const pair = /^[ABC] and [ABC]:/.test(m); if (pair && seen.has(m)) return; seen.add(m); console.log(`   ${mark} ${pair ? m : `${v}: ${m}`}`); };
   for (const v of VARIANTS) {
     const r = c[v];
     if (errs[v]) console.log(`   ✗ ${v}: ${errs[v].split("\n")[0]}`);
-    for (const e of r.errors) console.log(`   ✗ ${v}: ${e}`);
-    for (const w of r.warnings) console.log(`   ⚠ ${v}: ${w}`);
+    for (const e of r.errors) say("✗", v, e);
+    for (const w of r.warnings) say("⚠", v, w);
+    if ((errs[v] || r.errors.length) && thumbPath(videoId!, v)) rejected.push(v);
   }
+  if (rejected.length) console.log(`   REJECTED: ${rejected.join(", ")} (✗ above). Fix the file and render again; the packages cannot be approved while a variant is rejected.`);
+  return rejected;
 }
 
 // ───────────── render only (free) ─────────────
 if (renderOnly) {
   const errs = await render(chosen, !noPreview);
-  report(errs);
-  process.exit(Object.keys(errs).length ? 1 : 0);
+  const rejected = report(errs);
+  process.exit(Object.keys(errs).length || rejected.some((v) => chosen.includes(v)) ? 1 : 0);
 }
 
 // ───────────── authoring (paid) ─────────────
@@ -179,10 +229,10 @@ const meta = readJson<Metadata>(pubFile(videoId, "metadata.json"));
 const plan = readJson<any>(path.join(ws, "05-video/acts.json"));
 const pn = planNumbers(plan);
 let todo: Variant[];
-if (fixMode) todo = chosen.filter((v) => notesOf(v) && fs.existsSync(srcFile(v)));
+if (fixMode) { const c = readJson<Record<string, ThumbCheck>>(pubFile(videoId, "thumbnails.checks.json")) ?? {}; todo = chosen.filter((v) => (notesOf(v) || c[v]?.errors?.length) && fs.existsSync(srcFile(v))); }
 else todo = chosen.filter((v) => force || !fs.existsSync(srcFile(v)));
 if (!todo.length) {
-  console.log(fixMode ? "Nothing to fix: no notes for the chosen variants (07-publish/notes/<V>.md), or the variant has no file yet." : "Nothing to do: the chosen variants exist (--force redoes them).");
+  console.log(fixMode ? "Nothing to fix: no notes (07-publish/notes/<V>.md) and no failed checks for the chosen variants, or the variant has no file yet." : "Nothing to do: the chosen variants exist (--force redoes them).");
   process.exit(0);
 }
 syncProject();
@@ -198,16 +248,29 @@ function lastSession(): string | undefined {
 }
 const n = fs.readdirSync(pubFile(videoId, "logs")).filter((f) => /^thumbs_\d+\.log$/.test(f)).length;
 
-const brief = loadPrompt("THUMBS", { video: videoId }).replace(/<ID>/g, videoId);
-const packages = VARIANTS.map((v) => meta?.titles?.[v] ? `- ${v}: title "${meta.titles[v].title}" [${meta.titles[v].type}]. Thumbnail brief: ${meta.titles[v].thumbnail}. Tests: ${meta.titles[v].hypothesis}` : `- ${v}: no title yet (metadata.json missing): pick the concept yourself`).join("\n");
+const style = String(plan?.style ?? "briefing");
+const styleBrief = readText(path.join(REPO, `workflow/styles/${style}/THUMB.md`));
+if (!styleBrief) { console.error(`❌ no workflow/styles/${style}/THUMB.md: the "${style}" style has no thumbnail brief yet`); process.exit(1); }
+const brief = `${loadPrompt("THUMBS", { video: videoId })}\n\n${styleBrief}`.replace(/<ID>/g, videoId);
+const axesLine = (a?: Record<string, string>) => (a ? AXIS_KEYS.map((k) => `${k}: ${a[k]}`).join(", ") : "(none given: choose, and keep every pair two axes apart)");
+const packages = VARIANTS.map((v) => {
+  const p = meta?.titles?.[v];
+  if (!p) return `- ${v}: no title yet (metadata.json missing): pick the concept yourself`;
+  return `- ${v}: title "${p.title}" [${p.type}${p.lever ? `, lever: ${p.lever}` : ""}]\n  Axes (binding): ${axesLine(p.axes)}\n  Words on the image: ${p.thumbText === undefined ? "(your choice, at most 3)" : p.thumbText ? `"${p.thumbText}"` : "none"}\n  Brief: ${p.thumbnail}\n  The bet: ${p.hypothesis}`;
+}).join("\n");
+const used = [...usedThumbWords(videoId).entries()].map(([w, vs]) => `${w.toUpperCase()} (${vs.length}x)`).join(", ");
 const context = `# This video
-Video: ${videoId}. Working title: ${plan?.video?.title ?? "(none)"}. Read first: ${GUIDE}
+Video: ${videoId}. Style: ${style}. Working title: ${plan?.video?.title ?? "(none)"}. Read first: ${GUIDE}
+Who the stranger is: workflow/01-ideation/AUDIENCE.md ("The viewer in one sentence").
 Script: ${path.join(ws, "02-scripting/script_raw.md")}. Plan: ${path.join(ws, "05-video/acts.json")}. The video's acts: ${path.join(ws, "05-video/src/scenes")} (look at the inks and cut type).
 Write the variant files into: ${thumbsDir}
-Render with: bun run thumbs:render --video ${videoId} [--variant A] [--no-preview]. Renders land in ${outDir}; preview sheets in ${pub}.
+Render with: bun run thumbs:render --video ${videoId} [--variant A] [--no-preview]. Renders land in ${outDir} (phone sizes in ${path.join(outDir, "phone")}); preview sheets in ${pub}.
 
-## The packages (title and thumbnail brief per variant)
+## The three bets (title, axes and brief per variant)
 ${packages}
+
+## Words already on this channel's other thumbnails (do not reuse them)
+${used || "(none)"}
 
 ## Figures you may draw (from the plan's data)
 ${pn.lines.join("\n") || "(none)"}
@@ -216,7 +279,9 @@ const others = VARIANTS.filter((v) => !todo.includes(v) && fs.existsSync(srcFile
 let prompt: string, resume: string | undefined, fresh: string | undefined;
 if (fixMode) {
   resume = lastSession();
-  const fix = `Fix thumbnail variant(s) ${todo.join(", ")} with the creator's notes below. Edit the existing file(s) ${todo.map(srcFile).join(", ")}, re-render (bun run thumbs:render --video ${videoId} --variant <V> --no-preview), LOOK at the result (Read the image), then run the full bun run thumbs:render --video ${videoId} and Read preview_small.png. Update thumbnails.json for the changed variant(s). Keep what works and keep the variants distinct from each other. Reply with 1-2 lines per variant when done.\n\n${todo.map((v) => `## Notes for ${v}\n${notesOf(v)}`).join("\n\n")}`;
+  const failing = check();
+  const failed = todo.map((v) => [v, failing[v]?.errors ?? []] as const).filter(([, e]) => e.length).map(([v, e]) => `## Failed checks for ${v} (these reject it; fix them too)\n${e.map((x) => `- ${x}`).join("\n")}`).join("\n\n");
+  const fix = `Fix thumbnail variant(s) ${todo.join(", ")} with the creator's notes below. Edit the existing file(s) ${todo.map(srcFile).join(", ")}, re-render (bun run thumbs:render --video ${videoId} --variant <V> --no-preview), LOOK at the result (Read the image), then run the full bun run thumbs:render --video ${videoId} and Read preview_small.png. Update thumbnails.json for the changed variant(s). Keep what works and keep the variants distinct from each other. Reply with 1-2 lines per variant when done.\n\n${todo.map((v) => `## Notes for ${v}\n${notesOf(v) || "(none)"}`).join("\n\n")}${failed ? `\n\n${failed}` : ""}`;
   fresh = `${brief}\n\n${context}\n${fix}`;
   prompt = resume ? fix : fresh;
 } else {
@@ -230,6 +295,6 @@ console.log(`   author: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.duration
 
 // Always finish with a render from the files as they are, so what is on disk is what was authored
 const errs = await render([...VARIANTS].filter((v) => fs.existsSync(srcFile(v))), true);
-report(errs);
-console.log(`${r.text.trim().split("\n").slice(-6).join("\n")}\n✅ thumbnails ${todo.join(", ")} in ${formatDuration(Date.now() - t0)}, $${r.costUsd.toFixed(2)}`);
-process.exit(r.ok && !Object.keys(errs).length ? 0 : 1);
+const rejected = report(errs);
+console.log(`${r.text.trim().split("\n").slice(-6).join("\n")}\n${rejected.length ? "⚠️ " : "✅"} thumbnails ${todo.join(", ")} in ${formatDuration(Date.now() - t0)}, $${r.costUsd.toFixed(2)}${rejected.length ? `; rejected by the checks: ${rejected.join(", ")} (write a note and run: bun run thumbs --video ${videoId} --variant <V> --notes; the failed checks are sent with it)` : ""}`);
+process.exit(r.ok && !Object.keys(errs).length && !rejected.length ? 0 : 1);

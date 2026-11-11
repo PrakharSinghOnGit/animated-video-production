@@ -2,7 +2,8 @@
  * Preview sheets for the thumbnails: how the 3 packages look where viewers meet them.
  * Preview       every variant large (1280 px) with a duration badge, at 320 px and at 168 px, then a mock YouTube
  *               home-feed card (thumbnail, duration badge, title, channel) per package in the light and the dark theme.
- * PreviewSmall  the same at small sizes only, compact enough for a vision critic to see the 168 px versions.
+ * PreviewSmall  small sizes only: 320 px, list rows with the title beside a 168 px thumbnail (dark and light), 120 px, and
+ *               the home-feed card; compact enough for a vision critic to see the 168 px versions.
  * Synced from workflow/07-publish/template/ by thumbs.ts; do not edit the copy in a workspace.
  */
 import React from "react";
@@ -97,19 +98,39 @@ export const Preview: React.FC<PreviewProps> = ({ packages, duration, channel })
   </AbsoluteFill>
 );
 
-export const PREVIEW_SMALL = { w: 1600, h: 800 };
-/** Small sizes only: 320 px, 168 px light and dark, and the feed card, per package side by side. */
+/** A list row (search on a phone held sideways, a playlist, the desktop sidebar): a 168 px thumbnail with the title beside it. */
+const Row: React.FC<{ p: PreviewProps["packages"][number]; theme: "light" | "dark"; duration: string; channel: string }> = ({ p, theme, duration, channel }) => {
+  const t = THEME[theme];
+  return (
+    <div style={{ display: "flex", gap: 8, background: t.bg, padding: 10, width: 384, boxSizing: "border-box", fontFamily: FONT, color: t.fg }}>
+      <Thumb file={p.file} w={168} badge={duration} radius={8} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, lineHeight: "20px", maxHeight: 40, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{p.title || "(no title yet)"}</div>
+        <div style={{ fontSize: 12, color: t.sub, marginTop: 4, lineHeight: "18px" }}>{channel}</div>
+        <div style={{ fontSize: 12, color: t.sub, lineHeight: "18px" }}>12K views • 2 days ago</div>
+      </div>
+    </div>
+  );
+};
+
+export const PREVIEW_SMALL = { w: 1600, h: 1010 };
+/** Small sizes only, per package side by side: 320 px, a feed card with the title, list rows at 168 px (light and dark), and 120 px (a notification). */
 export const PreviewSmall: React.FC<PreviewProps> = ({ packages, duration, channel }) => (
   <AbsoluteFill style={{ background: "#e9e9e9", padding: 24, flexDirection: "row", gap: 24, fontFamily: FONT }}>
     {packages.map((p) => (
       <div key={p.id} style={{ width: 504 }}>
         <Label>{p.id} · 320 px</Label>
         <Thumb file={p.file} w={320} badge={duration} />
-        <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-          <div><Label>168 px light</Label><div style={{ background: "#fff", padding: 10 }}><Thumb file={p.file} w={168} badge={duration} /></div></div>
-          <div><Label>168 px dark</Label><div style={{ background: "#0f0f0f", padding: 10 }}><Thumb file={p.file} w={168} badge={duration} /></div></div>
+        <Label>{p.id} · list row, 168 px, dark and light</Label>
+        <Row p={p} theme="dark" duration={duration} channel={channel} />
+        <div style={{ height: 8 }} />
+        <Row p={p} theme="light" duration={duration} channel={channel} />
+        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          <div><Label>120 px light</Label><div style={{ background: "#fff", padding: 10 }}><Thumb file={p.file} w={120} radius={6} /></div></div>
+          <div><Label>120 px dark</Label><div style={{ background: "#0f0f0f", padding: 10 }}><Thumb file={p.file} w={120} radius={6} /></div></div>
         </div>
-        <div style={{ background: "#fff", padding: 12, marginTop: 12, width: 360 + 24 }}><Card p={p} theme="light" w={360} duration={duration} channel={channel} /></div>
+        <Label>{p.id} · home feed card</Label>
+        <div style={{ background: "#fff", padding: 12, width: 360 + 24 }}><Card p={p} theme="light" w={360} duration={duration} channel={channel} /></div>
       </div>
     ))}
   </AbsoluteFill>
