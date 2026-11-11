@@ -117,7 +117,12 @@ captions → `voice:holds --shift-plan`, which moves the plan's act/beat times b
 ### Step 4: Plan 💲 (~6 min, ~$1.5, Opus) → **G1**
 `bun run direct --video <ID>` (style defaults to `briefing`, or `WG_STYLE`; `--style drafting` or another folder in
 `workflow/styles/`; the dashboard's Plan step has a House style picker). Writes `05-video/acts.json`: ~10 acts of 40–90 s, each with beats, BPM, data, chapter.
-Show the user the act list (the command prints it) and the unverified figures. Wait for approval.
+The plan also carries the film's shape for the act authors (who each see one act): the story spine, an energy curve
+(`intensity`), a `cast` that returns across acts, and each act's `rhythm` and last image (`endsOn`). After the check
+passes, the command prints free **variety notes** (flat energy, every act at one speed, a native move used as the
+signature of two acts, acts that open or arrive the same way): advisory, but worth a re-run or a hand edit when there
+are several.
+Show the user the act list (the command prints it), the variety notes and the unverified figures. Wait for approval.
 
 ### Step 5: Acts 💲 (~17 min, ~$3 per act, Opus author + free Gemini critic) → **G2 after A01**
 1. `bun run act --video <ID> --act A01`, then look: `bun run frames --video <ID> --scene A01 --every 4 --words`
