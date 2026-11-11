@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "new-video": "bun run scripts/new_video.ts",
+    "rename": "bun run scripts/rename_video.ts",
     "tts:format": "bun run workflow/03-voiceover/src/format_sections.ts",
     "models": "bun run workflow/lib/models.ts",
     "voice:design": ".venv/bin/python workflow/03-voiceover/src/design_voice.py",

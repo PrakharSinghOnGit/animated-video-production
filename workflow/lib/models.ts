@@ -52,6 +52,7 @@ export const ROLES: Record<string, Role> = {
   commentReplies: { label: "Comment reply drafts", def: "claude:haiku", edits: false, group: "Analytics" },
   ideas: { label: "Idea check", def: "claude:sonnet", edits: false, group: "Ideas" },
   ideaQueries: { label: "Idea search words", def: "claude:haiku", edits: false, group: "Ideas" },
+  projectName: { label: "Project names (untitled projects)", def: "claude:haiku", edits: false, group: "Ideas" },
 };
 export type RoleKey = keyof typeof ROLES;
 

@@ -1,4 +1,4 @@
-import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore } from "./analytics";
+import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint } from "./analytics";
 import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
@@ -21,8 +21,11 @@ async function call<T>(path: string, init: { method?: string; body?: unknown; te
 const w = (ws: string) => `/api/ws/${encodeURIComponent(ws)}`;
 
 export const api = {
-  workspaces: () => call<{ workspaces: WsSummary[]; studio: StudioState | null }>("/api/workspaces"),
-  createWorkspace: (id: string) => call<{ job: Job }>("/api/workspaces", { method: "POST", body: { id } }),
+  workspaces: () => call<{ workspaces: WsSummary[]; studio: StudioState | null; renames?: Record<string, string> }>("/api/workspaces"),
+  /** no id: the next number, untitled (named automatically once its idea or script is written) */
+  createWorkspace: (id: string | null, kind: "video" | "shorts" = "video") => call<{ id: string; job: Job }>("/api/workspaces", { method: "POST", body: { id, kind } }),
+  /** a name sets it; none asks the naming model */
+  wsRename: (ws: string, name?: string) => call<{ ok: true; id: string }>(`/api/ws/${encodeURIComponent(ws)}/rename`, { method: "POST", body: { name } }),
   schema: () => call<Schema>("/api/schema"),
   system: () => call<SystemInfo>("/api/system"),
   activity: () => call<{ jobs: Job[]; studio: StudioState | null }>("/api/activity"),
@@ -81,7 +84,8 @@ export const api = {
   ideaUpdate: (id: string, b: { title?: string; note?: string; keywords?: string; status?: Idea["status"] }) => call<{ ok: true; store: IdeasData["store"] }>(`/api/ideas/${id}`, { method: "PUT", body: b }),
   ideaDelete: (id: string) => call<{ ok: true; store: IdeasData["store"] }>(`/api/ideas/${id}`, { method: "DELETE" }),
   ideaResearch: (id: string) => call<{ job: { id: string; label: string } }>(`/api/ideas/${id}/research`, { method: "POST", body: {} }),
-  ideaStart: (id: string, name: string) => call<{ ws: string; job: { id: string; label: string } }>(`/api/ideas/${id}/start`, { method: "POST", body: { name } }),
+  ideaStart: (id: string, name?: string) => call<{ ws: string; job: { id: string; label: string } }>(`/api/ideas/${id}/start`, { method: "POST", body: { name } }),
+  ideaLint: (title: string, thumb: string) => call<TitleLint>("/api/ideas/lint", { method: "POST", body: { title, thumb } }),
   comments: () => call<CommentsData>("/api/analytics/comments"),
   commentUpdate: (id: string, patch: { status?: YtComment["status"]; draft?: string }) => call<{ ok: true; comment: YtComment }>(`/api/analytics/comments/${id}`, { method: "PUT", body: patch }),
   analyticsRun: (action: "auth" | "fetch" | "mock" | "review" | "learn" | "comments", extra: { agent?: string; video?: string; mock?: boolean; redraft?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),

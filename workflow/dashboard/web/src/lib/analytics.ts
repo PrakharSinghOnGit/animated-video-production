@@ -68,15 +68,21 @@ export interface CommentsData { store: CommentStore | null; hasKey: boolean; mod
 export const commentUrl = (c: YtComment) => `https://www.youtube.com/watch?v=${c.videoId}&lc=${c.id}`;
 
 // ───────────── ideas (bun run ideas → workspace/_ideas/ideas.json) ─────────────
-export interface IdeaCompetitor { ytId: string; title: string; channel: string; channelId: string; publishedAt: string; durationS: number; views: number; channelSubs: number; channelAvgViews: number; ratio: number; thumb?: string; query: string }
+export interface IdeaCompetitor {
+  ytId: string; title: string; channel: string; channelId: string; publishedAt: string; durationS: number; views: number; channelSubs: number; channelAvgViews: number; ratio: number; thumb?: string; query: string;
+  /** views ÷ the median of the channel's recent same-format uploads (yt-viral); absent → only `ratio` (lifetime average) */
+  median?: number; multiple?: number; sampleN?: number; formula?: string;
+}
+/** yt-package/title.py on a title + thumbnail text */
+export interface TitleLint { title?: string; score: number; chars: number; issues: [string, string][]; good: string[] }
 export interface IdeaVerdict {
   verdict: "make" | "rework" | "drop"; summary: string;
   fit: { score: number; tests: { test: string; pass: boolean | null; note: string }[] };
   demand: { level: "high" | "medium" | "low" | "unclear"; evidence: string };
-  overlap: { video: string; note: string }[]; angle: string; packages: { title: string; thumbnail: string; why: string }[]; risks: string[]; sources: string[];
+  overlap: { video: string; note: string }[]; angle: string; packages: { title: string; thumbnail: string; thumbText?: string; why: string; lint?: TitleLint }[]; risks: string[]; sources: string[];
 }
 export interface Idea {
   id: string; title: string; note: string; keywords: string; status: "new" | "researched" | "started" | "dropped"; createdAt: string; ws?: string;
-  research?: { at: string; queries: string[]; competitors: IdeaCompetitor[]; verdict: IdeaVerdict | null; model: string; costUsd: number; quotaUnits: number; error?: string };
+  research?: { at: string; queries: string[]; competitors: IdeaCompetitor[]; verdict: IdeaVerdict | null; model: string; costUsd: number; quotaUnits: number; error?: string; formulas?: { formula: string; n: number }[] };
 }
 export interface IdeasData { store: { ideas: Idea[] }; audience: string; hasKey: boolean; model: string; queryModel: string; running: { id: string; step: string; label: string } | null }

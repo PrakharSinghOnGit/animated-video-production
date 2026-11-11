@@ -51,6 +51,9 @@ Times and costs are measured on VID02 (10:25 of narration, Apple-silicon Mac). E
 
 ### Step 1: Workspace + script 💲 (~5 min, ~$1–2, Opus writer) → **G1a script approval**
 1. `bun run new-video <ID>` with an ID like `VID03_Short_Topic_Name` (or the dashboard's "Create workspace").
+   No name needed: `bun run new-video VID` (or the dashboard with the name left empty) creates `VID07_Untitled`. The
+   dashboard names it (role `projectName`, Haiku, ~$0.003) when a job finishes and the idea or script exists; from
+   the terminal, `bun run rename --video VID07_Untitled [--name Sticky_Prices]`. The number never changes.
 2. The user writes their draft in **plain text** in `workspace/<ID>/02-scripting/idea.md`. Anything in
    `[square brackets]` is an instruction to the writer, never narration.
    Optional, free: `bun run research --video <ID> [--focus "..."] [--max 8]` (dashboard: Script → Web research; a shorts

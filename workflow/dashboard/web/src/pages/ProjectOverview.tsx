@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Link2, MonitorPlay } from "lucide-react";
+import { ArrowRight, Link2, MonitorPlay, Pencil, Sparkles, X } from "lucide-react";
 import { Input } from "@/components/ui/fields";
 import { useApp } from "@/hooks/app";
 import { usePoll } from "@/hooks/usePoll";
@@ -31,7 +31,8 @@ export function ProjectOverview() {
   const { d, ws, go, busy, list, reloadList } = useApp();
   const runSaved = useRunSaved();
   const [ov, setOv] = useState<Overview | null>(null);
-  useEffect(() => setOv(null), [ws]);
+  const [renaming, setRenaming] = useState(false);
+  useEffect(() => { setOv(null); setRenaming(false); }, [ws]);
   usePoll(async () => { if (!ws) return; try { const r = await api.overview(ws); setOv((p) => (JSON.stringify(p) === JSON.stringify(r) ? p : r)); } catch { /* keep the last one */ } }, 6000, !!ws);
   if (!d || !ws) return <div className="p-6 text-muted-foreground">Loading…</div>;
 
@@ -46,6 +47,9 @@ export function ProjectOverview() {
   const freed = d.shorts.compact.reduce((a, c) => a + c.bytes, 0);
   // a shorts project (SH…): no long video or packaging, the brief stands in for the idea
   const only = d.kind === "shorts";
+  const untitled = /^(VID|SH)\d+_Untitled$/.test(ws);
+  // published: lessons and the analytics cite it by id, so it keeps its name
+  const published = !!list.find((w) => w.id === ws)?.published;
   const allSections: { sec: Section; title: string; status: string; line: string; dots: { k: string; label: string; s: string }[]; ms: number; cost: number; open: string }[] = [
     { sec: "video", title: "Video", status: videoStatus(st), line: next ? `Next: ${next.label}` : "All steps done", dots: STEPS.map((s) => ({ k: s.key, label: s.label, s: st[s.key] ?? "none" })), ...(({ ms, cost }) => ({ ms, cost }))(meta(STEPS.map((s) => s.key))), open: "Open the video steps" },
     { sec: "shorts", title: "Shorts", status: st.shorts ?? "none", line: items.length ? `${exported}/${items.length} exported` : "No shorts yet", dots: items.map((s) => ({ k: s.id, label: s.id, s: s.progress.exported ? "done" : s.progress.script || s.progress.approved ? "partial" : "none" })), ...(({ ms, cost }) => ({ ms, cost }))(meta(["shorts"])), open: "Open the shorts" },
@@ -59,9 +63,13 @@ export function ProjectOverview() {
         eyebrow={<span className="font-mono normal-case tracking-normal">{d.id}{d.style ? ` · ${d.style}` : ""}</span>}
         title={d.title ?? (firstLine(idea) || "Untitled project")}
         sub={!idea ? (only ? "No brief yet: write it in Shorts." : "No idea written yet: start with the Script step.") : only ? "Shorts project: shorts only, written from the brief." : undefined}
-        actions={only ? <Button variant="default" onClick={() => go({ sec: "shorts", step: null, act: null, short: null })}>Open shorts<ArrowRight /></Button>
-          : next ? <Button variant="default" onClick={() => go({ sec: "video", step: next.key, act: null, short: null })}>Continue: {next.label}<ArrowRight /></Button> : undefined}
+        actions={<>
+          {!untitled && !renaming && !published && <Button variant="ghost" onClick={() => setRenaming(true)} title="Rename the project folder (the number stays)"><Pencil />Rename</Button>}
+          {only ? <Button variant="default" onClick={() => go({ sec: "shorts", step: null, act: null, short: null })}>Open shorts<ArrowRight /></Button>
+            : next ? <Button variant="default" onClick={() => go({ sec: "video", step: next.key, act: null, short: null })}>Continue: {next.label}<ArrowRight /></Button> : undefined}
+        </>}
       />
+      {(untitled || renaming) && <RenameProject ws={ws} untitled={untitled} canAuto={!!idea || d.statuses.script === "done" || !!d.title} disabled={!!busy} onClose={() => setRenaming(false)} />}
       {idea && (
         <Fold title={only ? "Brief" : "Idea"} className="-mt-3 max-w-4xl">
           <div className="rounded-lg border bg-card px-4 py-3"><Markdown>{idea}</Markdown></div>
@@ -178,6 +186,37 @@ function LinkUpload({ ws, onDone }: { ws: string; onDone: () => void }) {
           <Input aria-label="YouTube URL or video id" placeholder="https://youtu.be/… or the video id" value={id} onChange={(e) => setId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && id.trim() && void link()} className="min-w-56 flex-1" />
           <Button variant="default" disabled={!id.trim()} onClick={link}><Link2 />Link upload</Button>
         </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+/** Untitled projects get their name from the naming model when a job finishes (idea, script or plan written); this
+ *  names it now, or sets a name by hand. The number stays: VID07_Untitled → VID07_<Name>. */
+function RenameProject({ ws, untitled, canAuto, disabled, onClose }: { ws: string; untitled: boolean; canAuto: boolean; disabled: boolean; onClose: () => void }) {
+  const { go, toast, reloadList } = useApp();
+  const [name, setName] = useState(untitled ? "" : ws.replace(/^(VID|SH)\d+_/, ""));
+  const [working, setWorking] = useState(false);
+  const rename = async (n?: string) => {
+    setWorking(true);
+    try { const r = await api.wsRename(ws, n); await reloadList(); go({ ws: r.id }); toast(`Renamed to ${r.id}`); onClose(); }
+    catch (e) { toast((e as Error).message); }
+    finally { setWorking(false); }
+  };
+  const prefix = ws.match(/^(VID|SH)\d+_/)?.[0] ?? "";
+  const valid = /^[A-Za-z0-9_ ]+$/.test(name.trim());
+  return (
+    <Card className="-mt-3 max-w-4xl">
+      <CardBody className="gap-2 text-[13px]">
+        {untitled && <span className="text-muted-foreground">Untitled. It's named from its {canAuto ? "idea" : "idea or script"} automatically when the next step finishes{canAuto ? ", or name it now" : ": write the idea in the Script step first"}.</span>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <code className="text-subtle-foreground">{prefix}</code>
+          <Input aria-label="Project name" placeholder="Sticky_Prices" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && valid && void rename(name.trim())} className="h-8 w-56 max-w-full font-mono text-xs" />
+          <Button size="sm" variant="default" disabled={disabled || working || !valid} onClick={() => rename(name.trim())}>{untitled ? "Set name" : "Rename"}</Button>
+          {canAuto && <Button size="sm" disabled={disabled || working} onClick={() => rename()} title="A cheap model (role projectName) reads the idea and script and picks a 2–4 word name"><Sparkles />{working ? "Naming…" : "Name it for me"}</Button>}
+          {!untitled && <Button size="sm" variant="ghost" onClick={onClose}><X />Cancel</Button>}
+        </div>
+        {disabled && <span className="text-[12px] text-subtle-foreground">A job is running; rename after it ends.</span>}
       </CardBody>
     </Card>
   );

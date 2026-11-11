@@ -70,13 +70,13 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
   const finalId = /^(VID|SH)\d+_/i.test(raw) ? raw : raw ? `${prefix}${nextN}_${raw}` : "";
   const pick = (p: Parameters<typeof go>[0]) => { go(p); onPick?.(); };
 
+  // no name: the next number, untitled; it is named from its idea or script automatically
   const create = async () => {
-    const v = finalId;
-    if (!PROJECT_ID.test(v)) { setBad(true); toast("Use letters, digits and underscores, e.g. Debt_Spiral"); return; }
+    if (raw && !PROJECT_ID.test(finalId)) { setBad(true); toast("Use letters, digits and underscores, e.g. Debt_Spiral"); return; }
     setBad(false);
-    const shorts = v.startsWith("SH");
     try {
-      await api.createWorkspace(v);
+      const { id: v } = await api.createWorkspace(raw ? finalId : null, kind);
+      const shorts = v.startsWith("SH");
       toast(`Creating ${v}…`); setId(""); setAdding(false);
       setTimeout(async () => { await reloadList(); go(shorts ? { view: "ws", ws: v, sec: "shorts", step: null, act: null, short: null } : { view: "ws", ws: v, sec: "video", step: "script", act: null, short: null }); }, shorts ? 1200 : 2500);
     } catch (e) { toast((e as Error).message); }
@@ -151,10 +151,10 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
             </div>
             <span className="text-[11px] text-subtle-foreground">{kind === "video" ? "A long video (shorts can be cut from it later)." : "Shorts only, from your brief: news, a market move, one short or a series."}</span>
             <Input autoFocus value={id} onChange={(e) => { setId(e.target.value); setBad(false); }} onKeyDown={(e) => { if (e.key === "Enter") void create(); if (e.key === "Escape") setAdding(false); }}
-              placeholder={kind === "video" ? "Debt_Spiral" : "Fed_Rate_Cut"} spellCheck={false} autoComplete="off" aria-label={kind === "video" ? "New video name" : "New shorts project name"} aria-invalid={bad} className={cn("font-mono text-xs", bad && "border-destructive")} />
+              placeholder="Name (optional)" spellCheck={false} autoComplete="off" aria-label={kind === "video" ? "New video name" : "New shorts project name"} aria-invalid={bad} className={cn("font-mono text-xs", bad && "border-destructive")} />
             <div className="flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate font-mono text-[11px] text-subtle-foreground">{finalId || "Press Enter to create"}</span>
-              <Button size="sm" variant="default" onClick={create} disabled={!raw}>Create</Button>
+              <span className="min-w-0 truncate font-mono text-[11px] text-subtle-foreground">{finalId || "No name: it's named from the idea"}</span>
+              <Button size="sm" variant="default" onClick={create}>Create</Button>
             </div>
           </div>
         )}

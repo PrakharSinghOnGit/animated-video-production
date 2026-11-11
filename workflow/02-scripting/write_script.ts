@@ -185,3 +185,4 @@ console.log(`✅ ${path.relative(REPO, F.script)} + ${path.relative(REPO, F.note
 report();
 console.log(`   Optional: bun run research --video ${videoId} --claims (searches a source for each claim to check) · bun run retention --video ${videoId} (marks likely drop-off points)`);
 console.log(`   Review it (edit freely, or write feedback.md and run again), then: bun run write --video ${videoId} --approve`);
+if (/_Untitled$/.test(videoId)) console.log(`   Untitled project: the dashboard names it now; from the terminal: bun run rename --video ${videoId}`);

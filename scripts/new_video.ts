@@ -3,7 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
-const videoId = process.argv[2];
+import { nextUntitled } from "../workflow/lib/rename";
+
+// "VID" or "SH" alone: the next number, untitled (bun run rename --video <id>, or the dashboard, names it later)
+const videoId = process.argv[2] === "VID" || process.argv[2] === "SH" ? nextUntitled(process.argv[2]) : process.argv[2];
 const youtubeUrl = process.argv[3];
 
 if (!videoId) {
@@ -12,6 +15,7 @@ if (!videoId) {
 
 Usage:
   bun run new-video <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
+  bun run new-video VID                   the next number, untitled (VID07_Untitled); name it later with bun run rename
   bun run new-video SH<n>_<Name>          a shorts project: shorts only, written from your brief (no long video)
   bun run scripts/new_video.ts <VIDEO_ID> [YOUTUBE_REFERENCE_URL]
 

@@ -23,6 +23,7 @@ import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
 import { publishedSummaries } from "../09-analytics/lib";
+import { isUntitled, nameSource, nextUntitled, renameWorkspace } from "../lib/rename";
 import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
 import * as pub from "../07-publish/lib";
 import * as sh from "../08-shorts/lib";
@@ -282,6 +283,8 @@ function startJob(ws: string, step: string, label: string, cmds: string[][], opt
     notifyEnd(job);
     for (const c of job.subs) { sse(c, "end", jobSummary(job)); try { c.close(); } catch {} }
     job.subs.clear();
+    // an untitled project is named as soon as a finished job leaves something to name it from (idea, script, plan)
+    if (job.status === "done") for (const w of (job.opts.nameAfter as string[] | undefined) ?? [ws]) if (isUntitled(w)) void autoName(w);
     // new-video: the workspace only exists now; keep its scaffold log
     if (step === "new-video" && exists(wsDir(ws))) appendWsLog(ws, `▶▶ [${job.id}] step=new-video start ${new Date(job.startedAt).toISOString()}\n${job.text}◀◀ [${job.id}] step=new-video exit=${code} end ${new Date(job.endedAt).toISOString()}\n`);
   })().catch((e) => {
@@ -292,6 +295,55 @@ function startJob(ws: string, step: string, label: string, cmds: string[][], opt
     for (const c of job.subs) { sse(c, "end", jobSummary(job)); try { c.close(); } catch {} }
   });
   return job;
+}
+
+// ───────────────────────────── naming untitled projects ─────────────────────────────
+
+/** old id → new id of projects renamed since the server started, so an open page follows its project. */
+const renames = new Map<string, string>();
+const naming = new Set<string>();
+
+/** Why the project can't be renamed now, or null. */
+function renameBlocker(ws: string): string | null {
+  if (runningJobs(ws).length) return "a job of this project is running";
+  if (studio && studio.exited === null && studio.ws === ws) return "the studio is open for this project; stop it first";
+  if (naming.has(ws)) return "already being named";
+  return null;
+}
+
+/** Renames on disk (workflow/lib/rename.ts), then moves the server's state to the new id and relinks bun. */
+function doRename(ws: string, name: string): string {
+  const { id } = renameWorkspace(ws, name);
+  if (id === ws) return id;
+  const list = jobsByWs.get(ws);
+  if (list) { jobsByWs.delete(ws); jobsByWs.set(id, [...(jobsByWs.get(id) ?? []), ...list]); for (const j of list) { const job = jobs.get(j); if (job) job.ws = id; } }
+  for (const [k, v] of renames) if (v === ws) renames.set(k, id);
+  renames.set(ws, id);
+  logCache.delete(ws); sizeCache.delete(ws);
+  appendWsLog(id, `\n[dashboard] renamed ${ws} → ${id} ${new Date().toISOString()}\n`);
+  // bun.lock lists each workspace's 05-video; relink in the background
+  Bun.spawn(["bun", "install"], { cwd: REPO, env: childEnv(), stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+  console.log(`[dashboard] renamed ${ws} → ${id}`);
+  return id;
+}
+
+/** Asks the naming model (bun run rename --suggest, role projectName) and renames, if nothing runs by then. */
+async function autoName(ws: string, force = false): Promise<{ id?: string; error?: string }> {
+  if (!force && (!isUntitled(ws) || !nameSource(ws))) return {};
+  if (renameBlocker(ws)) return { error: renameBlocker(ws)! };
+  naming.add(ws);
+  try {
+    const proc = Bun.spawn(["bun", "run", "rename", "--video", ws, "--suggest"], { cwd: REPO, env: childEnv(), stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+    const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+    await proc.exited;
+    const name = out.match(/^NAME: ([A-Za-z0-9_]+)\s*$/m)?.[1];
+    if (!name) return { error: (err.trim().split("\n").pop() || "the naming model gave no name").replace(/^❌\s*/, "") };
+    naming.delete(ws);
+    const busy = renameBlocker(ws);   // a job may have started while the model thought
+    if (busy) return { error: busy };
+    return { id: doRename(ws, name) };
+  } catch (e) { return { error: (e as Error).message }; }
+  finally { naming.delete(ws); }
 }
 
 // ───────────────────────────── studio ─────────────────────────────
@@ -1712,7 +1764,7 @@ async function appFetch(req: Request): Promise<Response> {
     const idr = await ideasRoute(req, url, anCtx);
     if (idr) return idr;
 
-    if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState() });
+    if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState(), renames: Object.fromEntries(renames) });
     if (p === "/api/schema" && req.method === "GET") return json(schema());
     if (p === "/api/system" && req.method === "GET") {
       want();
@@ -1792,12 +1844,14 @@ async function appFetch(req: Request): Promise<Response> {
     if (bm && req.method === "GET") return new Response(Bun.file(path.join(REPO, "brand-assets", `${bm[1]}.png`)), { headers: { "content-type": "image/png", "cache-control": "max-age=3600" } });
 
     if (p === "/api/workspaces" && req.method === "POST") {
-      const { id } = await body(req);
-      if (typeof id !== "string" || !WS_ID.test(id)) return bad("ID must match VID<n>_<Name> (a video) or SH<n>_<Name> (shorts), letters, digits, underscores");
+      const b = await body(req);
+      // no id: the next number, untitled (named automatically once its idea or script is written)
+      const id = typeof b.id === "string" && b.id.trim() ? b.id.trim() : nextUntitled(b.kind === "shorts" ? "SH" : "VID");
+      if (!WS_ID.test(id)) return bad("ID must match VID<n>_<Name> (a video) or SH<n>_<Name> (shorts), letters, digits, underscores");
       if (exists(wsDir(id))) return bad("workspace already exists", 409);
       if (runningJob(id)) return bad("already being created", 409);
       const job = startJob(id, "new-video", `New ${sh.isShortsProject(id) ? "shorts project" : "video"} ${id}`, [B("new-video", id)]);
-      return json({ job: jobSummary(job) });
+      return json({ id, job: jobSummary(job) });
     }
 
     if (p === "/api/studio/stop" && req.method === "POST") {
@@ -1823,6 +1877,19 @@ async function appFetch(req: Request): Promise<Response> {
     if (!validWs(ws)) return bad("no such workspace", 404);
 
     if (rest === "/status" && req.method === "GET") return json(details(ws));
+
+    // rename: {name} sets it, no name asks the naming model (as for an untitled project)
+    if (rest === "/rename" && req.method === "POST") {
+      const b = await body(req);
+      const busy = renameBlocker(ws);
+      if (busy) return bad(busy, 409);
+      if (typeof b.name === "string" && b.name.trim()) {
+        try { return json({ ok: true, id: doRename(ws, b.name) }); } catch (e) { return bad((e as Error).message); }
+      }
+      if (!nameSource(ws)) return bad("nothing to name it from yet: write the idea or the script first");
+      const r = await autoName(ws, true);
+      return r.id ? json({ ok: true, id: r.id }) : bad(r.error ?? "naming failed");
+    }
 
     if (rest === "/log" && req.method === "GET") {
       const step = url.searchParams.get("step") ?? "";

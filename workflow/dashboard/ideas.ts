@@ -7,15 +7,18 @@
  *   POST   /api/ideas {title, note?, keywords?}
  *   PUT    /api/ideas/:id {title?, note?, keywords?, status?}
  *   DELETE /api/ideas/:id
+ *   POST   /api/ideas/lint {title, thumb?}   yt-package/title.py on one title + thumbnail text (free, instant)
  *   POST   /api/ideas/:id/research           job: bun run ideas --id <id>
- *   POST   /api/ideas/:id/start {name}       job: new video VID<n>_<name>, then the idea into its 02-scripting/idea.md
+ *   POST   /api/ideas/:id/start {name?}      job: new video VID<n>_<name> (no name: VID<n>_Untitled, named from the idea
+ *                                            by the naming model when the job ends), then the idea into its idea.md
  */
 import fs from "node:fs";
 import path from "node:path";
 import { roleModel } from "../lib/models";
 import { AUDIENCE_FILE, nextIdeaId, readIdeas, writeIdeas, type Idea } from "../01-ideation/lib";
-import { workspaces } from "../09-analytics/lib";
 import { AN_WS, hasCommentKey, type AnalyticsCtx } from "./analytics";
+import { nextUntitled } from "../lib/rename";
+import { lintTitle } from "../01-ideation/skills";
 
 const B = (s: string, ...r: string[]) => ["bun", "run", s, ...r];
 const clip = (x: unknown, n: number) => (typeof x === "string" ? x.trim().slice(0, n) : "");
@@ -39,6 +42,13 @@ export async function ideasRoute(req: Request, url: URL, ctx: AnalyticsCtx): Pro
     s.ideas.push(idea);
     writeIdeas(s);
     return ctx.json({ ok: true, idea, store: s });
+  }
+
+  if (p === "/api/ideas/lint" && req.method === "POST") {
+    const b = await ctx.body(req);
+    const title = clip(b.title, 300);
+    if (!title) return ctx.bad("a title to check");
+    try { return ctx.json(lintTitle(title, clip(b.thumb, 100) || undefined)); } catch (e) { return ctx.bad((e as Error).message, 500); }
   }
 
   const m = p.match(/^\/api\/ideas\/(I\d+)(\/research|\/start)?$/);
@@ -71,14 +81,15 @@ export async function ideasRoute(req: Request, url: URL, ctx: AnalyticsCtx): Pro
     if (!hasCommentKey()) return ctx.bad("YOUTUBE_API_KEY is missing in .env");
     return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas", `Idea check ${idea.id} (${roleModel("ideas")})`, [B("ideas", "--id", idea.id)])) });
   }
-  // start a project: the next free VID number + a name, then the idea, angle and packages into its idea.md
+  // start a project: the next free VID number (+ a name, or untitled and named from the idea when the job ends),
+  // then the idea, angle and packages into its idea.md
   const b = await ctx.body(req);
   const name = clip(b.name, 60).replace(/\s+/g, "_");
-  if (!/^[A-Za-z0-9_]+$/.test(name)) return ctx.bad("name: letters, digits and underscores, e.g. Sticky_Prices");
+  if (name && !/^[A-Za-z0-9_]+$/.test(name)) return ctx.bad("name: letters, digits and underscores, e.g. Sticky_Prices");
   if (idea.ws) return ctx.bad(`already started as ${idea.ws}`, 409);
   if (idea.status === "dropped") return ctx.bad("restore the idea before starting a project from it", 409);
-  const n = Math.max(0, ...workspaces().map((w) => Number(w.match(/^VID(\d+)_/)?.[1] ?? 0))) + 1;
-  const ws = `VID${String(n).padStart(2, "0")}_${name}`;
+  const untitled = nextUntitled("VID");
+  const ws = name ? untitled.replace(/_Untitled$/, `_${name}`) : untitled;
   if (fs.existsSync(path.join(path.dirname(path.dirname(import.meta.dir)), "workspace", ws))) return ctx.bad(`${ws} exists`, 409);
-  return ctx.json({ ws, job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas-start", `Start ${ws} from ${idea.id}`, [B("new-video", ws), B("ideas", "--to-workspace", idea.id, ws)])) });
+  return ctx.json({ ws, job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas-start", `Start ${ws} from ${idea.id}`, [B("new-video", ws), B("ideas", "--to-workspace", idea.id, ws)], { nameAfter: [ws] })) });
 }

@@ -63,8 +63,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
   }, []);
 
+  const [renames, setRenames] = useState<Record<string, string>>({});
   const reloadList = useCallback(async () => {
-    try { const r = await api.workspaces(); setList((p) => (same(p, r.workspaces) ? p : r.workspaces)); setStudio(r.studio); } catch { /* server restarting */ }
+    try { const r = await api.workspaces(); setList((p) => (same(p, r.workspaces) ? p : r.workspaces)); setStudio(r.studio); setRenames((p) => (same(p, r.renames ?? {}) ? p : r.renames ?? {})); } catch { /* server restarting */ }
   }, []);
 
   // default selection: the newest video
@@ -77,6 +78,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setD((p) => (p && p.id === r.id && same(p, r) ? p : r));
     } catch (e) { if (!String((e as Error).message).includes("no such workspace")) return; setD(null); }
   }, [ws]);
+
+  // an untitled project was named (VID07_Untitled → VID07_Sticky_Prices): follow it, keeping the open step
+  useEffect(() => {
+    const to = route.ws ? renames[route.ws] : undefined;
+    if (to) { go({ ws: to }); toast(`${route.ws} is now ${to}`); }
+  }, [renames, route.ws, go, toast]);
 
   // switching video: drop the old video's data at once so nothing from it is shown under the new name
   useEffect(() => { setD(null); setLogTab(null); }, [ws]);
