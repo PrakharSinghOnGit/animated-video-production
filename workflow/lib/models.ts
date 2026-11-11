@@ -36,6 +36,7 @@ export interface Role { label: string; def: string; env?: string; edits: boolean
 export const ROLES: Record<string, Role> = {
   researcher: { label: "Web research", def: "agy:gemini-3.8-flash-medium", edits: false, group: "Script" },
   writer: { label: "Script writer", def: "claude:opus", env: "WRITER_MODEL", edits: true, group: "Script" },
+  retention: { label: "Retention pass (script review)", def: "claude:sonnet", env: "RETENTION_MODEL", edits: false, group: "Script" },
   director: { label: "Director (act plan)", def: "claude:opus", env: "DIRECTOR_MODEL", edits: true, group: "Video" },
   actAuthor: { label: "Act author", def: "claude:opus", env: "ACT_MODEL", edits: true, group: "Video" },
   critic: { label: "Act critic", def: "agy:gemini-3.8-flash-medium", env: "CRITIC_MODEL", edits: false, group: "Video" },

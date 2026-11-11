@@ -57,6 +57,7 @@
     "icons": "bun run workflow/05-video/scripts/icons.ts",
     "learn": "bun run workflow/learning/notes.ts",
     "research": "bun run workflow/02-scripting/research.ts",
+    "retention": "bun run workflow/02-scripting/retention.ts",
     "seams": "bun run workflow/05-video/scripts/seams.ts",
     "profile": "bun run workflow/05-video/scripts/profile.ts",
     "cues": "bun run workflow/05-video/scripts/cues.ts",
