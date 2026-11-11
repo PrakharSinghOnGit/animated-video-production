@@ -153,7 +153,9 @@ Show the user the act list (the command prints it), the variety notes and the un
 6. After approval: `bun run act --video <ID> --act A02,A03,... --parallel 2` (no `--act` = every act that has no file
    yet or whose plan changed since it was written). Result marks: ✅ written, 📝 written + critic notes to look at,
    ❌ not written (only ❌ fails the run). Run the free review on every act and fix obvious problems cheaply before
-   showing the user.
+   showing the user. No paid fix round runs by itself: the critic's notes (`review/<act>/critic_1.json`) and layout
+   flags are saved and the user decides per act (step 5). `--auto-fix` brings back one automatic round on layout
+   flags (`--strict`: also on a failed critic); on VID06 it cost ~$4–6 per act and did not raise the critic's score.
    A new plan can reuse act IDs for different acts: the director (and the act author) move the old plan's scene
    files to `05-video/old_scenes/<time>/`, and an act whose plan entry changed shows as stale and is redone.
 7. The act holding the subscribe line ends with the brand end card (`brandEndCard`, see the style's ACT.md). The

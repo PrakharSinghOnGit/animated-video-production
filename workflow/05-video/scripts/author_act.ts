@@ -1,13 +1,14 @@
 /**
  * Act authoring: Opus draws each act (one continuous take) and reviews its own frames;
  * then a fresh-context critic (never the author) scores the contact sheet against
- * STYLE.md. Failed acts get the critic's notes back, at most 2 fix rounds.
+ * STYLE.md. Its notes are saved for you; a paid fix round runs only when you ask (--fix, or Fix with notes in the
+ * dashboard), or automatically with --auto-fix (on layout flags) / --strict (also on a failed critic).
  *
  * The critic is advisory and runs free on Gemini Flash through `agy` by default
  * (`--critic sonnet` uses Claude instead). The act brief is workflow/prompts/ACT.md with
  * the plan's style filled in (workflow/styles/<style>/STYLE.md + ACT.md).
  *
- * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--strict] [--fix [notes.md]] [--resume]
+ * Usage: bun run act --video <ID> [--act A01,A03] [--parallel 2] [--model opus] [--critic agy|sonnet] [--no-critic] [--force] [--auto-fix] [--strict] [--fix [notes.md]] [--resume]
  *
  * --fix: one fix round on a drawn act, in a fresh session (reads the act file, edits it, checks the changed times);
  *   with a notes file, the general rules in your notes are then learned (bun run learn; --no-learn skips it);
@@ -53,7 +54,9 @@ const parallel = Math.max(1, parseInt(flag("--parallel") ?? "2", 10));
 const criticModel = roleModel("critic", flag("--critic"));
 const useCritic = !args.includes("--no-critic");
 const force = args.includes("--force");
-const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round
+const strict = args.includes("--strict"); // let a failed critic verdict trigger a paid fix round (implies --auto-fix)
+// Off by default: on VID06 the automatic round cost ~$4–6 per act and the critic's score did not move (5 → 5)
+const autoFix = strict || args.includes("--auto-fix");
 // --fix [notes.md]: one fix round on an existing act, with the critic's notes (+ yours)
 const fixMode = args.includes("--fix");
 const fixNotesFile = fixMode && flag("--fix") && !flag("--fix")!.startsWith("--") ? flag("--fix") : undefined;
@@ -272,15 +275,16 @@ ${c.notes.length ? `Plan changes that came with it:\n${c.notes.map((n) => "- " +
 
   for (let round = 1; round <= MAX_FIX_ROUNDS + 1; round++) {
     const v = await critique(act, round);
-    // The vision critic is advisory (it has miscounted marks and is harsh on taste); only the
-    // free layout gate, or --strict, sends an act back for a paid fix round.
-    if (v.pass || round > MAX_FIX_ROUNDS || (!v.layout && !strict)) {
-      if (!v.pass) console.log(`   📝 ${act.id}: ${v.layout ? "layout flags" : "critic notes"} saved for your review (review/${act.id}/${v.layout ? "layout.json" : `critic_${round}.json`})${round > MAX_FIX_ROUNDS ? " after the fix round" : "; no paid fix round"}`);
+    // The vision critic is advisory (it has miscounted marks and is harsh on taste). A paid fix round runs only with
+    // --auto-fix (on the free layout gate) or --strict (also on a failed critic); otherwise you decide per act.
+    if (v.pass || round > MAX_FIX_ROUNDS || !autoFix || (!v.layout && !strict)) {
+      if (!v.pass) console.log(`   📝 ${act.id}: ${v.layout ? "layout flags" : "critic notes"} saved for your review (review/${act.id}/${v.layout ? "layout.json" : `critic_${round}.json`})${round > MAX_FIX_ROUNDS ? " after the fix round" : autoFix ? "; no paid fix round" : "; fix it yourself with notes if it needs it"}`);
       return v.pass ? "ok" : "notes";
     }
     const fix = `A critic who has not seen your code reviewed ${act.id} (${file}) from its contact sheet. Fix these issues, then re-run assemble and frames and check the sheet once:\n${v.notes}\nKeep everything that works. Reply with 2 lines when done.`;
-    // Resume the author's own session: it already knows the style, the engine and its file
-    const resume = r.sessionId || undefined;
+    // A fresh session by default (resuming re-reads and re-caches the author's whole history: ~$5 per round, see
+    // fixAct); --resume keeps the author's session.
+    const resume = resumeFix ? r.sessionId || undefined : undefined;
     const fresh = `${brief}\n\n# Fix round ${round}\n${fix}`;
     r = await runAgentAsync({ prompt: resume ? fix : fresh, fresh, model, tools: AUTHOR_TOOLS, maxTurns: resume ? 40 : 80, freshMaxTurns: 80, resume, logPath: path.join(reviewDir, `author_${round}.log`) });
     account(`act ${act.id} fix r${round}`, model, r);
