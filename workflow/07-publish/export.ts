@@ -28,7 +28,7 @@ for (const v of VARIANTS) {
   made.push(name);
 }
 const put = (name: string, text: string) => { fs.writeFileSync(path.join(out, name), text, "utf-8"); made.push(name); };
-put("titles.txt", VARIANTS.map((v) => `${v}: ${meta.titles[v].title}`).join("\n") + "\n");
+put("titles.txt", VARIANTS.map((v) => `${v}: ${meta.titles[v].title}`).join("\n") + "\n" + (meta.order ? `\nUpload order (strongest first; an inconclusive test keeps the first one): ${meta.order.join(", ")}\n` : ""));
 put("description.txt", meta.description);
 put("tags.txt", meta.tags.join(", ") + "\n");
 const srt = path.join(wsDir(videoId), "07-assembly/export", `${videoId}.srt`);
@@ -41,5 +41,7 @@ const c = recheck(videoId, meta);
 console.log(`✅ ${made.join(", ")}\n   in ${path.relative(process.cwd(), out)}`);
 console.log(approval ? `   approved ${approval.at}` : "   ⚠ not approved yet (dashboard: Publish > Approve)");
 for (const e of c.errors) console.log(`   ✗ ${e}`);
+const tc = readJson<Record<string, { errors: string[] }>>(pubFile(videoId, "thumbnails.checks.json")) ?? {};
+for (const v of VARIANTS) for (const e of tc[v]?.errors ?? []) console.log(`   ✗ thumbnail ${v} is rejected: ${e}`);
 for (const w of c.warnings) console.log(`   ⚠ ${w}`);
 console.log("   Test & Compare: upload the 3 thumbnails (A, B, C) and give each package its own title; do not edit them while it runs.");

@@ -51,6 +51,31 @@ export function readJson<T = any>(p: string): T | null {
 export const readText = (p: string) => { try { return fs.readFileSync(p, "utf-8"); } catch { return ""; } };
 export const mtime = (p: string) => { try { return fs.statSync(p).mtimeMs; } catch { return 0; } };
 
+/**
+ * Why a stranger clicks (GUIDE.md 4.2). The three packages of a video are three bets, so they use three levers.
+ *   stake    what it costs the viewer: their rent, their savings, their trade ("you" is the subject)
+ *   villain  who is on the other side or who gains (only one the video names and sources)
+ *   myth     something the viewer was told that the video shows is wrong
+ *   number   one sourced figure that is hard to believe
+ *   question the plain question a searcher types, which the video answers
+ */
+export const LEVERS = ["stake", "villain", "myth", "number", "question"] as const;
+export type Lever = (typeof LEVERS)[number];
+/** The four ways two thumbnails can differ (GUIDE.md 4.2). Every pair of variants differs on at least two. */
+export const AXES = {
+  /** what dominates the image: a character (the Agent, Penny), one object, a data shape (a gap, a line), or big type */
+  subject: ["character", "object", "data", "type"],
+  /** what it makes the viewer feel: something is being taken, something is hidden, something can be fixed */
+  emotion: ["threat", "curiosity", "payoff"],
+  /** the words on the image */
+  text: ["none", "word", "number"],
+  /** one thing close up, a scene with a small actor in a big space, or two sides against each other */
+  composition: ["close", "scene", "split"],
+} as const;
+export type AxisKey = keyof typeof AXES;
+export type Axes = { [K in AxisKey]: (typeof AXES)[K][number] };
+export const AXIS_KEYS = Object.keys(AXES) as AxisKey[];
+
 /** The package for one test variant: a thumbnail and the title it is shown with. */
 export interface Package {
   title: string;
@@ -61,6 +86,14 @@ export interface Package {
   thumbnail: string;
   /** what this package tests against the others */
   hypothesis: string;
+  /** why a stranger clicks this one (packages written before 2026-11-11 have none) */
+  lever?: Lever;
+  /** the thumbnail's place on the four axes: the designer must keep it */
+  axes?: Axes;
+  /** the exact words on the thumbnail ("" = none) */
+  thumbText?: string;
+  /** a sentence copied from the script that pays off the title, from the first two minutes */
+  proof?: string;
 }
 export interface Metadata {
   video: string;
@@ -76,8 +109,12 @@ export interface Metadata {
   checks: { errors: string[]; warnings: string[] };
   /** true once edited in the dashboard */
   edited?: boolean;
+  /** the one sentence the packages are built on */
+  promise?: string;
+  /** upload order, strongest first: an inconclusive test keeps the first one uploaded (GUIDE.md 4.1) */
+  order?: Variant[];
 }
-export interface ThumbInfo { concept: string; text: string; numbers: string[]; focal: string; hypothesis: string; clear: string }
+export interface ThumbInfo { concept: string; text: string; numbers: string[]; focal: string; hypothesis: string; clear: string; /** what was drawn, on the four axes */ axes?: Axes }
 
 // ───────────── numbers: only what the plan's data says ─────────────
 
@@ -155,7 +192,71 @@ export function checkTitle(v: string, p: Package, pn: PlanNumbers): { errors: st
   return { errors, warnings };
 }
 
-export function checkTitles(titles: Record<Variant, Package>, pn: PlanNumbers): { errors: string[]; warnings: string[] } {
+/** Words that carry a title's meaning (no articles, pronouns or question words), for comparing two titles. */
+const STOP = new Set("the and for you your are was were why how what when who that this with from into not but its his her their they them than then has have had can cant will get gets got just ever never about over out off all any one too very more most much does did is it a an of to in on at by be so as or if we i my me us our".split(" "));
+export const contentWords = (s: string) => [...new Set(s.toLowerCase().replace(/[^a-z0-9%$ ]+/g, " ").split(/\s+/).filter((w) => w.length > 1 && !STOP.has(w)).map((w) => w.replace(/(ing|ed|es|s)$/, "")))];
+/** Share of content words two titles have in common (0..1, against the shorter one). */
+export function titleOverlap(a: string, b: string): number {
+  const x = contentWords(a), y = new Set(contentWords(b));
+  const n = Math.min(x.length, y.size);
+  return n ? x.filter((w) => y.has(w)).length / n : 0;
+}
+
+/** The narration of a script file as one line of plain words (VO lines only, without the bracketed directions). */
+export function spokenText(script: string): string {
+  return script.split("\n").filter((l) => /^\*\*VO:\*\*/i.test(l)).join(" ").replace(/`\[[^\]]*\]`/g, "").replace(/\*\*VO:\*\*/gi, "").replace(/\s+/g, " ").trim();
+}
+const loose = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+/** Where a quote sits in the narration, as a share of it (0 = the first word), or -1 when the script does not say it. */
+export function quotePosition(quote: string, spoken: string): number {
+  const q = loose(quote), t = loose(spoken);
+  if (q.length < 12 || !t) return -1;
+  const i = t.indexOf(q);
+  return i < 0 ? -1 : i / t.length;
+}
+
+/** How many axes two thumbnails differ on. */
+export const axisDistance = (a: Axes, b: Axes) => AXIS_KEYS.filter((k) => a[k] !== b[k]).length;
+const validAxes = (a: any): a is Axes => !!a && AXIS_KEYS.every((k) => (AXES[k] as readonly string[]).includes(a[k]));
+const textKind = (t: string): Axes["text"] => (!t.trim() ? "none" : /\d/.test(t) ? "number" : "word");
+
+/**
+ * Are three thumbnails three different bets? Every pair differs on at least two axes, no two share a subject or the
+ * same words, and the declared text axis matches the words. `who` names the thing checked ("package" or "thumbnail").
+ * With `requireAxes` false (files made before the axes existed) only the shared words are checked.
+ */
+export function checkBets(items: Partial<Record<Variant, { axes?: Axes; text?: string }>>, who: string, requireAxes = true): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [], warnings: string[] = [];
+  const have = VARIANTS.filter((v) => items[v]);
+  for (const v of have) {
+    const it = items[v]!;
+    if (!validAxes(it.axes)) { if (requireAxes) errors.push(`${v}: the ${who} needs axes (${AXIS_KEYS.map((k) => `${k}: ${AXES[k].join("|")}`).join("; ")})`); continue; }
+    if (it.text !== undefined && it.axes.text !== textKind(it.text)) errors.push(`${v}: the text axis says "${it.axes.text}" but the words are ${it.text.trim() ? `"${it.text.trim()}"` : "empty"}`);
+  }
+  for (let i = 0; i < have.length; i++) for (let j = i + 1; j < have.length; j++) {
+    const a = items[have[i]]!, b = items[have[j]]!, pair = `${have[i]} and ${have[j]}`;
+    if (validAxes(a.axes) && validAxes(b.axes)) {
+      const d = axisDistance(a.axes, b.axes);
+      if (d < 2) errors.push(`${pair}: the ${who}s differ on ${d} of 4 axes (need 2 or more): they are one idea twice; change the subject, emotion, text or composition of one`);
+      else if (a.axes.subject === b.axes.subject) warnings.push(`${pair}: both ${who}s have a ${a.axes.subject} as the subject; three different subjects make a clearer test`);
+    }
+    const ta = loose(a.text ?? ""), tb = loose(b.text ?? "");
+    if (ta && ta === tb) errors.push(`${pair}: the same words on both thumbnails ("${a.text!.trim()}")`);
+  }
+  return { errors, warnings };
+}
+
+export interface TitleContext {
+  /** require the bet fields (lever, axes, thumbText, proof): true for new metadata, false when re-checking older files */
+  strict?: boolean;
+  /** the narration, to find each proof quote in */
+  spoken?: string;
+  durationS?: number;
+}
+/** The promise must be paid off this early (GUIDE.md 3.2). */
+export const PAYOFF_S = 120;
+
+export function checkTitles(titles: Record<Variant, Package>, pn: PlanNumbers, ctx: TitleContext = {}): { errors: string[]; warnings: string[] } {
   const errors: string[] = [], warnings: string[] = [];
   for (const v of VARIANTS) {
     if (!titles?.[v]) { errors.push(`${v}: no package`); continue; }
@@ -167,7 +268,57 @@ export function checkTitles(titles: Record<Variant, Package>, pn: PlanNumbers): 
   if (!types.includes("curiosity")) warnings.push("no curiosity title among the three (GUIDE.md 3.2)");
   const ts = VARIANTS.map((v) => titles?.[v]?.title?.trim().toLowerCase());
   if (new Set(ts).size < ts.length) errors.push("two packages have the same title");
+
+  // three bets, not one idea three times
+  for (let i = 0; i < VARIANTS.length; i++) for (let j = i + 1; j < VARIANTS.length; j++) {
+    const a = titles?.[VARIANTS[i]]?.title ?? "", b = titles?.[VARIANTS[j]]?.title ?? "";
+    if (!a || !b || a.trim().toLowerCase() === b.trim().toLowerCase()) continue;
+    const o = titleOverlap(a, b);
+    if (o >= 0.6) errors.push(`${VARIANTS[i]} and ${VARIANTS[j]}: the titles share ${Math.round(o * 100)}% of their words: one sentence reworded, not two angles`);
+    else if (o >= 0.4) warnings.push(`${VARIANTS[i]} and ${VARIANTS[j]}: the titles share ${Math.round(o * 100)}% of their words`);
+  }
+  const bets = VARIANTS.some((v) => titles?.[v]?.lever || titles?.[v]?.axes);
+  if (!ctx.strict && !bets) return { errors, warnings };
+  const levers = VARIANTS.map((v) => titles?.[v]?.lever);
+  for (const v of VARIANTS) if (!LEVERS.includes(titles?.[v]?.lever as Lever)) errors.push(`${v}: lever must be one of ${LEVERS.join(", ")}`);
+  if (levers.every(Boolean) && new Set(levers).size < 3) errors.push(`the three packages use the levers ${levers.join(", ")}: three bets need three different levers`);
+  const b = checkBets(Object.fromEntries(VARIANTS.filter((v) => titles?.[v]).map((v) => [v, { axes: titles[v].axes, text: titles[v].thumbText }])), "package");
+  errors.push(...b.errors); warnings.push(...b.warnings);
+  for (const v of VARIANTS) {
+    const p = titles?.[v];
+    if (!p) continue;
+    const words = (p.thumbText ?? "").trim().split(/\s+/).filter(Boolean);
+    if (words.length > THUMB_MAX_WORDS) errors.push(`${v}: ${words.length} words on the thumbnail (max ${THUMB_MAX_WORDS})`);
+    const np = numberProblems(p.thumbText ?? "", pn);
+    if (np.missing.length) errors.push(`${v}: thumbnail number ${np.missing.join(", ")} is not in the plan's data`);
+    const tw = new Set(contentWords(p.title));
+    const dup = contentWords(p.thumbText ?? "").filter((w) => tw.has(w));
+    if (dup.length && dup.length === contentWords(p.thumbText ?? "").length) errors.push(`${v}: the thumbnail words ("${p.thumbText}") repeat the title; the image gives the half the title leaves out`);
+    if (ctx.spoken !== undefined) {
+      if (!p.proof?.trim()) errors.push(`${v}: proof is missing (a sentence copied from the script that pays off the title)`);
+      else {
+        const at = quotePosition(p.proof, ctx.spoken);
+        if (at < 0) errors.push(`${v}: the proof is not in the script word for word ("${p.proof.slice(0, 70)}"): copy the sentence that pays off the title, or change the title to one the script delivers`);
+        else if (ctx.durationS && at * ctx.durationS > PAYOFF_S) warnings.push(`${v}: the script pays off this title at about ${stamp(at * ctx.durationS * 1000)} (later than ${stamp(PAYOFF_S * 1000)}): viewers who clicked for it may leave first`);
+      }
+    }
+  }
   return { errors, warnings };
+}
+
+/**
+ * Words used on the thumbnails of the channel's other videos (lower case -> the videos). A word that is on every
+ * thumbnail stops meaning anything, and the channel looks like one video uploaded again.
+ */
+export function usedThumbWords(except: string): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  let dirs: string[] = [];
+  try { dirs = fs.readdirSync(path.join(REPO, "workspace")).filter((d) => d !== except && !d.startsWith("_")); } catch {}
+  for (const d of dirs) {
+    const info = readJson<Record<string, ThumbInfo>>(pubFile(d, "thumbnails.json"));
+    for (const v of VARIANTS) for (const w of contentWords(info?.[v]?.text ?? "")) if (w.length > 2 && !/\d/.test(w)) out.set(w, [...new Set([...(out.get(w) ?? []), d])]);
+  }
+  return out;
 }
 
 /** Tags as YouTube counts them: multi-word tags are quoted, commas between. */
@@ -308,7 +459,8 @@ export function thumbPath(id: string, v: string): string | null {
 /** Re-run every check on a metadata object (after a dashboard edit) and return the result. */
 export function recheck(id: string, m: Metadata): { errors: string[]; warnings: string[] } {
   const pn = planNumbers(readJson(path.join(wsDir(id), "05-video/acts.json")));
-  const a = checkTitles(m.titles, pn), b = checkTags(m.tags, m.hashtags), c = checkDescription(m.description);
+  const proofs = VARIANTS.some((v) => m.titles?.[v]?.proof);
+  const a = checkTitles(m.titles, pn, proofs ? { spoken: spokenText(readText(path.join(wsDir(id), "02-scripting/script_raw.md"))), durationS: m.durationS } : {}), b = checkTags(m.tags, m.hashtags), c = checkDescription(m.description);
   const src = sourceLines(id);
   return { errors: [...a.errors, ...b.errors, ...c.errors], warnings: [...a.warnings, ...b.warnings, ...c.warnings, ...src.warnings, ...buildChapters(id, m.durationS * 1000).warnings] };
 }
@@ -319,4 +471,27 @@ export function freshSrt(video: string, srt: string, captions: string): void {
   if (!mt(captions) || mt(srt) >= mt(captions)) return;
   console.log(`↻ ${path.basename(srt)} is older than the captions: re-exporting it`);
   Bun.spawnSync(["bun", "run", "srt", "--video", video], { stdout: "ignore", stderr: "inherit" });
+}
+
+/**
+ * The channel's packages so far, for the prompts: each video's published title with its click rate (from the analytics
+ * snapshot, when the workspace is linked to its upload) and the words on its thumbnails. `self` (the video being
+ * packaged) is marked: when it is already published, its own result is the best evidence there is.
+ */
+export function channelPackages(self: string): string[] {
+  const snap = readJson<any>(path.join(REPO, "workspace/_analytics/snapshot.json"));
+  let dirs: string[] = [];
+  try { dirs = fs.readdirSync(path.join(REPO, "workspace")).filter((d) => !d.startsWith("_")).sort(); } catch {}
+  const out: string[] = [];
+  for (const d of dirs) {
+    const yt = readJson<any>(pubFile(d, "youtube.json"))?.videoId;
+    const v = yt ? (snap?.videos ?? []).find((x: any) => x.ytId === yt) : null;
+    const info = readJson<Record<string, ThumbInfo>>(pubFile(d, "thumbnails.json"));
+    // this video's thumbnails.json may already describe the new set being made, not what was published: leave its words out
+    const words = d === self ? [] : VARIANTS.map((k) => info?.[k]?.text?.trim()).filter(Boolean);
+    if (!v && !words.length) continue;
+    const stats = v ? `"${v.title}": ${v.impressions ?? "?"} impressions${typeof v.ctr === "number" && v.impressions >= 100 ? `, ${(v.ctr * 100).toFixed(1)}% clicked` : ", too few impressions for a click rate"}, ${v.views} views` : "not published or not linked";
+    out.push(`- ${d}${d === self ? " (THIS video, as it is published now)" : ""}: ${stats}${words.length ? `; thumbnail words tried: ${words.join(" / ")}` : ""}`);
+  }
+  return out;
 }
