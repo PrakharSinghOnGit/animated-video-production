@@ -1,4 +1,4 @@
-import type { AnalyticsData, LessonStore } from "./analytics";
+import type { AnalyticsData, CommentsData, YtComment, LessonStore } from "./analytics";
 import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
@@ -76,7 +76,9 @@ export const api = {
   saveSfx: (ws: string, short: string | null | undefined, edits: SfxEdits) => call<{ ok: true; edits: SfxEdits }>(`${w(ws)}/sfx${short ? `?short=${short}` : ""}`, { method: "PUT", body: edits }),
 
   analytics: (mock = false) => call<AnalyticsData>(`/api/analytics${mock ? "?mock=1" : ""}`),
-  analyticsRun: (action: "auth" | "fetch" | "mock" | "review" | "learn", extra: { agent?: string; video?: string; mock?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
+  comments: () => call<CommentsData>("/api/analytics/comments"),
+  commentUpdate: (id: string, patch: { status?: YtComment["status"]; draft?: string }) => call<{ ok: true; comment: YtComment }>(`/api/analytics/comments/${id}`, { method: "PUT", body: patch }),
+  analyticsRun: (action: "auth" | "fetch" | "mock" | "review" | "learn" | "comments", extra: { agent?: string; video?: string; mock?: boolean; redraft?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
   analyticsLink: (ws: string, id: string | null) => call<{ ok: true; id: string | null }>("/api/analytics/link", { method: "PUT", body: { ws, id } }),
   lesson: (id: string, action: "approve" | "reject" | "retire" | "restore" | "edit", extra: { reason?: string; rule?: string } = {}) => call<{ ok: true; lessons: LessonStore }>(`/api/analytics/lessons/${id}`, { method: "POST", body: { action, ...extra } }),
   analyticsLogUrl: (job: string) => `/api/analytics/log/${job}`,

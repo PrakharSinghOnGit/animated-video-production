@@ -54,3 +54,15 @@ export const TRAFFIC: Record<string, string> = {
   NO_LINK_OTHER: "Direct / unknown", SUBSCRIBER: "Subscriptions", PLAYLIST: "Playlists", YT_CHANNEL: "Channel pages", NOTIFICATION: "Notifications",
   END_SCREEN: "End screens", ANNOTATION: "Cards", HASHTAGS: "Hashtags", YT_OTHER_PAGE: "Other YouTube", CAMPAIGN_CARD: "Campaign cards",
 };
+
+// ───────────── comments (bun run yt:comments → workspace/_analytics/comments.json) ─────────────
+export type CommentKind = "praise" | "question" | "addition" | "disagreement" | "factual" | "quality" | "troll" | "spam";
+export interface YtComment {
+  id: string; videoId: string; author: string; text: string; at: string; likes: number;
+  replies: { id: string; author: string; text: string; at: string; mine: boolean }[]; repliedByMe: boolean;
+  status: "todo" | "done" | "skip";
+  triage?: { kind: CommentKind; reply: boolean; heart: boolean; summary: string; draft: string; check: string; model: string; at: string; edited?: boolean };
+}
+export interface CommentStore { fetchedAt: string; channelId: string; videos: Record<string, { title: string; short: boolean; ws?: string }>; comments: Record<string, YtComment> }
+export interface CommentsData { store: CommentStore | null; hasKey: boolean; model: string; running: { id: string; step: string; label: string } | null }
+export const commentUrl = (c: YtComment) => `https://www.youtube.com/watch?v=${c.videoId}&lc=${c.id}`;

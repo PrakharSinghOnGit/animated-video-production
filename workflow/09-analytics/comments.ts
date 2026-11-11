@@ -4,7 +4,7 @@
  *
  * Usage: bun run yt:comments [--no-draft] [--redraft] [--offline] [--agent haiku] [--all]
  *   --no-draft   only fetch
- *   --redraft    draft again for comments that already have a draft (your status marks are kept)
+ *   --redraft    draft again for comments that already have a draft (your status marks and edited drafts are kept)
  *   --offline    skip the API: draft and rebuild comments.md from the saved comments.json
  *   --all        list handled comments in comments.md too (default: only ones still waiting on you)
  *
@@ -40,7 +40,8 @@ export interface Comment {
   id: string; videoId: string; author: string; text: string; at: string; likes: number;
   replies: Reply[]; repliedByMe: boolean;
   status: "todo" | "done" | "skip";
-  triage?: { kind: Kind; reply: boolean; heart: boolean; summary: string; draft: string; check: string; model: string; at: string };
+  /** `edited`: you saved your own draft (dashboard); --redraft leaves it alone */
+  triage?: { kind: Kind; reply: boolean; heart: boolean; summary: string; draft: string; check: string; model: string; at: string; edited?: boolean };
 }
 export interface Store { fetchedAt: string; channelId: string; videos: Record<string, { title: string; short: boolean; ws?: string; description?: string }>; comments: Record<string, Comment> }
 
@@ -142,7 +143,7 @@ console.log(`   ${fresh} new, ${all.filter((c) => c.status === "todo").length} w
 
 let costUsd = 0;
 const agent = roleModel("commentReplies", flag("--agent"));
-const pending = all.filter((c) => c.status === "todo" && (args.includes("--redraft") || !c.triage));
+const pending = all.filter((c) => c.status === "todo" && !c.triage?.edited && (args.includes("--redraft") || !c.triage));
 if (args.includes("--no-draft") || !pending.length) {
   if (!pending.length) console.log("   no comments need a draft");
 } else {

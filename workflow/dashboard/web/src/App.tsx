@@ -16,6 +16,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { UsagePage } from "@/pages/UsagePage";
 import { MachinePage } from "@/pages/MachinePage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
+import { CommentsPage } from "@/pages/CommentsPage";
 import { cn } from "@/lib/utils";
 
 const LEFT = { min: 200, max: 380, def: 260, rail: 52 };
@@ -50,7 +51,7 @@ function Shell() {
 
   const page = route.view === "ws" ? <WorkspacePage /> : (
     <div key={route.view} className="wg-enter min-h-0 flex-1 overflow-y-auto">
-      {route.view === "analytics" ? <AnalyticsPage /> : route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
+      {route.view === "analytics" ? <AnalyticsPage /> : route.view === "comments" ? <CommentsPage /> : route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
     </div>
   );
   return (
