@@ -2,7 +2,14 @@
 
 This step captures the raw creative inspiration, competitor analysis, reference media, and core hypotheses before writing a single word of the script.
 
-> **Note:** There is **no automation** in this folder. It defines the workflow, folder conventions, and research tools for the video ideation phase.
+> **Idea check (automated):** before a project exists, add ideas in the dashboard (**Ideas**) or with
+> `bun run ideas --add "Title" --note "..."`, then `bun run ideas --id I01`. It searches YouTube for the topic (outlier
+> videos: views ÷ that channel's average), and a model judges the idea against **`AUDIENCE.md`** (who the channel is
+> for + the idea test) and the channel's own numbers, then drafts 3 packages. Results: `workspace/_ideas/ideas.json`.
+> "Start project" creates the video and writes the idea, angle and packages into its `02-scripting/idea.md`.
+> Keep `AUDIENCE.md` current: it is the brief every idea is judged against.
+>
+> The rest of this file is the manual workflow inside a project (references, notes).
 
 ---
 
