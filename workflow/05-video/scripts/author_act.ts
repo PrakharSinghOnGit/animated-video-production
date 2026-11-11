@@ -29,7 +29,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
-import { type ActsPlan, type Act } from "../src/lib/acts";
+import { castFor, type ActsPlan, type Act } from "../src/lib/acts";
 import { runAgentAsync, runAgy, runAgyJson, extractJson, claudeHasSession, type AgentResult } from "../src/lib/agent";
 import { roleModel, isAgy, agyModel, parseSpec } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
@@ -290,6 +290,23 @@ ${c.notes.length ? `Plan changes that came with it:\n${c.notes.map((n) => "- " +
   return "notes";   // the act file is there; the last critic verdict is in review/<act>/
 }
 
+/** Where this act sits in the film: the neighbours' last and first images, the energy around it and the cast it shares
+ *  with other acts. The author sees one act only, so this is all it knows of the rest. Empty for plans without these fields. */
+function filmNote(act: Act): string {
+  const i = plan.acts.indexOf(act), prev = plan.acts[i - 1], next = plan.acts[i + 1];
+  const lines: string[] = [];
+  if (prev?.endsOn) lines.push(`The previous act ends on: ${prev.endsOn}`);
+  if (next?.transitionIn && act.endsOn) lines.push(`The next act arrives like this: ${next.transitionIn}`);
+  if (plan.acts.length > 2 && new Set(plan.acts.map((a) => a.intensity)).size > 1) {
+    const ints = plan.acts.map((a) => a.intensity), lo = Math.min(...ints), hi = Math.max(...ints);
+    const place = act.intensity === hi ? "the loudest act of the video" : act.intensity === lo ? "the quietest act of the video" : `the video runs from ${lo} to ${hi}`;
+    lines.push(`Energy: this act is ${act.intensity} (${place}); before it ${prev ? prev.intensity : "nothing"}, after it ${next ? next.intensity : "nothing"}. Let its density, speed and loudness sit at that level next to its neighbours.`);
+  }
+  const cast = castFor(plan, act.id);
+  if (cast.length) lines.push(`Cast shared with other acts (draw them exactly like this, so they are the same thing in every act):\n${cast.map((c) => `- ${c.name}: ${c.look}${c.arc ? ` (${c.arc})` : ""}${c.acts?.length ? ` [in ${c.acts.join(", ")}]` : ""}`).join("\n")}`);
+  return lines.length ? lines.join("\n") + "\n" : "";
+}
+
 /** The full brief for an act: the act prompt, its plan and its word-timed narration (a fresh session needs all of it). */
 function briefFor(act: Act, file: string): string {
   return `${actPrompt}
@@ -297,7 +314,7 @@ function briefFor(act: Act, file: string): string {
 # This act
 Video: ${paths.jobId}. Act ${act.id}. Scene file to write: ${file}
 Previous act: ${plan.acts[plan.acts.indexOf(act) - 1]?.title ?? "(none: this opens the video)"}. Next act: ${plan.acts[plan.acts.indexOf(act) + 1]?.title ?? "(none: this ends the video)"}.
-
+${filmNote(act)}
 Plan:
 ${JSON.stringify(act, null, 1)}
 
