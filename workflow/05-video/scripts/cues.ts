@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { normWord, type ActsPlan } from "../src/lib/acts";
+import { applySfxEdits, type SfxEdits } from "../src/lib/cues";
 
 const args = process.argv.slice(2);
 const vi = args.findIndex((a) => a === "--video" || a === "-v");
@@ -87,19 +88,8 @@ for (const act of plan.acts) {
 
 events.sort((a, b) => a.t - b.t);
 const editsPath = path.join(paths.outputDir, "sfx_edits.json");
-const edits: { off?: string[]; gainDb?: Record<string, number> } = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
-const off = new Set(edits.off ?? []);
-const seen = new Map<string, number>();
-const all = events.map((e, i) => {
-  let key = `${e.act}@${e.t.toFixed(2)}:${e.type}`;
-  const n = (seen.get(key) ?? 0) + 1; seen.set(key, n);
-  if (n > 1) key += `#${n}`;
-  const db = edits.gainDb?.[key];
-  return { key, ...e, seed: i, ...(off.has(key) ? { off: true } : {}), ...(db ? { gainDb: db } : {}) };
-});
-const on = all.filter((e) => !e.off).map(({ key, off: _o, gainDb, ...e }) =>
-  gainDb ? { ...e, gain: Math.round((e.gain ?? 1) * 10 ** (gainDb / 20) * 1000) / 1000 } : e);
-const stale = [...off, ...Object.keys(edits.gainDb ?? {})].filter((k) => !all.some((e) => e.key === k));
+const edits: SfxEdits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
+const { all, on, stale } = applySfxEdits(events, edits);
 fs.writeFileSync(path.join(paths.outputDir, "events_all.json"), JSON.stringify(all, null, 1), "utf-8");
 fs.writeFileSync(path.join(paths.outputDir, "events.json"), JSON.stringify(on, null, 1), "utf-8");
 const audioDir = path.join(wsDir, "06-audio");
