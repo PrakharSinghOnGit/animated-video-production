@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { api } from "@/lib/api";
 import { STEPS } from "@/lib/steps";
 import { cn } from "@/lib/utils";
+import { CHANNEL } from "@/theme/channel";
 
 const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics", comments: "Comments", ideas: "Ideas" };
 
@@ -32,9 +33,9 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
   return (
     <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-card px-2.5">
       {phone && <Button variant="ghost" size="icon" onClick={onMenu} aria-label="Open navigation"><Menu /></Button>}
-      <button onClick={() => go({ view: "overview", yt: null })} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/60" aria-label="The Wealth Gap: overview">
-        <img src="/brand/Logo.png" alt="" className="size-6 rounded-[5px] ring-1 ring-border" />
-        <span className="hidden text-[13px] font-semibold tracking-[-0.01em] sm:inline">The Wealth Gap</span>
+      <button onClick={() => go({ view: "overview", yt: null })} className="flex shrink-0 items-center gap-2 rounded-md px-1 py-1 outline-none focus-visible:ring-2 focus-visible:ring-ring/60" aria-label={`${CHANNEL.name}: overview`}>
+        <img src={CHANNEL.logo} alt="" className="size-6 rounded-[5px] ring-1 ring-border" />
+        <span className="hidden text-[13px] font-semibold tracking-[-0.01em] sm:inline">{CHANNEL.name}</span>
       </button>
       <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] text-muted-foreground">
         {crumbs.map((c, i) => (

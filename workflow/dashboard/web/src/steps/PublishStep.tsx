@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/fields";
 import { RunButton } from "@/components/RunButton";
+import { CHANNEL } from "@/theme/channel";
 import { Note } from "@/components/FileLine";
 import { TextEditor, useDraft } from "@/components/TextEditor";
 import { BlockFold, Flow, withKids } from "@/components/Flow";
@@ -66,10 +67,10 @@ function FeedCard({ src, title, dark, badge }: { src: string; title: string; dar
         <span className="absolute" style={{ right: 8, bottom: 8, background: "rgba(0,0,0,.8)", color: "#fff", borderRadius: 4, padding: "1px 4px", fontSize: 12, fontWeight: 500, lineHeight: "16px" }}>{badge}</span>
       </div>
       <div className="mt-3 flex gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold" style={{ background: "#101010", color: "#f2e9e4" }}>WG</div>
+        <img src={CHANNEL.logo} alt="" className="size-9 shrink-0 rounded-full object-cover" />
         <div className="min-w-0">
           <div style={{ fontSize: 16, fontWeight: 500, lineHeight: "22px", maxHeight: 44, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{title || "(no title yet)"}</div>
-          <div style={{ fontSize: 14, color: sub, lineHeight: "20px", marginTop: 4 }}>The Wealth Gap</div>
+          <div style={{ fontSize: 14, color: sub, lineHeight: "20px", marginTop: 4 }}>{CHANNEL.name}</div>
           <div style={{ fontSize: 14, color: sub, lineHeight: "20px" }}>12K views • 2 days ago</div>
         </div>
       </div>
@@ -200,7 +201,7 @@ export function PublishStep() {
   const kids: Record<string, React.ReactNode> = {
     meta: meta ? <MetaEditor key={meta.at + String(meta.edited)} meta={meta} titles={titles} setTitles={setTitles} /> : undefined,
     thumbs: p.thumbs.some((t) => t.file) ? (
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 @3xl:grid-cols-3">
         {p.thumbs.map((t) => (
           <figure key={t.id} className="m-0 grid min-w-0 gap-1.5">
             {t.file ? <img src={src(t)} alt={`Thumbnail ${t.id}`} className="block w-full cursor-zoom-in rounded border" onClick={() => setLb(shown.findIndex((x) => x.id === t.id))} /> : <div className="flex aspect-video items-center justify-center rounded border border-dashed text-xs text-muted-foreground">{t.id}: not designed yet</div>}

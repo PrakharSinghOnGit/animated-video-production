@@ -3,43 +3,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Brand: green #62966A, orange #DC8420, red #BC4E52 on near-black #101010, cream #F2EAE6.
-   Status and chart colours are pastel tints of those three. Light mode = cream background, near-black text. */
-/* Brand: green #62966A, orange #DC8420, red #BC4E52, near-black #101010, cream #F2EAE6.
-   One accent (orange) for the primary action and the current place; green/amber/red only for state.
-   Surfaces step up in small increments: background < card < raised (popovers, hover). Hairline borders, no glow. */
+/* Colours are derived from five seeds (theme/channel.ts: brand, positive, negative, info, paper), so another channel
+   changes one palette, not this file. One accent (brand) for the primary action and the current place; positive /
+   negative / amber only for state. Surfaces step up in small increments: background < card < raised (popovers,
+   hover). Hairline borders, no glow. The seeds here are the default palette, so the first paint is already right. */
 :root {
-  --background: #f6f4f2;
+  --seed-brand: #DC8420;
+  --seed-positive: #62966A;
+  --seed-negative: #BC4E52;
+  --seed-info: #6A8CAF;
+  --seed-paper: #F2EAE6;
+
+  --background: color-mix(in oklab, var(--seed-paper) 32%, #f7f6f5);
   --foreground: #161514;
   --card: #ffffff;
   --card-foreground: #161514;
-  --raised: #fbfaf9;
+  --raised: color-mix(in oklab, var(--seed-paper) 14%, #fbfbfa);
   --popover: #ffffff;
   --popover-foreground: #161514;
   --primary: #161514;
   --primary-foreground: #fafaf9;
-  --secondary: #f1eeeb;
+  --secondary: color-mix(in oklab, var(--seed-paper) 30%, #f1f0ef);
   --secondary-foreground: #161514;
-  --muted: #efebe8;
+  --muted: color-mix(in oklab, var(--seed-paper) 34%, #efeeec);
   --muted-foreground: #6f6863;
   --subtle-foreground: #9a928c;
-  --accent: #ece8e4;
+  --accent: color-mix(in oklab, var(--seed-paper) 40%, #eceae8);
   --accent-foreground: #161514;
-  --destructive: #b3443f;
-  --border: #e6e1dc;
-  --border-strong: #d6cfc8;
-  --input: #ddd6cf;
-  --ring: #c4741a;
-  --brand: #c4741a;
+  --border: color-mix(in oklab, var(--seed-paper) 40%, #e4e1de);
+  --border-strong: color-mix(in oklab, var(--seed-paper) 30%, #d4cfca);
+  --input: color-mix(in oklab, var(--seed-paper) 30%, #dbd6d1);
+
+  --brand: color-mix(in oklab, var(--seed-brand) 88%, black);
   --brand-foreground: #ffffff;
-  --success: #3d7a49;
+  --ring: var(--brand);
+  --success: color-mix(in oklab, var(--seed-positive) 82%, black);
+  --destructive: color-mix(in oklab, var(--seed-negative) 92%, black);
   --warning: #b06a12;
-  --info: #5f6b7a;
-  --chart-1: #c4741a;
-  --chart-2: #4f8a5b;
-  --chart-3: #8a817a;
-  --chart-4: #b3443f;
-  --chart-5: #8f8a3e;
+  --info: color-mix(in oklab, var(--seed-info) 85%, black);
+  --chart-1: var(--brand);
+  --chart-2: var(--success);
+  --chart-3: var(--info);
+  --chart-4: var(--destructive);
+  --chart-5: color-mix(in oklab, var(--seed-brand) 45%, var(--seed-positive));
+  --chart-6: #8a817a;
   --console: #fbfaf9;
   --shadow-sm: 0 1px 2px rgb(22 21 20 / 0.05);
   --shadow-md: 0 1px 2px rgb(22 21 20 / 0.06), 0 8px 24px -8px rgb(22 21 20 / 0.12);
@@ -61,21 +68,18 @@
   --subtle-foreground: #6e6a67;
   --accent: #1f1f1f;
   --accent-foreground: #ededec;
-  --destructive: #e5867f;
   --border: #222120;
   --border-strong: #2e2c2b;
   --input: #2c2a29;
-  --ring: #e89a45;
-  --brand: #e89a45;
+
+  --brand: color-mix(in oklab, var(--seed-brand) 86%, white);
   --brand-foreground: #0b0b0b;
-  --success: #86c191;
+  --success: color-mix(in oklab, var(--seed-positive) 72%, white);
+  --destructive: color-mix(in oklab, var(--seed-negative) 70%, white);
   --warning: #e8a95c;
-  --info: #a3adb9;
-  --chart-1: #e89a45;
-  --chart-2: #86c191;
-  --chart-3: #8f8a86;
-  --chart-4: #e5867f;
-  --chart-5: #c9c37a;
+  --info: color-mix(in oklab, var(--seed-info) 75%, white);
+  --chart-5: color-mix(in oklab, color-mix(in oklab, var(--seed-brand) 45%, var(--seed-positive)) 80%, white);
+  --chart-6: #8f8a86;
   --console: #0e0e0e;
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 1px 2px rgb(0 0 0 / 0.5), 0 12px 32px -12px rgb(0 0 0 / 0.7);
@@ -114,6 +118,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
   --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
   --shadow-sm: var(--shadow-sm);
@@ -174,6 +179,9 @@
 .wg-prose hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
 .wg-prose table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: .8em 0; display: block; overflow-x: auto; }
 .wg-prose th, .wg-prose td { border-bottom: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; }
+/* cells wrap between words only: a narrow table scrolls sideways instead of breaking WORKABLE into WOR/KABL/E */
+.wg-prose th, .wg-prose td { overflow-wrap: normal; word-break: normal; min-width: 6ch; }
+.wg-prose th { white-space: nowrap; }
 .wg-prose th { font-weight: 600; color: var(--muted-foreground); font-size: 11.5px; }
 .wg-prose input[type=checkbox] { margin-right: .4em; accent-color: var(--brand); }
 .pulse { animation: wg-pulse 1.1s ease-in-out infinite; }
