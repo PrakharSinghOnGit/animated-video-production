@@ -22,6 +22,10 @@ const jacket = (): Pt[] => [[-40, 46], [-30, -8], [-32, -96], [-30, -148], [-16,
 const head = (): Pt[] => [[-12, 6], [-13, -12], [-22, -24], [-31, -46], [-26, -70], [-6, -82], [16, -78], [27, -64], [30, -52], [27, -47], [31, -43], [44, -33], [44, -30], [31, -28], [33, -23], [29, -20], [32, -16], [26, -7], [15, -2], [10, 6]];
 const brim = (): Pt[] => [[-42, -63], [-22, -69], [14, -73], [44, -74], [55, -69], [48, -64], [18, -63], [-10, -61], [-34, -58]];
 const crown = (): Pt[] => smooth([[-27, -70], [-25, -93], [-15, -104], [-2, -98], [9, -104], [22, -99], [29, -72]], 1);
+const bowlerBrim = (): Pt[] => [[-34, -64], [-18, -70], [12, -72], [36, -71], [44, -66], [34, -63], [10, -64], [-12, -62], [-28, -60]];
+const bowlerDome = (): Pt[] => smooth([[-24, -69], [-25, -86], [-15, -99], [3, -104], [20, -98], [28, -84], [28, -70]], 2);
+/** bareheaded: short hair swept back, a small quiff at the front */
+const hair = (): Pt[] => smooth([[-24, -26], [-33, -48], [-28, -72], [-8, -86], [16, -84], [30, -72], [33, -62], [22, -64], [0, -68], [-18, -58], [-22, -40]], 1);
 const foot = (): Pt[] => [[-13, -8], [-15, 9], [44, 11], [56, 7], [44, -3], [16, -9]];
 const hand = (): Pt[] => [[-7, -3], [8, -3], [8, 16], [2, 36], [-5, 21]];
 const collar = (): Pt[] => [[16, -170], [27, -164], [22, -150]];
@@ -99,6 +103,8 @@ export interface FigureOpts {
   hero?: boolean;
   /** the coin clip's colour (default noir warm: the money colour, on a black keyline) */
   warm?: string;
+  /** headwear: "fedora" (default; the Agent always wears it), "bowler" (a banker, a clerk), "none" (bareheaded) */
+  hat?: "fedora" | "bowler" | "none";
 }
 /**
  * Draw the figure in profile, feet at (x, y), facing +x (flip faces -x). Returns the near wrist in screen/world coordinates
@@ -150,12 +156,20 @@ function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: Figur
   piece(g, P("fgHead", head, 41, 1.0, 7), ink);
   const e = p.eye ?? opt.eye;
   if (e) piece(g, e === "peek" ? [[16, -52], [26, -54], [25, -50], [16, -49]] : [[15, -53], [25, -55], [24, -49], [15, -48]], paper, { gap: 0, shadow: false });
-  piece(g, P("fgBrim", brim, 42, 0.9, 7), ink);
-  piece(g, P("fgCrown", crown, 43, 1.0, 7), ink);
-  g.save(); g.translate(1, -71.5); g.rotate(-0.035); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
-  if (opt.hero) for (let i = 0; i < 3; i++) { g.save(); g.translate(-12 + i * 9, -0.5); g.rotate(-0.5); g.fillRect(-1.3, -6, 2.6, 12); g.restore(); }   // the Agent: three slanted cuts (logo bars)
-  else g.fillRect(-27, -1.1, 56, 2.2);                                                     // hatband slit
-  g.restore();
+  const hat = opt.hero ? "fedora" : opt.hat ?? "fedora";
+  if (hat === "fedora") {
+    piece(g, P("fgBrim", brim, 42, 0.9, 7), ink);
+    piece(g, P("fgCrown", crown, 43, 1.0, 7), ink);
+  } else if (hat === "bowler") {
+    piece(g, P("fgBBrim", bowlerBrim, 44, 0.7, 7), ink);
+    piece(g, P("fgBDome", bowlerDome, 45, 0.7, 7), ink);
+  } else piece(g, P("fgHair", hair, 46, 0.8, 7), ink);
+  if (hat !== "none") {
+    g.save(); g.translate(1, -71.5); g.rotate(-0.035); g.globalCompositeOperation = "destination-out"; g.fillStyle = "#000";
+    if (opt.hero) for (let i = 0; i < 3; i++) { g.save(); g.translate(-12 + i * 9, -0.5); g.rotate(-0.5); g.fillRect(-1.3, -6, 2.6, 12); g.restore(); }   // the Agent: three slanted cuts (logo bars)
+    else g.fillRect(hat === "bowler" ? -22 : -27, -1.1, hat === "bowler" ? 46 : 56, 2.2);   // hatband slit
+    g.restore();
+  }
   g.restore();
   legAt(p.thF, p.knF, p.ftF, true);
   const ta = T(27, -160);                                                                  // streamer

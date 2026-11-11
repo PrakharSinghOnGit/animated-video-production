@@ -30,7 +30,7 @@ League Gothic outlines, each letter re-cut as its own piece. Capitals ~0.76 x si
 ## Puppets (chars.ts)
 `hero: true` makes the figure **the Agent**, the channel's recurring hero (three slanted hatband cuts + a gold coin tie clip in `warm`, default noir warm); extras leave it off. Sheet: `brand-assets/mascot/agent_sheet.png` (composition `AgentSheet` in `preview/Root.tsx`).
 One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = between the feet, y down, faces +x.
-- `figureSide(g, x, y, s, pose, {col, accent, paper, flip, eye, sil})` -> `{wrist}` (attach a prop there). s = 1 is ~540 px tall; 0.6 is a good scene scale.
+- `figureSide(g, x, y, s, pose, {col, accent, paper, flip, eye, sil, hat})` -> `{wrist}` (attach a prop there). s = 1 is ~540 px tall; 0.6 is a good scene scale. `hat`: `"fedora"` (default, always on the Agent) | `"bowler"` (a banker, a clerk) | `"none"` (bareheaded, short hair) to tell extras apart.
 - `POSE.stand | flatten | skid | overShoulder | leap | reach`; `walkPose(p)`, `runPose(p)` with p = cycle 0..1 (one cycle = two steps); `walkStride(s)` = world px per walk cycle (advance `x` by this per cycle and the feet do not slide).
 - `onTwos(t)`: stepped to 12 fps. Sample puppet poses and puppet x with `onTwos(t)`; keep the camera and the type on ones.
 
