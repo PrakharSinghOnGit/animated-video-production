@@ -81,7 +81,8 @@
     "yt:auth": "bun run workflow/09-analytics/auth.ts",
     "yt:fetch": "bun run workflow/09-analytics/fetch.ts",
     "yt:mock": "bun run workflow/09-analytics/mock.ts",
-    "yt:review": "bun run workflow/09-analytics/review.ts"
+    "yt:review": "bun run workflow/09-analytics/review.ts",
+    "yt:comments": "bun run workflow/09-analytics/comments.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",

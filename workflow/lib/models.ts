@@ -48,6 +48,7 @@ export const ROLES: Record<string, Role> = {
   shortsDirector: { label: "Shorts director", def: "claude:sonnet", edits: true, group: "Shorts" },
   shortsAct: { label: "Shorts act author", def: "claude:opus", edits: true, group: "Shorts" },
   analytics: { label: "Analytics reviewer", def: "claude:sonnet", edits: false, group: "Analytics" },
+  commentReplies: { label: "Comment reply drafts", def: "claude:haiku", edits: false, group: "Analytics" },
 };
 export type RoleKey = keyof typeof ROLES;
 
