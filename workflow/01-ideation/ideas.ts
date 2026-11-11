@@ -73,7 +73,7 @@ async function agentJson(role: "ideas" | "ideaQueries", prompt: string, logPath:
   fs.writeFileSync(logPath.replace(/\.log$/, ".prompt.md"), prompt, "utf-8");
   if (isAgy(model)) return { json: (await runAgyJson({ prompt, model: agyModel(model), logPath }).catch(() => ({ json: null }))).json, costUsd: 0, model };
   // the check may lint its package candidates with yt-package/title.py (the queries step needs no tools)
-  const tools = role === "ideas" ? ["Read", "Bash(python3 workflow/01-ideation/yt-package/title.py:*)"] : ["Read"];
+  const tools = role === "ideas" ? ["Read", "Bash(python3 workflow/01-ideation/yt-package/title.py:*)", `Bash(python3 ${path.join(REPO, "workflow/01-ideation/yt-package/title.py")}:*)`] : ["Read"];
   const r = await runAgentAsync({ prompt, model, tools, maxTurns: role === "ideas" ? 12 : 3, logPath, cwd: REPO });
   recordTiming(IDEAS_DIR, { step: `idea ${role} (${model})`, ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
   let json: any = null;

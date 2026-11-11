@@ -27,6 +27,7 @@ import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { researchNote } from "./research_lib";
+import { hookscoreTools, scoreHooksIntoNotes } from "./hookscore";
 import { parseScript, scriptStats, bannedWords, runFactcheck, factcheckLines, claimsPath, opening } from "./script_lib";
 
 const args = process.argv.slice(2);
@@ -159,7 +160,7 @@ const prompt = loadPrompt("WRITER", { video: videoId })
 console.log(`✍️  ${revising ? "Revising" : "Writing"} the script for ${videoId} (${model}, ~${minutes} min)...`);
 const r = await runAgentAsync({
   prompt, model, maxTurns: 30, cwd: REPO,
-  tools: ["Read", "Write", "Bash(python3 workflow/02-scripting/yt-script/hookscore.py:*)"],
+  tools: ["Read", "Write", ...hookscoreTools()],
   logPath: path.join(dir, `write_${Date.now()}.log`),
 });
 recordTiming(ws, { step: revising ? "write script (revision)" : "write script", ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
@@ -181,6 +182,11 @@ if (onlyParts) {
   fs.writeFileSync(F.script, was.head + touched.join(""));
   console.log(`✂️  revised part(s) ${onlyParts.join(", ")} only${strayEdits ? ` (the writer also touched ${strayEdits} other part(s): those edits were discarded)` : ""}`);
 }
+// the hooks are scored in code too, so the ranking is in the notes even if the writer's own run of the scorer was refused
+try {
+  const hs = scoreHooksIntoNotes(F.hooks, F.notes);
+  if (hs.length) console.log(`🎣 hooks scored: best ${hs[0].verdict} ${hs[0].band} (${hs[0].formula}): "${hs[0].hook.slice(0, 90)}"`);
+} catch (e) { console.warn(`⚠️  hookscore: ${(e as Error).message}`); }
 console.log(`✅ ${path.relative(REPO, F.script)} + ${path.relative(REPO, F.notes)}`);
 report();
 console.log(`   Optional: bun run research --video ${videoId} --claims (searches a source for each claim to check) · bun run retention --video ${videoId} (marks likely drop-off points)`);

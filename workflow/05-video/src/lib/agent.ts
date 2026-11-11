@@ -111,6 +111,13 @@ function finish(opts: AgentOptions, status: number | null, stdout: string, stder
   const out = events.length ? JSON.stringify(parsed) : stdout;
   fs.mkdirSync(path.dirname(opts.logPath), { recursive: true });
   fs.writeFileSync(opts.logPath, `model: ${opts.model}\nexit: ${status}\nerror: ${errMsg}\n\n--- stdout ---\n${out}\n\n--- stderr ---\n${stderr}\n${transcript ? `\n--- transcript ---\n${transcript}\n` : ""}`, "utf-8");
+  // headless runs have no approval prompt: a tool call outside the allowed list is refused silently. Say which, so
+  // the job log (and the dashboard) shows it instead of the model's prose about it.
+  const denied: any[] = Array.isArray(parsed.permission_denials) ? parsed.permission_denials : [];
+  if (denied.length) {
+    const what = (d: any) => (d.tool_name === "Bash" ? `Bash: ${String(d.tool_input?.command ?? "").split("\n")[0].slice(0, 110)}` : `${d.tool_name}${d.tool_input?.query ? `: ${String(d.tool_input.query).slice(0, 80)}` : ""}`);
+    console.warn(`   ⚠️  ${denied.length} tool call(s) not allowed for this step (refused, the run went on without them):\n${denied.slice(0, 8).map((d) => `      - ${what(d)}`).join("\n")}`);
+  }
   // `usage` covers only part of the run; `modelUsage` has the whole run's totals per model (output includes thinking)
   const u = parsed.usage ?? {};
   const mu = Object.values(parsed.modelUsage ?? {}) as any[];

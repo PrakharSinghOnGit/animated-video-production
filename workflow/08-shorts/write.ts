@@ -27,6 +27,7 @@ import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
 import { researchNote, verifiedResearchText } from "../02-scripting/research_lib";
+import { hookscoreTools } from "../02-scripting/hookscore";
 import { lengthLabel, SHORT_LENGTHS, SHORT_CAP_S } from "../05-video/src/lib/format";
 import {
   REPO, WS_ROOT, SHORT_ID, MIN_WORDS, maxWords, lengthOf, setLength, shortsDir, shortWs, shortVideoId, indexPath, listShorts, readJson, exists, mtime,
@@ -273,7 +274,7 @@ for (const sid of targets) { scaffoldShort(vid, sid); if (!one || length !== und
 
 console.log(`✂️  ${one ? `Revising ${one}` : added ? `Adding ${added}` : `Writing ${count} shorts`} for ${vid} (${model})...`);
 const r = await runAgentAsync({
-  prompt, model, maxTurns: 30, cwd: REPO, tools: ["Read", "Write", "Bash(python3 workflow/02-scripting/yt-script/hookscore.py:*)"],
+  prompt, model, maxTurns: 30, cwd: REPO, tools: ["Read", "Write", ...hookscoreTools()],
   logPath: path.join(dir, `write_${stamp}.log`),
 });
 recordTiming(parent, { step: one ? `shorts write (${one} revision)` : added ? `shorts write (${added} added)` : "shorts write", ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
