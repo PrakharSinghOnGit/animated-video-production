@@ -1453,6 +1453,8 @@ function details(ws: string) {
       start: a.startMs, end: a.endMs, idea: a.idea,
       notesMtime: mtime(notesPath),
       approval: scene ? actApproval(ws, a.id, scene.mtime) : null,
+      // author_act.ts leaves this when a first authoring run was cut off (usage limit, error): the file is partial
+      unfinished: scene && exists(path.join(abs, "unfinished")) ? fs.readFileSync(path.join(abs, "unfinished"), "utf-8").trim() : null,
       meta: stepMeta(rows, new RegExp(`\\b${a.id}\\b`)),
     };
   });

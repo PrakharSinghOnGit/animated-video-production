@@ -43,6 +43,8 @@ export interface ActRow {
   notes: string; preview: FileInfo | null; reviews: Review[]; start: number; end: number; idea?: string; notesMtime: number; meta: StepMeta | null;
   /** explicit human approval, valid only while the scene file is the one approved */
   approval: { at: string; sceneMtime: number } | null;
+  /** the first authoring run was cut off (usage limit, error): the file is partial; the next batch continues it */
+  unfinished: string | null;
 }
 export interface PlanBeat { startMs: number; endMs: number; vo: string; visual: string; camera: string; hits: { word: string; occurrence: number; what: string }[]; data: { label: string; value: number | string; unit: string; source: string }[] }
 export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number;
