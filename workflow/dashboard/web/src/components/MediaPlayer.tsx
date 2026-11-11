@@ -34,7 +34,7 @@ export const MediaPlayer = forwardRef<HTMLVideoElement, { f: FileInfo; kind: "au
     </div>
   );
   return (
-    <div className="grid items-center gap-1.5 text-xs md:grid-cols-[minmax(0,200px)_1fr_auto] md:gap-2.5">
+    <div className="grid items-center gap-1.5 text-xs @3xl:grid-cols-[minmax(0,200px)_1fr_auto] @3xl:gap-2.5">
       <span className="truncate font-mono" title={f.path}>{label ?? basename(f.path)} <span className="text-muted-foreground">{mb(f.size)} · {ago(f.mtime)}</span></span>
       <audio ref={el as unknown as React.Ref<HTMLAudioElement>} controls preload="none" src={src} />
       <Speed rate={rate} onRate={setRate} />

@@ -123,7 +123,7 @@ export function SfxReview({ short }: { short?: string | null }) {
         </Note>
       )}
 
-      <div className={cn("grid items-start gap-3", portrait ? "lg:grid-cols-[minmax(0,1fr)_240px]" : "lg:grid-cols-[minmax(0,1fr)_380px]")}>
+      <div className={cn("grid items-start gap-3", portrait ? "@4xl:grid-cols-[minmax(0,1fr)_240px]" : "@4xl:grid-cols-[minmax(0,1fr)_380px]")}>
         <div className="min-w-0 rounded-lg border">
           <DataTable maxH="460px" head={[{ label: "On" }, { label: "Time" }, { label: "Act" }, { label: "Type" }, { label: "Clip" }, { label: `Gain (${GAIN_MIN}…+${GAIN_MAX} dB)` }, { label: "Seek" }]}>
             {shown.map((e) => {

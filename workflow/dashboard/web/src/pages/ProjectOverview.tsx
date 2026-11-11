@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, ExternalLink, Film, Link2, MonitorPlay, Pencil, Sparkles, Unlink, X } from "lucide-react";
+import { ArrowRight, AudioLines, Clock, DollarSign, ExternalLink, Film, HardDrive, Layers, Link2, MonitorPlay, Pencil, Sparkles, Unlink, X } from "lucide-react";
 import { LinkShort } from "@/pages/PublishedOverview";
 import { Input } from "@/components/ui/fields";
 import { useApp } from "@/hooks/app";
@@ -76,16 +76,16 @@ export function ProjectOverview() {
           <div className="rounded-lg border bg-card px-4 py-3"><Markdown>{idea}</Markdown></div>
         </Fold>
       )}
-      <div className="wg-stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {!only && <StatCard label="Narration" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} />}
-        {!only && <StatCard label="Acts" value={d.acts.length ? String(d.acts.length) : "—"} />}
-        <StatCard label="Shorts exported" value={items.length ? `${exported}/${items.length}` : "—"} />
-        <StatCard label="Recorded time" value={dur(d.totals.ms)} />
-        <StatCard label="Model cost" value={money(d.totals.costUsd)} />
-        <StatCard label="On disk" value={ov ? mb(ov.bytes.total) : "…"} />
+      <div className="wg-stagger grid grid-cols-2 gap-3 @2xl:grid-cols-3 @5xl:grid-cols-6">
+        {!only && <StatCard icon={<AudioLines />} label="Narration" value={d.align.durationMs ? dur(d.align.durationMs) : "—"} />}
+        {!only && <StatCard icon={<Layers />} label="Acts" value={d.acts.length || "—"} />}
+        <StatCard icon={<Film />} tone="info" label="Shorts exported" value={items.length ? `${exported}/${items.length}` : "—"} />
+        <StatCard icon={<Clock />} tone="info" label="Recorded time" value={dur(d.totals.ms)} />
+        <StatCard icon={<DollarSign />} tone="success" label="Model cost" value={d.totals.costUsd} format={{ style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        <StatCard icon={<HardDrive />} tone="info" label="On disk" value={ov ? mb(ov.bytes.total) : "…"} />
       </div>
 
-      <section aria-label="Sections" className={only ? "grid max-w-md gap-3" : "grid gap-3 md:grid-cols-3"}>
+      <section aria-label="Sections" className={only ? "grid max-w-md gap-3" : "grid gap-3 @3xl:grid-cols-3"}>
         {sections.map((s) => (
           <button key={s.sec} onClick={() => go({ sec: s.sec, step: null, act: null, short: null })}
             className="group flex flex-col gap-3 rounded-[10px] border bg-card p-4 text-left shadow-sm outline-none transition-[border-color,box-shadow] hover:border-border-strong hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring/60">
@@ -121,11 +121,11 @@ export function ProjectOverview() {
 
       <section aria-label="Checks and housekeeping" className="grid gap-3">
         <SubHead>Checks &amp; housekeeping</SubHead>
-        <div className="grid items-start gap-3 lg:grid-cols-2">
+        <div className="grid items-start gap-3 @4xl:grid-cols-2">
           <Card>
             <CardHeader><CardTitle>QC</CardTitle><CardSub>{d.render.qc ? `report ${ago(d.render.qc.mtime)}` : "no report yet"}</CardSub></CardHeader>
             <CardBody>
-              {!only && <ActionGrid className="sm:grid-cols-1"><ActionCard id="render.qc" /></ActionGrid>}
+              {!only && <ActionGrid className="@xl:grid-cols-1"><ActionCard id="render.qc" /></ActionGrid>}
               {!only && d.render.qc && <Fold title="Long-video QC report" className="rounded-lg border px-3"><div className="pb-3"><Prose>{d.render.qc.text}</Prose></div></Fold>}
               {items.map((s) => (
                 <div key={s.id} className="flex flex-wrap items-center gap-2.5 text-[12.5px]">
@@ -141,7 +141,7 @@ export function ProjectOverview() {
             <CardHeader><CardTitle>Housekeeping</CardTitle><CardSub>{ov ? `${mb(ov.bytes.total)} on disk` : "measuring…"}{freed ? ` · ${mb(freed)} freed so far` : ""}</CardSub></CardHeader>
             <CardBody>
               {ov && Object.keys(ov.bytes.shorts).length > 0 && <div className="text-xs text-muted-foreground">{Object.entries(ov.bytes.shorts).map(([k, v]) => `${k} ${mb(v)}`).join(" · ")} (inside the total)</div>}
-              <ActionGrid className="sm:grid-cols-1">
+              <ActionGrid className="@xl:grid-cols-1">
                 <ActionCard id="history.compact" hint="Dry run unless “DELETE FOR REAL” is ticked: the log then lists what would be deleted and the space it frees. Deleted files cannot be restored." />
               </ActionGrid>
               {d.shorts.compact.length > 0 && (

@@ -87,7 +87,7 @@ function Row({ r, d, onSet }: { r: RoleRow; d: ModelsData; onSet: (r: RoleRow, s
   const known = models.some((m) => m.id === model);
   const spec = (p: ProviderKey, m: string) => `${p}:${m}`;
   return (
-    <div className="grid items-center gap-x-3 gap-y-1.5 border-b px-4 py-2.5 last:border-0 md:grid-cols-[minmax(180px,1fr)_160px_minmax(220px,1.4fr)_88px]">
+    <div className="grid items-center gap-x-3 gap-y-1.5 border-b px-4 py-2.5 last:border-0 @3xl:grid-cols-[minmax(180px,1fr)_160px_minmax(220px,1.4fr)_88px]">
       <div className="min-w-0">
         <div className="text-[13px] font-medium">{r.label}</div>
         <div className="text-[11.5px] text-muted-foreground">{r.edits ? "reads and writes files" : "reads, answers in text"}{r.custom ? "" : " · built-in default"}</div>

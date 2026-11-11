@@ -21,7 +21,7 @@ export function FileEditor() {
   const groups = [...new Set(files.map(group))];
   return (
     <Card>
-      <CardHeader><CardTitle>Prompts, styles and voice</CardTitle><CardSub className="hidden sm:inline">{sel}</CardSub><span className="flex-1" />
+      <CardHeader><CardTitle>Prompts, styles and voice</CardTitle><CardSub className="hidden @xl:inline">{sel}</CardSub><span className="flex-1" />
         {dirty && <span className="text-xs text-warning">unsaved</span>}
         <Button size="sm" variant="default" disabled={!dirty} onClick={save}>Save</Button></CardHeader>
       <CardBody>

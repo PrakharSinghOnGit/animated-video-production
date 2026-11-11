@@ -39,7 +39,7 @@ export function EnvEditor() {
         {env.entries.map((e) => {
           const val = e.key in edits ? edits[e.key] : e.secret ? "" : e.value ?? "";
           return (
-            <div key={e.key} className="grid gap-x-3 gap-y-1 border-b px-3.5 py-2 md:grid-cols-[minmax(200px,260px)_1fr_auto] md:items-center">
+            <div key={e.key} className="grid gap-x-3 gap-y-1 border-b px-3.5 py-2 @3xl:grid-cols-[minmax(200px,260px)_1fr_auto] @3xl:items-center">
               <div className="min-w-0"><div className="truncate font-mono text-xs" title={e.help}>{e.key}</div>{e.help && <div className="line-clamp-1 text-[11px] text-muted-foreground">{e.help.split("\n").find((l) => l.trim() && !/^-+$/.test(l.trim()))}</div>}</div>
               <div className="flex gap-1.5">
                 <Input type={e.secret && !shown[e.key] ? "password" : "text"} value={val} autoComplete="off" spellCheck={false}
@@ -50,12 +50,12 @@ export function EnvEditor() {
             </div>
           );
         })}
-        <div className="grid gap-2 px-3.5 py-3 md:grid-cols-[minmax(200px,260px)_1fr_auto]">
+        <div className="grid gap-2 px-3.5 py-3 @3xl:grid-cols-[minmax(200px,260px)_1fr_auto]">
           <Input value={nk} onChange={(e) => setNk(e.target.value.toUpperCase())} placeholder="NEW_KEY" className="font-mono" aria-label="New key" spellCheck={false} />
           <Input value={nv} onChange={(e) => setNv(e.target.value)} placeholder="value" className="font-mono" aria-label="New value" autoComplete="off" spellCheck={false} onKeyDown={(e) => e.key === "Enter" && add()} />
           <Button onClick={add}><Plus />Add key</Button>
           {env.suggested.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 md:col-span-3"><span className="text-xs text-muted-foreground">Documented in .env.example:</span>
+            <div className="flex flex-wrap items-center gap-1.5 @3xl:col-span-3"><span className="text-xs text-muted-foreground">Documented in .env.example:</span>
               {env.suggested.map((k) => <button key={k} onClick={() => setNk(k)} className="rounded border px-1.5 py-0.5 font-mono text-[11px] hover:bg-accent">{k}</button>)}</div>
           )}
         </div>

@@ -10,7 +10,7 @@ import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { costOf, lastRun, type BlockStatus } from "@/lib/flow";
 import { blockStatus, type BlockSpec, type LoopDef } from "@/lib/pipeline";
-import { useMedia, useStored } from "@/lib/storage";
+import { useStored } from "@/lib/storage";
 import { ago, cn, dur, money } from "@/lib/utils";
 
 export type { LoopDef };
@@ -95,7 +95,9 @@ export function Flow({ blocks, loops = [] }: { blocks: BlockDef[]; loops?: LoopD
   const [pos, setPos] = useState<Record<string, { top: number; h: number }>>({});
   const [height, setHeight] = useState(0);
   const loopSlots = loops.length;
-  const narrow = useMedia("(max-width: 639px)");
+  const [width, setWidth] = useState(0);
+  // the gutter follows the flow's own width (the column between the side panels), not the window's
+  const narrow = width > 0 && width < 560;
   const slot = narrow ? 9 : 16;
   const G = (narrow ? 22 : 34) + loopSlots * slot;
 
@@ -107,6 +109,7 @@ export function Flow({ blocks, loops = [] }: { blocks: BlockDef[]; loops?: LoopD
       el.querySelectorAll<HTMLElement>(":scope > div > [data-block]").forEach((n) => { next[n.dataset.block!] = { top: (n.parentElement as HTMLElement).offsetTop, h: n.offsetHeight }; });
       setPos((p) => (JSON.stringify(p) === JSON.stringify(next) ? p : next));
       setHeight(el.offsetHeight);
+      setWidth(el.offsetWidth);
     };
     measure();
     const ro = new ResizeObserver(measure);

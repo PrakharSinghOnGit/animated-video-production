@@ -105,7 +105,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
           {playing
             ? <Button size="sm" onClick={pause}><Pause />Pause</Button>
             : <Button size="sm" variant="default" onClick={() => setPlaying(true)}><Play />{at > 0 ? "Resume" : "Listen"}</Button>}
-          <Button size="sm" variant="ghost" onClick={stop} disabled={!playing && at === 0} aria-label="Stop and go back to the start"><Square /></Button>
+          <Button size="sm" variant="ghost" onClick={stop} disabled={!playing && at === 0} aria-label="Stop and go back to the start"><Square className="size-3 fill-current" /></Button>
           <NativeSelect className="w-auto max-w-56 text-xs" aria-label="Voice" value={voice?.name ?? ""} onChange={(e) => { setVoiceName(e.target.value); store.set("wg.reader.voice", e.target.value); }}>
             {voices.map((v) => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
           </NativeSelect>
@@ -116,7 +116,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
         <span className="text-[11px] text-subtle-foreground">browser voice, not the real voiceover · click a paragraph to start there{mins}</span>
       </div>
       <AudioFile parts={parts} rate={rate} />
-      <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1 text-[14px] leading-relaxed">
+      <div className="grid max-h-[70vh] gap-5 overflow-y-auto pr-1 text-[14.5px] leading-[1.7]">
         {parts.map((p, pi) => (
           <section key={pi} className="grid gap-2">
             {p.title && <h4 className="m-0 text-xs font-semibold uppercase tracking-wide text-muted-foreground" title="Part number for Write script → Only revise parts"><span className="mr-1.5 font-mono text-subtle-foreground">{pi + 1}</span>{p.title}</h4>}
@@ -124,7 +124,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
               const key = `${pi}.${ri}`, on = key === activeKey;
               return (
                 <p key={key} ref={on ? activeRef : undefined} onClick={() => can && from(key)}
-                  className={cn("m-0 rounded px-2 py-1 transition-colors", can && "cursor-pointer hover:bg-accent", on && "bg-brand/10 ring-1 ring-brand/30")}>
+                  className={cn("m-0 max-w-[72ch] rounded-md px-2.5 py-1.5 transition-colors", can && "cursor-pointer hover:bg-accent", on && "bg-brand/10 ring-1 ring-brand/30")}>
                   {para.text}
                 </p>
               );

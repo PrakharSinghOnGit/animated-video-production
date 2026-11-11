@@ -36,7 +36,7 @@ export function MachinePage() {
         <h1 className="m-0 text-[20px] font-semibold leading-tight tracking-[-0.02em]">Machine</h1>
         <p className="m-0 mt-1 text-muted-foreground">{s.machine.cpu} · {s.machine.cores} cores · {s.machine.memGB} GB · {s.machine.host}. Sampled every 2 s while this page is open or a job runs (last {Math.round((H.length * 2) / 60)} min).</p>
       </div>
-      <div className="grid gap-3.5 md:grid-cols-2">
+      <div className="grid gap-3.5 @3xl:grid-cols-2">
         <Big title="CPU" value={`${n.cpu.toFixed(0)}%`} h={H} pick={(x) => x.cpu} max={100} color="var(--chart-1)" unit="%" />
         <Big title="GPU" value={`${n.gpu ?? "—"}%`} h={H} pick={(x) => x.gpu} max={100} color="var(--chart-2)" unit="%" />
         <Big title="Memory" value={`${n.memUsedGB} / ${n.memTotalGB} GB${n.swapUsedGB ? ` · swap ${n.swapUsedGB} GB` : ""}`} h={H} pick={(x) => x.memUsedGB} max={n.memTotalGB} color="var(--chart-3)" unit=" GB" />

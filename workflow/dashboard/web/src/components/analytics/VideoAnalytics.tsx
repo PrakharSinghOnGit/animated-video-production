@@ -7,7 +7,7 @@ import { TRAFFIC, fmtTime, int, num, pct, type AnalyticsData, type Flag, type Le
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig, useFade, ENTER } from "@/components/ui/chart";
 import { DataTable, Td } from "@/components/DataTable";
 import { Lessons } from "./Lessons";
 import { LinkControl } from "./LinkControl";
@@ -50,6 +50,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
   const acts = v?.ws ? data.acts[v.ws] ?? [] : [];
 
   const series = useMemo(() => (v?.retention ?? []).map((p) => ({ s: Math.round(p.r * (v?.durationS ?? 0)), watch: +(p.watch * 100).toFixed(1), rel: p.rel !== undefined ? +p.rel.toFixed(3) : undefined })), [v]);
+  const watchFade = useFade("var(--color-watch)"), relFade = useFade("var(--color-rel)");
   if (!v || !d) return <div className="p-6 text-muted-foreground">This video is not in the snapshot. <Button variant="ghost" onClick={() => go({ yt: null })}>Back</Button></div>;
   const m = d.metrics;
   const actAt = (s: number) => acts.find((a) => s >= a.startMs / 1000 && s < a.endMs / 1000);
@@ -91,7 +92,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
 
       {!v.ws && !v.short && <Card><CardBody><span>Link this upload to its workspace to see act boundaries, the words at each drop, and to let the reviewer read its script and plan.</span><LinkControl data={data} fixedYt={v.ytId} onDone={reload} /></CardBody></Card>}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 @2xl:grid-cols-3 @5xl:grid-cols-6">
         <Tile label="CTR" value={pct(m.ctr)} base={b && b.n >= 3 ? pct(b.ctr) : undefined} better={b && b.n >= 3 ? cmp(m.ctr, b.ctr) : null} />
         <Tile label="Impressions" value={int(m.impressions)} />
         <Tile label="Avg viewed" value={pct(m.avgPct, 0)} base={b && b.n >= 3 ? pct(b.avgPct, 0) : undefined} better={b && b.n >= 3 ? cmp(m.avgPct, b.avgPct) : null} />
@@ -112,7 +113,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
                 <XAxis dataKey="s" type="number" domain={[0, v.durationS]} tickFormatter={fmtTime} tickLine={false} axisLine={false} minTickGap={28} />
                 <YAxis domain={[0, Math.ceil(yMax / 10) * 10]} tickFormatter={(x) => `${x}%`} tickLine={false} axisLine={false} width={48} />
                 <Tooltip content={<Tip />} cursor={{ stroke: "var(--border)" }} />
-                <Area dataKey="watch" type="monotone" stroke="var(--color-watch)" strokeWidth={2} fill="var(--color-watch)" fillOpacity={0.12} isAnimationActive={false} />
+                {watchFade[0]}<Area dataKey="watch" type="monotone" stroke="var(--color-watch)" strokeWidth={2} fill={watchFade[1]} fillOpacity={1} {...ENTER} />
                 {d.dips.map((p, i) => { const pt = series.reduce((a, q) => (Math.abs(q.s - p.s) < Math.abs(a.s - p.s) ? q : a), series[0]); return <ReferenceDot key={i} x={pt.s} y={pt.watch} r={5} fill="var(--destructive)" stroke="var(--card)" strokeWidth={2} />; })}
               </AreaChart>
             </ChartContainer>
@@ -127,7 +128,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
                   <YAxis domain={[0, 1]} ticks={[0, 0.5, 1]} tickLine={false} axisLine={false} width={48} />
                   <ReferenceLine y={0.5} stroke="var(--muted-foreground)" strokeDasharray="3 3" />
                   <Tooltip content={<Tip />} cursor={{ stroke: "var(--border)" }} />
-                  <Area dataKey="rel" type="monotone" stroke="var(--color-rel)" strokeWidth={2} fill="var(--color-rel)" fillOpacity={0.1} isAnimationActive={false} />
+                  {relFade[0]}<Area dataKey="rel" type="monotone" stroke="var(--color-rel)" strokeWidth={2} fill={relFade[1]} fillOpacity={1} {...ENTER} />
                 </AreaChart>
               </ChartContainer>
             </>
@@ -135,7 +136,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
         </CardBody>
       </Card>
 
-      <div className="grid gap-3.5 lg:grid-cols-2">
+      <div className="grid gap-3.5 @4xl:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Diagnosis</CardTitle><CardSub>Computed from the numbers; the reviewer explains the causes</CardSub></CardHeader>
           <CardBody>{d.flags.length ? <ul className="m-0 grid list-none gap-2.5 p-0 text-[13px]">{d.flags.map((f, i) => <FlagRow key={i} f={f} />)}</ul> : <p className="m-0 text-muted-foreground">Nothing stands out against the baselines.</p>}</CardBody>
@@ -149,7 +150,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
                   <Tooltip cursor={{ fill: "var(--muted)", opacity: 0.4 }} formatter={(x) => [Number(x).toLocaleString(), "views"]} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }} />
-                  <Bar dataKey="views" fill="var(--color-views)" radius={[0, 4, 4, 0]} barSize={14} isAnimationActive={false} label={{ position: "right", fontSize: 11, fill: "var(--muted-foreground)", formatter: (x: unknown) => int(Number(x)) }} />
+                  <Bar dataKey="views" fill="var(--color-views)" radius={[0, 4, 4, 0]} barSize={14} {...ENTER} label={{ position: "right", fontSize: 11, fill: "var(--muted-foreground)", formatter: (x: unknown) => int(Number(x)) }} />
                 </BarChart>
               </ChartContainer>
             ) : <p className="m-0 text-muted-foreground">No traffic data yet.</p>}

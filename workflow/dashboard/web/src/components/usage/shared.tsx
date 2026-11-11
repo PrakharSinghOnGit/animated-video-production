@@ -2,7 +2,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Countdown } from "@/components/LimitsMeter";
 import { useNow } from "@/hooks/useNow";
 import { Progress } from "@/components/ui/progress";
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig, ENTER } from "@/components/ui/chart";
 import { ago, money, tok } from "@/lib/utils";
 import type { LimitBar, ProviderId, URow } from "@/lib/types";
 
@@ -49,7 +49,7 @@ export function DailyChart({ series, rowsOf, height = 220 }: { series: { key: st
         <YAxis tickFormatter={(v) => tok(v)} tickLine={false} axisLine={false} width={48} />
         <ChartTooltip cursor={false} content={<ChartTooltipContent valueFormatter={(v) => tok(v)} />} />
         {series.length > 1 && <ChartLegend content={<ChartLegendContent />} />}
-        {series.map((_, i) => <Bar key={i} dataKey={`s${i}`} stackId="t" fill={`var(--color-s${i})`} isAnimationActive={false} />)}
+        {series.map((_, i) => <Bar key={i} dataKey={`s${i}`} stackId="t" fill={`var(--color-s${i})`} radius={i === series.length - 1 ? [3, 3, 0, 0] : 0} {...ENTER} />)}
       </BarChart>
     </ChartContainer>
   );

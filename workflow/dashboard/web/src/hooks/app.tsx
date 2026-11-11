@@ -1,11 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { Details, Job, Limits, Schema, StudioState, SystemInfo, UsageReport, WsSummary } from "@/lib/types";
 import { useRoute, type Route } from "./useRoute";
 import { usePoll } from "./usePoll";
 import { useStored } from "@/lib/storage";
+import { toast as sonner } from "sonner";
 
-interface Toast { id: number; msg: string }
 interface App {
   route: Route; go: (p: Partial<Route>) => void;
   ws: string | null;
@@ -25,7 +25,7 @@ interface App {
   system: SystemInfo | null;
   limits: Limits | null;
   usage: UsageReport | null; loadUsage: (force?: boolean) => Promise<void>;
-  toasts: Toast[]; toast: (m: string) => void;
+  toast: (m: string) => void;
   run: (key: string, act?: string, opts?: Record<string, unknown>) => Promise<void>;
   stop: (jobId?: string) => Promise<void>;
   file: (rel: string) => string;
@@ -51,17 +51,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [limits, setLimits] = useState<Limits | null>(null);
   const [usage, setUsage] = useState<UsageReport | null>(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [logTab, setLogTab] = useState<string | null>(null);
   const [logRequest, setLogRequest] = useState(0);
   const [mode, setMode] = useStored<Mode>("ws.mode", "list");
-  const seq = useRef(0);
-
-  const toast = useCallback((msg: string) => {
-    const id = ++seq.current;
-    setToasts((t) => [...t.slice(-2), { id, msg }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
-  }, []);
+  /** a short message at the bottom (Sonner): errors from the server stay a little longer */
+  const toast = useCallback((msg: string) => { sonner(msg, { duration: /error|fail|not |busy|refus|missing|bad /i.test(msg) ? 7000 : 4500 }); }, []);
 
   const [renames, setRenames] = useState<Record<string, string>>({});
   const reloadList = useCallback(async () => {
@@ -133,6 +127,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const file = useCallback((rel: string) => api.fileUrl(ws ?? "", rel), [ws]);
 
-  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, runningJobs, canRun, jobFor, activity, runningAnywhere, system, limits, usage, loadUsage, toasts, toast, run, stop, file, logTab, showLog, logRequest, mode, setMode };
+  const value: App = { route, go, ws, list, studio, reloadList, schema, d, refresh, busy, runningJobs, canRun, jobFor, activity, runningAnywhere, system, limits, usage, loadUsage, toast, run, stop, file, logTab, showLog, logRequest, mode, setMode };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

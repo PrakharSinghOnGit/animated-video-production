@@ -81,3 +81,20 @@ export function ChartLegendContent({ payload, className }: { payload?: { dataKey
     </div>
   );
 }
+
+/** A vertical fade for an Area: the colour at the line, nothing at the axis. Returns the <defs> to put inside the chart and its fill. */
+export function useFade(color: string, top = 0.32): [React.ReactElement, string] {
+  const id = `fade-${React.useId().replace(/[^\w-]/g, "")}`;
+  const defs = (
+    <defs>
+      <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={color} stopOpacity={top} />
+        <stop offset="100%" stopColor={color} stopOpacity={0} />
+      </linearGradient>
+    </defs>
+  );
+  return [defs, `url(#${id})`];
+}
+
+/** One entrance animation for charts whose data does not poll (it replays only when the data changes). */
+export const ENTER = { isAnimationActive: true, animationDuration: 700, animationEasing: "ease-out" } as const;

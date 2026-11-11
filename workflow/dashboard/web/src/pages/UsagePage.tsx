@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, RefreshCw } from "lucide-react";
+import { Activity, BarChart3, Clock, DollarSign, RefreshCw } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
 import type { ProviderId, ProviderReport, URow, UsageReport } from "@/lib/types";
@@ -71,17 +71,17 @@ function AllView({ providers, pipe, price, priced, onPick }: { providers: Provid
   const codex = providers.find((p) => p.id === "codex");
   return (
     <>
-      <div className="grid grid-cols-2 gap-3.5 max-sm:gap-2.5 xl:grid-cols-4">
-        <StatCard label="Tokens, last 30 days" value={tok(total)} hint="input + cache write + output, all providers" />
-        <StatCard label="Active providers" value={`${stats.filter((s) => fresh(s.M) > 0 || s.runs.length).length} of ${providers.length}`} hint="with activity in 30 days" />
-        <StatCard label="Pipeline cost (reported)" value={money(pipeCost)} hint={`${pipe.length} model steps across ${new Set(pipe.map((r) => r.ws)).size} videos`} />
-        <StatCard label="Pipeline time" value={dur(pipe.reduce((a, r) => a + (r.ms ?? 0), 0))} hint="wall time of all model steps" />
+      <div className="grid grid-cols-2 gap-3.5 max-sm:gap-2.5 @6xl:grid-cols-4">
+        <StatCard icon={<BarChart3 />} label="Tokens, last 30 days" value={tok(total)} hint="input + cache write + output, all providers" />
+        <StatCard icon={<Activity />} tone="info" label="Active providers" value={`${stats.filter((s) => fresh(s.M) > 0 || s.runs.length).length} of ${providers.length}`} hint="with activity in 30 days" />
+        <StatCard icon={<DollarSign />} tone="success" label="Pipeline cost (reported)" value={pipeCost} format={{ style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }} hint={`${pipe.length} model steps across ${new Set(pipe.map((r) => r.ws)).size} videos`} />
+        <StatCard icon={<Clock />} tone="info" label="Pipeline time" value={dur(pipe.reduce((a, r) => a + (r.ms ?? 0), 0))} hint="wall time of all model steps" />
       </div>
       <Card>
         <CardHeader><CardTitle>Tokens per day by provider</CardTitle><CardSub>input + cache write + output, last 30 days</CardSub></CardHeader>
         <CardBody><DailyChart series={providers.map((p) => ({ key: p.id, label: PROVIDER_META[p.id].label, color: PROVIDER_META[p.id].color }))} rowsOf={(k) => providers.find((p) => p.id === k)?.rows ?? []} /></CardBody>
       </Card>
-      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3.5 @2xl:grid-cols-2 @5xl:grid-cols-3">
         {stats.map(({ p, M, W, runs }) => (
           <button key={p.id} type="button" onClick={() => onPick(p.id)} className="group rounded-[10px] border bg-card p-4 text-left shadow-sm transition-colors hover:border-border-strong focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40">
             <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ function AllView({ providers, pipe, price, priced, onPick }: { providers: Provid
           </button>
         ))}
       </div>
-      <div className="grid items-start gap-3.5 lg:grid-cols-2">
+      <div className="grid items-start gap-3.5 @4xl:grid-cols-2">
         <Card><CardHeader><CardTitle>Plan limits</CardTitle><CardSub>Claude (status line) and Codex (session logs)</CardSub></CardHeader>
           <CardBody className="gap-4">
             <div><div className="mb-2 text-[12px] font-medium">Claude</div>{claudeLimits ? <LimitsMeter /> : null}</div>
@@ -160,11 +160,11 @@ function ProviderView({ p, pipe, price, prices, setPrices }: { p: ProviderReport
         )}
       </div>
       {p.note && <p className="m-0 -mt-2 max-w-3xl text-[12px] text-subtle-foreground">{p.note}</p>}
-      <div className="grid grid-cols-2 gap-3.5 max-sm:gap-2.5 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3.5 max-sm:gap-2.5 @6xl:grid-cols-4">
         {kpi("Today", T)}{kpi("Last 7 days", W)}{kpi("Last 30 days", M)}
         <StatCard label="Pipeline runs" value={String(pipe.length)} hint={<>{dur(pipe.reduce((a, r) => a + (r.ms ?? 0), 0))} · {money(pipe.reduce((a, r) => a + (r.costUsd ?? 0), 0))} reported</>} />
       </div>
-      <div className={cn("grid items-start gap-3.5", hasLimits && "lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]")}>
+      <div className={cn("grid items-start gap-3.5", hasLimits && "@4xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]")}>
         <Card>
           <CardHeader><CardTitle>Tokens per day</CardTitle><CardSub>input + cache write + output, by model</CardSub></CardHeader>
           <CardBody><DailyChart series={models.map((m, i) => ({ key: m, label: m, color: MODEL_COLORS[i % MODEL_COLORS.length] }))} rowsOf={(m) => rows.filter((r) => r.model === m)} /></CardBody>
@@ -174,7 +174,7 @@ function ProviderView({ p, pipe, price, prices, setPrices }: { p: ProviderReport
             <CardBody>{p.id === "claude" ? <LimitsMeter /> : <LimitBars limits={p.limits ?? []} at={p.limitsAt} />}</CardBody></Card>
         )}
       </div>
-      <div className={cn("grid items-start gap-3.5", kinds.length > 0 && "lg:grid-cols-2")}>
+      <div className={cn("grid items-start gap-3.5", kinds.length > 0 && "@4xl:grid-cols-2")}>
         <Card><CardHeader><CardTitle>By model, 30 days</CardTitle></CardHeader>
           <DataTable head={[{ label: "Model" }, { label: "Input", right: true }, { label: "Cache write", right: true }, { label: "Cache read", right: true }, { label: "Output", right: true }, { label: p.id === "opencode" ? "Sessions" : "Calls", right: true }, { label: "Cost", right: true }]}>
             {byModel.map(([k, x]) => <tr key={k}><Td className="font-mono">{k}</Td><Td right>{tok(x.in)}</Td><Td right>{tok(x.cw)}</Td><Td right>{tok(x.cr)}</Td><Td right>{tok(x.out)}</Td><Td right>{x.n}</Td><Td right>{costLabel(p.costKind, x, priced)}</Td></tr>)}
@@ -208,7 +208,7 @@ function PipelineTable({ rows, showProvider }: { rows: Pipe[]; showProvider?: bo
   for (const r of rows) { const x = (bySteps[stepKey(r.step)] ??= { n: 0, ms: 0, cost: 0 }); x.n++; x.ms += r.ms ?? 0; x.cost += r.costUsd ?? 0; }
   if (!rows.length) return null;
   return (
-    <div className="grid items-start gap-3.5 2xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="grid items-start gap-3.5 @7xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <Card><CardHeader><CardTitle>Pipeline by step</CardTitle></CardHeader>
         <DataTable head={[{ label: "Step" }, { label: "Runs", right: true }, { label: "Time", right: true }, { label: "Cost", right: true }]}>
           {Object.entries(bySteps).sort((a, b) => b[1].cost - a[1].cost || b[1].ms - a[1].ms).map(([k, x]) => <tr key={k}><Td>{k}</Td><Td right>{x.n}</Td><Td right className="whitespace-nowrap">{dur(x.ms)}</Td><Td right>{x.cost ? money(x.cost) : "free"}</Td></tr>)}

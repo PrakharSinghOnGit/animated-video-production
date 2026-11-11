@@ -74,7 +74,7 @@ export function PublishedOverview({ p }: { p: Published }) {
       {only ? null : !data ? <div className="text-muted-foreground">Loading numbers…</div>
         : !v ? <Card><CardBody className="text-[13px]">This upload ({p.ytId}) isn't in the analytics snapshot yet. {data.auth.state === "ok" ? "Click Refresh to pull it." : "Connect YouTube on the Analytics page first."}</CardBody></Card>
         : <VideoAnalytics embedded data={data} yt={v.ytId} onLessons={(s: LessonStore) => setData((x) => (x ? { ...x, lessons: s } : x))} onReview={() => run("review")} reload={() => void load()} />}
-      <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-3.5 @4xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card>
           <CardHeader><Film className="size-4 text-muted-foreground" /><CardTitle>Shorts</CardTitle><CardSub>Link each short to its upload to see its numbers here</CardSub></CardHeader>
           {p.shorts.length ? (

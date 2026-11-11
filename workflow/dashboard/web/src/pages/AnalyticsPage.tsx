@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
-import { Brain, FlaskConical, GraduationCap, PlugZap, RefreshCw, Unlink } from "lucide-react";
+import { Brain, Clock, Eye, FlaskConical, GraduationCap, Link2, MousePointerClick, PlugZap, RefreshCw, Timer, Unlink, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/fields";
 import { PageHeader, Segmented, StatCard } from "@/components/ui/layout";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig, useFade, ENTER } from "@/components/ui/chart";
 import { DataTable, Td } from "@/components/DataTable";
 import { JobLog } from "@/components/analytics/JobLog";
 import { Lessons } from "@/components/analytics/Lessons";
@@ -121,12 +121,13 @@ function Channel({ data, onLessons, reload, open }: { data: AnalyticsData; onLes
   const sum = (k: "views" | "minutes" | "subsNet") => last28.reduce((a, d) => a + d[k], 0);
   const chart = useMemo(() => snap.daily.map((d) => ({ day: d.day, views: d.views })), [snap]);
   const cfg: ChartConfig = { views: { label: "Views", color: "var(--chart-2)" } };
+  const viewsFade = useFade("var(--color-views)");
   const videos = snap.videos.filter((v) => showShorts || !v.short);
   const linked = data.workspaces.filter((w) => w.ytId);
   const review = data.reviews[0];
   const problems = Object.values(dx.videos).flatMap((v) => v.flags.filter((f) => f.kind === "problem").map((f) => ({ ...f, v })));
   const byArea = Object.entries(problems.reduce<Record<string, number>>((a, f) => ({ ...a, [f.area]: (a[f.area] ?? 0) + 1 }), {})).sort((p, q) => q[1] - p[1]);
-  const kpi = (label: string, value: string, sub?: string) => <StatCard label={label} value={value} hint={sub} />;
+  const kpi = (label: string, value: React.ReactNode, sub?: string, icon?: React.ReactNode, tone?: "brand" | "success" | "info") => <StatCard icon={icon} tone={tone} label={label} value={value} hint={sub} />;
   const unlink = async (ws: string) => {
     if (!window.confirm(`Unlink ${ws} from its YouTube video?`)) return;
     try { await api.analyticsLink(ws, null); reload(); } catch (e) { toast((e as Error).message); }
@@ -134,13 +135,13 @@ function Channel({ data, onLessons, reload, open }: { data: AnalyticsData; onLes
 
   return (
     <>
-      <div className="wg-stagger grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {kpi("Subscribers", int(snap.channel.subs), `${sum("subsNet") >= 0 ? "+" : ""}${sum("subsNet")} in 28 days`)}
-        {kpi("Views, 28 days", int(sum("views")))}
-        {kpi("Watch hours, 28 days", int(sum("minutes") / 60))}
-        {kpi("Median CTR", pct(b.ctr), b.n < 3 ? `${b.n} long video(s): too few for a baseline` : `over ${b.n} long videos`)}
-        {kpi("Median avg viewed", pct(b.avgPct, 0))}
-        {kpi("Linked to workspaces", `${linked.length}/${data.workspaces.length}`)}
+      <div className="wg-stagger grid grid-cols-2 gap-3 @2xl:grid-cols-3 @5xl:grid-cols-6">
+        {kpi("Subscribers", snap.channel.subs ?? "—", `${sum("subsNet") >= 0 ? "+" : ""}${sum("subsNet")} in 28 days`, <Users />, "brand")}
+        {kpi("Views, 28 days", sum("views"), undefined, <Eye />, "info")}
+        {kpi("Watch hours, 28 days", Math.round(sum("minutes") / 60), undefined, <Clock />, "info")}
+        {kpi("Median CTR", pct(b.ctr), b.n < 3 ? `${b.n} long video(s): too few for a baseline` : `over ${b.n} long videos`, <MousePointerClick />, "success")}
+        {kpi("Median avg viewed", pct(b.avgPct, 0), undefined, <Timer />, "success")}
+        {kpi("Linked to workspaces", `${linked.length}/${data.workspaces.length}`, undefined, <Link2 />)}
       </div>
 
       <Card>
@@ -152,7 +153,8 @@ function Channel({ data, onLessons, reload, open }: { data: AnalyticsData; onLes
               <XAxis dataKey="day" tickFormatter={(d) => d.slice(5)} tickLine={false} axisLine={false} minTickGap={32} />
               <YAxis tickLine={false} axisLine={false} width={44} tickFormatter={(x) => int(x)} />
               <Tooltip cursor={{ stroke: "var(--border)" }} formatter={(x) => [Number(x).toLocaleString(), "views"]} labelFormatter={(d) => new Date(String(d)).toDateString()} contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 12 }} />
-              <Area dataKey="views" type="monotone" stroke="var(--color-views)" strokeWidth={2} fill="var(--color-views)" fillOpacity={0.12} isAnimationActive={false} />
+              {viewsFade[0]}
+              <Area dataKey="views" type="monotone" stroke="var(--color-views)" strokeWidth={2} fill={viewsFade[1]} fillOpacity={1} {...ENTER} />
             </AreaChart>
           </ChartContainer>
         </CardBody>
@@ -187,7 +189,7 @@ function Channel({ data, onLessons, reload, open }: { data: AnalyticsData; onLes
         </DataTable>
       </Card>
 
-      <div className="grid gap-3.5 lg:grid-cols-2">
+      <div className="grid gap-3.5 @4xl:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Where the channel is weakest</CardTitle><CardSub>Problems found across all videos, by area</CardSub></CardHeader>
           <CardBody>

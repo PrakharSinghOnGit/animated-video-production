@@ -1,4 +1,4 @@
-import { ArrowRight, Clapperboard } from "lucide-react";
+import { ArrowRight, Clapperboard, Clock, DollarSign, Gauge } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import { STEPS, stepStates, videoStatus } from "@/lib/steps";
 import { dur, money } from "@/lib/utils";
@@ -16,18 +16,18 @@ export function OverviewPage() {
   return (
     <div className="mx-auto grid max-w-[1400px] gap-6 px-6 pb-12 pt-6 max-sm:px-4">
       <PageHeader title="Overview" sub="Every video and where it stands. Open one to pick up at its next step." />
-      <div className="wg-stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Videos" value={list.length} hint={running.length ? `${running.length} working now` : "none running"} />
-        <StatCard label="Recorded time" value={dur(totalMs)} hint="across all runs" />
-        <StatCard label="Model cost" value={money(totalCost)} hint="pipeline runs" />
-        <StatCard label="5-hour limit" value={fiveH != null ? `${Math.round(fiveH)}%` : "—"} hint={fiveH != null ? "used" : "no reading yet"} />
+      <div className="wg-stagger grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+        <StatCard icon={<Clapperboard />} label="Videos" value={list.length} hint={running.length ? `${running.length} working now` : "none running"} />
+        <StatCard icon={<Clock />} tone="info" label="Recorded time" value={dur(totalMs)} hint="across all runs" />
+        <StatCard icon={<DollarSign />} tone="success" label="Model cost" value={totalCost} format={{ style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }} hint="pipeline runs" />
+        <StatCard icon={<Gauge />} tone={fiveH != null && fiveH >= 80 ? "destructive" : "warning"} label="5-hour limit" value={fiveH != null ? Math.round(fiveH) : "—"} suffix="%" hint={fiveH != null ? "used" : "no reading yet"} />
       </div>
 
       {list.length === 0 ? (
         <EmptyState icon={<Clapperboard />} title="No videos yet">Use the + next to Videos in the left panel to start one.</EmptyState>
       ) : (
         <div className="overflow-hidden rounded-[10px] border bg-card shadow-sm">
-          <div className="hidden grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_minmax(150px,0.8fr)_90px_80px_28px] gap-4 border-b px-5 py-2.5 text-[11px] font-medium text-muted-foreground lg:grid">
+          <div className="hidden grid-cols-[minmax(200px,1.6fr)_minmax(140px,1fr)_minmax(120px,0.8fr)_84px_76px_16px] gap-3 border-b px-5 py-2.5 text-[11px] font-medium text-muted-foreground @3xl:grid">
             <span>Video</span><span>Progress</span><span>Next</span><span className="text-right">Time</span><span className="text-right">Cost</span><span />
           </div>
           <div className="wg-stagger">
@@ -37,12 +37,12 @@ export function OverviewPage() {
               const keys = [...STEPS.map((s) => s.key as string), "publish", "shorts"], doneN = keys.filter((k) => w.statuses[k] === "done").length;
               return (
                 <button key={w.id} onClick={() => go({ view: "ws", ws: w.id, sec: cur ? "video" : null, step: cur?.key ?? null, act: null, short: null })}
-                  className="group grid w-full grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2.5 border-b px-5 py-3.5 text-left max-sm:px-4 outline-none transition-colors last:border-b-0 hover:bg-accent/50 focus-visible:bg-accent/60 lg:grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_minmax(150px,0.8fr)_90px_80px_28px] lg:items-center">
-                  <span className="col-span-3 min-w-0 lg:col-span-1">
+                  className="group grid w-full grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2.5 border-b px-5 py-3.5 text-left max-sm:px-4 outline-none transition-colors last:border-b-0 hover:bg-accent/50 focus-visible:bg-accent/60 @3xl:grid-cols-[minmax(200px,1.6fr)_minmax(140px,1fr)_minmax(120px,0.8fr)_84px_76px_16px] @3xl:items-center @3xl:gap-x-3">
+                  <span className="col-span-3 min-w-0 @3xl:col-span-1">
                     <span className="block truncate text-[13.5px] font-medium">{w.title ?? "No plan yet"}</span>
                     <span className="block truncate font-mono text-[11px] text-subtle-foreground">{w.id}</span>
                   </span>
-                  <span className="col-span-3 grid gap-1.5 lg:col-span-1">
+                  <span className="col-span-3 grid gap-1.5 @3xl:col-span-1">
                     <Progress9 statuses={w.statuses} className="h-1.5" />
                     <span className="text-[11px] text-subtle-foreground">{doneN} of {keys.length} steps done</span>
                   </span>
@@ -51,9 +51,9 @@ export function OverviewPage() {
                       : cur ? <><span className="size-1.5 shrink-0 rounded-full bg-brand" /><span className="truncate">{cur.label}</span></>
                       : <Badge tone={videoStatus(w.statuses) === "done" ? "success" : "neutral"}>Video done</Badge>}
                   </span>
-                  <span className="text-xs tabular-nums text-muted-foreground lg:text-right">{dur(w.totals.ms)}</span>
-                  <span className="text-xs tabular-nums lg:text-right">{money(w.totals.costUsd)}</span>
-                  <ArrowRight className="hidden size-4 text-subtle-foreground opacity-0 transition-[opacity,transform] group-hover:translate-x-0.5 group-hover:opacity-100 lg:block" />
+                  <span className="text-xs tabular-nums text-muted-foreground @3xl:text-right">{dur(w.totals.ms)}</span>
+                  <span className="text-xs tabular-nums @3xl:text-right">{money(w.totals.costUsd)}</span>
+                  <ArrowRight className="hidden size-4 text-subtle-foreground opacity-0 transition-[opacity,transform] group-hover:translate-x-0.5 group-hover:opacity-100 @3xl:block" />
                 </button>
               );
             })}

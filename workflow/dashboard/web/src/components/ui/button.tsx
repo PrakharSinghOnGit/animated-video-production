@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         /** the one primary action on a surface */
-        default: "bg-brand text-brand-foreground shadow-sm hover:bg-brand/90",
+        default: "bg-brand text-brand-foreground shadow-sm hover:bg-brand/90 disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:opacity-100 disabled:ring-1 disabled:ring-inset disabled:ring-border",
         secondary: "border border-border-strong bg-raised text-foreground shadow-sm hover:bg-accent hover:border-input",
         outline: "border border-border-strong bg-transparent hover:bg-accent",
         ghost: "text-muted-foreground hover:bg-accent hover:text-foreground",

@@ -32,11 +32,11 @@ export function ModelsForm() {
         <Button size="sm" variant="default" disabled={!changed.length} onClick={save}>Save</Button></CardHeader>
       <CardBody className="gap-0 p-0">
         {FIELDS.map((f) => (
-          <div key={f.key} className="grid gap-x-3 gap-y-1 border-b px-3.5 py-2 last:border-0 md:grid-cols-[minmax(220px,300px)_1fr] md:items-center">
+          <div key={f.key} className="grid gap-x-3 gap-y-1 border-b px-3.5 py-2 last:border-0 @3xl:grid-cols-[minmax(220px,300px)_1fr] @3xl:items-center">
             <div><div className="text-[13px]">{f.label}</div><div className="font-mono text-[11px] text-muted-foreground">{f.key} · {f.used} · default {f.def}</div></div>
             {f.choices
-              ? <NativeSelect className="md:w-60" value={vals[f.key] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}><option value="">(default: {f.def})</option>{f.choices.map((c) => <option key={c}>{c}</option>)}</NativeSelect>
-              : <Input className="font-mono md:w-60" value={vals[f.key] ?? ""} placeholder={f.def} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))} />}
+              ? <NativeSelect className="@3xl:w-60" value={vals[f.key] ?? ""} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))}><option value="">(default: {f.def})</option>{f.choices.map((c) => <option key={c}>{c}</option>)}</NativeSelect>
+              : <Input className="font-mono @3xl:w-60" value={vals[f.key] ?? ""} placeholder={f.def} onChange={(e) => setVals((v) => ({ ...v, [f.key]: e.target.value }))} />}
           </div>
         ))}
       </CardBody>

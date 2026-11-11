@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import NumberFlow, { type Format } from "@number-flow/react";
 import { InfoTip } from "./tooltip";
 
 /** Page title row: title (+ status), one line of context, actions on the right. Long explanations go in `info`. */
@@ -37,16 +38,32 @@ export function Section({ title, info, meta, actions, children, className }: { t
   );
 }
 
-/** A number with its label; `hint` is a quieter third line. */
-export function Stat({ label, value, hint, className, align = "left" }: { label: React.ReactNode; value: React.ReactNode; hint?: React.ReactNode; className?: string; align?: "left" | "right" }) {
+/** A value that is a plain number rolls to its new value (NumberFlow) instead of swapping; text is shown as is. */
+export function Value({ value, format, suffix }: { value: React.ReactNode; format?: Format; suffix?: string }) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return <>{value}</>;
+  return <NumberFlow value={value} format={format} suffix={suffix} willChange />;
+}
+
+/** A number with its label; `hint` is a quieter third line. A numeric `value` animates (see Value). */
+export function Stat({ label, value, hint, className, align = "left", format, suffix, icon, tone }: {
+  label: React.ReactNode; value: React.ReactNode; hint?: React.ReactNode; className?: string; align?: "left" | "right";
+  format?: Format; suffix?: string;
+  /** a small glyph in the theme's colour beside the label */
+  icon?: React.ReactNode; tone?: "brand" | "success" | "info" | "warning" | "destructive";
+}) {
   return (
     <div className={cn("min-w-0", align === "right" && "text-right", className)}>
-      <div className="truncate text-[11px] font-medium text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-[18px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{value}</div>
+      <div className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        {icon && <span className={cn("flex size-4 shrink-0 items-center justify-center [&_svg]:size-3.5", TONE_TEXT[tone ?? "brand"])}>{icon}</span>}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className="mt-1 text-[20px] font-semibold leading-tight tracking-[-0.02em] tabular-nums"><Value value={value} format={format} suffix={suffix} /></div>
       {hint && <div className="mt-0.5 truncate text-[11.5px] text-subtle-foreground">{hint}</div>}
     </div>
   );
 }
+
+const TONE_TEXT = { brand: "text-brand", success: "text-success", info: "text-info", warning: "text-warning", destructive: "text-destructive" } as const;
 
 /** A KPI tile: Stat on a card. */
 export function StatCard({ className, ...p }: React.ComponentProps<typeof Stat>) {

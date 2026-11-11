@@ -68,7 +68,7 @@ export function IdeasPage() {
       {!data.hasKey && <Card><CardBody className="text-[13px] text-warning">Add <code>YOUTUBE_API_KEY</code> to <code>.env</code> to check ideas (the same read-only key as Comments).</CardBody></Card>}
 
       <FindIdeas onRun={discover} disabled={!data.hasKey || busy} />
-      <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid items-start gap-3.5 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <AddIdea onAdded={(store, idea, check) => { setStore(store); if (check) void research(idea); }} canCheck={data.hasKey && !busy} />
         <div className="grid gap-3.5">
         <Card>
@@ -168,7 +168,7 @@ function IdeaCard({ idea, busy, canCheck, onStore, onResearch, onStart, openWs }
         {v && <div className="rounded-lg border bg-muted/30 px-3 py-2"><span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sharpest angle</span><p className="m-0 mt-0.5">{v.angle}</p></div>}
 
         {v && v.packages.length > 0 && (
-          <div className="grid gap-2 md:grid-cols-3">
+          <div className="grid gap-2 @3xl:grid-cols-3">
             {v.packages.map((p, k) => (
               <div key={k} className="grid content-start gap-1 rounded-lg border px-3 py-2">
                 <span className="flex items-center justify-between gap-2 text-[11px] font-medium text-muted-foreground">Package {"ABC"[k]}{p.lint && <Badge tone={lintTone(p.lint.score)} title="yt-package title check (length, mobile cut, repeats, vague words, a number)">title {p.lint.score}/100</Badge>}</span>
@@ -184,7 +184,7 @@ function IdeaCard({ idea, busy, canCheck, onStore, onResearch, onStart, openWs }
         {v && (
           <Fold title={<span className="text-[12.5px] font-medium">Details: audience test, demand, overlap, risks, {r!.competitors.length} competing videos</span>} className="rounded-lg border px-3">
             <div className="grid gap-4 pb-3">
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 @4xl:grid-cols-2">
                 <div>
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Audience test</div>
                   <ul className="m-0 grid list-none gap-1.5 p-0">{v.fit.tests.map((t, k) => (
@@ -196,7 +196,7 @@ function IdeaCard({ idea, busy, canCheck, onStore, onResearch, onStart, openWs }
                   {v.overlap.length > 0 && <div><div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Overlap with your channel</div><ul className="m-0 grid list-disc gap-1 pl-5 marker:text-subtle-foreground">{v.overlap.map((o, k) => <li key={k}><b className="font-medium">{o.video}</b>: {o.note}</li>)}</ul></div>}
                 </div>
               </div>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 @4xl:grid-cols-2">
                 {v.risks.length > 0 && <div><div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Risks</div><ul className="m-0 grid list-disc gap-1 pl-5 marker:text-subtle-foreground">{v.risks.map((x, k) => <li key={k}>{x}</li>)}</ul></div>}
                 {v.sources.length > 0 && <div><div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Claims to source</div><ul className="m-0 grid list-disc gap-1 pl-5 marker:text-subtle-foreground">{v.sources.map((x, k) => <li key={k}>{x}</li>)}</ul></div>}
               </div>

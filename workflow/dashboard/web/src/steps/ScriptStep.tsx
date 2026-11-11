@@ -8,7 +8,6 @@ import { StatusPill } from "@/components/Status";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { TextEditor, useDraft } from "@/components/TextEditor";
 import { Prose } from "@/components/FileLine";
-import { Cols } from "@/components/Layout";
 import { ScriptReader } from "@/components/ScriptReader";
 import { ResearchPanel } from "@/components/ResearchPanel";
 
@@ -28,12 +27,12 @@ export function ScriptStep() {
     research: <ResearchPanel />,
     write: (
       <div className="grid gap-3">
-        <Cols>
+        <div className="grid items-start gap-3.5 @6xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <Card><CardHeader><CardTitle>Script</CardTitle><CardSub>clean: only what will be said{s.file ? ` · saved ${ago(s.file.mtime)}` : ""}</CardSub></CardHeader>
             <CardBody>{scriptText.trim() ? <ScriptReader raw={scriptText} words={s.words} /> : <span className="text-xs text-muted-foreground">Appears after Write script.</span>}</CardBody></Card>
           <Card><CardHeader><CardTitle>Writer's notes</CardTitle><CardSub>hooks and scores, numbers to verify, questions</CardSub></CardHeader>
             <CardBody>{s.notes ? <Prose>{s.notes}</Prose> : <span className="text-xs text-muted-foreground">Appears after Write script.</span>}</CardBody></Card>
-        </Cols>
+        </div>
         <BlockFold title="Edit the full script (with tone notes for the voice and on-screen hints for the director)" defaultOpen={!scriptText.trim()}>
           <TextEditor title="Script file" sub={`02-scripting/script_raw.md${s.file ? ` · saved ${ago(s.file.mtime)}` : ""}`} rows={24} draft={script} spellCheck
             onSave={async (t) => { await api.saveScript(ws, t); setScriptText(t); await refresh(); }}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Loader2, PenLine, ScanEye, Square } from "lucide-react";
 import { useApp } from "@/hooks/app";
+import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { useRunWith } from "@/hooks/useRunSaved";
 import { api } from "@/lib/api";
 import { useStored } from "@/lib/storage";
@@ -22,6 +23,7 @@ export function ActsHeader() {
   const [sel, setSel] = useStored<string[]>(`acts.sel.${ws}`, []);
   const [models, setModels] = useStored<Record<string, string>>(`acts.models.${ws}`, {});
   const strip = useRef<HTMLUListElement>(null);
+  const fade = useEdgeFade(strip, d?.acts.length ?? 0);
   // keep the open act in view in the strip
   useEffect(() => { strip.current?.querySelector(`[data-act="${route.act ?? ""}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [route.act]);
   const choices = useMemo(() => schema["acts.act"]?.opts.find((o) => o.key === "model")?.choices ?? ["default"], [schema]);
@@ -77,7 +79,7 @@ export function ActsHeader() {
           <Button size="sm" variant="ghost" onClick={() => setSel([])}>None</Button>
         </span>
       </div>
-      <ul ref={strip} className="m-0 flex list-none snap-x gap-2 overflow-x-auto p-2.5" role="listbox" aria-label="Acts" aria-orientation="horizontal">
+      <ul ref={strip} style={fade} className="m-0 flex list-none snap-x scroll-px-2.5 gap-2 overflow-x-auto p-2.5" role="listbox" aria-label="Acts" aria-orientation="horizontal">
         {acts.map((x) => {
           const rv = x.reviews[0], on = picked.includes(x.id), job = runningJobs.find((j) => j.locks?.includes(`act:${x.id}`)), isOpen = x.id === open?.id;
           return (

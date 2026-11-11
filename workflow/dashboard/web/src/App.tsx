@@ -19,17 +19,17 @@ import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { CommentsPage } from "@/pages/CommentsPage";
 import { IdeasPage } from "@/pages/IdeasPage";
 import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
+import { useTheme } from "@/hooks/useTheme";
 
 const LEFT = { min: 200, max: 380, def: 260, rail: 52 };
 const RIGHT = { min: 280, max: 520, def: 340, rail: 40 };
 
+/** Sonner, dressed in the dashboard's tokens; above the output bar. */
 function Toasts() {
-  const { toasts } = useApp();
-  return (
-    <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-16 z-[90] flex flex-col items-center gap-2 px-4">
-      {toasts.map((t) => <div key={t.id} className="max-w-md rounded-lg border border-border-strong bg-popover px-3.5 py-2.5 text-[13px] shadow-md animate-in fade-in-0 slide-in-from-bottom-2 duration-200">{t.msg}</div>)}
-    </div>
-  );
+  const [theme] = useTheme();
+  return <Toaster theme={theme} position="bottom-center" offset={56} mobileOffset={64} visibleToasts={3} gap={8}
+    toastOptions={{ className: "!rounded-lg !border !border-border-strong !bg-popover !text-popover-foreground !text-[13px] !shadow-md !font-sans" }} />;
 }
 
 /** Thin drag bar between panels (pointer drag or arrow keys). */
@@ -40,7 +40,8 @@ function Handle({ props, label }: { props: ReturnType<typeof useResize>; label: 
 function Shell() {
   const { route } = useApp();
   const phone = useMedia("(max-width: 767px)");
-  const wide = useMedia("(min-width: 1024px)");
+  // the stats panel docks only when the content column keeps ~680 px beside both panels; below that it is a sheet
+  const wide = useMedia("(min-width: 1280px)");
   const [lw, setLw] = useStored<number>("left.w", LEFT.def);
   const [lc, setLc] = useStored<boolean>("leftCollapsed", false);
   const [rw, setRw] = useStored<number>("right.w", RIGHT.def);
@@ -67,7 +68,7 @@ function Shell() {
             {lc ? <div className="w-px shrink-0 bg-border" /> : <Handle props={lres} label="Resize left panel" />}
           </>
         )}
-        <main className="flex min-w-0 flex-1 flex-col" id="main">
+        <main className="@container flex min-w-0 flex-1 flex-col" id="main">
           {page}
           <Terminal phone={phone} />
         </main>

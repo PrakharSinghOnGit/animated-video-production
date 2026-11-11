@@ -16,7 +16,7 @@ const unverifiedSrc = (s: string) => /unverified|narration/i.test(s);
 function Field({ k, v }: { k: string; v?: string | number | null }) {
   if (v === undefined || v === null || v === "") return null;
   return (
-    <div className="grid gap-0.5 sm:grid-cols-[120px_1fr] sm:gap-3">
+    <div className="grid gap-0.5 @xl:grid-cols-[120px_1fr] @xl:gap-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-subtle-foreground">{k}</div>
       <div className="text-[13px] leading-relaxed">{v}</div>
     </div>
@@ -34,7 +34,7 @@ function Beat({ b, i }: { b: PlanBeat; i: number }) {
       <div className="text-[13px] italic leading-relaxed">“{b.vo}”</div>
       <Field k="On screen" v={b.visual} />
       {b.hits.length > 0 && (
-        <div className="grid gap-0.5 sm:grid-cols-[120px_1fr] sm:gap-3">
+        <div className="grid gap-0.5 @xl:grid-cols-[120px_1fr] @xl:gap-3">
           <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-subtle-foreground">Hits</div>
           <ul className="m-0 grid list-none gap-1 p-0 text-[13px]">
             {b.hits.map((h, k) => <li key={k}><span className="font-mono text-brand">“{h.word}”{h.occurrence > 1 ? ` #${h.occurrence}` : ""}</span> <span className="text-muted-foreground">→ {h.what}</span></li>)}
@@ -42,7 +42,7 @@ function Beat({ b, i }: { b: PlanBeat; i: number }) {
         </div>
       )}
       {b.data.length > 0 && (
-        <div className="grid gap-0.5 sm:grid-cols-[120px_1fr] sm:gap-3">
+        <div className="grid gap-0.5 @xl:grid-cols-[120px_1fr] @xl:gap-3">
           <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-subtle-foreground">Figures</div>
           <ul className="m-0 grid list-none gap-1 p-0 text-[13px]">
             {b.data.map((x, k) => (

@@ -30,7 +30,7 @@ export function TextEditor({ title, sub, rows, placeholder, hint, draft, onSave,
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        {sub && <CardSub className="hidden font-mono text-[11px] sm:inline">{sub}</CardSub>}
+        {sub && <CardSub className="hidden font-mono text-[11px] @xl:inline">{sub}</CardSub>}
         <span className="flex-1" />
         {draft.dirty && <span className="flex items-center gap-1.5 text-xs text-warning"><span className="size-1.5 rounded-full bg-warning" />Unsaved</span>}
         {extra}

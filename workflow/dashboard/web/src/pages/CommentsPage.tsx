@@ -103,11 +103,11 @@ function Inbox({ store, all, filter, setFilter, video, setVideo, locked, onChang
 
   return (
     <>
-      <div className="wg-stagger grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Waiting on you" value={todo.length} hint={todo.filter((c) => c.triage?.reply === false).length ? `${todo.filter((c) => c.triage?.reply === false).length} need no reply` : undefined} />
-        <StatCard label="Worth a heart" value={hearts} hint="among those waiting" />
-        <StatCard label="Handled" value={all.length - todo.length} />
-        <StatCard label="All comments" value={all.length} hint={`on ${vids.length} video${vids.length === 1 ? "" : "s"}`} />
+      <div className="wg-stagger grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+        <StatCard icon={<MessageSquare />} label="Waiting on you" value={todo.length} hint={todo.filter((c) => c.triage?.reply === false).length ? `${todo.filter((c) => c.triage?.reply === false).length} need no reply` : undefined} />
+        <StatCard icon={<Heart />} tone="destructive" label="Worth a heart" value={hearts} hint="among those waiting" />
+        <StatCard icon={<Check />} tone="success" label="Handled" value={all.length - todo.length} />
+        <StatCard icon={<MessageSquare />} tone="info" label="All comments" value={all.length} hint={`on ${vids.length} video${vids.length === 1 ? "" : "s"}`} />
       </div>
 
       {feedback.length > 0 && (
