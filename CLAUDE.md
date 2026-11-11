@@ -13,6 +13,9 @@ in a house style: **Briefing** (`packages/kit/src/spy/`) or **Drafting** (`packa
   `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export; 3 packages = 3 bets, free phone-size check on every thumbnail render),
   `08-shorts` (2–3 vertical shorts per video, style `styles/shorts/`), `09-analytics` (YouTube numbers → diagnosis → reviewer; lessons in `learning/`, appended to prompts by `loadPrompt` only after approval), `deliver/` (downloads + Final Cut Pro project), `dashboard/`, `lib/models.ts` (which model/provider runs each agent step;
   defaults in `workflow/models.json`). `bun run compact` frees a finished workspace.
+- `workflow/dashboard/`: `server.ts` is the router, the parts are in `server/` (core, jobs, actions/ = the allowlist per step, status, details, routes/);
+  the web app's colours come from `web/src/theme/channel.ts`. Code map and the shared-packages plan: `docs/ARCHITECTURE.md`.
+- Checks: `bun run test` (fast, no rendering, no paid steps) and `bun run typecheck`; CI runs both on push.
 - `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files
   `05-video/src/scenes/A01_*.tsx`, review frames, renders, `timings.json`; shorts in `shorts/S1/` (same layout, `--video <VIDEO>/shorts/S1`).
 
