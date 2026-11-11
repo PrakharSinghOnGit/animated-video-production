@@ -64,7 +64,15 @@ Times and costs are measured on VID02 (10:25 of narration, Apple-silicon Mac). E
    and `script_notes.md` (5 hooks scored with `workflow/02-scripting/yt-script/hookscore.py`, numbers to verify,
    changes, questions, runtime). Brief: `workflow/prompts/WRITER.md`; channel voice:
    `workflow/02-scripting/voice.md` (keep it current with the user).
-4. **G1a:** the user reviews. Small changes: they edit `script_raw.md` directly. Bigger ones: they write
+   It also writes `claims.json` (every factual claim with its source), and the program then builds
+   **`factcheck.md`**: a claim counts as sourced only with a ✓ research page or a link from the user's draft; the rest
+   is listed as "needs your fact-check", with any figure the writer said but did not declare. The command prints that
+   list and free retention statistics (stretches without "you", a figure or a question). Show both to the user.
+   Free: `bun run research --video <ID> --claims` searches a source for each unchecked claim;
+   `bun run write --video <ID> --check` rebuilds the sheet after hand edits.
+   Optional 💲 (small, Sonnet): `bun run retention --video <ID>` → `retention.md`, a second reviewer that marks likely
+   drop-off points and suggests cuts; it changes nothing. `--to-feedback` copies its suggestions into `feedback.md`.
+4. **G1a:** the user reviews (script, `factcheck.md`, `retention.md`). Small changes: they edit `script_raw.md` directly. Bigger ones: they write
    `02-scripting/feedback.md` and you run `bun run write` again (it revises when feedback is newer).
 5. `bun run write --video <ID> --approve` (only when the user says so) → `approved.json` (hash of the script).
    `tts:format` refuses an unapproved or since-edited script (`--unapproved` overrides; don't use it unasked).
