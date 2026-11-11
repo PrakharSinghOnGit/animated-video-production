@@ -7,6 +7,7 @@
  *   POST   /api/ideas {title, note?, keywords?}
  *   PUT    /api/ideas/:id {title?, note?, keywords?, status?}
  *   DELETE /api/ideas/:id
+ *   POST   /api/ideas/discover {focus?, check?}  job: bun run ideas --discover: recent niche outliers → ranked ideas (+ check top N)
  *   POST   /api/ideas/lint {title, thumb?}   yt-package/title.py on one title + thumbnail text (free, instant)
  *   POST   /api/ideas/:id/research           job: bun run ideas --id <id>
  *   POST   /api/ideas/:id/start {name?}      job: new video VID<n>_<name> (no name: VID<n>_Untitled, named from the idea
@@ -42,6 +43,15 @@ export async function ideasRoute(req: Request, url: URL, ctx: AnalyticsCtx): Pro
     s.ideas.push(idea);
     writeIdeas(s);
     return ctx.json({ ok: true, idea, store: s });
+  }
+
+  if (p === "/api/ideas/discover" && req.method === "POST") {
+    if (!hasCommentKey()) return ctx.bad("YOUTUBE_API_KEY is missing in .env");
+    if (ctx.runningJob(AN_WS)) return ctx.bad("another analytics or idea job is running", 409);
+    const b = await ctx.body(req);
+    const focus = clip(b.focus, 300), check = Math.max(0, Math.min(5, Number(b.check) || 0));
+    const cmd = B("ideas", "--discover", ...(focus ? ["--focus", focus] : []), ...(check ? ["--check", String(check)] : []));
+    return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas", `Find ideas${focus ? ` (${focus.slice(0, 40)})` : ""}${check ? `, check top ${check}` : ""}`, [cmd])) });
   }
 
   if (p === "/api/ideas/lint" && req.method === "POST") {

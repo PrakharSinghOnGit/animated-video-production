@@ -12,6 +12,11 @@ This step captures the raw creative inspiration, competitor analysis, reference 
 > "Start project" creates the video (untitled, then named from the idea) and writes the idea, angle and packages
 > into its `02-scripting/idea.md`. `yt-package/` and `yt-viral/` are vendored from youtube-agent-skill (MIT, see
 > their CREDITS.md); `skills.ts` wraps them for TypeScript.
+> **Find ideas** (Ideas page, or `bun run ideas --discover [--focus "housing"] [--check 3]`): 5 searches across the
+> audience's topics (last 6 months, most viewed), every video scored against its channel's median, then the editor
+> (`workflow/prompts/IDEA_DISCOVER.md`) turns the outliers into 6 ranked ideas (score 0–10 from audience fit and
+> proven demand, each citing the outliers behind it, with one linted package). `--check N` runs the full check on
+> the top N. About $0.2 + $0.15 per check; ~650 + 270 quota units per check. Runs: `workspace/_ideas/discover/`.
 > Keep `AUDIENCE.md` current: it is the brief every idea is judged against.
 >
 > The rest of this file is the manual workflow inside a project (references, notes).

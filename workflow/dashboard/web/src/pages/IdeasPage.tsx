@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Check, CircleHelp, Lightbulb, Pencil, Plus, Rocket, Search, SpellCheck, Trash2, Undo2, X } from "lucide-react";
+import { ArrowRight, Check, CircleHelp, Compass, Lightbulb, Pencil, Plus, Rocket, Search, SpellCheck, Trash2, Undo2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
@@ -7,7 +7,7 @@ import { ago, cn, money } from "@/lib/utils";
 import { fmtTime, int, type Idea, type IdeasData, type TitleLint } from "@/lib/analytics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/fields";
 import { EmptyState, PageHeader, Segmented } from "@/components/ui/layout";
 import { Fold } from "@/components/ui/collapsible";
@@ -35,6 +35,9 @@ export function IdeasPage() {
   useEffect(() => { void load(); }, [load]);
 
   const setStore = (store: IdeasData["store"]) => setData((d) => (d ? { ...d, store } : d));
+  const discover = async (focus: string, check: number) => {
+    try { const r = await api.ideaDiscover(focus, check); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); }
+  };
   const research = async (i: Idea) => {
     try { const r = await api.ideaResearch(i.id); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); }
   };
@@ -49,7 +52,8 @@ export function IdeasPage() {
   };
 
   if (!data) return <div className="p-6 text-muted-foreground">Loading ideas…</div>;
-  const ideas = [...data.store.ideas].reverse();
+  // newest first; ideas found in one Find run share a time and are shown by rank
+  const ideas = [...data.store.ideas].reverse().sort((a, b) => b.createdAt.localeCompare(a.createdAt) || (a.found?.rank ?? 99) - (b.found?.rank ?? 99));
   const shown = ideas.filter((i) => filter === "all" || (filter === "open" ? i.status === "new" || i.status === "researched" : i.status === filter));
   const busy = !!data.running;
 
@@ -63,6 +67,7 @@ export function IdeasPage() {
       {job && <JobLog job={job.id} label={job.label} onEnd={() => void onEnd()} onClose={() => setJob(null)} />}
       {!data.hasKey && <Card><CardBody className="text-[13px] text-warning">Add <code>YOUTUBE_API_KEY</code> to <code>.env</code> to check ideas (the same read-only key as Comments).</CardBody></Card>}
 
+      <FindIdeas onRun={discover} disabled={!data.hasKey || busy} />
       <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <AddIdea onAdded={(store, idea, check) => { setStore(store); if (check) void research(idea); }} canCheck={data.hasKey && !busy} />
         <div className="grid gap-3.5">
@@ -152,10 +157,12 @@ function IdeaCard({ idea, busy, canCheck, onStore, onResearch, onStart, openWs }
             {v && <Badge tone={DEMAND[v.demand.level] ?? "neutral"}>demand {v.demand.level}</Badge>}
             {idea.status === "started" && <Badge tone="info">started</Badge>}
             {dropped && <Badge>dropped</Badge>}
+            {idea.found && <Badge tone={idea.found.score >= 8 ? "success" : idea.found.score >= 6.5 ? "info" : "neutral"} title={`Find ideas rank ${idea.found.rank}: fit ${idea.found.fit}/5, demand ${idea.found.demand}/5`}>found #{idea.found.rank} · {idea.found.score}/10</Badge>}
             {!r && <Badge>not checked</Badge>}
           </div>
         </div>
 
+        {!v && idea.found && <FoundBlock f={idea.found} />}
         {v && <p className="m-0">{v.summary}</p>}
         {r?.error && <p className="m-0 text-warning">{r.error}</p>}
         {v && <div className="rounded-lg border bg-muted/30 px-3 py-2"><span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Sharpest angle</span><p className="m-0 mt-0.5">{v.angle}</p></div>}
@@ -269,5 +276,59 @@ function TitleCheck() {
         <span className="text-[11.5px] text-subtle-foreground">Rules from yt-package: 60 characters (desktop cut), ~40 on a phone feed, at most 2 all-caps words, a number beats an adjective, and the thumbnail mustn't repeat the title. It's a floor, not a judge: only use a number the video sources.</span>
       </CardBody>
     </Card>
+  );
+}
+
+/** Find ideas: what is working in the niche right now (recent outliers, yt-viral), turned into ranked ideas for this
+ *  audience by the editor model. Optionally the full check of the best ones in the same run. */
+function FindIdeas({ onRun, disabled }: { onRun: (focus: string, check: number) => void; disabled: boolean }) {
+  const [focus, setFocus] = useStored("ideas.findFocus", "");
+  const [check, setCheck] = useStored("ideas.findCheck", 3);
+  const cost = 0.2 + check * 0.15, units = 650 + check * 270;
+  return (
+    <Card>
+      <CardHeader><Compass className="size-4 text-muted-foreground" /><CardTitle>Find ideas</CardTitle><CardSub>from videos that beat their channel's normal reach in the last 6 months</CardSub></CardHeader>
+      <CardBody className="text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input aria-label="Focus" placeholder="Focus (optional): housing, taxes, debt, jobs… empty = across your audience's topics" value={focus} onChange={(e) => setFocus(e.target.value)} className="min-w-64 flex-1" />
+          <label className="flex items-center gap-1.5 text-muted-foreground">Then check the top
+            <select aria-label="How many to check" value={check} onChange={(e) => setCheck(Number(e.target.value))} className="h-8 rounded-md border bg-background px-1.5 text-foreground">
+              {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          <Button variant="default" disabled={disabled} onClick={() => onRun(focus.trim(), check)}><Compass />Find ideas</Button>
+        </div>
+        <span className="text-[12px] text-subtle-foreground">5 YouTube searches → each video scored against its channel's median → 6 ideas ranked by fit with your audience and proven demand, each with a linted package. About ${cost.toFixed(2)} and {units} of 10,000 daily quota units.</span>
+      </CardBody>
+    </Card>
+  );
+}
+
+function FoundBlock({ f }: { f: NonNullable<Idea["found"]> }) {
+  return (
+    <div className="grid gap-2">
+      {f.why && <p className="m-0"><span className="text-muted-foreground">Why: </span>{f.why}</p>}
+      {f.risk && <p className="m-0 text-[12.5px]"><span className="text-muted-foreground">Risk: </span>{f.risk}</p>}
+      {f.package && (
+        <div className="grid gap-1 rounded-lg border px-3 py-2">
+          <span className="flex items-center justify-between gap-2 text-[11px] font-medium text-muted-foreground">First package{f.package.lint && <Badge tone={lintTone(f.package.lint.score)}>title {f.package.lint.score}/100</Badge>}</span>
+          <b className="font-semibold">{f.package.title}</b>
+          <span className="text-[12.5px]"><span className="text-muted-foreground">Thumbnail:</span> {f.package.thumbnail}{f.package.thumbText ? <> · <b className="font-medium">"{f.package.thumbText}"</b></> : ""}</span>
+        </div>
+      )}
+      {f.inspiredBy.length > 0 && (
+        <div className="grid gap-0.5 text-[12.5px]">
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Proof of demand</span>
+          {f.inspiredBy.map((c) => (
+            <a key={c.ytId} href={`https://www.youtube.com/watch?v=${c.ytId}`} target="_blank" rel="noreferrer" className="flex min-w-0 gap-2 hover:underline">
+              <span className="shrink-0 font-medium tabular-nums text-success">{c.multiple ?? "?"}×</span>
+              <span className="min-w-0 truncate">{c.title}</span>
+              <span className="shrink-0 text-subtle-foreground">{c.channel} · {int(c.views)}</span>
+            </a>
+          ))}
+        </div>
+      )}
+      <span className="text-[12px] text-subtle-foreground">Click Check for the full test: audience fit, the competition for this exact idea, and 3 linted packages.</span>
+    </div>
   );
 }

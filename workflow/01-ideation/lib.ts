@@ -33,10 +33,16 @@ export interface Research {
   /** hook formulas among the outliers (multiple ≥ 2), most common first */
   formulas?: { formula: string; n: number }[];
 }
+/** An idea found by `bun run ideas --discover`: ranked from recent outliers in the niche. */
+export interface Found {
+  at: string; rank: number; score: number; fit: number; demand: number; why: string; risk: string; focus: string;
+  inspiredBy: { ytId: string; title: string; channel: string; views: number; multiple: number | null }[];
+  package?: { title: string; thumbnail: string; thumbText?: string; lint?: Lint };
+}
 export interface Idea {
   id: string; title: string; note: string; keywords: string;
   status: "new" | "researched" | "started" | "dropped";
-  createdAt: string; ws?: string; research?: Research;
+  createdAt: string; ws?: string; research?: Research; found?: Found;
 }
 export interface IdeaStore { ideas: Idea[] }
 

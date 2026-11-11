@@ -85,6 +85,7 @@ export const api = {
   ideaDelete: (id: string) => call<{ ok: true; store: IdeasData["store"] }>(`/api/ideas/${id}`, { method: "DELETE" }),
   ideaResearch: (id: string) => call<{ job: { id: string; label: string } }>(`/api/ideas/${id}/research`, { method: "POST", body: {} }),
   ideaStart: (id: string, name?: string) => call<{ ws: string; job: { id: string; label: string } }>(`/api/ideas/${id}/start`, { method: "POST", body: { name } }),
+  ideaDiscover: (focus: string, check: number) => call<{ job: { id: string; label: string } }>("/api/ideas/discover", { method: "POST", body: { focus, check } }),
   ideaLint: (title: string, thumb: string) => call<TitleLint>("/api/ideas/lint", { method: "POST", body: { title, thumb } }),
   comments: () => call<CommentsData>("/api/analytics/comments"),
   commentUpdate: (id: string, patch: { status?: YtComment["status"]; draft?: string }) => call<{ ok: true; comment: YtComment }>(`/api/analytics/comments/${id}`, { method: "PUT", body: patch }),

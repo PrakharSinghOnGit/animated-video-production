@@ -81,8 +81,14 @@ export interface IdeaVerdict {
   demand: { level: "high" | "medium" | "low" | "unclear"; evidence: string };
   overlap: { video: string; note: string }[]; angle: string; packages: { title: string; thumbnail: string; thumbText?: string; why: string; lint?: TitleLint }[]; risks: string[]; sources: string[];
 }
+/** found by Find ideas (bun run ideas --discover): ranked from recent outliers in the niche */
+export interface IdeaFound {
+  at: string; rank: number; score: number; fit: number; demand: number; why: string; risk: string; focus: string;
+  inspiredBy: { ytId: string; title: string; channel: string; views: number; multiple: number | null }[];
+  package?: { title: string; thumbnail: string; thumbText?: string; lint?: TitleLint };
+}
 export interface Idea {
-  id: string; title: string; note: string; keywords: string; status: "new" | "researched" | "started" | "dropped"; createdAt: string; ws?: string;
+  id: string; title: string; note: string; keywords: string; status: "new" | "researched" | "started" | "dropped"; createdAt: string; ws?: string; found?: IdeaFound;
   research?: { at: string; queries: string[]; competitors: IdeaCompetitor[]; verdict: IdeaVerdict | null; model: string; costUsd: number; quotaUnits: number; error?: string; formulas?: { formula: string; n: number }[] };
 }
 export interface IdeasData { store: { ideas: Idea[] }; audience: string; hasKey: boolean; model: string; queryModel: string; running: { id: string; step: string; label: string } | null }

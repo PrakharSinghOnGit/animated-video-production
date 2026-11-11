@@ -8,6 +8,8 @@
  *   bun run ideas --id I03 [--agent sonnet]                                    research one idea
  *   bun run ideas --all                                                        research every idea not researched yet
  *   bun run ideas --to-workspace I03 VID07_Name                                write the idea into the project's idea.md
+ *   bun run ideas --discover [--focus "housing, taxes"] [--check 3]            find ideas: recent outliers in the niche → ranked
+ *                                                                              ideas in the bank (+ the full check of the top N)
  *
  * Cost per idea: 2 YouTube searches (100 quota units each, of 10,000 a day) + ~2 units for video/channel stats +
  * ~1 unit per competing channel and ~1 per 50 of their recent uploads (the channel medians, yt-viral/swipe.py);
@@ -21,7 +23,7 @@ import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming } from "../05-video/src/lib/timings";
 import { readSnapshot, workspaces, wsDir, readText } from "../09-analytics/lib";
 import { lintTitle, swipe, type SwipeRow } from "./skills";
-import { AUDIENCE_FILE, IDEAS_DIR, REPO, ideaMarkdown, nextIdeaId, readIdeas, writeIdeas, type Competitor, type Idea, type Research } from "./lib";
+import { AUDIENCE_FILE, IDEAS_DIR, REPO, ideaMarkdown, nextIdeaId, readIdeas, writeIdeas, type Competitor, type Found, type Idea, type Research } from "./lib";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -114,11 +116,11 @@ async function channelUploads(uploadsPlaylist: Map<string, string>): Promise<{ i
   return out;
 }
 
-async function competitors(queries: string[]): Promise<Competitor[]> {
-  const after = new Date(Date.now() - 2 * 365 * 864e5).toISOString();
+async function competitors(queries: string[], o: { days?: number; order?: "relevance" | "viewCount"; perQuery?: number } = {}): Promise<Competitor[]> {
+  const after = new Date(Date.now() - (o.days ?? 730) * 864e5).toISOString();
   const found = new Map<string, { query: string }>();
   for (const q of queries) {
-    const j = await yt(`search?${new URLSearchParams({ part: "snippet", type: "video", q, maxResults: "25", order: "relevance", publishedAfter: after, relevanceLanguage: "en" })}`, 100);
+    const j = await yt(`search?${new URLSearchParams({ part: "snippet", type: "video", q, maxResults: String(o.perQuery ?? 25), order: o.order ?? "relevance", publishedAfter: after, relevanceLanguage: "en" })}`, 100);
     for (const it of j.items ?? []) if (it.id?.videoId && !found.has(it.id.videoId)) found.set(it.id.videoId, { query: q });
   }
   const ids = [...found.keys()];
@@ -225,6 +227,114 @@ Note: ${idea.note || "(none)"}
   writeIdeas(s);
   console.log(ok ? `   ✅ ${v.json.verdict.toUpperCase()} (fit ${v.json.fit?.score}/5, demand ${v.json.demand?.level}): ${v.json.summary}` : `   ⚠️  ${r.error}`);
   console.log(`   $${costUsd.toFixed(3)} · ${units} quota units`);
+}
+
+// ───────────── discover: find ideas from what is working in the niche now ─────────────
+
+async function discover(focus: string, checkTop: number): Promise<void> {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const logs = path.join(IDEAS_DIR, "logs", "discover");
+  let costUsd = 0;
+  units = 0;
+  const bank = readIdeas().ideas;
+  console.log(`🧭 Finding ideas${focus ? ` (focus: ${focus})` : ""}`);
+
+  // 1. search words across the audience's topics (or the creator's focus): a cheap model, from the brief and history
+  const q = await agentJson("ideaQueries", `You pick YouTube searches to find what is working right now for a channel. Read the audience brief and the channel history below. Give 5 short YouTube search queries (2–5 words) a viewer of this channel would type, each on a DIFFERENT topic inside the channel's promise${focus ? `, centred on this focus: ${focus}` : ""}. Not the channel's own past topics word for word. Reply with ONLY {"queries": ["...", ...]}.
+
+# Audience brief
+${readText(AUDIENCE_FILE)}
+
+# Channel history
+${channelContext()}`, path.join(logs, `${stamp}_queries_${specSlug(roleModel("ideaQueries"))}.log`));
+  costUsd += q.costUsd;
+  const queries: string[] = (Array.isArray(q.json?.queries) ? q.json.queries : []).map(String).filter(Boolean).slice(0, 5);
+  if (!queries.length) throw new Error("the query model gave no searches");
+  console.log(`   searching (last 6 months, most viewed): ${queries.map((x) => `"${x}"`).join(", ")}`);
+
+  // 2. recent most-viewed videos for each, scored against their own channel's recent median (yt-viral)
+  const comps = await competitors(queries, { days: 180, order: "viewCount", perQuery: 25 });
+  const real = comps.filter((c) => (c.median ?? 0) >= TINY_MEDIAN && c.multiple !== undefined);
+  let outliers = real.filter((c) => c.multiple! >= 3);
+  const relaxed = outliers.length < 12;
+  if (relaxed) outliers = real.filter((c) => c.multiple! >= 1.5);
+  outliers = outliers.slice(0, 40);
+  console.log(`   ${comps.length} videos, ${outliers.length} outliers (≥${relaxed ? "1.5" : "3"}× their channel's median)`);
+  if (!outliers.length) throw new Error("no outliers found: try a focus");
+  const table = outliers.map((c) => `| ${c.ytId} | ${c.title.replace(/\|/g, "/")} | ${c.channel.replace(/\|/g, "/")} | ${c.publishedAt.slice(0, 10)} | ${isShort(c.durationS) ? "short" : `${Math.round(c.durationS / 60)} min`} | ${c.views.toLocaleString()} | ${c.median!.toLocaleString()} | ${c.multiple} | ${c.formula ?? ""} |`).join("\n");
+
+  // 3. the editor turns the outliers into ranked ideas for this audience
+  const prompt = `${readText(path.join(REPO, "workflow/prompts/IDEA_DISCOVER.md"))}
+
+# Audience file
+${readText(AUDIENCE_FILE)}
+
+# Channel history
+${channelContext()}
+
+# Ideas already in the bank (don't repeat them)
+${bank.map((i) => `- ${i.id} [${i.status}${i.research?.verdict ? `, ${i.research.verdict.verdict}` : ""}]: ${i.title}`).join("\n") || "(none)"}
+
+# Outliers (YouTube search, last 6 months, most viewed: ${queries.map((x) => `"${x}"`).join(", ")})
+Multiple = views ÷ the median views of the channel's recent uploads of the same format. Formula = the title's hook formula.
+| id | title | channel | published | length | views | channel median | multiple | formula |
+|---|---|---|---|---|---|---|---|---|
+${table}
+${focus ? `\n# The creator's focus\n${focus}\n` : ""}`;
+  const v = await agentJson("ideas", prompt, path.join(logs, `${stamp}_ideas_${specSlug(roleModel("ideas", flag("--agent")))}.log`));
+  costUsd += v.costUsd;
+  const found: any[] = Array.isArray(v.json?.ideas) ? v.json.ideas : [];
+  if (!found.length) throw new Error(`the model returned no ideas (logs: ${path.relative(REPO, logs)})`);
+
+  // 4. into the bank, ranked: the editor's fit and demand, demand capped when no real outlier stands behind it
+  const byId = new Map(comps.map((c) => [c.ytId, c]));
+  const at = new Date().toISOString();
+  const rows = found.filter((f) => typeof f?.title === "string" && f.title.trim()).map((f) => {
+    const insp = (Array.isArray(f.inspiredBy) ? f.inspiredBy : []).map(String).map((id: string) => byId.get(id)).filter(Boolean) as Competitor[];
+    const fit = Math.max(1, Math.min(5, Number(f.fit) || 1));
+    const demand = insp.length ? Math.max(1, Math.min(5, Number(f.demand) || 1)) : Math.min(3, Math.max(1, Number(f.demand) || 1));
+    const best = Math.max(1, ...insp.map((c) => c.multiple ?? 1));
+    // 0–10: fit weighs a little more than demand (an off-brand hit doesn't grow this channel), +up to 1 for a big outlier
+    const score = +Math.min(10, (fit * 0.55 + demand * 0.45) * 1.8 + Math.min(1, Math.log10(best) / 2)).toFixed(1);
+    let pkg: Found["package"];
+    if (f.package?.title) {
+      pkg = { title: String(f.package.title), thumbnail: String(f.package.thumbnail ?? ""), thumbText: f.package.thumbText ? String(f.package.thumbText) : undefined };
+      try { const l = lintTitle(pkg.title, pkg.thumbText); pkg.lint = { score: l.score, chars: l.chars, issues: l.issues, good: l.good }; } catch {}
+    }
+    return { f, insp, fit, demand, score, pkg };
+  }).sort((a, b) => b.score - a.score);
+
+  const st = readIdeas();
+  const added: Idea[] = [];
+  rows.forEach((r, k) => {
+    const idea: Idea = {
+      id: nextIdeaId(st), title: r.f.title.trim().slice(0, 200), note: String(r.f.note ?? "").slice(0, 4000), keywords: String(r.f.keywords ?? "").slice(0, 200),
+      status: "new", createdAt: at,
+      found: {
+        at, rank: k + 1, score: r.score, fit: r.fit, demand: r.demand, why: String(r.f.why ?? ""), risk: String(r.f.risk ?? ""), focus,
+        inspiredBy: r.insp.map((c) => ({ ytId: c.ytId, title: c.title, channel: c.channel, views: c.views, multiple: c.multiple ?? null })), package: r.pkg,
+      },
+    };
+    st.ideas.push(idea);
+    added.push(idea);
+  });
+  writeIdeas(st);
+  fs.mkdirSync(path.join(IDEAS_DIR, "discover"), { recursive: true });
+  fs.writeFileSync(path.join(IDEAS_DIR, "discover", `${stamp}.json`), JSON.stringify({ at, focus, queries, outliers, patterns: v.json?.patterns ?? "", ideas: added.map((i) => i.id), costUsd, quotaUnits: units }, null, 1));
+  if (v.json?.patterns) console.log(`   what the outliers share: ${v.json.patterns}`);
+  for (const i of added) console.log(`   ${i.found!.rank}. ${i.id} ${i.found!.score}/10 (fit ${i.found!.fit}, demand ${i.found!.demand}): ${i.title}`);
+  console.log(`   $${costUsd.toFixed(3)} · ${units} quota units`);
+
+  // 5. optionally the full check (audience test, competition for that exact idea, 3 linted packages) of the best ones
+  for (const i of added.slice(0, checkTop)) {
+    try { await research(i); } catch (e) { console.error(`   ❌ ${i.id}: ${(e as Error).message}`); process.exitCode = 1; }
+  }
+}
+
+if (args.includes("--discover")) {
+  try { await discover((flag("--focus") ?? "").trim().slice(0, 300), Math.max(0, Math.min(5, Number(flag("--check") ?? 0) || 0))); }
+  catch (e) { console.error(`❌ ${(e as Error).message}`); process.exit(1); }
+  process.exit(process.exitCode ?? 0);
 }
 
 const s = readIdeas();
