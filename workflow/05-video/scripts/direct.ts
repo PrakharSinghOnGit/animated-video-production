@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { compactTranscript } from "../src/lib/transcript";
-import { checkActs, unverifiedData, actsToStoryboard, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
+import { checkActs, unverifiedData, actsToStoryboard, planVariety, nativeMoves, type ActsPlan, type Caption, type Chapter } from "../src/lib/acts";
 import { runAgentAsync } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
 import { loadPrompt } from "../../learning/lessons";
@@ -94,6 +94,12 @@ function finish(): void {
   console.log(`✅ ${plan.acts.length} acts, avg ${Math.round(plan.acts.reduce((s, a) => s + a.endMs - a.startMs, 0) / plan.acts.length / 1000)} s`);
   for (const a of plan.acts) console.log(`   ${a.id} ${String(Math.round((a.endMs - a.startMs) / 1000)).padStart(3)} s  ${a.bpm} BPM  ${a.title}`);
   console.log(`   storyboard view → ${path.relative(process.cwd(), storyboardFile)}`);
+  if (!short) {
+    // free, advisory: what repeats in the plan (flat energy, one speed, the same move or opening twice)
+    const v = planVariety(plan, nativeMoves(fs.readFileSync(path.resolve(process.cwd(), `workflow/styles/${plan.style ?? style}/STYLE.md`), "utf-8")));
+    console.log(`   variety: intensity ${v.intensityRange.join("–")} · median beat per act ×${v.paceSpread} slowest/fastest · ${v.holds} pauses, ${v.silences} silences`);
+    for (const n of v.notes) console.log(`   note: ${n}`);
+  }
   const unverified = unverifiedData(plan);
   if (unverified.length) {
     console.log(`\n⚠️  ${unverified.length} on-screen figure(s) are sourced only from the narration. Fact-check before publishing:`);

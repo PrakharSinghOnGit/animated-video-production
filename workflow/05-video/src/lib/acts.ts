@@ -45,6 +45,10 @@ export interface Act {
   signature: string;
   camera: string;
   transitionIn: string;
+  /** how the act moves in time (its pacing in a sentence); newer plans only */
+  rhythm?: string;
+  /** the exact last image of the act, which the next act arrives from; newer plans only */
+  endsOn?: string;
   bpm: number;
   intensity: number;
   silence?: { word: string; occurrence?: number; durMs: number }[];
@@ -61,6 +65,21 @@ export interface Chapter {
   title: string;
   pauseStartMs: number;
   startMs: number;
+}
+
+/** Something that travels through the video (a character, an object, a shape): treatment.cast, newer plans only. */
+export interface CastMember {
+  name: string;
+  look: string;
+  acts?: string[];
+  arc?: string;
+}
+
+/** The cast members an act's animator must draw (those listing the act, or listing no acts at all). */
+export function castFor(plan: ActsPlan, actId: string): CastMember[] {
+  const cast = (plan.treatment as any)?.cast;
+  if (!Array.isArray(cast)) return [];
+  return cast.filter((c) => c && typeof c === "object" && c.name && (!Array.isArray(c.acts) || !c.acts.length || c.acts.includes(actId)));
 }
 
 export interface ActsPlan {
@@ -180,4 +199,80 @@ export function actsToStoryboard(plan: ActsPlan) {
       vo: a.beats.map((b) => b.vo).join(" "),
     })),
   };
+}
+
+/** Names of the style's native moves, read from its STYLE.md: the bold list items or the first table column of the
+ *  "Native moves" section. Used to count how often the plan leans on the same named move. */
+export function nativeMoves(styleMd: string): string[] {
+  const sec = styleMd.split(/^## /m).find((s) => /^\d*\.?\s*Native moves/i.test(s)) ?? "";
+  const names = [
+    ...[...sec.matchAll(/^- \*\*(.+?)\*\*/gm)].map((m) => m[1]),
+    ...[...sec.matchAll(/^\| ([^|]+?) \|/gm)].map((m) => m[1]).filter((n) => !/^(move|-+)$/i.test(n.trim())),
+  ];
+  return [...new Set(names.map(moveKey).filter((n) => n.length > 3))];
+}
+const moveKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9& ]+/g, " ").replace(/^\s*(the|a|an)\s+/, "").replace(/\s+/g, " ").trim();
+const lead = (s: string, n: number) => moveKey(s.split(/→|;|\. /)[0] ?? "").split(" ").slice(0, n).join(" ");
+const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2 : 0; };
+
+export interface PlanVariety {
+  acts: { id: string; s: number; intensity: number; bpm: number; beats: number; medianBeatS: number; hitsPerMin: number }[];
+  intensityRange: [number, number];
+  /** longest run of neighbouring acts whose intensity stays within 0.1 */
+  flatRun: number;
+  /** median beat length per act: slowest ÷ fastest act */
+  paceSpread: number;
+  /** native moves named as the signature of more than one act */
+  signatureRepeats: { move: string; acts: string[] }[];
+  /** acts whose camera plan / arrival starts with the same words */
+  cameraOpenRepeats: { phrase: string; acts: string[] }[];
+  arrivalRepeats: { phrase: string; acts: string[] }[];
+  holds: number;
+  silences: number;
+  notes: string[];
+}
+
+/**
+ * How varied a plan is, measured from its own fields (free, no model). Advisory: the notes are printed after the
+ * director runs and are the before/after numbers when the director prompt changes. Nothing here is a rule about
+ * what an act may look like; it only counts what repeats.
+ */
+export function planVariety(plan: ActsPlan, moves: string[] = []): PlanVariety {
+  const acts = plan.acts.map((a) => {
+    const s = (a.endMs - a.startMs) / 1000, lens = a.beats.map((b) => (b.endMs - b.startMs) / 1000);
+    const hits = a.beats.reduce((n, b) => n + (b.hits?.length ?? 0), 0);
+    return { id: a.id, s: Math.round(s), intensity: a.intensity, bpm: a.bpm, beats: a.beats.length, medianBeatS: Math.round(median(lens) * 10) / 10, hitsPerMin: Math.round((hits / s) * 600) / 10 };
+  });
+  const ints = acts.map((a) => a.intensity);
+  let flatRun = 1, run = 1;
+  for (let i = 1; i < ints.length; i++) { run = Math.abs(ints[i] - ints[i - 1]) <= 0.1 + 1e-9 ? run + 1 : 1; flatRun = Math.max(flatRun, run); }
+  const paces = acts.map((a) => a.medianBeatS).filter((x) => x > 0);
+  const paceSpread = paces.length ? Math.round((Math.max(...paces) / Math.min(...paces)) * 100) / 100 : 1;
+  const group = (key: (a: Act) => string) => {
+    const m = new Map<string, string[]>();
+    for (const a of plan.acts) { const k = key(a); if (k) m.set(k, [...(m.get(k) ?? []), a.id]); }
+    return [...m].filter(([, ids]) => ids.length > 1).map(([phrase, ids]) => ({ phrase, acts: ids })).sort((x, y) => y.acts.length - x.acts.length);
+  };
+  const signatureRepeats = moves
+    .map((move) => ({ move, acts: plan.acts.filter((a) => ` ${moveKey(a.signature ?? "")} `.includes(` ${move} `)).map((a) => a.id) }))
+    .filter((r) => r.acts.length > 1).sort((x, y) => y.acts.length - x.acts.length);
+  const cameraOpenRepeats = group((a) => lead(a.camera ?? "", 3)).filter((r) => r.phrase !== "locked");
+  const arrivalRepeats = group((a) => lead(a.transitionIn ?? "", 3));
+  const holds = plan.acts.reduce((n, a) => n + (a.holds?.length ?? 0), 0), silences = plan.acts.reduce((n, a) => n + (a.silence?.length ?? 0), 0);
+
+  const notes: string[] = [];
+  const [lo, hi] = [Math.min(...ints), Math.max(...ints)];
+  if (acts.length >= 4) {
+    if (hi - lo < 0.35) notes.push(`energy is flat: intensity only runs from ${lo} to ${hi} across ${acts.length} acts`);
+    if (flatRun >= 3) notes.push(`${flatRun} acts in a row sit at about the same intensity`);
+    if (paceSpread < 1.5) notes.push(`every act moves at about the same speed: median beat ${Math.min(...paces)}–${Math.max(...paces)} s`);
+  }
+  for (const r of signatureRepeats) notes.push(`"${r.move}" is the signature of ${r.acts.length} acts (${r.acts.join(", ")})`);
+  for (const r of cameraOpenRepeats) notes.push(`${r.acts.length} acts open on the same camera move, "${r.phrase}…" (${r.acts.join(", ")})`);
+  for (const r of arrivalRepeats.filter((x) => x.acts.length > 2)) notes.push(`${r.acts.length} acts arrive the same way, "${r.phrase}…" (${r.acts.join(", ")})`);
+  if (!plan.acts.every((a) => a.endsOn?.trim())) {
+    const missing = plan.acts.filter((a) => !a.endsOn?.trim()).map((a) => a.id);
+    if (missing.length < plan.acts.length) notes.push(`no "endsOn" (the last image the next act arrives from) on ${missing.join(", ")}`);
+  }
+  return { acts, intensityRange: [lo, hi], flatRun, paceSpread, signatureRepeats, cameraOpenRepeats, arrivalRepeats, holds, silences, notes };
 }

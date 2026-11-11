@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { checkActs, findWord, actsToStoryboard, type ActsPlan, type Caption } from "./acts";
+import { checkActs, findWord, actsToStoryboard, planVariety, nativeMoves, castFor, type ActsPlan, type Caption } from "./acts";
 
 // 100 words, one every second: "w0" … "w99", plus a repeated "money" at 10 s and 70 s
 const captions: Caption[] = Array.from({ length: 100 }, (_, i) => ({
@@ -70,4 +70,39 @@ test("each chapter must open an act at its pause, flagged with chapter", () => {
   expect(checkActs(two({}), captions, chapters).join("\n")).toContain('set "chapter"');
   expect(checkActs(two({ chapter: { n: 1, title: "Who owns it" } }), captions, chapters)).toEqual([]);
   expect(checkActs(two({}), captions, [{ ...chapters[0], pauseStartMs: 70_000 }]).join("\n")).toContain("no act starts at its pause");
+});
+
+describe("planVariety", () => {
+  const five = (over: (i: number) => any) => plan([0, 1, 2, 3, 4].map((i) => ({ ...act(`A0${i + 1}`, i * 20_000, (i + 1) * 20_000, [beat(i * 20_000, (i + 1) * 20_000)]), ...over(i) })));
+  const style = "## 8. Native moves\n- **The chase.** x\n- **Stop-time.** y\n\n## 9. Next\n- **Not a move.** z";
+
+  test("reads the native move names of a style, list or table", () => {
+    expect(nativeMoves(style)).toEqual(["chase", "stop time"]);
+    expect(nativeMoves("## 8. Native moves (the vocabulary)\n| Move | What |\n|---|---|\n| gear train | gears |\n| tile | cells |\n")).toEqual(["gear train", "tile"]);
+  });
+
+  test("a flat, repeating plan gets notes", () => {
+    const v = planVariety(five(() => ({ signature: "The chase: money runs", camera: "Wide on the floor → push-in" })), nativeMoves(style));
+    const notes = v.notes.join("\n");
+    expect(notes).toContain("energy is flat");
+    expect(notes).toContain('"chase" is the signature of 5 acts');
+    expect(notes).toContain("open on the same camera move");
+    expect(notes).toContain("same speed");
+  });
+
+  test("a varied plan gets none, and a move name inside another word is not counted", () => {
+    const ints = [0.7, 0.3, 0.55, 0.9, 0.4];
+    const p = five((i) => ({
+      intensity: ints[i], signature: `own move ${i}: the title lands`, camera: `idea ${i} of the camera`, transitionIn: `arrival ${i} from before`, endsOn: "x",
+      beats: i % 2 ? [beat(i * 20_000, (i + 1) * 20_000)] : [0, 1, 2, 3].map((j) => beat(i * 20_000 + j * 5000, i * 20_000 + (j + 1) * 5000)),
+    }));
+    expect(planVariety(p, ["tile", "chase"]).notes).toEqual([]);
+  });
+
+  test("castFor gives an act the cast that lists it", () => {
+    const p = plan([act("A01", 0, 50_000, [beat(0, 50_000)])]);
+    p.treatment = { cast: [{ name: "Saver", look: "hat", acts: ["A01"] }, { name: "Cup", look: "red", acts: ["A02"] }, { name: "Coin", look: "gold" }, "loose text"] };
+    expect(castFor(p, "A01").map((c) => c.name)).toEqual(["Saver", "Coin"]);
+    expect(castFor(plan([]), "A01")).toEqual([]);
+  });
 });
