@@ -13,16 +13,26 @@ export const AUDIENCE_FILE = path.join(REPO, "workflow/01-ideation/AUDIENCE.md")
 export interface Competitor {
   ytId: string; title: string; channel: string; channelId: string; publishedAt: string; durationS: number;
   views: number; channelSubs: number; channelAvgViews: number; ratio: number; thumb?: string; query: string;
+  /** yt-viral: views ÷ the median of the channel's recent uploads of the same format (long or short); absent when
+   *  fewer than 4 such uploads were found (then `ratio`, against the lifetime average, is all there is) */
+  median?: number; multiple?: number; sampleN?: number;
+  /** the title's hook formula (yt-script/hooks.json), a judgement about the words, not why it worked */
+  formula?: string;
 }
+export interface Lint { score: number; chars: number; issues: [string, string][]; good: string[] }
 export interface Verdict {
   verdict: "make" | "rework" | "drop"; summary: string;
   fit: { score: number; tests: { test: string; pass: boolean | null; note: string }[] };
   demand: { level: "high" | "medium" | "low" | "unclear"; evidence: string };
   overlap: { video: string; note: string }[]; angle: string;
-  packages: { title: string; thumbnail: string; why: string }[];
+  packages: { title: string; thumbnail: string; thumbText?: string; why: string; lint?: Lint }[];
   risks: string[]; sources: string[];
 }
-export interface Research { at: string; queries: string[]; competitors: Competitor[]; verdict: Verdict | null; model: string; costUsd: number; quotaUnits: number; error?: string }
+export interface Research {
+  at: string; queries: string[]; competitors: Competitor[]; verdict: Verdict | null; model: string; costUsd: number; quotaUnits: number; error?: string;
+  /** hook formulas among the outliers (multiple ≥ 2), most common first */
+  formulas?: { formula: string; n: number }[];
+}
 export interface Idea {
   id: string; title: string; note: string; keywords: string;
   status: "new" | "researched" | "started" | "dropped";
@@ -52,7 +62,7 @@ ${v ? `
 ${v.angle}
 
 ## Package candidates
-${v.packages.map((p) => `- **${p.title}**: thumbnail: ${p.thumbnail}`).join("\n")}
+${v.packages.map((p) => `- **${p.title}**: thumbnail: ${p.thumbnail}${p.thumbText ? ` (text: "${p.thumbText}")` : ""}${p.lint ? ` · title check ${p.lint.score}/100` : ""}`).join("\n")}
 
 ## Claims to source
 ${v.sources.map((s) => `- ${s}`).join("\n") || "- (none listed)"}

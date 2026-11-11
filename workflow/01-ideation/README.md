@@ -3,10 +3,15 @@
 This step captures the raw creative inspiration, competitor analysis, reference media, and core hypotheses before writing a single word of the script.
 
 > **Idea check (automated):** before a project exists, add ideas in the dashboard (**Ideas**) or with
-> `bun run ideas --add "Title" --note "..."`, then `bun run ideas --id I01`. It searches YouTube for the topic (outlier
-> videos: views ÷ that channel's average), and a model judges the idea against **`AUDIENCE.md`** (who the channel is
-> for + the idea test) and the channel's own numbers, then drafts 3 packages. Results: `workspace/_ideas/ideas.json`.
-> "Start project" creates the video and writes the idea, angle and packages into its `02-scripting/idea.md`.
+> `bun run ideas --add "Title" --note "..."`, then `bun run ideas --id I01`. It searches YouTube for the topic and
+> scores each video against its channel's normal reach (views ÷ the median of the channel's recent uploads of the
+> same format, **`yt-viral/swipe.py`**, which also names each title's hook formula). A model judges the idea against
+> **`AUDIENCE.md`** (who the channel is for + the idea test) and the channel's own numbers, writes ~8 title +
+> thumbnail packages, lints them with **`yt-package/title.py`** and keeps the 3 best (each stored with the linter's
+> score). Results: `workspace/_ideas/ideas.json`. The Ideas page also has a free title checker (same linter).
+> "Start project" creates the video (untitled, then named from the idea) and writes the idea, angle and packages
+> into its `02-scripting/idea.md`. `yt-package/` and `yt-viral/` are vendored from youtube-agent-skill (MIT, see
+> their CREDITS.md); `skills.ts` wraps them for TypeScript.
 > Keep `AUDIENCE.md` current: it is the brief every idea is judged against.
 >
 > The rest of this file is the manual workflow inside a project (references, notes).

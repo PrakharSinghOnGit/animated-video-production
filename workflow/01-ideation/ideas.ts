@@ -1,6 +1,6 @@
 /**
  * Idea check: is an idea worth a video? Searches YouTube for the topic (who already covered it, which videos beat
- * their channel's usual reach), then a model judges the idea against workflow/01-ideation/AUDIENCE.md, the channel's
+ * their channel's usual reach: views ÷ the median of the channel's recent same-format uploads, yt-viral), then a model judges the idea against workflow/01-ideation/AUDIENCE.md, the channel's
  * own uploads and numbers, and drafts three packages (title + thumbnail). Result: workspace/_ideas/ideas.json.
  *
  * Usage:
@@ -9,7 +9,8 @@
  *   bun run ideas --all                                                        research every idea not researched yet
  *   bun run ideas --to-workspace I03 VID07_Name                                write the idea into the project's idea.md
  *
- * Cost per idea: 2 YouTube searches (100 quota units each, of 10,000 a day) + ~2 units for video/channel stats;
+ * Cost per idea: 2 YouTube searches (100 quota units each, of 10,000 a day) + ~2 units for video/channel stats +
+ * ~1 unit per competing channel and ~1 per 50 of their recent uploads (the channel medians, yt-viral/swipe.py);
  * a cheap model picks the search words (role ideaQueries, Haiku), the check runs on role ideas (Sonnet by default).
  * Needs YOUTUBE_API_KEY in .env.
  */
@@ -19,6 +20,7 @@ import { runAgentAsync, runAgyJson, extractJson } from "../05-video/src/lib/agen
 import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming } from "../05-video/src/lib/timings";
 import { readSnapshot, workspaces, wsDir, readText } from "../09-analytics/lib";
+import { lintTitle, swipe, type SwipeRow } from "./skills";
 import { AUDIENCE_FILE, IDEAS_DIR, REPO, ideaMarkdown, nextIdeaId, readIdeas, writeIdeas, type Competitor, type Idea, type Research } from "./lib";
 
 const args = process.argv.slice(2);
@@ -68,7 +70,9 @@ async function agentJson(role: "ideas" | "ideaQueries", prompt: string, logPath:
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   fs.writeFileSync(logPath.replace(/\.log$/, ".prompt.md"), prompt, "utf-8");
   if (isAgy(model)) return { json: (await runAgyJson({ prompt, model: agyModel(model), logPath }).catch(() => ({ json: null }))).json, costUsd: 0, model };
-  const r = await runAgentAsync({ prompt, model, tools: ["Read"], maxTurns: 3, logPath, cwd: REPO });
+  // the check may lint its package candidates with yt-package/title.py (the queries step needs no tools)
+  const tools = role === "ideas" ? ["Read", "Bash(python3 workflow/01-ideation/yt-package/title.py:*)"] : ["Read"];
+  const r = await runAgentAsync({ prompt, model, tools, maxTurns: role === "ideas" ? 12 : 3, logPath, cwd: REPO });
   recordTiming(IDEAS_DIR, { step: `idea ${role} (${model})`, ms: r.durationMs, model, costUsd: r.costUsd, inputTokens: r.inputTokens, outputTokens: r.outputTokens, cacheReadTokens: r.cacheReadTokens });
   let json: any = null;
   try { json = extractJson(r.text); } catch {}
@@ -86,6 +90,30 @@ function channelContext(): string {
   return `## Uploads${snap ? ` (snapshot ${snap.fetchedAt.slice(0, 10)}, ${snap.channel.subs} subscribers)` : ""}\n${ups.join("\n") || "(no analytics snapshot)"}\n\n## Projects (workspaces, published or not)\n${wip.join("\n") || "(none)"}`;
 }
 
+const isShort = (durationS: number) => durationS <= 180;
+/** below this median (views per recent upload) a channel's multiples are noise */
+const TINY_MEDIAN = 100;
+
+/** Recent uploads of each channel (playlistItems, 1 unit per channel; videos, 1 unit per 50) for the medians. */
+async function channelUploads(uploadsPlaylist: Map<string, string>): Promise<{ id: string; channelId: string; title: string; views: number; durationS: number }[]> {
+  const ids: { id: string; channelId: string }[] = [];
+  const chans = [...uploadsPlaylist];
+  for (let i = 0; i < chans.length; i += 8) {
+    await Promise.all(chans.slice(i, i + 8).map(async ([channelId, pl]) => {
+      try {
+        const j = await yt(`playlistItems?part=contentDetails&maxResults=25&playlistId=${pl}`, 1);
+        for (const it of j.items ?? []) if (it.contentDetails?.videoId) ids.push({ id: it.contentDetails.videoId, channelId });
+      } catch {} // a channel with hidden uploads: it falls back to the lifetime average
+    }));
+  }
+  const out: { id: string; channelId: string; title: string; views: number; durationS: number }[] = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    for (const v of (await yt(`videos?part=snippet,statistics,contentDetails&id=${ids.slice(i, i + 50).map((x) => x.id).join(",")}`, 1)).items ?? [])
+      out.push({ id: v.id, channelId: v.snippet.channelId, title: v.snippet.title, views: Number(v.statistics?.viewCount ?? 0), durationS: isoDur(v.contentDetails?.duration) });
+  }
+  return out;
+}
+
 async function competitors(queries: string[]): Promise<Competitor[]> {
   const after = new Date(Date.now() - 2 * 365 * 864e5).toISOString();
   const found = new Map<string, { query: string }>();
@@ -98,8 +126,12 @@ async function competitors(queries: string[]): Promise<Competitor[]> {
   for (let i = 0; i < ids.length; i += 50) vids.push(...((await yt(`videos?part=snippet,statistics,contentDetails&id=${ids.slice(i, i + 50).join(",")}`, 1)).items ?? []));
   const chIds = [...new Set(vids.map((v) => v.snippet.channelId))];
   const chans = new Map<string, any>();
-  for (let i = 0; i < chIds.length; i += 50) for (const c of (await yt(`channels?part=statistics&id=${chIds.slice(i, i + 50).join(",")}`, 1)).items ?? []) chans.set(c.id, c.statistics);
-  return vids.map((v) => {
+  const uploads = new Map<string, string>();
+  for (let i = 0; i < chIds.length; i += 50) for (const c of (await yt(`channels?part=statistics,contentDetails&id=${chIds.slice(i, i + 50).join(",")}`, 1)).items ?? []) {
+    chans.set(c.id, c.statistics);
+    if (c.contentDetails?.relatedPlaylists?.uploads) uploads.set(c.id, c.contentDetails.relatedPlaylists.uploads);
+  }
+  const comps: Competitor[] = vids.map((v) => {
     const c = chans.get(v.snippet.channelId) ?? {};
     const avg = Number(c.videoCount) > 0 ? Number(c.viewCount) / Number(c.videoCount) : 0;
     const views = Number(v.statistics?.viewCount ?? 0);
@@ -108,7 +140,27 @@ async function competitors(queries: string[]): Promise<Competitor[]> {
       durationS: isoDur(v.contentDetails?.duration), views, channelSubs: Number(c.subscriberCount ?? 0), channelAvgViews: Math.round(avg),
       ratio: avg > 0 ? +(views / avg).toFixed(2) : 0, thumb: v.snippet.thumbnails?.medium?.url, query: found.get(v.id)!.query,
     };
-  }).sort((a, b) => b.ratio - a.ratio);
+  });
+
+  // yt-viral: each video against the median of its channel's recent uploads of the same format. A lifetime average
+  // is pulled up by one viral hit and mixes shorts with long videos; a recent same-format median is the channel's
+  // normal reach for this kind of video.
+  try {
+    const rows = new Map<string, SwipeRow>();
+    const key = (channelId: string, durationS: number) => `${channelId}|${isShort(durationS) ? "short" : "long"}`;
+    for (const u of await channelUploads(uploads)) rows.set(u.id, { channel: key(u.channelId, u.durationS), title: u.title, views: u.views, url: u.id, duration: u.durationS });
+    for (const c of comps) rows.set(c.ytId, { channel: key(c.channelId, c.durationS), title: c.title, views: c.views, url: c.ytId, duration: c.durationS });
+    const n = new Map<string, number>();
+    for (const r of rows.values()) n.set(r.channel, (n.get(r.channel) ?? 0) + 1);
+    const hits = new Map(swipe([...rows.values()]).outliers.map((h) => [h.url, h]));
+    for (const c of comps) {
+      const h = hits.get(c.ytId);
+      if (h) Object.assign(c, { median: h.median, multiple: h.multiple, formula: h.formula, sampleN: n.get(key(c.channelId, c.durationS)) });
+    }
+  } catch (e) { console.warn(`   ⚠️  channel medians skipped: ${(e as Error).message}`); }
+  // a channel whose recent videos get a handful of views turns 30 views into "30×": rank those after the rest
+  const tiny = (c: Competitor) => (c.median ?? c.channelAvgViews) < TINY_MEDIAN;
+  return comps.sort((a, b) => Number(tiny(a)) - Number(tiny(b)) || (b.multiple ?? b.ratio) - (a.multiple ?? a.ratio));
 }
 
 async function research(idea: Idea): Promise<void> {
@@ -129,9 +181,13 @@ async function research(idea: Idea): Promise<void> {
   console.log(`   searching: ${queries.map((q) => `"${q}"`).join(", ")}`);
   const comps = await competitors(queries);
   const top = comps.slice(0, 15);
-  console.log(`   ${comps.length} videos found; top outliers: ${top.slice(0, 3).map((c) => `${c.ratio}× "${c.title.slice(0, 40)}"`).join(" · ") || "none"}`);
+  const mult = (c: Competitor) => c.multiple ?? c.ratio;
+  console.log(`   ${comps.length} videos found; top outliers: ${top.slice(0, 3).map((c) => `${mult(c)}× "${c.title.slice(0, 40)}"`).join(" · ") || "none"}`);
+  const fc = new Map<string, number>();
+  for (const c of comps) if (c.formula && c.formula !== "Unclassified" && (c.median ?? 0) >= TINY_MEDIAN && (c.multiple ?? 0) >= 2) fc.set(c.formula, (fc.get(c.formula) ?? 0) + 1);
+  const formulas = [...fc].map(([formula, n]) => ({ formula, n })).sort((a, b) => b.n - a.n);
 
-  const table = top.map((c) => `| ${c.title.replace(/\|/g, "/")} | ${c.channel.replace(/\|/g, "/")} | ${c.publishedAt.slice(0, 10)} | ${c.durationS <= 180 ? "short" : `${Math.round(c.durationS / 60)} min`} | ${c.views.toLocaleString()} | ${c.channelSubs.toLocaleString()} | ${c.channelAvgViews.toLocaleString()} | ${c.ratio} |`).join("\n");
+  const table = top.map((c) => `| ${c.title.replace(/\|/g, "/")} | ${c.channel.replace(/\|/g, "/")} | ${c.publishedAt.slice(0, 10)} | ${c.durationS <= 180 ? "short" : `${Math.round(c.durationS / 60)} min`} | ${c.views.toLocaleString()} | ${c.channelSubs.toLocaleString()} | ${c.median !== undefined ? `${c.median.toLocaleString()} (${c.sampleN} uploads)${c.median < TINY_MEDIAN ? ", tiny channel: multiple is noise" : ""}` : `n/a (lifetime avg ${c.channelAvgViews.toLocaleString()})`} | ${mult(c)} | ${c.formula ?? ""} |`).join("\n");
   const prompt = `${readText(path.join(REPO, "workflow/prompts/IDEAS.md"))}
 
 # Audience file
@@ -140,11 +196,15 @@ ${readText(AUDIENCE_FILE)}
 # Channel history
 ${channelContext()}
 
-# Competition (YouTube search, last 2 years: ${queries.map((q) => `"${q}"`).join(", ")}; top ${top.length} of ${comps.length} by outlier ratio)
-| title | channel | published | length | views | channel subs | channel avg views | ratio |
-|---|---|---|---|---|---|---|---|
+# Competition (YouTube search, last 2 years: ${queries.map((q) => `"${q}"`).join(", ")}; top ${top.length} of ${comps.length} by multiple)
+The multiple is views ÷ the median views of the channel's recent uploads of the same format (long or short); where
+the channel had under 4 such uploads it falls back to views ÷ the channel's lifetime average. Channels whose median
+is under ${TINY_MEDIAN} views are listed last: their multiples are noise. The formula is the
+hook formula the title matches (a judgement about the words, not why the video worked).
+| title | channel | published | length | views | channel subs | channel median | multiple | title formula |
+|---|---|---|---|---|---|---|---|---|
 ${table || "(no results)"}
-
+${formulas.length ? `\nFormulas among the outliers (multiple ≥ 2, channels with a median of ${TINY_MEDIAN}+): ${formulas.map((f) => `${f.formula} ×${f.n}`).join(", ")}\n` : ""}
 # The idea
 Title: ${idea.title}
 Note: ${idea.note || "(none)"}
@@ -152,7 +212,12 @@ Note: ${idea.note || "(none)"}
   const v = await agentJson("ideas", prompt, path.join(logs, `${stamp}_check_${specSlug(roleModel("ideas", flag("--agent")))}.log`));
   costUsd += v.costUsd;
   const ok = v.json && typeof v.json.verdict === "string" && Array.isArray(v.json.packages);
-  const r: Research = { at: new Date().toISOString(), queries, competitors: comps.slice(0, 25), verdict: ok ? v.json : null, model: v.model, costUsd, quotaUnits: units, ...(ok ? {} : { error: `the model returned no usable JSON (logs: ${path.relative(REPO, logs)})` }) };
+  // the editor ran title.py itself; lint the packages it handed back again so the stored score is the tool's, not its claim
+  if (ok) for (const pk of v.json.packages) {
+    try { const l = lintTitle(String(pk.title ?? ""), typeof pk.thumbText === "string" ? pk.thumbText : undefined); pk.lint = { score: l.score, chars: l.chars, issues: l.issues, good: l.good }; }
+    catch (e) { console.warn(`   ⚠️  title check: ${(e as Error).message}`); }
+  }
+  const r: Research = { at: new Date().toISOString(), queries, competitors: comps.slice(0, 25), formulas, verdict: ok ? v.json : null, model: v.model, costUsd, quotaUnits: units, ...(ok ? {} : { error: `the model returned no usable JSON (logs: ${path.relative(REPO, logs)})` }) };
   const s = readIdeas(), cur = s.ideas.find((x) => x.id === idea.id);
   if (!cur) return;
   cur.research = r;
