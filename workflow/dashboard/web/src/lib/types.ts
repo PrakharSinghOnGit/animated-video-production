@@ -48,11 +48,17 @@ export interface PlanBeat { startMs: number; endMs: number; vo: string; visual: 
 export interface PlanAct { id: string; slug?: string; title: string; startMs: number; endMs: number; bpm?: number; chapter: { n: number; title: string } | null; idea: string; beats: number;
   detail: { sheet: string; signature: string; camera: string; transitionIn: string; sound: string; intensity: number | null; beats: PlanBeat[] } }
 export type Variant = "A" | "B" | "C";
-export interface PubPackage { title: string; type: string; rationale: string; thumbnail: string; hypothesis: string }
+export interface PubPackage {
+  title: string; type: string; rationale: string; thumbnail: string; hypothesis: string;
+  /** the bet (packages written since 2026-11-11): why a stranger clicks, the thumbnail's axes and words, the script sentence that pays the title off */
+  lever?: string; axes?: { subject: string; emotion: string; text: string; composition: string }; thumbText?: string; proof?: string;
+}
 export interface PubChecks { errors: string[]; warnings: string[] }
 export interface PubMeta {
   video: string; at: string; model: string; durationS: number; titles: Record<Variant, PubPackage>; description: string;
   chapters: { ms: number; time: string; title: string }[]; tags: string[]; hashtags: string[]; checks: PubChecks; edited?: boolean;
+  /** the one sentence the packages are built on, and the upload order (strongest first) */
+  promise?: string; order?: Variant[];
 }
 export interface PubThumb {
   id: Variant; file: FileInfo | null; source: FileInfo | null; notes: string; notesMtime: number; checks: PubChecks | null;

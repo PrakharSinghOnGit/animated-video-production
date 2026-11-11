@@ -179,34 +179,48 @@ Hand over: the final mp4, the `.srt`, `06-audio/music.wav` (stem), `06-audio/cre
 `bun run build --video <ID>` chains steps 3–7 (Publish is separate) with confirmation prompts at the gates; use it once the act
 pipeline needs no hand-holding.
 
-### Step 8: Publish 💲 (~10 min, ~$1–3 with Sonnet) → **G4 packages**
+### Step 8: Publish 💲 (~10 min, ~$2–4 with Sonnet) → **G4 packages**
 YouTube Test & Compare runs up to 3 packages (thumbnail + title); the winner is chosen by watch-time share. This step makes
-three **packages A/B/C**. The rules (thumbnail, title, description, A/B, the critic checklist) are in
-`workflow/07-publish/GUIDE.md`; every prompt reads it. Needs a rendered video (the duration badge and chapters use it).
+three **packages A/B/C that are three different bets**. The rules (thumbnail, title, description, A/B, the critic checklist,
+what the first videos taught) are in `workflow/07-publish/GUIDE.md`; every prompt reads it. Needs a rendered video (the
+duration badge and chapters use it).
 1. `bun run meta --video <ID> [--model sonnet|opus|haiku] [--notes] [--force]` → `07-publish/metadata.json` + `description.txt`:
-   one title per package (one searchable, one curiosity; each with the brief of its thumbnail), the description opening, tags,
-   3 hashtags. **Computed in code, not by the model:** chapters (from `chapters.json`: first at 0:00, ascending, >= 3, each >= 10 s;
-   VID03-style duplicate 0:00 entries are merged), sources (sources.md, else the plan), credits (06-audio/credits.txt), the
-   disclaimer, and the checks: title <= 100 (warn past 60), description <= 5000, tags <= 500 chars, 3 hashtags, no get-rich wording,
-   **no number that is not in the plan's `data`** (and a warning for numbers sourced only from the narration).
+   the video's one-sentence promise, then per package a title, its **lever** (stake, villain, myth, number, question: three
+   packages, three levers), the thumbnail's **four axes** (subject, emotion, text, composition), the words on the image, the
+   designer's brief and a **proof** (the script sentence that pays the title off); plus the upload order, the description
+   opening, tags, 3 hashtags. The model is shown the channel's earlier packages with their click rates.
+   **Computed in code, not by the model:** chapters (from `chapters.json`), sources, credits, the disclaimer, and the checks:
+   title <= 100 (warn past 60), no get-rich wording, **no number that is not in the plan's `data`**, three different levers,
+   every pair of thumbnails 2+ axes apart, no two titles sharing 60% of their words, thumbnail words that do not repeat the
+   title, and each proof found word for word in the script (a payoff after 2:00 is flagged). One fix round on errors.
    `--notes` revises with `notes/meta.md`; metadata you edited in the dashboard is kept unless `--force`.
-2. `bun run thumbs --video <ID> [--variant A|B|C] [--notes] [--model sonnet|opus] [--force]`: an author agent designs 3 meaningfully
-   different 1920x1080 stills with the Briefing kit (<= 3 words of text, bottom-right and bottom edge clear, defined edge, sourced
-   numbers only), renders them, **looks at its own renders** and the preview sheet, and fixes. Files:
-   `07-publish/remotion/thumbs/A.tsx` -> `thumbnails/A.png` (a high-quality `.jpg` when a PNG would pass 2 MB; the paper texture usually does),
-   `preview.png` (large, 320 px, 168 px, mock home-feed cards in light and dark with each title), `preview_small.png`,
-   `thumbnails.json` (concept, text, numbers), `thumbnails.checks.json` (size, words, numbers, title overlap).
+2. `bun run thumbs --video <ID> [--variant A|B|C] [--notes] [--model sonnet|opus] [--force]`: an author agent draws the three
+   packages' thumbnails as 1920x1080 stills in the video's style (`workflow/prompts/THUMBS.md` + `workflow/styles/<style>/THUMB.md`;
+   only Briefing has one so far), keeping each package's axes, renders them, **looks at its own renders at 168 px** and fixes. Files:
+   `07-publish/remotion/thumbs/A.tsx` -> `thumbnails/A.png` (a `.jpg` when a PNG would pass 2 MB), `thumbnails/phone/A_168.png` and
+   `A_120.png` (the real phone sizes), `preview.png`, `preview_small.png` (320 px, list rows at 168 px, 120 px, feed card),
+   `thumbnails.json` (concept, text, numbers, axes), `thumbnails.checks.json`.
    `bun run thumbs:render --video <ID> [--variant A] [--no-preview]` re-renders from the TSX for free (use it after a hand edit).
-   The thumbnails live in their own Remotion project under `07-publish/remotion/` (entry and registry generated, Root and Preview synced
-   from `workflow/07-publish/template/`), so `assemble` never touches them. No logo (STYLE.md: the brand is the end card only).
-3. `bun run thumbs:review --video <ID> [--agent haiku|sonnet|opus|agy] [--to-notes]` (~$0.1–0.2): a vision critic checks the PNGs and
-   preview sheets against the guide checklist (168 px legibility, words, one focal point, contrast, badge zone, edge, truthfulness,
-   distinctness, pairing) -> `review.md` (same shape as an act review). `--to-notes` appends the findings to `notes/<V>.md`.
-4. **G4**: in the dashboard (Publish): see the packages, edit titles and description (saved to metadata.json), write notes per variant,
-   **Fix with notes** (`thumbs --variant A --notes`, resumes the author), **Approve**. The approval is a hash of the three images and the
-   metadata: any later change makes it stale. Check the facts first: figures from the narration alone are flagged.
-5. `bun run publish:export --video <ID>` -> `07-publish/export/`: thumb_A/B/C, titles.txt ("A: ..."), description.txt, tags.txt, the .srt.
-   Upload the three thumbnails with their paired titles in Studio (Test & Compare) and do not edit them while the test runs.
+   **Every render runs the free checks, and an error rejects the variant** (exit 1; the dashboard will not approve):
+   - **phone check** (`phone.ts`): the 168 px image is measured and its words are read back by the macOS text recogniser
+     (compiled once from `ocr.swift`; skipped with a warning elsewhere). Rejected: words not read back, more than 42% of the
+     drawing's edges gone, tone range under 30 L*, no edge on a white or dark page. Warned: small largest shape, many shapes,
+     something under the duration badge, words unread at 120 px. Thresholds and their calibration are in `phone.ts`.
+   - **three bets** (`lib.ts` `checkBets`): every pair 2+ axes apart, never the same words on two variants; plus a warning for
+     a word already on another video's thumbnail and for a drawing that left its package's axes.
+   - size, word count (<= 3), sourced numbers, title overlap.
+   `thumbs --variant A --notes` sends the failed checks to the author together with your notes (no notes needed).
+3. `bun run thumbs:review --video <ID> [--agent haiku|sonnet|opus|agy] [--to-notes] [--no-blind]` (~$0.2–0.5), two passes:
+   a **blind read** (role `stranger`, Haiku: sees only the 168 px images, says what it reads and sees; unread words or an
+   unnameable picture reject the variant, `phone.blind.json`), then the critic (role `thumbsReview`, Sonnet): would a stranger
+   click, are these three bets, legibility, focal, text, pairing, truth, and the upload order -> `review.md`.
+   `--to-notes` appends the findings to `notes/<V>.md`.
+4. **G4**: in the dashboard (Publish): see the packages (promise, bet, axes, proof, upload order), edit titles and description,
+   write notes per variant, **Fix with notes**, **Approve** (blocked while any check has an error). The approval is a hash of
+   the three images and the metadata: any later change makes it stale. Check the facts first: figures from the narration alone are flagged.
+5. `bun run publish:export --video <ID>` -> `07-publish/export/`: thumb_A/B/C, titles.txt ("A: ..." and the upload order),
+   description.txt, tags.txt, the .srt. Upload the strongest package first (an inconclusive test keeps the first one) and do
+   not edit them while the test runs.
 Dashboard "Publish all" = meta, thumbs, review.
 
 ### Step 9: Shorts 💲 (~$3–5 per short) → **SG1 scripts**, **SG2 drafts**

@@ -101,13 +101,19 @@ function MetaEditor({ meta, titles, setTitles }: { meta: PubMeta; titles: Record
   };
   return (
     <div className="grid gap-3">
+      {(meta.promise || meta.order) && (
+        <div className="text-[12px] text-muted-foreground">
+          {meta.promise && <div>Promise: {meta.promise}</div>}
+          {meta.order && <div>Upload order (strongest first; an inconclusive test keeps the first one): <span className="font-mono">{meta.order.join(", ")}</span></div>}
+        </div>
+      )}
       <div className="grid gap-2.5">
         {V.map((v) => {
           const p = meta.titles[v], len = titles[v].length;
           return (
             <div key={v} className="grid gap-1 rounded-md border p-2.5">
               <div className="flex flex-wrap items-center gap-2 text-[12px]">
-                <span className="font-mono font-semibold">{v}</span><Badge tone="neutral">{p.type}</Badge>
+                <span className="font-mono font-semibold">{v}</span><Badge tone="neutral">{p.type}</Badge>{p.lever && <Badge tone="neutral">bet: {p.lever}</Badge>}
                 <span className={cn("font-mono text-[11px]", len > TITLE_MAX ? "text-destructive" : len > TITLE_TRUNC ? "text-warning" : "text-muted-foreground")}>{len} / {TITLE_MAX} (main promise within {TITLE_TRUNC})</span>
                 <span className="flex-1" />
                 <Button size="sm" variant="secondary" onClick={() => copy(titles[v], toast, `Title ${v}`)}><Copy />Copy</Button>
@@ -115,6 +121,7 @@ function MetaEditor({ meta, titles, setTitles }: { meta: PubMeta; titles: Record
               <Input value={titles[v]} onChange={(e) => setTitles({ ...titles, [v]: e.target.value })} aria-label={`Title ${v}`} />
               <div className="text-[11.5px] text-muted-foreground">{p.rationale}</div>
               <div className="text-[11.5px] text-muted-foreground">Thumbnail brief: {p.thumbnail} · Tests: {p.hypothesis}</div>
+              {p.axes && <div className="text-[11.5px] text-muted-foreground">Thumbnail: {p.axes.subject}, {p.axes.emotion}, {p.axes.composition}; words: {p.thumbText ? `"${p.thumbText}"` : "none"}{p.proof ? ` · The script pays it off with: "${p.proof}"` : ""}</div>}
             </div>
           );
         })}

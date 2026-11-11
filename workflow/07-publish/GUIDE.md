@@ -21,7 +21,8 @@ Source numbers like [S3] point to the Sources list at the end.
 5. Upload 16:9, 1920x1080 or larger (YouTube recommends 3840x2160; minimum width 640 px), JPG or PNG, under 2 MB to be safe on mobile uploads. [YT, S2]
 6. Title: key words first, aim for about 30-50 characters, hard cap 100. Anything past about 60-70 characters may be cut off in feeds. [YT for 100 and "key words first" S3,S12; 30-50 and 60-70 are 3P S10]
 7. Finance titles: a specific, sourced number beats a vague promise. Never state a number the video does not source. [3P S10 for the effect; the sourcing rule is house policy]
-8. Test & Compare takes up to 3 variants (thumbnails, titles, or both). The winner is chosen by watch-time share, not click rate. Make the 3 variants three different concepts. [YT S1]
+8. Test & Compare takes up to 3 variants (thumbnails, titles, or both). The winner is chosen by watch-time share, not click rate. Make the 3 variants three different bets: three levers, three subjects, every pair two axes apart (4.2; the code rejects less). [YT S1 for the facts; the axes are REC]
+8b. A package is for a stranger who does not know the channel or the topic's vocabulary. It is about the viewer's problem, not a diagram or the name of the video's mechanism (section 10). [REC, from this channel's own results]
 9. Description: put the hook and the promise in the first two lines; chapters start at 00:00, at least 3, each at least 10 s; at most 3 hashtags are shown near the title. [YT S4,S6; the "first two lines" length is UNVERIFIED]
 10. Tags barely matter. Do not spend time on them (YouTube says so, S3, S7). Spend it on the thumbnail and title.
 
@@ -65,6 +66,8 @@ The page gives no numeric text-size, word-count or safe-zone rules. Everything n
 - Also test at 120 px wide (squint test). The object silhouette should still be recognisable. [REC]
 - Thin pen lines (the hand-drawn look) vanish at small sizes. Use stroke weights at least about 1.5% of image height for the focal object, and fill with flat ink colour instead of relying on hatching. [REC]
 - Paper texture, grain and halftone must not reduce contrast on the focal object. Texture belongs in the background at low contrast. [REC]
+- **The phone check does this in code on every render** (`workflow/07-publish/phone.ts`, free): each thumbnail is shrunk to 168 x 94 and 120 x 68 px (`thumbnails/phone/`), and the 168 px image is measured. It **rejects** a thumbnail when: a text recogniser cannot read the declared words back; more than 42% of the drawing's strong edges are gone (thin lines and small parts carried the picture); the tone range is under 30 L* (nothing separates); or the image has no edge against a white or a #0f0f0f page (contrast under 1.5:1). It warns about a small largest shape, many separate shapes, something under the duration badge, and words not read at 120 px. The thresholds were set on this channel's 12 thumbnails (all pass the pixel measures) against 12 act frames used as thumbnails (wide scenes with small labelled parts fail). They are this guide's calibration, not a YouTube rule. [REC]
+- The review adds a **blind read**: a model that sees only the 168 px image, with no title, says what words it reads and what the picture shows. Declared words it cannot read, or a picture it cannot name, reject the thumbnail too. A vision model is a stand-in for a person's eye, not a measurement of one. [REC]
 
 ### 2.3 Words on the thumbnail
 - 0 to 3 words. 4 is a fail unless one is a number. [REC]
@@ -106,6 +109,11 @@ The page gives no numeric text-size, word-count or safe-zone rules. Everything n
   3. A data image with one number: a bar or a gap between two lines, with the gap highlighted.
   4. A dossier/stamp device: "CLASSIFIED", a redacted line, a red circled item. Branded and recognisable at small size.
 - A face-like element (eyes on an object, a character looking at the gap) is a cheap way to add "someone is reacting". Test it as one of the variants. [REC, UNVERIFIED benefit]
+- **The channel's characters** are its faces [REC]: the Agent (Briefing; `brand-assets/mascot/AGENT.md`) and Penny (Drafting; `CHARACTER.md`). A character is the viewer's stand-in, so it is worth a variant in most tests, on these terms:
+  - It is the subject: the biggest thing in the frame (the Agent at s = 1.5 or more, cropped by the frame if needed). In the first four videos he was never what the eye landed on first (section 10).
+  - The Agent has no face, so pose and scale carry the feeling (reaching, skidding, hiding, looked down on by something larger). Penny has moods (`worried`, `surprised`): use them.
+  - One thing happens to the character, close and large (the door, the bill, the tag). Not a character standing next to a chart.
+  - Whether a character variant earns more clicks than an object variant on this channel is unknown: that is what the test is for.
 - Do not use claims like "an expressive face adds 18-32% CTR": the only source found is an unsourced blog. [UNVERIFIED]
 
 ### 2.8 Channel consistency
@@ -187,11 +195,14 @@ Title testing: Search Engine Journal (2025-12-04) reports that title A/B testing
 ### 4.2 What this means for a 3-variant design [REC]
 - Because the metric is watch-time share, a thumbnail that gets clicks and then loses viewers will lose. Do not optimise for shock.
 - Variants must differ by concept, not by tweak. YouTube warns that similar variants make a winner hard to find (S1).
-- Concept axes to vary (change at least two axes between every pair):
-  1. Subject: object metaphor vs data/gap vs inked character vs dossier/stamp device.
-  2. Emotion/angle: threat (what you lose) vs curiosity (what is hidden) vs payoff (what you can fix).
-  3. Text: none vs one word vs a number.
-  4. Composition: close single object vs wide scene vs split two-sided comparison.
+- Concept axes to vary (change at least two axes between every pair; the names are the values the prompts and `lib.ts` use):
+  1. `subject`: `character` (the Agent or Penny dominates) | `object` (one object from the viewer's life) | `data` (one shape made of numbers: a gap, a line, two bars) | `type` (the words are the image).
+  2. `emotion`: `threat` (what you lose) | `curiosity` (what is hidden) | `payoff` (what you can fix).
+  3. `text`: `none` | `word` (1-3 words) | `number` (a sourced figure).
+  4. `composition`: `close` (one thing, cropped tight) | `scene` (a small actor in a big space) | `split` (two sides against each other).
+- Enforced in code (`lib.ts` `checkBets`, on the packages and again on what was drawn): every pair differs on 2 or more axes; the same words on two thumbnails are rejected; two variants with the same subject get a warning.
+- **Levers**: each package also names why a stranger clicks, and the three packages use three different ones: `stake` (what it costs the viewer), `villain` (who is on the other side; only one the video names and sources), `myth` (what the viewer was told that is wrong), `number` (one sourced figure that is hard to believe), `question` (the plain question a searcher types). Two packages on one lever test the same thing twice.
+- Each title carries a `proof`: the sentence of the script that pays it off. The code looks it up; a proof that is not in the script is rejected, and one that comes after 2:00 is flagged.
 - Not valid variants: colour shifts, font swaps, 5% size changes, moving text by a few pixels.
 - Example set (illustrative): A = split comparison, two piles of different size with the gap circled in red, text "THE GAP"; B = one inked character looking at a locked vault, no text; C = a dossier page with a redacted line and a stamped number. Three concepts, three emotions.
 - Titles: do the same. One searchable (plain topic), one curiosity/tension, one number-led. They should be different sentences, not reworded versions.
@@ -203,6 +214,7 @@ Title testing: Search Engine Journal (2025-12-04) reports that title A/B testing
 - Record result type (Winner / Same / Inconclusive) and the concept that won, in the video notes, so the next batch learns.
 - Do not over-read one result; a "winner" on one video is a hint, not a law.
 - A small channel may not get enough impressions in 2 weeks; "Inconclusive" is a likely outcome. [REC, inference from S1]
+- Because an inconclusive test keeps the first title and thumbnail uploaded (S1), upload the strongest package first. `metadata.json` and the review give an `order`; `publish:export` writes it into titles.txt. [REC]
 - Check CTR on Home/Suggested in the first 24 hours as YouTube suggests (S12) for an early read, but decide with the test result.
 
 ---------------------------------------------------------------------
@@ -273,9 +285,10 @@ Title testing: Search Engine Journal (2025-12-04) reports that title A/B testing
 ## 7. Output format for the agents [REC]
 
 Per video, produce:
-- 3 thumbnail concepts: one-line concept, focal object, text (0-3 words), accent colour, which safe zone is left clear, which sourced number (if any) appears.
-- 3 titles: tagged searchable / curiosity / number-led, with character count.
-- 1 pairing table: each thumbnail concept matched to one title, plus the hypothesis for each.
+- The promise: the one sentence of the video a stranger would repeat.
+- 3 packages, each: title (tagged searchable / curiosity / number-led), lever, the thumbnail's four axes, the words on the image (0-3), the brief for the designer, the proof (the script sentence that pays the title off), the hypothesis ("if this wins, the audience clicks for ...").
+- The upload order, strongest first.
+- 3 thumbnails with what was drawn: concept, focal object, text, axes, sourced numbers, which safe zone is clear.
 - 1 description following 5.2, with chapters from `timings.json`, sources, disclaimer, 3 hashtags.
 - 5-10 tags.
 - Test plan: which axes differ (4.2) and what is held constant.
@@ -305,6 +318,11 @@ Thumbnail (vision critic)
 - [ ] Any number or chart on the image matches the video's sourced data.
 - [ ] Image does not show a result or object the video never shows.
 - [ ] The 3 thumbnails differ in subject and angle, not only colour, font or position.
+- [ ] A stranger gets it: no jargon, no chart of the mechanism, nothing that needs the video to decode.
+- [ ] A character that is the subject is the biggest thing in the frame.
+- [ ] The words are the stake or the feeling, not a label for the picture, and not a word from an earlier thumbnail.
+- [ ] Thumbnail and title leave a question open; the answer is not drawn.
+- [ ] The phone check passes (no rejects in `thumbnails.checks.json`) and the blind read names the picture and reads the words.
 
 Title
 - [ ] 100 characters or fewer; target 35-55; main promise within the first 60.
@@ -316,6 +334,8 @@ Title
 - [ ] The video answers the title's question or promise within the first 2 minutes.
 - [ ] The 3 titles include one searchable and one curiosity/tension type.
 - [ ] Title and thumbnail text together read as one idea with no duplicated words.
+- [ ] Plain words: no "X Explained", no term the viewer would have to look up (except in the one searchable title, if people search for it).
+- [ ] The 3 packages use 3 different levers, and each title's proof is a sentence of the script from the first 2 minutes.
 
 Description and metadata
 - [ ] First 2 lines (about 150 characters) hold the promise and main keyword, with no link or hashtag.
@@ -327,12 +347,41 @@ Description and metadata
 - [ ] Tags: 10 or fewer, topic and misspellings only; none stuffed in the description.
 
 A/B test
-- [ ] 3 variants differ on at least two concept axes (subject, emotion, text, composition).
+- [ ] 3 variants differ on at least two concept axes (subject, emotion, text, composition), with different words.
+- [ ] The strongest package is uploaded first.
 - [ ] One-line hypothesis recorded for each variant.
 - [ ] Title and thumbnail are not edited during the test; result recorded afterwards.
 
 ---------------------------------------------------------------------
-## 9. Could not verify (open items)
+## 9. Packages first (before the script)
+
+`bun run concepts --topic "..."` (or `--idea I03`) proposes five title + thumbnail concepts for a topic before anything is written: five levers, thumbnails on different axes, each with the question it leaves open, the video's first sentence, the claims the script must source (`mustProve`) and the finding that would kill it. A blind viewer then says which it would click. No sources exist at that point, so the code rejects any figure the creator did not state: a number is a `{slot}` until research fills it. `--pick <key> <n> --to <workspace>` writes the chosen package into the project's `idea.md`; the writer keeps its promise and `bun run meta` keeps one final package faithful to it. If none of the five would stop a stranger, change the angle or drop the topic: that is cheaper than a finished video nobody clicks. [REC]
+
+---------------------------------------------------------------------
+## 10. What the channel's first four videos taught (2026-11-11)
+
+Evidence: the 12 thumbnails and the titles of VID03-VID06, and the analytics snapshot of that date. The numbers are tiny (327 to 1,591 impressions per long video; 1.5% of 327 is 5 clicks), so nothing below is proven. They are working hypotheses [REC], to be revised as tests finish.
+
+What was clicked: "Why You'll Never Own a Home (Not Your Fault)" had the most impressions (1,591) and the best click rate (2.3%). "The Art of Stop Loss Hunting !!!" got 2.0% of 440, "Inducement Trap Explained: Why Your Stop Gets Hunted" 1.5% of 327. The one about the viewer's life, in plain words, with "you" in it, did best; the two named after the video's mechanism did worst. The creator wrote that title by hand; two of the three generated for the same video led with the data ("The Price Data Since 2000", "TVs Fell 98% Since 2000. Rent Rose 149%.").
+
+What the thumbnails had in common:
+1. **They are diagrams of the mechanism.** A wick through a stop line, a W pattern with tokens under it, a price line splitting in two. Each is a correct picture of what the video explains, and each needs the video to be understood. A stranger sees a chart.
+2. **They use the video's vocabulary.** Candlesticks, "ONE TICK", "FUEL", "THE SPLIT", "FAKE SETUP". The words label the picture instead of saying what is at stake for the viewer.
+3. **Three versions of one idea.** VID05's three variants are all the W pattern with a hook or bait; two of them say "BAIT", and "BAIT" is on VID06 as well. A test between them can only say which drawing of the same idea is nicer.
+4. **The character is never the subject.** The Agent appears in four of the 12, at roughly 40-60% of the height but thin, sharing the frame with a chart, big type or a larger shape; in none is he what the eye lands on first. He is the channel's only stand-in for a face.
+5. **What was declared is not what was drawn.** `thumbnails.json` and the package briefs drifted apart (a brief asking for "FUEL" drawn as "BAIT", a placeholder text left on a final thumbnail).
+
+What was already right, and should stay: flat inks, one accent, a defined edge, big cut type. All 12 pass the phone-size pixel measures and 11 of 12 have their words read back by the text recogniser at 168 px. Legibility was not the problem; the idea was.
+
+So, for every package from here on:
+- Start from the viewer's stake, not the video's mechanism. The thing drawn comes from the viewer's life.
+- Three bets: three levers, three subjects, different words (4.2).
+- One variant where the character is the subject, large.
+- Words that say the stake or the feeling, never a label, never a word already used.
+- Record each test's result (4.3) and revise this section when the numbers disagree with it.
+
+---------------------------------------------------------------------
+## 11. Could not verify (open items)
 
 - Exact description fold length (characters/lines) on desktop and mobile. Only third-party claims (about 100-160 characters).
 - Exact duration-badge and progress-bar dimensions; the 168x94, 116x65, 320x180 and 360x202 display sizes. Third-party only.
@@ -343,6 +392,8 @@ A/B test
 - MrBeast production memo: only secondhand summaries; authenticity unconfirmed.
 - Any effect sizes for faces, numbers or text in thumbnails (blogs without methodology).
 - YouTube-specific financial-advice policy and local regulatory disclaimer requirements (for example SEBI in India).
+- Whether the phone check's thresholds (2.2) and the blind read predict what a person can read on a phone: they are calibrated on 24 images from this channel and have not been tested against people.
+- Whether any of section 10's hypotheses hold: no Test & Compare result has been recorded yet.
 
 ---------------------------------------------------------------------
 ## Sources (all accessed 2026-10-29 unless noted)
@@ -360,5 +411,5 @@ A/B test
 - S11. https://ideas.repec.org/a/eee/jbrese/v183y2024ics0148296324003539.html : Journal of Business Research 2024 (Cui et al.) on sentiment in video covers/titles; found via search snippet only, not fetched in full.
 - S12. https://support.google.com/youtube/answer/12340300 : YouTube "Thumbnail & title tips": rule of thirds, readable font, simple design, key words first, limit caps/emoji, searchable vs intriguing titles, 24-hour CTR check, accuracy.
 - S13. https://zackchewning.substack.com/p/content-lessons-from-the-1-youtubers : Secondhand summary of the leaked MrBeast memo (thumbnail team, expectations must be met). Authenticity of the memo unconfirmed.
-- S15. https://socialk.it/en/sizes/youtube-thumbnail-size : Third-party thumbnail size/safe-zone claims (duration badge bottom-right, display sizes). Unverified; see 9.
+- S15. https://socialk.it/en/sizes/youtube-thumbnail-size : Third-party thumbnail size/safe-zone claims (duration badge bottom-right, display sizes). Unverified; see 11.
 - S16. https://www.tubefilter.com/2018/07/18/youtube-hashtags-above-titles/amp/ : 2018 report quoting a 15-hashtag limit and 3 hashtags above titles; superseded by S6 for the limit.

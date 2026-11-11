@@ -9,7 +9,8 @@ in a house style: **Briefing** (`packages/kit/src/spy/`) or **Drafting** (`packa
 - `packages/kit/` (`@wealthgap/kit`): `spy/` is the Briefing engine (API in `spy/README.md`); `draft/` the Drafting engine (API in `draft/README.md`, demo `bun run studio --style drafting`); characters (Penny, the Agent) in `brand-assets/mascot/`; `paper/{lib,engine,transitions,
   CanvasHost}` are the shared canvas helpers `spy/` imports; `main/` + `backgrounds/` feed the render template; `paper/icons.ts` = company logos + icons for both styles (`spy.logo`/`draft.logo`, search with `bun run icons <words>`).
 - `workflow/`: `styles/briefing/`, `styles/drafting/` (STYLE.md + ACT.md; pick per video with `direct --style`), `prompts/DIRECTOR.md` + `prompts/ACT.md`,
-  `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export),
+  `01-ideation` (idea check `bun run ideas`; packages first `bun run concepts`: 5 title + thumbnail concepts before the script),
+  `03-voiceover`, `04-transcription`, `05-video/scripts`, `06-audio`, `07-publish` (YouTube packaging: GUIDE.md + meta/thumbs/review/export; 3 packages = 3 bets, free phone-size check on every thumbnail render),
   `08-shorts` (2–3 vertical shorts per video, style `styles/shorts/`), `09-analytics` (YouTube numbers → diagnosis → reviewer; lessons in `learning/`, appended to prompts by `loadPrompt` only after approval), `deliver/` (downloads + Final Cut Pro project), `dashboard/`, `lib/models.ts` (which model/provider runs each agent step;
   defaults in `workflow/models.json`). `bun run compact` frees a finished workspace.
 - `workspace/<VIDEO>/` (gitignored): per-video audio, transcript, `05-video/acts.json`, act files
