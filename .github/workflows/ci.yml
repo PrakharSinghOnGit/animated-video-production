@@ -1,0 +1,30 @@
+# Typecheck + unit tests on every push. No secrets, no paid steps, no rendering: the tests are pure functions and
+# temp-folder fixtures (see docs/ARCHITECTURE.md, "Tests and CI").
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      # not --frozen-lockfile: bun.lock also lists the per-video workspaces (workspace/*/05-video), which are not in git
+      - run: bun install
+      - name: Typecheck (pipeline + dashboard web)
+        run: bun run typecheck
+      - name: Tests
+        run: bun run test

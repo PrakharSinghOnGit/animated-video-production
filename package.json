@@ -86,7 +86,9 @@
     "yt:review": "bun run workflow/09-analytics/review.ts",
     "yt:comments": "bun run workflow/09-analytics/comments.ts",
     "ideas": "bun run workflow/01-ideation/ideas.ts",
-    "concepts": "bun run workflow/01-ideation/concepts.ts"
+    "concepts": "bun run workflow/01-ideation/concepts.ts",
+    "test": "bun test $(git ls-files -co --exclude-standard 'packages/*.test.ts' 'workflow/*.test.ts' 'scripts/*.test.ts' ':!workflow/06-audio/opendaw')",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p workflow/dashboard/web"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",
