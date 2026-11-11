@@ -79,8 +79,19 @@ function cliArgs(opts: AgentOptions, model: string): string[] {
   const args = ["-p", "--model", model, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits"];
   if (opts.maxTurns) args.push("--max-turns", String(opts.maxTurns));
   if (opts.resume) args.push("--resume", opts.resume);
-  args.push("--allowedTools", ...opts.tools);
+  const tools = claudeTools(opts.tools);
+  args.push("--allowedTools", ...tools, "--append-system-prompt", toolNote(tools));
   return args;
+}
+
+/** A step that may read files may also search them: Grep and Glob are read-only, and without them models reach for
+ *  `ls`/`grep`/`python3 -c` in the shell, which headless runs refuse (a wasted turn each). */
+export const claudeTools = (tools: string[]) => (tools.includes("Read") ? [...new Set([...tools, "Grep", "Glob"])] : tools);
+
+/** Told up front, so the model doesn't try shell commands or the web only to be refused. */
+export function toolNote(tools: string[]): string {
+  const cmds = tools.flatMap((t) => { const m = t.match(/^Bash\((.+?)(:\*)?\)$/); return m ? [m[1]] : []; });
+  return `This run is unattended and only these tools are allowed: ${tools.filter((t) => !t.startsWith("Bash(")).join(", ")}${cmds.length ? `, and the shell for exactly these commands (from the working directory, no cd; piping their output into grep, head or tail is fine): ${cmds.map((c) => `\`${c}\``).join(", ")}` : ", and no shell"}. Any other call (other shell commands such as ls, cat, grep, sed, python3, git; web search or fetch) is refused. To look at files use Read, Grep and Glob. Never commit: the producer reviews and commits.`;
 }
 
 const clip = (s: string, n: number) => { const t = s.replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1) + "…" : t; };

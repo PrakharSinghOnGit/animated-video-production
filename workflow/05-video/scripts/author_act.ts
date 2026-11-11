@@ -69,6 +69,13 @@ The act is already drawn in ${file}. You are revising it, not redrawing it.
 1. Read the scene file first. Then read only the parts of STYLE.md, ACT.md and the engine files you need for these fixes (skip what the file already shows you how to use).
 2. Change it with Edit, in targeted edits; don't rewrite the whole file. Keep everything the notes don't mention exactly as it is.
 3. Check: \`bun run assemble --video ${paths.jobId}\`, then frames for the times you changed: \`bun run frames --video ${paths.jobId} --scene ${act.id} --at <t1,t2,...> --only\` (use \`--every 4 --words\` instead if the change runs through the whole act). Fix any layout flag, look at the sheet, and stop; at most 2 check rounds.`;
+/** A first authoring run that stopped part way (usage limit, error, out of turns) leaves this marker next to its logs,
+ *  so the next run continues the half-drawn file instead of taking it for a finished act. */
+const unfinishedFile = (reviewDir: string) => path.join(reviewDir, "unfinished");
+const CONTINUE = (act: Act, file: string) => `# Continue (this replaces the first step of the Process section above)
+An earlier run on this act was cut off part way (usage limit or error). Its work so far is in ${file}: it may be
+complete, half written, or not compile. Read it first and continue from it: keep what is done and works, finish what
+is missing or broken (Edit for changes, Write only if the file is unusable). Then do the rest of the Process as usual.`;
 // per-act models: "A01=claude:sonnet,A04=opus"
 const perActModel: Record<string, string> = Object.fromEntries((flag("--models") ?? "").split(",").map((x) => x.trim()).filter((x) => x.includes("="))
   .map((x) => { const i = x.indexOf("="); return [x.slice(0, i).trim().toUpperCase(), roleModel("actAuthor", x.slice(i + 1).trim())]; }));
@@ -254,22 +261,30 @@ ${c.notes.length ? `Plan changes that came with it:\n${c.notes.map((n) => "- " +
     console.log(`✏️  ${act.id}: narration changed, updating the drawn act`);
     return fixAct(act, file, reviewDir, notes);
   }
-  if (fs.existsSync(file) && !force) {
+  const unfinished = fs.existsSync(unfinishedFile(reviewDir)) && fs.existsSync(file) && !force;
+  if (fs.existsSync(file) && !force && !unfinished) {
     if (!planChanged(paths.outputDir, act.id, file)) {
       console.log(`⏩ ${act.id} exists (${path.basename(file)}); --force to redo`);
       return "ok";
     }
     console.log(`♻️  ${act.id}: its plan changed since the act was written, redoing it`);
   }
-  const brief = briefFor(act, file);
+  const brief = unfinished ? `${briefFor(act, file)}\n\n${CONTINUE(act, file)}` : briefFor(act, file);
   const model = modelFor(act.id);
 
-  console.log(`✏️  ${act.id} authoring (${model})...`);
-  let r = await runAgentAsync({ prompt: brief, model, tools: AUTHOR_TOOLS, maxTurns: 80, logPath: path.join(reviewDir, "author_0.log") });
+  console.log(unfinished ? `✏️  ${act.id}: continuing the cut-off act (${model})...` : `✏️  ${act.id} authoring (${model})...`);
+  fs.mkdirSync(reviewDir, { recursive: true });
+  const logName = unfinished ? `author_${fs.readdirSync(reviewDir).filter((f) => /^author_\d+\.log$/.test(f)).length}.log` : "author_0.log";
+  let r = await runAgentAsync({ prompt: brief, model, tools: AUTHOR_TOOLS, maxTurns: 80, logPath: path.join(reviewDir, logName) });
   account(`act ${act.id} author`, model, r);
   console.log(`   ${act.id} author: ${r.ok ? "ok" : "FAILED"} in ${formatDuration(r.durationMs)}, ${r.numTurns} turns, $${r.costUsd.toFixed(2)}`);
-  if (r.limit) return hitLimit(act, model);
+  if (r.limit || !r.ok) {
+    // keep the partial file and say so: the next run continues it (it is not a finished act)
+    if (fs.existsSync(file)) { fs.writeFileSync(unfinishedFile(reviewDir), `${new Date().toISOString()} ${r.limit ? "usage limit" : "failed"} (${model})\n`); console.log(`   ${act.id}: the partial act is kept; the next run continues it`); }
+    if (r.limit) return hitLimit(act, model);
+  }
   if (!r.ok || !fs.existsSync(file)) return "failed";
+  fs.rmSync(unfinishedFile(reviewDir), { force: true });
   recordPlanHash(paths.outputDir, act.id);
   if (!useCritic) return "ok";
 
