@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { STEPS } from "@/lib/steps";
 import { cn } from "@/lib/utils";
 
-const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics", comments: "Comments" };
+const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics", comments: "Comments", ideas: "Ideas" };
 
 /** Thin menu bar: brand, breadcrumb, state pill, Remotion Studio for the open video, theme. No machine stats. */
 export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; showStats: boolean; onMenu: () => void; onStats: () => void }) {

@@ -41,6 +41,7 @@ youtube_token.json
 .secrets/
 workspace/.secrets/
 workspace/_analytics/
+workspace/_ideas/
 .claude/worktrees/
 
 # Local openDAW checkout (bun run daw:setup)

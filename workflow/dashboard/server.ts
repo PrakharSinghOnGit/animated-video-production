@@ -21,6 +21,7 @@ import { sample, history, treeUsage, topProcs, want, wanted, machine } from "./s
 import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
+import { ideasRoute } from "./ideas";
 import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
 import * as pub from "../07-publish/lib";
 import * as sh from "../08-shorts/lib";
@@ -1704,6 +1705,8 @@ async function appFetch(req: Request): Promise<Response> {
     if (g) return g;
     const an = await analyticsRoute(req, url, anCtx);
     if (an) return an;
+    const idr = await ideasRoute(req, url, anCtx);
+    if (idr) return idr;
 
     if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState() });
     if (p === "/api/schema" && req.method === "GET") return json(schema());

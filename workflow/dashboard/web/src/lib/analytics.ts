@@ -66,3 +66,17 @@ export interface YtComment {
 export interface CommentStore { fetchedAt: string; channelId: string; videos: Record<string, { title: string; short: boolean; ws?: string }>; comments: Record<string, YtComment> }
 export interface CommentsData { store: CommentStore | null; hasKey: boolean; model: string; running: { id: string; step: string; label: string } | null }
 export const commentUrl = (c: YtComment) => `https://www.youtube.com/watch?v=${c.videoId}&lc=${c.id}`;
+
+// ───────────── ideas (bun run ideas → workspace/_ideas/ideas.json) ─────────────
+export interface IdeaCompetitor { ytId: string; title: string; channel: string; channelId: string; publishedAt: string; durationS: number; views: number; channelSubs: number; channelAvgViews: number; ratio: number; thumb?: string; query: string }
+export interface IdeaVerdict {
+  verdict: "make" | "rework" | "drop"; summary: string;
+  fit: { score: number; tests: { test: string; pass: boolean | null; note: string }[] };
+  demand: { level: "high" | "medium" | "low" | "unclear"; evidence: string };
+  overlap: { video: string; note: string }[]; angle: string; packages: { title: string; thumbnail: string; why: string }[]; risks: string[]; sources: string[];
+}
+export interface Idea {
+  id: string; title: string; note: string; keywords: string; status: "new" | "researched" | "started" | "dropped"; createdAt: string; ws?: string;
+  research?: { at: string; queries: string[]; competitors: IdeaCompetitor[]; verdict: IdeaVerdict | null; model: string; costUsd: number; quotaUnits: number; error?: string };
+}
+export interface IdeasData { store: { ideas: Idea[] }; audience: string; hasKey: boolean; model: string; queryModel: string; running: { id: string; step: string; label: string } | null }

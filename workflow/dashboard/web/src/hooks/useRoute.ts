@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type View = "overview" | "ws" | "usage" | "machine" | "settings" | "analytics" | "comments";
+export type View = "overview" | "ws" | "usage" | "machine" | "settings" | "analytics" | "comments" | "ideas";
 /** The sections of a video project; null = the project overview. */
 export type Section = "video" | "shorts" | "packaging";
 export interface Route { view: View; ws: string | null; sec: Section | null; step: string | null; act: string | null; short: string | null; /** Analytics: one video (YouTube id) */ yt: string | null }
@@ -9,7 +9,7 @@ const read = (): Route => {
   const h = new URLSearchParams(location.hash.slice(1));
   const v = h.get("view");
   const sec = h.get("sec");
-  return { view: v === "ws" || v === "usage" || v === "machine" || v === "settings" || v === "analytics" || v === "comments" ? v : "overview", ws: h.get("ws"), sec: sec === "video" || sec === "shorts" || sec === "packaging" ? sec : null, step: h.get("step"), act: h.get("act"), short: h.get("short"), yt: h.get("yt") };
+  return { view: v === "ws" || v === "usage" || v === "machine" || v === "settings" || v === "analytics" || v === "comments" || v === "ideas" ? v : "overview", ws: h.get("ws"), sec: sec === "video" || sec === "shorts" || sec === "packaging" ? sec : null, step: h.get("step"), act: h.get("act"), short: h.get("short"), yt: h.get("yt") };
 };
 
 /** Route lives in the URL hash (view, ws, sec, step, act, short) so reloads and links keep their place. */

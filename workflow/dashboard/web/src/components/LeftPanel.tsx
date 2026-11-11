@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, Cpu, LayoutDashboard, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Settings, TrendingUp, X } from "lucide-react";
+import { BarChart3, Cpu, LayoutDashboard, Lightbulb, MessageSquare, PanelLeftClose, PanelLeftOpen, Plus, Settings, TrendingUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/fields";
 import { Tip } from "@/components/ui/tooltip";
@@ -11,7 +11,7 @@ import type { View } from "@/hooks/useRoute";
 
 const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish", "shorts"];
 const NAV: { v: View; label: string; icon: typeof Cpu }[] = [
-  { v: "overview", label: "Overview", icon: LayoutDashboard }, { v: "analytics", label: "Analytics", icon: TrendingUp }, { v: "comments", label: "Comments", icon: MessageSquare },
+  { v: "overview", label: "Overview", icon: LayoutDashboard }, { v: "ideas", label: "Ideas", icon: Lightbulb }, { v: "analytics", label: "Analytics", icon: TrendingUp }, { v: "comments", label: "Comments", icon: MessageSquare },
   { v: "usage", label: "Usage", icon: BarChart3 }, { v: "machine", label: "Machine", icon: Cpu },
 ];
 const SEG: Record<string, string> = { done: "bg-success", running: "bg-warning pulse", partial: "bg-warning/60", stale: "bg-warning/60", failed: "bg-destructive", none: "bg-border-strong" };

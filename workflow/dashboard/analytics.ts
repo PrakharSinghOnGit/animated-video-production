@@ -42,7 +42,7 @@ function reviews() {
 
 const COMMENTS = path.join(DIR, "comments.json");
 /** The comment fetcher reads with a YouTube API key (Google needs a write-capable scope to list comments over OAuth). */
-function hasCommentKey(): boolean {
+export function hasCommentKey(): boolean {
   if (process.env.YOUTUBE_API_KEY) return true;
   try { return !!parseEnv(fs.readFileSync(path.join(DIR, "../../.env"), "utf-8")).find((l) => l.key === "YOUTUBE_API_KEY")?.value; } catch { return false; }
 }
