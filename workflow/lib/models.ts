@@ -14,7 +14,8 @@ import { spawnSync } from "node:child_process";
 
 export const REPO = path.resolve(import.meta.dir, "../..");
 const MODELS_FILE = path.join(REPO, "workflow/models.json");
-const CACHE_FILE = path.join(REPO, "workspace/.models_cache.json");
+/** WG_MODELS_CACHE lets tests give a fixed catalogue instead of asking the CLIs installed on this machine. */
+const cacheFile = () => process.env.WG_MODELS_CACHE ?? path.join(REPO, "workspace/.models_cache.json");
 
 export type Provider = "claude" | "claude-iit" | "codex" | "opencode" | "ollama" | "agy";
 export interface ProviderInfo { label: string; billing: "subscription" | "free" | "local"; edits: boolean; note: string }
@@ -164,7 +165,7 @@ export function ollamaModels(): ModelEntry[] {
 
 export function catalog(force = false): Catalog {
   try {
-    const c = JSON.parse(fs.readFileSync(CACHE_FILE, "utf-8"));
+    const c = JSON.parse(fs.readFileSync(cacheFile(), "utf-8"));
     if (!force && Date.now() - c.at < 10 * 60_000) return c.catalog;
   } catch {}
   const entry = (cmd: string | null, list: () => ModelEntry[]) => {
@@ -181,8 +182,8 @@ export function catalog(force = false): Catalog {
     ollama: entry("ollama", ollamaModels),
     agy: entry("agy", agyModels),
   };
-  fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
-  fs.writeFileSync(CACHE_FILE, JSON.stringify({ at: Date.now(), catalog: c }));
+  fs.mkdirSync(path.dirname(cacheFile()), { recursive: true });
+  fs.writeFileSync(cacheFile(), JSON.stringify({ at: Date.now(), catalog: c }));
   return c;
 }
 

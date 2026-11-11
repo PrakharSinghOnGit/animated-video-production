@@ -5,7 +5,8 @@ import os from "node:os";
 import * as sh from "../../08-shorts/lib";
 
 export const REPO = path.resolve(import.meta.dir, "../../..");
-export const WS_ROOT = path.join(REPO, "workspace");
+/** WG_WS_ROOT lets tests point the server at a temp folder of workspaces; normally the repo's workspace/. */
+export const WS_ROOT = process.env.WG_WS_ROOT ?? path.join(REPO, "workspace");
 export const DIST = path.join(import.meta.dir, "../web/dist");
 /** WG_ENV_FILE lets tests point the Settings page at a temp file; normally the repo's .env. */
 export const ENV_FILE = process.env.WG_ENV_FILE ?? path.join(REPO, ".env");
