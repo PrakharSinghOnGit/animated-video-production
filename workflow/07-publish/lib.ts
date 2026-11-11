@@ -339,7 +339,7 @@ export function checkDescription(desc: string): { errors: string[]; warnings: st
   const head = desc.split("\n").slice(0, 2).join(" ");
   if (/https?:\/\/|#\w/.test(head)) warnings.push("the first 2 lines hold a link or hashtag (GUIDE.md 5.1)");
   if (head.length > 220) warnings.push(`the first 2 lines are ${head.length} characters; the promise should stand in about 150`);
-  const ch = desc.match(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s+.+$/gm) ?? [];
+  const ch: string[] = desc.match(/^\s*\d{1,2}:\d{2}(?::\d{2})?\s+.+$/gm) ?? [];
   if (ch.length < 3) warnings.push("fewer than 3 chapter timestamps in the description");
   else if (!/^\s*0{1,2}:00\s/m.test(ch[0])) warnings.push("the first chapter is not 0:00");
   const bad = desc.match(BANNED);
