@@ -22,7 +22,7 @@ export function scoreHooks(hooksFile: string): Scored[] {
   return JSON.parse(r.stdout.toString());
 }
 
-const START = "<!-- hookscore:start -->", END = "<!-- hookscore:end -->";
+const HEAD = "## Hook scores (hookscore.py, run by the pipeline)";
 
 /** Scores the hooks and writes the ranking into the notes file (replacing an earlier pipeline block). Returns the
  *  ranked hooks ([] when there is no hooks file). */
@@ -30,15 +30,14 @@ export function scoreHooksIntoNotes(hooksFile: string, notesFile: string): Score
   const rows = scoreHooks(hooksFile).sort((a, b) => b.verdict - a.verdict);
   if (!rows.length) return rows;
   const weakest = (p: Record<string, number>) => Object.entries(p).sort((a, b) => a[1] - b[1])[0]?.[0] ?? "";
-  const block = `${START}
-## Hook scores (hookscore.py, run by the pipeline)
+  const block = `${HEAD}
 | # | hook | score | formula | weakest |
 |---|---|---|---|---|
-${rows.map((h, i) => `| ${i + 1} | ${h.hook.replace(/\|/g, "/")} | ${h.verdict} ${h.band} | ${h.formula} | ${weakest(h.properties)} |`).join("\n")}
-${END}`;
+${rows.map((h, i) => `| ${i + 1} | ${h.hook.replace(/\|/g, "/")} | ${h.verdict} ${h.band} | ${h.formula} | ${weakest(h.properties)} |`).join("\n")}`;
   let notes = fs.existsSync(notesFile) ? fs.readFileSync(notesFile, "utf-8") : "";
   // drop an earlier pipeline block and the writer's "did not run" note, if any
-  notes = notes.replace(new RegExp(`${START}[\\s\\S]*?${END}\\n?`), "")
+  notes = notes.replace(/<!-- hookscore:start -->[\s\S]*?<!-- hookscore:end -->\n?/, "")
+    .replace(/^## Hook scores \(hookscore\.py, run by the pipeline\)\n(?:[^\n]*\|[^\n]*\n?)*/m, "")
     .replace(/^`?hookscore\.py`? did not run[^\n]*\n(?:[^\n#][^\n]*\n)*/im, "");
   fs.writeFileSync(notesFile, `${block}\n\n${notes.trimStart()}`, "utf-8");
   return rows;

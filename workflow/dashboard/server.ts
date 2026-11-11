@@ -22,6 +22,7 @@ import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
+import { listenRoute } from "./listen";
 import { publishedSummaries, shortLinkMap } from "../09-analytics/lib";
 import { isUntitled, nameSource, nextUntitled, renameWorkspace } from "../lib/rename";
 import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
@@ -1766,6 +1767,7 @@ async function appFetch(req: Request): Promise<Response> {
     const idr = await ideasRoute(req, url, anCtx);
     if (idr) return idr;
 
+    if (p === "/api/listen/voices") { const r = await listenRoute(req, p, null, "", { json, bad, body, wsDir }); if (r) return r; }
     if (p === "/api/workspaces" && req.method === "GET") return json({ workspaces: listWorkspaces(), studio: studioState(), renames: Object.fromEntries(renames) });
     if (p === "/api/schema" && req.method === "GET") return json(schema());
     if (p === "/api/system" && req.method === "GET") {
@@ -1877,6 +1879,9 @@ async function appFetch(req: Request): Promise<Response> {
     }
 
     if (!validWs(ws)) return bad("no such workspace", 404);
+
+    // the script as an audio file (macOS say) to review by ear
+    if (rest.startsWith("/listen")) return (await listenRoute(req, p, ws, rest, { json, bad, body, wsDir }))!;
 
     if (rest === "/status" && req.method === "GET") return json(details(ws));
 

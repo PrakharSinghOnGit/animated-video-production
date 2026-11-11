@@ -21,6 +21,8 @@ async function call<T>(path: string, init: { method?: string; body?: unknown; te
 const w = (ws: string) => `/api/ws/${encodeURIComponent(ws)}`;
 
 export const api = {
+  listenVoices: () => call<{ voices: { name: string; lang: string }[]; default: string; available: boolean }>("/api/listen/voices"),
+  listen: (ws: string, text: string, voice: string, wpm: number) => call<{ url: string; bytes: number; voice: string; wpm: number }>(`/api/ws/${encodeURIComponent(ws)}/listen`, { method: "POST", body: { text, voice, wpm } }),
   workspaces: () => call<{ workspaces: WsSummary[]; studio: StudioState | null; renames?: Record<string, string> }>("/api/workspaces"),
   /** no id: the next number, untitled (named automatically once its idea or script is written) */
   createWorkspace: (id: string | null, kind: "video" | "shorts" = "video") => call<{ id: string; job: Job }>("/api/workspaces", { method: "POST", body: { id, kind } }),

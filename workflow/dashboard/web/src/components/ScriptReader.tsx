@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, Square } from "lucide-react";
+import { Download, Headphones, Pause, Play, Square } from "lucide-react";
+import { api } from "@/lib/api";
+import { useApp } from "@/hooks/app";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/fields";
 import { cn } from "@/lib/utils";
@@ -11,7 +13,11 @@ import { cn } from "@/lib/utils";
  *
  * Listen uses the browser's own speech (Web Speech API): free, instant, any voice the OS has. It is for reading by ear,
  * not a preview of the real voiceover. Click a paragraph to start from it.
+ * Audio file: the same words as an .m4a made by macOS's `say` on the server (free, local): it keeps playing with the
+ * phone locked, so a script can be reviewed while walking. Download it or play it here.
  */
+/** macOS lists joke voices (Bells, Boing, Bubbles, …) as English; they sing or make noises, so they're never offered */
+const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Grandma|Grandpa|Rocko|Shelley|Flo|Eddy|Reed|Sandy|Fred|Junior|Ralph|Kathy)\b/;
 type Part = { title: string; paras: { text: string; chunks: string[] }[] };
 
 export function parseScript(raw: string): Part[] {
@@ -58,7 +64,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
 
   useEffect(() => {
     if (!can) return;
-    const load = () => setVoices(speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en")));
+    const load = () => setVoices(speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en") && !NOVELTY.test(v.name)));
     load();
     speechSynthesis.addEventListener("voiceschanged", load);
     return () => { speechSynthesis.removeEventListener("voiceschanged", load); speechSynthesis.cancel(); };
@@ -109,6 +115,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
         </> : <span className="text-xs text-muted-foreground">This browser has no built-in speech.</span>}
         <span className="text-[11px] text-subtle-foreground">browser voice, not the real voiceover · click a paragraph to start there{mins}</span>
       </div>
+      <AudioFile parts={parts} rate={rate} />
       <div className="grid max-h-[70vh] gap-4 overflow-y-auto pr-1 text-[14px] leading-relaxed">
         {parts.map((p, pi) => (
           <section key={pi} className="grid gap-2">
@@ -125,6 +132,40 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
           </section>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** The script as an audio file (macOS say on the dashboard's Mac): plays with the screen off, downloadable. */
+function AudioFile({ parts, rate }: { parts: Part[]; rate: number }) {
+  const { ws, toast } = useApp();
+  const [voices, setVoices] = useState<{ name: string; lang: string }[] | null>(null);
+  const [voice, setVoice] = useState(store.get("wg.reader.sayVoice") ?? "");
+  const [busy, setBusy] = useState(false);
+  const [file, setFile] = useState<{ url: string; bytes: number } | null>(null);
+  useEffect(() => { api.listenVoices().then((r) => { setVoices(r.available ? r.voices : []); setVoice((v) => v || r.default); }).catch(() => setVoices([])); }, []);
+  useEffect(() => setFile(null), [parts]);
+  if (!ws || !voices?.length) return null;
+  // part titles are read as headings, with a short silence between parts ([[slnc]] is a say command)
+  const text = parts.map((p) => `${p.title ? `${p.title}.\n\n` : ""}${p.paras.map((x) => x.chunks.map(forSpeech).join(" ")).join("\n\n")}`).join("\n\n[[slnc 800]]\n\n");
+  const make = async () => {
+    setBusy(true);
+    try { setFile(await api.listen(ws, text, voice, Math.round(180 * rate))); } catch (e) { toast((e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="grid gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Headphones className="size-4 text-muted-foreground" />
+        <span className="text-[13px] font-medium">Audio file</span>
+        <NativeSelect className="w-auto max-w-56 text-xs" aria-label="Audio file voice" value={voice} onChange={(e) => { setVoice(e.target.value); store.set("wg.reader.sayVoice", e.target.value); setFile(null); }}>
+          {voices.map((v) => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
+        </NativeSelect>
+        <Button size="sm" variant={file ? "ghost" : "default"} disabled={busy} onClick={make}>{busy ? "Making…" : file ? "Make again" : "Make audio file"}</Button>
+        {file && <Button size="sm" variant="ghost" asChild><a href={file.url} download={`${ws}_script.m4a`}><Download />Download ({(file.bytes / 1e6).toFixed(1)} MB)</a></Button>}
+      </div>
+      {file && <audio controls preload="metadata" src={file.url} className="w-full" />}
+      <span className="text-[11px] text-subtle-foreground">Made on the Mac with its built-in voice (free, ~20–40 s for a script) at the speed picked above. Keeps playing with your phone locked: review while you walk.</span>
     </div>
   );
 }
