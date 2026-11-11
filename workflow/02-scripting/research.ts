@@ -13,7 +13,13 @@
  * The researcher (role `researcher`, default free agy Gemini Flash) may only search and read the web: no shell
  * commands (pages can carry text aimed at the model). Its reply is data; nothing it says is run.
  *
+ * After the script is written, `--claims` researches the script's own claims instead: every claim the fact check
+ * (02-scripting/factcheck.md) lists as needing a check gets one search; a claim becomes sourced when the program finds
+ * the quoted sentence on the page. Its facts are added to the existing research (nothing is dropped).
+ * A question whose pages fail the page check is asked once more with the reason, before it is given up.
+ *
  * Usage: bun run research --video <ID> [--focus "what to dig into"] [--max 8] [--model <spec>]   (agy: free, ~5–20 min)
+ *        bun run research --video <ID> --claims [--max 12]   find a source for the script's unchecked claims
  *        bun run research --video <ID> --verify      re-check the quotes in research.json against their pages (free)
  */
 import fs from "node:fs";
@@ -21,6 +27,7 @@ import path from "node:path";
 import { runAgentAsync, extractJson } from "../05-video/src/lib/agent";
 import { roleModel } from "../lib/models";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
+import { runFactcheck, factcheckLines } from "./script_lib";
 
 const REPO = path.resolve(import.meta.dir, "../..");
 const args = process.argv.slice(2);
@@ -35,10 +42,12 @@ const F = { idea: path.join(dir, "idea.md"), json: path.join(dir, "research.json
 
 export interface Fact {
   claim: string; value: string; source: string; url: string; date: string; quote: string;
+  /** --claims: the words of the script this fact was searched for (the fact check matches a claim by them) */
+  claimSaid?: string;
   /** set by the page check */
   check?: "verified" | "number on page" | "not on page" | "page unreachable"; checkNote?: string;
 }
-export interface IdeaCheck { claim: string; verdict: "confirmed" | "contradicted" | "not found" | "outdated"; note: string; url?: string }
+export interface IdeaCheck { claim: string; verdict: "confirmed" | "contradicted" | "not found" | "outdated"; note: string; url?: string; claimSaid?: string }
 interface Research { at: string; model: string; focus?: string; summary: string; facts: Fact[]; checks: IdeaCheck[] }
 
 // ───────────── the page check ─────────────
@@ -103,10 +112,12 @@ function render(r: Research): string {
   ].join("\n");
 }
 
+const fresh = new Set<Fact>();
 async function verifyAll(r: Research): Promise<Research> {
   console.log(`🔎 checking ${r.facts.length} quotes against their pages...`);
   const out: Fact[] = [];
-  for (let i = 0; i < r.facts.length; i += 4) out.push(...(await Promise.all(r.facts.slice(i, i + 4).map(checkFact))));
+  // `fresh`: a fact already checked during this run is not fetched twice
+  for (let i = 0; i < r.facts.length; i += 4) out.push(...(await Promise.all(r.facts.slice(i, i + 4).map((f) => (fresh.has(f) ? f : checkFact(f))))));
   for (const f of out) console.log(`   ${MARK[f.check!]} ${f.claim.slice(0, 70)}${f.checkNote ? ` (${f.checkNote})` : ""}`);
   return { ...r, facts: out };
 }
@@ -127,11 +138,12 @@ if (args.includes("--verify")) {
 
 // ───────────── research (agent) ─────────────
 
+const claimsMode = args.includes("--claims");
 const idea = fs.existsSync(F.idea) ? fs.readFileSync(F.idea, "utf-8") : "";
-if (idea.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length < 30) { console.error(`❌ write the idea first: ${path.relative(REPO, F.idea)}`); process.exit(1); }
+if (!claimsMode && idea.replace(/^#.*$/gm, "").replace(/\([^)]*\)/g, "").trim().length < 30) { console.error(`❌ write the idea first: ${path.relative(REPO, F.idea)}`); process.exit(1); }
 const focus = flag("--focus")?.trim();
 const model = roleModel("researcher", flag("--model"));
-const maxQ = Math.min(15, Math.max(1, parseInt(flag("--max") ?? "8", 10)));
+const maxQ = Math.min(claimsMode ? 30 : 15, Math.max(1, parseInt(flag("--max") ?? (claimsMode ? "12" : "8"), 10)));
 const today = new Date().toISOString().slice(0, 10);
 const stamp = Date.now();
 const str = (x: unknown) => (typeof x === "string" ? x.trim() : x == null ? "" : String(x));
@@ -155,6 +167,17 @@ async function ask(prompt: string, tools: string[], timeoutS: number, log: strin
 
 // 1. what needs a source: the idea's own claims and the figures a script on it needs (no web, quick)
 console.log(`🌐 Researching ${videoId} with ${model}${focus ? ` (focus: ${focus})` : ""}`);
+
+let questions: { q: string; claim: string; said?: string }[];
+if (claimsMode) {
+  // the script's own claims that the fact check could not source
+  const fc = runFactcheck(path.dirname(dir), videoId);
+  if (!fc) { console.error("❌ --claims needs a script (bun run write) first"); process.exit(1); }
+  const open = fc.claims.filter((c) => c.status === "check");
+  questions = open.slice(0, maxQ).map((c) => ({ q: `Is this true, and what is the exact figure, date and source? ${c.claim}`, claim: c.said, said: c.said }));
+  console.log(`  1/3 ${open.length} claim(s) of the script need a source${open.length > maxQ ? `; researching the first ${maxQ} (--max ${Math.min(30, open.length)} for more)` : ""}`);
+  if (!questions.length) { console.log("✅ nothing to research: no claim needs a check"); process.exit(0); }
+} else {
 console.log("  1/3 picking what to research...");
 const planned = await ask(`You plan fact research for "The Wealth Gap", a finance explainer YouTube channel. Today is ${today}.
 Read the creator's text below and list the ${maxQ} most important things a script about it must get right: its factual claims (numbers, dates, events, who did what) and the key figures it would need but doesn't give. ${focus ? `The creator asks you to focus on: ${focus}.` : ""}
@@ -167,8 +190,9 @@ ${idea.slice(0, 14000)}
 >>>
 
 Reply with ONLY this JSON: {"questions": [{"q": "a precise research question, e.g. 'How much did Microsoft invest in OpenAI, and when?'", "claim": "the creator's claim it checks, quoted or summarised, or empty if it is a missing figure"}]}`, [], 180, "plan", "still picking");
-const questions: { q: string; claim: string }[] = (Array.isArray(planned?.questions) ? planned.questions : [])
+questions = (Array.isArray(planned?.questions) ? planned.questions : [])
   .map((x: any) => ({ q: str(x.q), claim: str(x.claim) })).filter((x: { q: string }) => x.q).slice(0, maxQ);
+}
 if (!questions.length) { console.error(`❌ the researcher listed nothing to research (logs: ${path.relative(REPO, F.logs)})`); process.exit(1); }
 for (const [i, x] of questions.entries()) console.log(`     ${i + 1}. ${x.q}`);
 
@@ -176,10 +200,7 @@ for (const [i, x] of questions.entries()) console.log(`     ${i + 1}. ${x.q}`);
 console.log("  2/3 searching the web, one question at a time (limit 180 s each)...");
 const facts: Fact[] = [], checks: IdeaCheck[] = [];
 const VERDICTS = ["confirmed", "contradicted", "not found", "outdated"];
-for (const [i, x] of questions.entries()) {
-  const t = Date.now();
-  console.log(`  🔍 ${i + 1}/${questions.length}: ${x.q}`);
-  const a = await ask(`You are a fact researcher for a finance explainer channel. Today is ${today}.
+const searchPrompt = (x: { q: string; claim: string }) => `You are a fact researcher for a finance explainer channel. Today is ${today}.
 Question: ${x.q}
 ${x.claim ? `The creator's script claims: "${x.claim}". Say whether the sources confirm it, contradict it (give the right figure), show it is outdated (a newer figure exists), or don't address it.` : ""}
 Search the web with your web search tool and read the pages you cite with your page reading tool; never answer from memory, never guess a URL, and do not run shell commands (they are disabled).
@@ -188,20 +209,46 @@ For each fact: the exact URL of a page you actually opened, and one sentence cop
 
 Reply with ONLY this JSON (1-2 facts; an empty list if you found nothing solid):
 {"facts": [{"claim": "what the fact is about", "value": "the figure or event, with unit", "source": "publisher and title", "url": "https://...", "date": "YYYY-MM-DD", "quote": "verbatim sentence"}],
- "verdict": "confirmed|contradicted|outdated|not found", "note": "one sentence: what the sources say"}`, ["WebSearch", "WebFetch"], 180, `q${i + 1}`, "still searching");
-  const got: Fact[] = (Array.isArray(a?.facts) ? a.facts : [])
-    .map((f: any) => ({ claim: str(f.claim), value: str(f.value), source: str(f.source), url: str(f.url), date: str(f.date), quote: str(f.quote) }))
+ "verdict": "confirmed|contradicted|outdated|not found", "note": "one sentence: what the sources say"}`;
+for (const [i, x] of questions.entries()) {
+  const t = Date.now();
+  console.log(`  🔍 ${i + 1}/${questions.length}: ${x.q}`);
+  const a = await ask(searchPrompt(x), ["WebSearch", "WebFetch"], 180, `q${i + 1}`, "still searching");
+  const read = (ans: any): Fact[] => (Array.isArray(ans?.facts) ? ans.facts : [])
+    .map((f: any) => ({ claim: str(f.claim), value: str(f.value), source: str(f.source), url: str(f.url), date: str(f.date), quote: str(f.quote), ...(x.said ? { claimSaid: x.said } : {}) }))
     .filter((f: Fact) => f.claim && /^https?:\/\//.test(f.url)).slice(0, 3);
+  let got = await Promise.all(read(a).map(checkFact));
+  // the page check failed for every fact: say why and ask once more, instead of keeping a source nobody can open
+  if (a && !got.some((f) => f.check === "verified")) {
+    const why = got.length ? got.map((f) => `- ${f.url}: ${f.check}${f.checkNote ? ` (${f.checkNote})` : ""}`).join("\n") : "- you gave no page";
+    console.log(`     no quote found on its page, asking once more`);
+    const b = await ask(`${searchPrompt(x)}
+
+You answered this before, and a program then opened your pages and could not find your quoted sentence:
+${why}
+Search again. Give only a page you open now and a sentence copied from it character for character (no paraphrase, no "..." inside it). A different, reachable source is fine. If you cannot, reply with an empty facts list.`, ["WebSearch", "WebFetch"], 180, `q${i + 1}b`, "still searching");
+    const again = await Promise.all(read(b).map(checkFact));
+    if (again.some((f) => f.check === "verified")) got = again; else got = [...got, ...again].slice(0, 3);
+  }
+  for (const f of got) fresh.add(f);
   facts.push(...got);
   const verdict = VERDICTS.includes(a?.verdict) ? a.verdict : "not found";
-  if (x.claim && a) checks.push({ claim: x.claim, verdict, note: str(a.note), ...(got[0] ? { url: got[0].url } : {}) });
+  if (x.claim && a) checks.push({ claim: x.claim, verdict, note: str(a.note), ...(got[0] ? { url: got[0].url } : {}), ...(x.said ? { claimSaid: x.said } : {}) });
   console.log(`     ${a ? `${got.length} fact${got.length === 1 ? "" : "s"}${x.claim ? `, claim ${verdict}` : ""}` : "⚠️  no answer (timed out or no JSON)"} in ${Math.round((Date.now() - t) / 1000)} s`);
 }
 recordTiming(path.dirname(dir), { step: "research", ms: Date.now() - t0, model, costUsd: cost, inputTokens: inTok, outputTokens: outTok });
 console.log(`     ${formatDuration(Date.now() - t0)}${cost ? `, $${cost.toFixed(2)}` : " (free)"}`);
-if (!facts.length) { console.error(`❌ no facts with URLs found (logs: ${path.relative(REPO, F.logs)})`); process.exit(1); }
+if (!facts.length && !claimsMode) { console.error(`❌ no facts with URLs found (logs: ${path.relative(REPO, F.logs)})`); process.exit(1); }
 
 // 3. the program checks every quote on its page
 console.log("  3/3 the page check");
-const bad = checks.filter((c) => c.verdict === "contradicted" || c.verdict === "outdated").length;
-save(await verifyAll({ at: new Date().toISOString(), model, ...(focus ? { focus } : {}), summary: `${questions.length} questions researched, ${facts.length} facts found; ${bad} of the idea's claims contradicted or outdated.`, facts, checks }));
+// --claims adds to the research that is there (older facts for the same words of the script are replaced)
+let prev: Research | null = null;
+if (claimsMode) { try { prev = JSON.parse(fs.readFileSync(F.json, "utf-8")); } catch {} }
+const redone = new Set(questions.map((q) => q.said).filter(Boolean));
+const allFacts = [...(prev?.facts ?? []).filter((f) => !f.claimSaid || !redone.has(f.claimSaid)), ...facts];
+const allChecks = [...(prev?.checks ?? []).filter((c) => !c.claimSaid || !redone.has(c.claimSaid)), ...checks];
+for (const f of prev?.facts ?? []) if (f.check) fresh.add(f);
+const bad = allChecks.filter((c) => c.verdict === "contradicted" || c.verdict === "outdated").length;
+save(await verifyAll({ at: new Date().toISOString(), model, ...(focus ? { focus } : {}), summary: `${claimsMode ? `${prev?.summary ? prev.summary + " Then " : ""}${questions.length} claims of the script researched, ${facts.length} facts found.` : `${questions.length} questions researched, ${facts.length} facts found;`} ${bad} claim(s) contradicted or outdated.`, facts: allFacts, checks: allChecks }));
+if (claimsMode) { const fc = runFactcheck(path.dirname(dir), videoId); if (fc) for (const l of factcheckLines(fc)) console.log(l); }
