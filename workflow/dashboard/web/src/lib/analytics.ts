@@ -3,7 +3,7 @@ export interface RetPoint { r: number; watch: number; rel?: number }
 export interface YtVideo {
   ytId: string; title: string; publishedAt: string; durationS: number; thumb?: string; views: number; likes: number; comments: number;
   minutes?: number; avdS?: number; avgPct?: number; subsGained?: number; subsLost?: number; shares?: number;
-  impressions?: number; ctr?: number; retention?: RetPoint[]; traffic?: { source: string; views: number; minutes: number }[]; ws?: string; short?: boolean;
+  impressions?: number; ctr?: number; retention?: RetPoint[]; traffic?: { source: string; views: number; minutes: number }[]; ws?: string; short?: boolean; parent?: string; shortId?: string;
 }
 export interface Snapshot {
   fetchedAt: string; mock?: boolean;

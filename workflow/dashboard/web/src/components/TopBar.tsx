@@ -14,7 +14,7 @@ const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", mac
 
 /** Thin menu bar: brand, breadcrumb, state pill, Remotion Studio for the open video, theme. No machine stats. */
 export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; showStats: boolean; onMenu: () => void; onStats: () => void }) {
-  const { route, ws, d, runningAnywhere, activity, showLog, go, studio, toast, reloadList, mode, setMode } = useApp();
+  const { route, ws, d, runningAnywhere, activity, showLog, go, studio, toast, reloadList, mode, setMode, list } = useApp();
   const [theme, toggle] = useTheme();
   const job = runningAnywhere[0];
   const last = activity.find((j) => j.status !== "running");
@@ -24,9 +24,9 @@ export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; 
   const full = job ? `${job.ws}: ${job.label}` : failed ? `${last!.ws}: ${last!.label} failed` : "Nothing running";
   const target = job ?? (failed ? last : null);
 
-  const SEC = { video: "Video", shorts: "Shorts", packaging: "Packaging" } as const;
+  const SEC = { video: "Video", shorts: "Shorts", packaging: "Packaging", production: "Production" } as const;
   const stepLabel = route.sec === "video" ? (route.step === "runs" ? "Runs" : STEPS.find((s) => s.key === route.step)?.label) : route.sec === "shorts" ? route.short : undefined;
-  const crumbs = route.view === "ws" ? [d?.id ?? ws ?? "", route.sec ? SEC[route.sec] : "Overview", stepLabel ?? ""].filter(Boolean) : [PAGE[route.view]];
+  const crumbs = route.view === "ws" ? [d?.id ?? ws ?? "", route.sec ? SEC[route.sec] : list.find((w) => w.id === ws)?.published ? "Upload" : "Overview", stepLabel ?? ""].filter(Boolean) : [PAGE[route.view]];
   const mine = studio?.running && studio.ws === ws;
 
   return (

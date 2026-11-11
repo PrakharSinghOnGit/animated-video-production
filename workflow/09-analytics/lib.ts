@@ -7,6 +7,7 @@
  *   youtube_token.json             refresh token written by `bun run yt:auth`, next to the client file (gitignored)
  *   workspace/_analytics/          cache: snapshot.json, raw/, reach/ (Reporting API CSVs), reviews/
  *   workspace/<VID>/07-publish/youtube.json   { videoId } links a workspace to its upload
+ *   workspace/<VID>/shorts/S1/07-publish/youtube.json   the same for one of its shorts (a published video's page lists them)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -110,6 +111,8 @@ export interface Video {
   traffic?: { source: string; views: number; minutes: number }[];
   ws?: string;
   short?: boolean;
+  /** a linked short: its video's workspace and short id (ws stays empty: the parent's acts and captions don't apply) */
+  parent?: string; shortId?: string;
 }
 export interface Snapshot {
   fetchedAt: string; mock?: boolean;
@@ -125,8 +128,12 @@ export interface Snapshot {
 export function readSnapshot(mock = false): Snapshot | null {
   const s = readJson<Snapshot>(mock ? MOCK_SNAPSHOT : SNAPSHOT);
   if (!s) return null;
-  const links = mapping();
-  for (const v of s.videos) v.ws = links[v.ytId] ?? (mock ? v.ws : undefined);
+  const links = mapping(), shorts = shortLinks();
+  for (const v of s.videos) {
+    v.ws = links[v.ytId] ?? (mock ? v.ws : undefined);
+    const sh = shorts[v.ytId];
+    if (sh) { v.parent = sh.ws; v.shortId = sh.short; } else if (!mock) { delete v.parent; delete v.shortId; }
+  }
   return s;
 }
 
@@ -155,6 +162,48 @@ export function setMapping(ws: string, ytId: string | null) {
   if (!WS_ID.test(ws) || !fs.existsSync(wsDir(ws))) throw new Error("no such workspace");
   if (ytId === null) { try { fs.rmSync(mapFile(ws)); } catch {} return; }
   writeJson(mapFile(ws), { videoId: ytId, setAt: new Date().toISOString() });
+}
+
+const SHORT_ID = /^S\d+$/;
+export const shortMapFile = (ws: string, short: string) => path.join(wsDir(ws), "shorts", short, "07-publish", "youtube.json");
+function shortIds(ws: string): string[] { try { return fs.readdirSync(path.join(wsDir(ws), "shorts")).filter((s) => SHORT_ID.test(s)).sort(); } catch { return []; } }
+/** ytId → the short it was cut as (every VID workspace's shorts/S*). */
+export function shortLinks(): Record<string, { ws: string; short: string }> {
+  const out: Record<string, { ws: string; short: string }> = {};
+  for (const w of workspaces()) for (const s of shortIds(w)) { const id = readJson<{ videoId: string }>(shortMapFile(w, s))?.videoId; if (id) out[id] = { ws: w, short: s }; }
+  return out;
+}
+export function setShortMapping(ws: string, short: string, ytId: string | null) {
+  if (!WS_ID.test(ws) || !SHORT_ID.test(short) || !fs.existsSync(path.join(wsDir(ws), "shorts", short))) throw new Error("no such short");
+  if (ytId === null) { try { fs.rmSync(shortMapFile(ws, short)); } catch {} return; }
+  writeJson(shortMapFile(ws, short), { videoId: ytId, setAt: new Date().toISOString() });
+}
+
+/** What the dashboard shows for a published video: its upload's numbers and its shorts' (from the cached snapshot). */
+export interface PublishedSummary {
+  ytId: string; title: string | null; publishedAt: string | null; thumb: string | null; views: number | null; ctr: number | null; avgPct: number | null;
+  subsGained: number | null; comments: number | null; fetchedAt: string | null;
+  shorts: { id: string; ytId: string | null; title: string | null; views: number | null }[];
+}
+export function publishedSummaries(): Record<string, PublishedSummary> {
+  const links = mapping();
+  if (!Object.keys(links).length) return {};
+  const snap = readSnapshot();
+  const shorts = shortLinks();
+  const out: Record<string, PublishedSummary> = {};
+  for (const [ytId, ws] of Object.entries(links)) {
+    const v = snap?.videos.find((x) => x.ytId === ytId);
+    out[ws] = {
+      ytId, title: v?.title ?? null, publishedAt: v?.publishedAt ?? null, thumb: v?.thumb ?? null, views: v?.views ?? null,
+      ctr: v?.ctr ?? null, avgPct: v?.avgPct ?? null, subsGained: v?.subsGained ?? null, comments: v?.comments ?? null, fetchedAt: snap?.fetchedAt ?? null,
+      shorts: shortIds(ws).map((s) => {
+        const sy = Object.entries(shorts).find(([, x]) => x.ws === ws && x.short === s)?.[0] ?? null;
+        const sv = sy ? snap?.videos.find((x) => x.ytId === sy) : undefined;
+        return { id: s, ytId: sy, title: sv?.title ?? null, views: sv?.views ?? null };
+      }),
+    };
+  }
+  return out;
 }
 
 /** The workspace's plan acts (for overlaying act boundaries on a retention curve). */

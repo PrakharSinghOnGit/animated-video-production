@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Link2, MonitorPlay } from "lucide-react";
+import { Input } from "@/components/ui/fields";
 import { useApp } from "@/hooks/app";
 import { usePoll } from "@/hooks/usePoll";
 import { useRunSaved } from "@/hooks/useRunSaved";
@@ -27,7 +28,7 @@ const firstLine = (t: string) => t.split("\n").map((l) => l.replace(/^#+\s*/, ""
 
 /** The landing page of a video project: details, the state of its three sections, downloads, checks and housekeeping. */
 export function ProjectOverview() {
-  const { d, ws, go, busy } = useApp();
+  const { d, ws, go, busy, list, reloadList } = useApp();
   const runSaved = useRunSaved();
   const [ov, setOv] = useState<Overview | null>(null);
   useEffect(() => setOv(null), [ws]);
@@ -89,6 +90,8 @@ export function ProjectOverview() {
           </button>
         ))}
       </section>
+
+      {!only && !list.find((w) => w.id === ws)?.published && <LinkUpload ws={ws} onDone={async () => { await reloadList(); go({ sec: null, step: null, act: null, short: null }); }} />}
 
       <section aria-label="Downloads" className="grid gap-3">
         <SubHead>Downloads</SubHead>
@@ -156,5 +159,26 @@ export function ProjectOverview() {
         <HistoryStep />
       </section>
     </div>
+  );
+}
+
+/** Once the video is on YouTube: paste its link and the project becomes a published video (its overview shows the
+ *  upload's numbers instead of the pipeline; the pipeline stays under Production and the section tabs). */
+function LinkUpload({ ws, onDone }: { ws: string; onDone: () => void }) {
+  const { toast } = useApp();
+  const [id, setId] = useState("");
+  const link = async () => {
+    try { const r = await api.analyticsLink(ws, id); toast(`${ws} linked to ${r.id}: it now opens on its upload`); setId(""); onDone(); } catch (e) { toast((e as Error).message); }
+  };
+  return (
+    <Card>
+      <CardHeader><MonitorPlay className="size-4 text-muted-foreground" /><CardTitle>Uploaded it?</CardTitle><CardSub>Paste the YouTube link: the project moves to Published and opens on its numbers</CardSub></CardHeader>
+      <CardBody>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input aria-label="YouTube URL or video id" placeholder="https://youtu.be/… or the video id" value={id} onChange={(e) => setId(e.target.value)} onKeyDown={(e) => e.key === "Enter" && id.trim() && void link()} className="min-w-56 flex-1" />
+          <Button variant="default" disabled={!id.trim()} onClick={link}><Link2 />Link upload</Button>
+        </div>
+      </CardBody>
+    </Card>
   );
 }

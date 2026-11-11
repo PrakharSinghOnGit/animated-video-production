@@ -5,7 +5,7 @@
  *
  *   GET  /api/analytics[?mock=1]            snapshot + diagnosis + lessons + links + latest review + auth state
  *   POST /api/analytics/run {action, agent?, video?, mock?}   action: auth | fetch | mock | review | learn (review notes → lessons)
- *   PUT  /api/analytics/link {ws, id|null}  link a workspace to its YouTube upload (id or URL)
+ *   PUT  /api/analytics/link {ws, short?, id|null}  link a workspace (or one of its shorts, "S1") to its YouTube upload (id or URL)
  *   POST /api/analytics/lessons/:id {action, reason?, rule?}  approve | reject | retire | restore | edit
  *   GET  /api/analytics/log/:job            live log of an analytics job
  *   GET  /api/analytics/comments            the comments inbox (workspace/_analytics/comments.json, from bun run yt:comments)
@@ -15,7 +15,7 @@
 import { allSpecs, roleModel } from "../lib/models";
 import fs from "node:fs";
 import path from "node:path";
-import { DIR, authState, mapping, parseYtId, planActs, readJson, readSnapshot, setMapping, workspaces, writeJson } from "../09-analytics/lib";
+import { DIR, authState, mapping, parseYtId, planActs, readJson, readSnapshot, setMapping, setShortMapping, shortLinks, workspaces, writeJson } from "../09-analytics/lib";
 import { diagnose } from "../09-analytics/diagnose";
 import { ACTIVE_CAP, TARGETS, TARGET_INFO, decide, readStore } from "../learning/lessons";
 import { parseEnv } from "./envfile";
@@ -99,8 +99,12 @@ export async function analyticsRoute(req: Request, url: URL, ctx: AnalyticsCtx):
     const b = await ctx.body(req);
     const id = b.id === null || b.id === "" ? null : parseYtId(String(b.id ?? ""));
     if (b.id && !id) return ctx.bad("not a YouTube video id or URL");
-    if (id) { const other = mapping()[id]; if (other && other !== b.ws) return ctx.bad(`already linked to ${other}`, 409); }
-    try { setMapping(String(b.ws ?? ""), id); } catch (e: any) { return ctx.bad(e.message); }
+    if (id) {
+      const other = mapping()[id], sh = shortLinks()[id];
+      const here = b.short ? sh && sh.ws === b.ws && sh.short === b.short : other === b.ws;
+      if ((other || sh) && !here) return ctx.bad(`already linked to ${other ?? `${sh!.ws} ${sh!.short}`}`, 409);
+    }
+    try { if (typeof b.short === "string" && b.short) setShortMapping(String(b.ws ?? ""), b.short, id); else setMapping(String(b.ws ?? ""), id); } catch (e: any) { return ctx.bad(e.message); }
     return ctx.json({ ok: true, id });
   }
 

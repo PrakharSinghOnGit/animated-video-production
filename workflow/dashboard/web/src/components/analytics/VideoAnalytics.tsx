@@ -40,7 +40,8 @@ function Tile({ label, value, base, better }: { label: string; value: string; ba
 }
 const cmp = (a?: number, b?: number) => (a === undefined || b === undefined || !Number.isFinite(a) || !Number.isFinite(b) ? null : a >= b);
 
-export function VideoAnalytics({ data, yt, onLessons, onReview, reload }: { data: AnalyticsData; yt: string; onLessons: (s: LessonStore) => void; onReview: (video: string) => void; reload: () => void }) {
+/** `embedded`: inside a published video's page, which has its own header (no back button, title or actions here). */
+export function VideoAnalytics({ data, yt, onLessons, onReview, reload, embedded }: { data: AnalyticsData; yt: string; onLessons: (s: LessonStore) => void; onReview: (video: string) => void; reload: () => void; embedded?: boolean }) {
   const { go } = useApp();
   const snap = data.snapshot!;
   const v = snap.videos.find((x) => x.ytId === yt);
@@ -71,8 +72,8 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload }: { data
   };
 
   return (
-    <div className="grid gap-5 p-4 pb-10">
-      <div className="flex flex-wrap items-start gap-3">
+    <div className={cn("grid grid-cols-[minmax(0,1fr)] gap-5", !embedded && "p-4 pb-10")}>
+      {!embedded && <div className="flex flex-wrap items-start gap-3">
         <Button variant="ghost" size="sm" onClick={() => go({ yt: null })}><ArrowLeft />All videos</Button>
         {v.thumb && <img src={v.thumb} alt="" className="h-16 rounded border object-cover max-sm:hidden" />}
         <div className="min-w-0 flex-1 basis-64">
@@ -86,7 +87,7 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload }: { data
           <Button variant="outline" size="sm" asChild><a href={`https://studio.youtube.com/video/${v.ytId}/analytics`} target="_blank" rel="noreferrer"><ExternalLink />Studio</a></Button>
           <Button size="sm" variant="default" onClick={() => onReview(v.ws ?? v.ytId)}><Brain />Review this video</Button>
         </div>
-      </div>
+      </div>}
 
       {!v.ws && !v.short && <Card><CardBody><span>Link this upload to its workspace to see act boundaries, the words at each drop, and to let the reviewer read its script and plan.</span><LinkControl data={data} fixedYt={v.ytId} onDone={reload} /></CardBody></Card>}
 
@@ -184,7 +185,9 @@ export function VideoAnalytics({ data, yt, onLessons, onReview, reload }: { data
         </Card>
       )}
 
-      {data.lessons.lessons.some(mentions) && <Lessons store={data.lessons} cap={data.cap} targetInfo={data.targetInfo} reviews={data.reviews} onChange={onLessons} only={mentions} />}
+      {data.lessons.lessons.some(mentions) && (embedded
+        ? <Card><CardBody className="flex-row flex-wrap items-center gap-2 text-[13px]"><span>{data.lessons.lessons.filter((l) => mentions(l) && l.status === "proposed").length} proposed lesson(s) cite this video.</span><Button size="sm" variant="outline" onClick={() => go({ view: "analytics", yt: v.ytId })}>Review them in Analytics</Button></CardBody></Card>
+        : <Lessons store={data.lessons} cap={data.cap} targetInfo={data.targetInfo} reviews={data.reviews} onChange={onLessons} only={mentions} />)}
     </div>
   );
 }

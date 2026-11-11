@@ -1,4 +1,4 @@
-import { Clapperboard, Film, LayoutGrid, PackageOpen } from "lucide-react";
+import { Clapperboard, Film, LayoutGrid, MonitorPlay, PackageOpen, Wrench } from "lucide-react";
 import { useApp } from "@/hooks/app";
 import type { Section } from "@/hooks/useRoute";
 import { videoStatus } from "@/lib/steps";
@@ -7,15 +7,18 @@ import { StatusDot } from "@/components/Status";
 
 /** The sections of a video project (they share its data but show separately) and the project overview. */
 export function SectionTabs() {
-  const { d, route, go } = useApp();
+  const { d, route, go, list } = useApp();
   if (!d) return null;
+  const published = !!list.find((w) => w.id === d.id)?.published;
   const st = d.statuses, items = d.shorts.items, exported = items.filter((s) => s.progress.exported).length;
   const pub = d.meta.publish;
   const all: { sec: Section | null; label: string; icon: typeof Film; status: string; sub: string }[] = [
-    { sec: null, label: "Overview", icon: LayoutGrid, status: "", sub: "" },
+    published ? { sec: null, label: "Upload", icon: MonitorPlay, status: "", sub: "" } : { sec: null, label: "Overview", icon: LayoutGrid, status: "", sub: "" },
     { sec: "video", label: "Video", icon: Clapperboard, status: videoStatus(st), sub: d.align.durationMs ? dur(d.align.durationMs) : "" },
     { sec: "shorts", label: "Shorts", icon: Film, status: st.shorts ?? "none", sub: items.length ? `${exported}/${items.length}` : "" },
     { sec: "packaging", label: "Packaging", icon: PackageOpen, status: st.publish ?? "none", sub: pub ? money(pub.totalCost) : "" },
+    // published: the old overview (downloads, QC, housekeeping, runs) moves behind its own tab
+    ...(published ? [{ sec: "production" as const, label: "Production", icon: Wrench, status: "", sub: money(d.totals.costUsd) }] : []),
   ];
   // a shorts project has no long video and no packaging of its own
   const tabs = d.kind === "shorts" ? all.filter((t) => t.sec === null || t.sec === "shorts") : all;

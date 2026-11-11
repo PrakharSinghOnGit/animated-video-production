@@ -53,7 +53,7 @@ export function IdeasPage() {
   const busy = !!data.running;
 
   return (
-    <div className="mx-auto grid max-w-[1400px] gap-5 px-6 pb-12 pt-6 max-sm:px-4">
+    <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-5 px-6 pb-12 pt-6 max-sm:px-4">
       <PageHeader
         title="Ideas"
         info={<>Check an idea before it becomes a project. <b>Check</b> searches YouTube twice (~200 of 10,000 daily quota units) for recent videos on the topic and their outlier ratio (views ÷ that channel's average), then {data.model} judges it against the audience brief and your channel's numbers and drafts 3 packages (~$0.10). <b>Start project</b> creates the video with the idea, angle and packages in its script step.</>}

@@ -22,6 +22,7 @@ import { refreshUsage, usageReport } from "./usage";
 import { dawInfo, dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
+import { publishedSummaries } from "../09-analytics/lib";
 import { allSpecs, catalog, parseSpec, readDefaults, roleModel, writeDefault, PROVIDERS, ROLES, type RoleKey } from "../lib/models";
 import * as pub from "../07-publish/lib";
 import * as sh from "../08-shorts/lib";
@@ -1632,6 +1633,7 @@ function serveWeb(req: Request, p: string): Response {
 // ───────────────────────────── routes ─────────────────────────────
 
 function listWorkspaces() {
+  const pub = publishedSummaries();
   return ls(WS_ROOT)
     .filter((f) => WS_ID.test(f) && fs.statSync(path.join(WS_ROOT, f)).isDirectory())
     .map((id) => {
@@ -1643,7 +1645,9 @@ function listWorkspaces() {
           const ps = sh.listShorts(id).map((s) => sh.shortProgress(id, s));
           return SHORT_BAR.map(([k, label]) => ({ key: k, label, done: ps.filter((p) => p[k]).length, total: ps.length }));
         })(),
-        totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) } };
+        totals: { ms: rows.reduce((a, r) => a + (r.ms ?? 0), 0), costUsd: rows.reduce((a, r) => a + (r.costUsd ?? 0), 0) },
+        // linked to its YouTube upload: the sidebar and overview show the upload's numbers instead of the pipeline
+        published: pub[id] ?? null };
     });
 }
 

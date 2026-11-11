@@ -110,7 +110,11 @@ export interface Details {
 }
 /** An act whose narration a script change rewrote: what was said, what is said now, plan items that went with it. */
 export interface ChangedAct { before: string; now: string; notes: string[]; at: string }
-export interface WsSummary { id: string; kind: "video" | "shorts"; /** shorts project: per stage, how many of its shorts have done it */ shorts: { key: string; label: string; done: number; total: number }[]; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number } }
+export interface WsSummary { id: string; kind: "video" | "shorts"; /** shorts project: per stage, how many of its shorts have done it */ shorts: { key: string; label: string; done: number; total: number }[]; statuses: Record<string, St>; running: Job | null; title: string | null; totals: { ms: number; costUsd: number }; /** linked to its YouTube upload */ published: Published | null }
+export interface Published {
+  ytId: string; title: string | null; publishedAt: string | null; thumb: string | null; views: number | null; ctr: number | null; avgPct: number | null;
+  subsGained: number | null; comments: number | null; fetchedAt: string | null; shorts: { id: string; ytId: string | null; title: string | null; views: number | null }[];
+}
 export interface DawInfo {
   setUp: boolean; bundle: FileInfo | null; mix: FileInfo | null; autoMix: FileInfo | null; bundleStale: boolean;
   build: { builtAt: number; regions: number; samples: number; bytes: number; events: number; music: boolean; tracks: string[] } | null;

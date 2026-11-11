@@ -57,7 +57,7 @@ export function CommentsPage() {
   const busy = !!data.running;
 
   return (
-    <div className="mx-auto grid max-w-[1400px] gap-5 px-6 pb-12 pt-6 max-sm:px-4">
+    <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)] gap-5 px-6 pb-12 pt-6 max-sm:px-4">
       <PageHeader
         title="Comments"
         info={<>Every comment on the channel, sorted into kinds, with a suggested reply drafted by <b>{data.model}</b> (Settings → Agent models → Comment reply drafts). Nothing is posted from here: copy a draft, make it yours, reply on YouTube, then mark it done. Comments you have already replied to are marked done on the next refresh.</>}

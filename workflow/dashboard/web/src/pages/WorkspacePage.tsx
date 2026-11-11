@@ -19,6 +19,7 @@ import { SectionTabs } from "@/components/SectionTabs";
 import { ProjectOverview } from "@/pages/ProjectOverview";
 import { ShortsPage } from "@/pages/ShortsPage";
 import { PackagingPage } from "@/pages/PackagingPage";
+import { PublishedOverview } from "@/pages/PublishedOverview";
 
 const NodeView = lazy(() => import("@/components/NodeView"));
 
@@ -76,8 +77,10 @@ function VideoSection() {
 
 /** A video project: the section tabs (Overview, Video, Shorts, Packaging) and the open section; the node view shows all of them at once. */
 export function WorkspacePage() {
-  const { d, route, mode } = useApp();
+  const { d, route, mode, list } = useApp();
   if (!d) return <div className="p-6 text-muted-foreground">Loading…</div>;
+  // once uploaded, a video opens on its upload (numbers, shorts, comments); the pipeline stays one tab away
+  const published = list.find((w) => w.id === d.id)?.published ?? null;
   const scroll = (el: React.ReactNode) => <div className="min-h-0 flex-1 overflow-y-auto" id="step-scroll">{el}</div>;
   return (
     <>
@@ -87,7 +90,8 @@ export function WorkspacePage() {
         : route.sec === "video" ? <VideoSection />
         : route.sec === "shorts" ? <ShortsPage />
         : route.sec === "packaging" ? scroll(<PackagingPage />)
-        : scroll(<ProjectOverview />)}
+        : route.sec === "production" || !published ? scroll(<ProjectOverview />)
+        : scroll(<PublishedOverview p={published} />)}
     </>
   );
 }

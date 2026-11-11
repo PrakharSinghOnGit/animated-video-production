@@ -85,7 +85,7 @@ export const api = {
   comments: () => call<CommentsData>("/api/analytics/comments"),
   commentUpdate: (id: string, patch: { status?: YtComment["status"]; draft?: string }) => call<{ ok: true; comment: YtComment }>(`/api/analytics/comments/${id}`, { method: "PUT", body: patch }),
   analyticsRun: (action: "auth" | "fetch" | "mock" | "review" | "learn" | "comments", extra: { agent?: string; video?: string; mock?: boolean; redraft?: boolean } = {}) => call<{ job: { id: string; label: string } }>("/api/analytics/run", { method: "POST", body: { action, ...extra } }),
-  analyticsLink: (ws: string, id: string | null) => call<{ ok: true; id: string | null }>("/api/analytics/link", { method: "PUT", body: { ws, id } }),
+  analyticsLink: (ws: string, id: string | null, short?: string) => call<{ ok: true; id: string | null }>("/api/analytics/link", { method: "PUT", body: { ws, id, short } }),
   lesson: (id: string, action: "approve" | "reject" | "retire" | "restore" | "edit", extra: { reason?: string; rule?: string } = {}) => call<{ ok: true; lessons: LessonStore }>(`/api/analytics/lessons/${id}`, { method: "POST", body: { action, ...extra } }),
   analyticsLogUrl: (job: string) => `/api/analytics/log/${job}`,
 

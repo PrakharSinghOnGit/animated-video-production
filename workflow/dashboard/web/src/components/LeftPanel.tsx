@@ -8,6 +8,7 @@ import { useApp } from "@/hooks/app";
 import { api } from "@/lib/api";
 import { cn, dur, money, shortId, STATUS_LABEL } from "@/lib/utils";
 import type { View } from "@/hooks/useRoute";
+import type { Published } from "@/lib/types";
 
 const STEP_KEYS = ["script", "voice", "align", "plan", "acts", "sound", "render", "publish", "shorts"];
 const NAV: { v: View; label: string; icon: typeof Cpu }[] = [
@@ -35,6 +36,20 @@ function ShortsBar({ stages }: { stages: { key: string; label: string; done: num
         const st = s.total && s.done === s.total ? "done" : s.done ? "partial" : "none";
         return <span key={s.key} title={total ? `${s.label}: ${s.done}/${s.total} shorts` : `${s.label}: no shorts yet`} className={cn("h-full flex-1 rounded-full", SEG[st])} />;
       })}
+    </span>
+  );
+}
+
+/** A published video's line in the list: the upload's views, CTR and average viewed (from the last analytics refresh). */
+function PublishedLine({ p }: { p: Published }) {
+  // the snapshot keeps CTR as a fraction and average viewed as a percentage
+  const pct = (x: number | null, scale: number, d: number) => (x == null ? "—" : `${(x * scale).toFixed(d)}%`);
+  return (
+    <span className="flex items-center gap-2.5 whitespace-nowrap text-[11px] tabular-nums text-muted-foreground">
+      <span><b className="font-semibold text-foreground/90">{p.views == null ? "—" : p.views.toLocaleString()}</b> views</span>
+      <span title="Click-through rate">CTR {pct(p.ctr, 100, 1)}</span>
+      <span title="Average percentage viewed">{pct(p.avgPct, 1, 0)} viewed</span>
+      {p.shorts.some((s) => s.ytId) && <span className="ml-auto" title="Shorts linked to their uploads">{p.shorts.filter((s) => s.ytId).length} short{p.shorts.filter((s) => s.ytId).length === 1 ? "" : "s"}</span>}
     </span>
   );
 }
@@ -80,6 +95,37 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
     return rail ? <Tip key={v} label={label} side="right">{b}</Tip> : b;
   };
 
+  // published videos (linked to their upload) move to their own group, newest upload first
+  const inProgress = list.filter((w) => !w.published);
+  const published = list.filter((w) => w.published).sort((a, b) => (b.published!.publishedAt ?? "").localeCompare(a.published!.publishedAt ?? ""));
+  const row = (w: (typeof list)[number]) => {
+            const on = w.id === ws && route.view === "ws";
+    const open = () => pick({ view: "ws", ws: w.id, sec: null, act: null, step: null, short: null });
+    if (rail) {
+      return (
+        <Tip key={w.id} label={`${w.id}${w.title ? ` · ${w.title}` : ""}`} side="right">
+  <button onClick={open} aria-label={w.id} className={cn("relative flex size-9 items-center justify-center rounded-md font-mono text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground", on && "bg-accent text-foreground")}>
+    {shortId(w.id).replace("VID", "")}{w.running && <StatusDot s="running" className="absolute right-1 top-1" />}
+  </button>
+        </Tip>
+      );
+    }
+    return (
+      <button key={w.id} onClick={open} aria-current={on ? "page" : undefined}
+        className={cn("group grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md px-2.5 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60", on ? "bg-accent" : "hover:bg-accent/60")}>
+        <span className="flex items-baseline justify-between gap-2">
+  <span className={cn("min-w-0 truncate text-[13px] font-medium", on ? "text-foreground" : "text-foreground/90")}>{w.published?.title ?? w.title ?? w.id.replace(/^(VID|SH)\d+_/, "").replace(/_/g, " ")}</span>
+  <span className="shrink-0 font-mono text-[10.5px] text-subtle-foreground">{shortId(w.id)}</span>
+        </span>
+        {w.published ? <PublishedLine p={w.published} /> : w.kind === "shorts" ? <ShortsBar stages={w.shorts} /> : <Progress9 statuses={w.statuses} />}
+        {!w.published && <span className="flex items-center justify-between gap-2 text-[11px] text-subtle-foreground">
+  {w.running ? <span className="flex min-w-0 items-center gap-1.5 text-warning"><StatusDot s="running" /><span className="truncate">{w.running.label}</span></span> : <span className="tabular-nums">{w.kind === "shorts" ? `${w.shorts[0]?.total ?? 0} short${(w.shorts[0]?.total ?? 0) === 1 ? "" : "s"} · ` : ""}{dur(w.totals.ms)}</span>}
+  <span className="tabular-nums">{money(w.totals.costUsd)}</span>
+        </span>}
+      </button>
+    );
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -87,7 +133,7 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
 
         {!rail && (
           <div className="flex h-8 items-center justify-between px-4 pt-3">
-            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground">Projects <span className="ml-1 tabular-nums">{list.length}</span></span>
+            <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground">In progress <span className="ml-1 tabular-nums">{inProgress.length}</span></span>
             <Tip label={adding ? "Cancel" : "New project"} side="right">
               <Button variant="ghost" size="icon" className="-mr-1.5 size-6 max-md:size-9" onClick={() => setAdding(!adding)} aria-label={adding ? "Cancel new project" : "New project"}>{adding ? <X className="size-3.5" /> : <Plus className="size-3.5" />}</Button>
             </Tip>
@@ -114,34 +160,12 @@ export function LeftPanel({ rail, onPick, onExpand, onCollapse }: { rail?: boole
         )}
 
         <div className={cn("flex flex-col gap-0.5 px-2 pb-2", rail && "mt-2 items-center gap-1 border-t pt-2")}>
-          {list.map((w) => {
-            const on = w.id === ws && route.view === "ws";
-            const open = () => pick({ view: "ws", ws: w.id, sec: null, act: null, step: null, short: null });
-            if (rail) {
-              return (
-                <Tip key={w.id} label={`${w.id}${w.title ? ` · ${w.title}` : ""}`} side="right">
-                  <button onClick={open} aria-label={w.id} className={cn("relative flex size-9 items-center justify-center rounded-md font-mono text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground", on && "bg-accent text-foreground")}>
-                    {shortId(w.id).replace("VID", "")}{w.running && <StatusDot s="running" className="absolute right-1 top-1" />}
-                  </button>
-                </Tip>
-              );
-            }
-            return (
-              <button key={w.id} onClick={open} aria-current={on ? "page" : undefined}
-                className={cn("group grid w-full min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 rounded-md px-2.5 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/60", on ? "bg-accent" : "hover:bg-accent/60")}>
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className={cn("min-w-0 truncate text-[13px] font-medium", on ? "text-foreground" : "text-foreground/90")}>{w.title ?? w.id.replace(/^(VID|SH)\d+_/, "").replace(/_/g, " ")}</span>
-                  <span className="shrink-0 font-mono text-[10.5px] text-subtle-foreground">{shortId(w.id)}</span>
-                </span>
-                {w.kind === "shorts" ? <ShortsBar stages={w.shorts} /> : <Progress9 statuses={w.statuses} />}
-                <span className="flex items-center justify-between gap-2 text-[11px] text-subtle-foreground">
-                  {w.running ? <span className="flex min-w-0 items-center gap-1.5 text-warning"><StatusDot s="running" /><span className="truncate">{w.running.label}</span></span> : <span className="tabular-nums">{w.kind === "shorts" ? `${w.shorts[0]?.total ?? 0} short${(w.shorts[0]?.total ?? 0) === 1 ? "" : "s"} · ` : ""}{dur(w.totals.ms)}</span>}
-                  <span className="tabular-nums">{money(w.totals.costUsd)}</span>
-                </span>
-              </button>
-            );
-          })}
+          {inProgress.map(row)}
         </div>
+        {published.length > 0 && <>
+          {!rail && <div className="flex h-8 items-center px-4 pt-2"><span className="text-[11px] font-medium uppercase tracking-[0.08em] text-subtle-foreground">Published <span className="ml-1 tabular-nums">{published.length}</span></span></div>}
+          <div className={cn("flex flex-col gap-0.5 px-2 pb-2", rail && "mt-1 items-center gap-1 border-t pt-2")}>{published.map(row)}</div>
+        </>}
         {rail && <div className="mt-1 flex justify-center"><Tip label="New project" side="right"><Button variant="ghost" size="icon" onClick={() => { onExpand?.(); setAdding(true); }} aria-label="New project"><Plus /></Button></Tip></div>}
       </div>
       <div className={cn("flex shrink-0 items-center gap-1 border-t p-2", rail && "flex-col")}>
