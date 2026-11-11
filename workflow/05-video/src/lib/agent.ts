@@ -168,10 +168,14 @@ const writes = (tools: string[]) => tools.some((t) => /^(Write|Edit|Bash)/.test(
 function plan(opts: AgentOptions, sp: Spec): Plan {
   if (sp.provider === "agy") {
     // write steps: accept-edits mode (file edits allowed) + only the step's commands allowed; read-only steps: plan mode
-    const w = writes(opts.tools);
-    const args = ["-p", opts.prompt, "--model", sp.model, "--mode", w ? "accept-edits" : "plan", "--output-format", "json", "--add-dir", opts.cwd ?? REPO];
-    // web steps read untrusted pages: no shell commands at all (agy then searches with its own web tools)
-    if (w || opts.tools.includes("WebSearch")) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
+    const w = writes(opts.tools), web = opts.tools.some((t) => /^Web/.test(t));
+    // the prompt starts with which tools the step is meant to use (agy has no system-prompt flag)
+    const args = ["-p", `${toolNote(opts.tools)}\n\n${opts.prompt}`, "--model", sp.model, "--mode", w ? "accept-edits" : "plan", "--output-format", "json", "--add-dir", opts.cwd ?? REPO];
+    // headless agy refuses any command not matched by an allow rule, and its matching is strict enough that the
+    // step's own commands get refused: skip the permission prompts (the producer's choice; the tool note above still
+    // says what to run). Web steps read untrusted pages, so they keep the strict rules: no shell at all.
+    if (web) args.push("--settings", JSON.stringify({ toolPermission: "request-review", permissions: { allow: agyAllow(opts.tools), deny: [], ask: [] } }));
+    else args.push("--dangerously-skip-permissions");
     if (opts.resume) args.push("--conversation", opts.resume);
     if (opts.timeoutS) args.push("--print-timeout", `${opts.timeoutS}s`);
     return {
@@ -180,6 +184,8 @@ function plan(opts: AgentOptions, sp: Spec): Plan {
         logRun(o, st, out, err, e);
         let p: any = {};
         try { p = JSON.parse(out || "{}"); } catch {}
+        const denied: any[] = Array.isArray(p.denied_actions) ? p.denied_actions : [];
+        if (denied.length) console.warn(`   ⚠️  ${denied.length} tool call(s) not allowed for this step: ${denied.map((d) => d.display_name ?? d.action).join(", ")}`);
         const u = p.usage ?? {};
         return { ok: st === 0 && p.status === "SUCCESS", text: typeof p.response === "string" ? p.response : "", durationMs: ms, costUsd: 0, numTurns: Number(p.num_turns ?? 0),
           inputTokens: Number(u.input_tokens ?? 0), outputTokens: Number(u.output_tokens ?? 0) + Number(u.thinking_tokens ?? 0), cacheReadTokens: Number(u.cache_read_tokens ?? 0),
