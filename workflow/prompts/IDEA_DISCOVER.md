@@ -12,14 +12,17 @@ channel's usual reach: the click was earned, not bought by a big subscriber coun
 
 ## Do this
 1. Read the outliers. Group them by the underlying topic and the promise their titles make. Ignore ones outside the
-   channel's promise (stock picks, trading signals, get-rich schemes, celebrity gossip, local news for one city).
-2. Propose **6 ideas**, each a video this channel could make: one money-system gap, felt in the viewer's wallet,
-   explainable in plain English, provable with sources. Ground each in at least one outlier (its `id` in
+   channel's promise (stock picks, trading signals, day trading, penny stocks, get-rich schemes, celebrity net worth,
+   local news for one city).
+2. Propose **6 ideas**, each a video this channel could make: one money-system gap with its mechanism, felt in the
+   viewer's wallet within 15 seconds, explainable in plain English, provable with sources. Each sits in one of the
+   audience file's three content pillars (name it at the start of `why`), and the 6 cover all three pillars. Ground each in at least one outlier (its `id` in
    `inspiredBy`), but give it the channel's own angle; never copy a title or a video.
 3. Make the 6 different from each other (different topics, not six takes on one), different from the channel's past
    videos and from the bank. Prefer topics that stay true for a year over news that dies in a week. Use the history:
    long videos about the viewer's own money (housing) did best; trading-mechanics long videos did worst (they work as
-   shorts).
+   shorts), so a market-mechanics idea must be about the viewer's savings, retirement account or investing app.
+   Frame the stake, not the topic: "What your bank does with your paycheck", not "How banks work".
 4. For each, draft one package: a title (30–60 characters, key words first, a promise the video can keep) and a
    thumbnail (one object or scene, ≤3 words of text that don't repeat the title). You may lint titles with
    `python3 workflow/01-ideation/yt-package/title.py --title "..." --thumb "..." --json` and fix what it flags.

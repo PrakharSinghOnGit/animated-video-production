@@ -7,9 +7,10 @@ The channel's voice profile. The script writer (`bun run write`) reads it before
 "Understanding the machine that creates it."
 
 ## Who I am talking to
-One person: someone curious about money who has a bank account and maybe an investing app, but was
-never taught how markets, debt or currencies actually work, and suspects the system is rigged without
-being able to say how.
+One person, 20 to 40 and working: someone with a bank account, a salary and maybe an investing app, who
+knows the words but was never shown how banks, markets, debt or inflation actually work, and suspects the
+system is stacked against them without being able to say how. They want evidence, not a conspiracy theory
+(full brief: `workflow/01-ideation/AUDIENCE.md`).
 
 ## How it sounds
 A calm documentary narrator, slightly dry and sarcastic about Wall Street, never preachy. Short spoken

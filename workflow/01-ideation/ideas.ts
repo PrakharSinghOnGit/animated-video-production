@@ -240,7 +240,7 @@ async function discover(focus: string, checkTop: number): Promise<void> {
   console.log(`🧭 Finding ideas${focus ? ` (focus: ${focus})` : ""}`);
 
   // 1. search words across the audience's topics (or the creator's focus): a cheap model, from the brief and history
-  const q = await agentJson("ideaQueries", `You pick YouTube searches to find what is working right now for a channel. Read the audience brief and the channel history below. Give 5 short YouTube search queries (2–5 words) a viewer of this channel would type, each on a DIFFERENT topic inside the channel's promise${focus ? `, centred on this focus: ${focus}` : ""}. Not the channel's own past topics word for word. Reply with ONLY {"queries": ["...", ...]}.
+  const q = await agentJson("ideaQueries", `You pick YouTube searches to find what is working right now for a channel. Read the audience brief and the channel history below. Give 5 short YouTube search queries (2–5 words) a viewer of this channel would type, each on a DIFFERENT topic inside the channel's promise, covering all three of its content pillars (at least one query per pillar)${focus ? `, centred on this focus: ${focus}` : ""}. Not the channel's own past topics word for word. Reply with ONLY {"queries": ["...", ...]}.
 
 # Audience brief
 ${readText(AUDIENCE_FILE)}

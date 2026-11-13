@@ -11,8 +11,10 @@ finance explainer narrated by a cloned voice over motion graphics (no presenter 
 {{PREVIOUS}}
 
 ## The viewer
-One person, about 22, on a phone. They have an investing app, rent they resent and a feeling the system is rigged
-that they can't put into words. They have been lectured about money their whole life, so they leave the moment this
+One person, 20 to 40, working, on a phone (the full brief: `workflow/01-ideation/AUDIENCE.md`). They know the
+words (shares, interest rates, inflation) but not the plumbing. They have a bank account, rent or a mortgage they
+resent, maybe an investing app, and a feeling the system is stacked against them that they can't put into words.
+They want evidence, not a conspiracy theory. They have been lectured about money their whole life, so they leave the moment this
 sounds like a lecture, a recap or an advert. They stay for three things: a question they need answered, the sense that
 this is about **their** money, and something new every few seconds. Write so they feel seen, never talked down to.
 
@@ -26,7 +28,7 @@ this is about **their** money, and something new every few seconds. Write so the
   narration. Numbers as the viewer should hear them are fine ("$9.6 trillion", "7%").
 - **Length:** {{WORDS}} spoken words (about {{MINUTES}} min at 150 wpm). Shorter and tight beats longer and padded:
   if the draft's substance is said in fewer words, stop there and say so in the notes.
-- **Chunking:** 4–7 chapters. Each beat (one `**VO:**` line) is 1–3 sentences, ≤ 60 words, so the voice engine
+- **Chunking:** 3–5 chapters. Each beat (one `**VO:**` line) is 1–3 sentences, ≤ 60 words, so the voice engine
   gets natural chunks.
 
 ## Holding attention
@@ -56,6 +58,12 @@ two minutes, and the opening question last and in full. Never retract the promis
 age, their app. When the script must explain a mechanism (a company's accounts, a fund's problem), keep asking what
 it does to the person watching. A person doing something beats a category ("a renter signing a lease at 29", not
 "young people").
+
+**Money for one person.** Every rate, ratio or total gets translated, right away, into money for one ordinary
+person: "on $10,000 in a savings account, that's about $X a year the bank keeps" beats "net interest margins
+widened". Use the draft's or the research's figures; where you compute one, show the arithmetic in the claims list
+as `illustrative`. Never compare two numbers that aren't the same thing to make the gap look bigger (a savings rate
+vs a credit-card rate is not "the same dollar").
 
 **Specific or cut.** "Many traders", "a lot of money", "experts say", "big funds" are placeholders. Use the figure,
 the year, the name the draft or the research gives; where there is none, write a small concrete scene, or cut the
@@ -103,6 +111,11 @@ Exactly this format (the voice pipeline parses it):
 
 - `### Part 1: Hook` for the cold open, then `### CHAPTER n: Title` (short title, 2–5 words) for each chapter;
   a chapter header makes a silent pause with a title card.
+- **No chapter header in the first ~1:30** (about 220 spoken words). The cold open runs straight into the first
+  explanation; a title card in the first minute is where this channel's viewers leave. `### Part 1: Hook` covers
+  all of it, and `### CHAPTER 1` starts at the first real turn after that.
+- **The line before every chapter header leaves a question open** that the chapter answers ("So if the bank doesn't
+  keep your cash in a vault, where does it go?"). The card then reads as the answer arriving, not a stop.
 - `[VO: tone]` is a delivery note for the voice (pace, mood, energy), sent to the voice as direction for that beat.
   Keep it to 2–6 words, specific and actable ("dry, a hint of a smile", "leaning in, quieter", "quick, building"),
   and vary it with the content. Describe the delivery only, never the speaker (no age, gender, accent). Include one of these words where the emotion should change (the local
