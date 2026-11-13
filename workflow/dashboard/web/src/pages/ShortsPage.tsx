@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { blockStatus, shortSpec } from "@/lib/pipeline";
 import { todoText } from "@/lib/steps";
 import { ago, cn, dur, money } from "@/lib/utils";
-import type { PubChecks, ShortItem } from "@/lib/types";
+import type { ShortItem } from "@/lib/types";
 import { ActionCard } from "@/components/ActionCard";
 import { Flow, withKids } from "@/components/Flow";
 import { ActionGrid } from "@/components/Layout";
@@ -14,6 +14,7 @@ import { Note, Prose } from "@/components/FileLine";
 import { Lightbox } from "@/components/Lightbox";
 import { MediaPlayer } from "@/components/MediaPlayer";
 import { BeatMap } from "@/components/BeatMap";
+import { CheckList } from "@/components/CheckList";
 import { RunButton } from "@/components/RunButton";
 import { SfxReview } from "@/components/SfxReview";
 import { StatTile } from "@/components/StatTile";
@@ -35,16 +36,6 @@ const briefWritten = (t: string) => t.replace(/^#.*$/gm, "").replace(/\([^)]*\)/
 const REDO = ["voice", "align", "beat", "plan", "act", "sound", "draft", "render"];
 const APPROVAL_TONE = { approved: "success", "changed since approval": "warning", "not approved": "neutral", "no script": "danger" } as const;
 
-function Checks({ c }: { c: PubChecks | null }) {
-  if (!c) return <div className="text-xs text-muted-foreground">Not checked yet: run Check scripts.</div>;
-  if (!c.errors.length && !c.warnings.length) return <div className="text-xs text-success">✓ checks passed</div>;
-  return (
-    <ul className="m-0 grid list-none gap-0.5 p-0 text-[12px]">
-      {c.errors.map((e, i) => <li key={`e${i}`} className="text-destructive">✗ {e}</li>)}
-      {c.warnings.map((e, i) => <li key={`w${i}`} className="text-warning">⚠ {e}</li>)}
-    </ul>
-  );
-}
 
 /** A portrait (9:16) player: never stretched to 16:9, at most 300 px wide so a phone shows it whole. */
 function Portrait({ title, f }: { title: string; f: NonNullable<ShortItem["files"]["draft"]> }) {
@@ -91,7 +82,7 @@ function ShortFlow({ s, stage }: { s: ShortItem; stage: string }) {
   const kids: Record<string, React.ReactNode> = {
     script: (
       <>
-        <div className="flex flex-wrap items-center gap-2"><Checks c={s.checks} /></div>
+        <div className="flex flex-wrap items-center gap-2"><CheckList c={s.checks} scope="script" short={s.id} empty={s.checks ? <div className="text-xs text-success">✓ checks passed</div> : <div className="text-xs text-muted-foreground">Not checked yet: run Check scripts.</div>} /></div>
         {(e.hook || e.payoff) && (
           <div className="grid gap-0.5 text-[12px] text-muted-foreground">
             {e.hook && <div><b className="text-foreground/80">Hook:</b> {e.hook}</div>}
@@ -106,7 +97,7 @@ function ShortFlow({ s, stage }: { s: ShortItem; stage: string }) {
           <Badge tone={APPROVAL_TONE[s.approval as keyof typeof APPROVAL_TONE] ?? "neutral"}>{s.approval}</Badge>
           <RunButton label="Approve" running={busy?.label === aLabel} disabled={!!busy || script.dirty || approved || s.approval === "no script" || !!s.checks?.errors.length} onClick={() => runSaved("shorts.approve", s.id)} />
           <span className="text-xs text-muted-foreground">
-            {approved ? `Approved${s.approvedAt ? ` ${ago(Date.parse(s.approvedAt))}` : ""}.` : script.dirty ? "Save your edits first." : s.checks?.errors.length ? "Fix the check errors first." : "The voice reads the approved script only."}
+            {approved ? `Approved${s.approvedAt ? ` ${ago(Date.parse(s.approvedAt))}` : ""}.` : script.dirty ? "Save your edits first." : s.checks?.errors.length ? "Fix the check errors or Accept them first." : "The voice reads the approved script only."}
           </span>
         </div>
         <TextEditor title="Feedback for a rewrite" sub={`shorts/${s.id}/02-scripting/feedback.md`} rows={4} draft={feedback} spellCheck

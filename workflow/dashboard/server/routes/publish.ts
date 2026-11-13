@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite } from "../../envfile";
 import * as pub from "../../../07-publish/lib";
-import { bad, body, exists, json, readJson } from "../core";
+import { applyAccepted } from "../../../lib/accepted";
+import { bad, body, exists, json, readJson, wsDir } from "../core";
 import { runningJob } from "../jobs";
 import { PUB_FILES, approvalFile, publishHash } from "../status";
 
@@ -36,7 +37,7 @@ export async function publishRoutes(req: Request, url: URL, ws: string, rest: st
     meta.checks = pub.recheck(ws, meta);
     atomicWrite(pub.pubFile(ws, "metadata.json"), JSON.stringify(meta, null, 2));
     atomicWrite(pub.pubFile(ws, "description.txt"), meta.description);
-    return json({ ok: true, checks: meta.checks });
+    return json({ ok: true, checks: applyAccepted(wsDir(ws), "meta", meta.checks) });
   }
 
   if (rest === "/publish/approve" && (req.method === "POST" || req.method === "DELETE")) {

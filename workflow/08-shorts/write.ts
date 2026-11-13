@@ -26,6 +26,7 @@ import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { planNumbers, numberProblems, BANNED, readText } from "../07-publish/lib";
+import { applyAccepted } from "../lib/accepted";
 import { researchNote, verifiedResearchText } from "../02-scripting/research_lib";
 import { hookscoreTools } from "../02-scripting/hookscore";
 import { lengthLabel, SHORT_LENGTHS, SHORT_CAP_S } from "../05-video/src/lib/format";
@@ -84,10 +85,12 @@ function check(entry: ShortEntry): ShortEntry {
 function report(entries: ShortEntry[]): boolean {
   let ok = true;
   for (const e of entries) {
-    const c = e.checks!, state = approvalState(shortWs(vid!, e.id));
+    // errors the creator accepted (dashboard → Accept) are shown but no longer fail
+    const c = applyAccepted(shortWs(vid!, e.id), "script", e.checks!), state = approvalState(shortWs(vid!, e.id));
     console.log(`${c.errors.length ? "❌" : "✅"} ${e.id} [${e.kind}] ${e.title}  (${e.words} words, ~${Math.round(e.words / 2.5)} s, ${state})`);
     for (const x of c.errors) console.log(`     ✖ ${x}`);
     for (const x of c.warnings) console.log(`     ⚠ ${x}`);
+    for (const x of c.accepted ?? []) console.log(`     ✓ accepted by you: ${x}`);
     if (c.errors.length) ok = false;
   }
   return ok;
@@ -116,6 +119,7 @@ if (args.includes("--approve")) {
     // re-check first: the script may have been edited by hand since the last check
     const entry = index()?.shorts.find((x) => x.id === sid);
     const sj = entry ? check(entry) : readJson<ShortEntry>(path.join(shortWs(vid, sid), "02-scripting", "short.json"));
+    if (sj?.checks) sj.checks = applyAccepted(shortWs(vid, sid), "script", sj.checks);
     if (sj?.checks?.errors.length) console.warn(`⚠️  ${sid} has failed checks (approving anyway, the creator decides): ${sj.checks.errors.join("; ")}`);
     // the long video's approval writer: same approved.json (sha256 of script_raw.md) that tts:format checks
     const r = spawnSync("bun", ["run", path.join(REPO, "workflow/02-scripting/write_script.ts"), "--video", shortVideoId(vid, sid), "--approve"], { cwd: REPO, stdio: "inherit" });

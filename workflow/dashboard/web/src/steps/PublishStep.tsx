@@ -5,7 +5,8 @@ import { useRunSaved } from "@/hooks/useRunSaved";
 import { api } from "@/lib/api";
 import { ago, dur, money } from "@/lib/utils";
 import { pubMetaApplied, pubNotesOpen, stepSpec } from "@/lib/pipeline";
-import type { PubChecks, PubIssue, PubMeta, PubThumb, Variant } from "@/lib/types";
+import type { PubIssue, PubMeta, PubThumb, Variant } from "@/lib/types";
+import { CheckList } from "@/components/CheckList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/fields";
@@ -24,15 +25,6 @@ const copy = async (text: string, toast: (m: string) => void, what: string) => {
   try { await navigator.clipboard.writeText(text); toast(`${what} copied`); } catch { toast("Copy failed: select the text and copy it"); }
 };
 
-function Checks({ c }: { c: PubChecks | null | undefined }) {
-  if (!c || (!c.errors.length && !c.warnings.length)) return null;
-  return (
-    <ul className="m-0 grid list-none gap-0.5 p-0 text-[12px]">
-      {c.errors.map((e, i) => <li key={`e${i}`} className="text-destructive">✗ {e}</li>)}
-      {c.warnings.map((w, i) => <li key={`w${i}`} className="text-warning">⚠ {w}</li>)}
-    </ul>
-  );
-}
 
 /** Full-size view of one thumbnail (click anywhere or Escape to close, arrows to switch). */
 function Enlarge({ items, index, onIndex, onClose }: { items: { id: string; src: string }[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
@@ -142,7 +134,7 @@ function MetaEditor({ meta, titles, setTitles }: { meta: PubMeta; titles: Record
         {dirty && <span className="text-xs text-warning">unsaved</span>}
         <span className="text-xs text-muted-foreground">Chapters are computed from the narration pauses; if you change the script, run the step again (your edits are kept unless you tick "Overwrite my edits").</span>
       </div>
-      <Checks c={meta.checks} />
+      <CheckList c={meta.checks} scope="meta" />
     </div>
   );
 }
@@ -209,7 +201,7 @@ export function PublishStep() {
               <div className="flex flex-wrap items-center gap-1.5"><b className="font-mono">{t.id}</b>{t.info && <span className="text-muted-foreground">{t.info.concept}</span>}{t.file && <span className="font-mono text-[11px] text-muted-foreground">{(t.file.size / 1048576).toFixed(2)} MB · {t.file.path.split(".").pop()}</span>}</div>
               {t.info && <div className="text-muted-foreground">Text: {t.info.text ? `“${t.info.text}”` : "none"} · {t.info.focal}</div>}
               <div className="truncate" title={meta?.titles[t.id].title}>Title: {titles[t.id] || meta?.titles[t.id].title || "—"}</div>
-              <Checks c={t.checks} />
+              <CheckList c={t.checks} scope={`thumb:${t.id}`} />
             </figcaption>
           </figure>
         ))}
@@ -262,7 +254,7 @@ export function PublishStep() {
     approved: (
       <div className="grid gap-2">
         {p.stale.length > 0 && <Note>{p.stale.join(" · ")}</Note>}
-        {blocking.length > 0 && <Note tone="danger">Fix before approving: {blocking.join("; ")}</Note>}
+        {blocking.length > 0 && <Note tone="danger">Fix or Accept before approving: {blocking.join("; ")}</Note>}
         <div className="flex flex-wrap items-center gap-2.5">
           {p.approval?.valid
             ? <><span className="text-xs text-muted-foreground">You approved these thumbnails and this metadata {ago(Date.parse(p.approval.at))}. Changing either cancels it.</span>

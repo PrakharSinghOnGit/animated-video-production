@@ -55,7 +55,7 @@ export interface PubPackage {
   /** the bet (packages written since 2026-11-11): why a stranger clicks, the thumbnail's axes and words, the script sentence that pays the title off */
   lever?: string; axes?: { subject: string; emotion: string; text: string; composition: string }; thumbText?: string; proof?: string;
 }
-export interface PubChecks { errors: string[]; warnings: string[] }
+export interface PubChecks { errors: string[]; warnings: string[]; accepted?: string[] }
 export interface PubMeta {
   video: string; at: string; model: string; durationS: number; titles: Record<Variant, PubPackage>; description: string;
   chapters: { ms: number; time: string; title: string }[]; tags: string[]; hashtags: string[]; checks: PubChecks; edited?: boolean;

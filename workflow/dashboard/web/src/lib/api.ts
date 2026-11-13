@@ -74,6 +74,7 @@ export const api = {
   savePublishNotes: (ws: string, which: string, text: string) => call<unknown>(`${w(ws)}/publish/notes/${which}`, { method: "PUT", body: text }),
   saveShortText: (ws: string, short: string, which: "script" | "feedback" | "notes", text: string) => call<unknown>(`${w(ws)}/shorts/${short}/${which}`, { method: "PUT", body: text }),
   saveShortsFeedback: (ws: string, text: string) => call<unknown>(`${w(ws)}/shorts/feedback`, { method: "PUT", body: text }),
+  acceptCheck: (ws: string, b: { scope: string; text: string; short?: string; undo?: boolean }) => call<unknown>(`${w(ws)}/accept`, { method: "POST", body: b }),
   approvePublish: (ws: string) => call<unknown>(`${w(ws)}/publish/approve`, { method: "POST", body: {} }),
   unapprovePublish: (ws: string) => call<unknown>(`${w(ws)}/publish/approve`, { method: "DELETE" }),
 

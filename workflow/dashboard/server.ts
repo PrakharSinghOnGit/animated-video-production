@@ -37,12 +37,13 @@ import { publishRoutes } from "./server/routes/publish";
 import { shortsRoutes } from "./server/routes/shorts";
 import { actsRoutes } from "./server/routes/acts";
 import { voiceRoutes } from "./server/routes/voice";
+import { acceptRoutes } from "./server/routes/accept";
 
 const dawCtx: DawCtx = { guard, json, bad, wsDir, validWs, childEnv, killTree, pump, ansi: ANSI };
 const anCtx: AnalyticsCtx = { json, bad, body, startJob, runningJob, jobSummary, getJob: (id) => jobs.get(id), logStream };
 
 /** Routes of one project (/api/ws/<id>/…), tried in order; each answers or returns null. */
-const WS_ROUTES = [projectRoutes, scriptRoutes, publishRoutes, shortsRoutes, actsRoutes, voiceRoutes];
+const WS_ROUTES = [projectRoutes, scriptRoutes, publishRoutes, shortsRoutes, actsRoutes, voiceRoutes, acceptRoutes];
 
 async function appFetch(req: Request): Promise<Response> {
   const url = new URL(req.url);

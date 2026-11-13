@@ -5,6 +5,7 @@ import { dawInfo } from "../daw";
 import { publishedSummaries, shortLinkMap } from "../../09-analytics/lib";
 import * as pub from "../../07-publish/lib";
 import * as sh from "../../08-shorts/lib";
+import { applyAccepted } from "../../lib/accepted";
 import { REPO, SHORT_BAR, WS_ID, WS_ROOT, briefTitle, exists, fileInfo, kindOf, ls, mtime, notesRel, readJson, readText, voiceReviewPath, wsDir } from "./core";
 import { jobSummary, jobs, jobsByWs, runningJob, runningJobs } from "./jobs";
 import { studioState } from "./studio";
@@ -56,11 +57,11 @@ export function publishDetails(ws: string) {
     return r ? { file: `07-publish/reviews/${f}`, agent: r.agent, at: r.at, overall: r.overall, summary: r.summary, all: r.all ?? [], variants: r.variants ?? {}, costUsd: r.costUsd ?? 0, ms: r.ms ?? 0 } : null;
   }).filter(Boolean);
   return {
-    metadata: meta, metaFile: fileInfo(ws, "07-publish/metadata.json"),
+    metadata: meta ? { ...meta, checks: applyAccepted(d, "meta", meta.checks) } : meta, metaFile: fileInfo(ws, "07-publish/metadata.json"),
     metaNotes: pub.readText(pub.pubFile(ws, "notes/meta.md")), metaNotesMtime: mtime(pub.pubFile(ws, "notes/meta.md")),
     thumbs: pub.VARIANTS.map((v) => {
       const p = pub.thumbPath(ws, v), notes = pub.pubFile(ws, `notes/${v}.md`);
-      return { id: v, file: p ? fileInfo(ws, path.relative(d, p)) : null, source: fileInfo(ws, `07-publish/remotion/thumbs/${v}.tsx`), info: info[v] ?? null, checks: checks[v] ?? null, notes: pub.readText(notes), notesMtime: mtime(notes) };
+      return { id: v, file: p ? fileInfo(ws, path.relative(d, p)) : null, source: fileInfo(ws, `07-publish/remotion/thumbs/${v}.tsx`), info: info[v] ?? null, checks: applyAccepted(d, `thumb:${v}`, checks[v] ?? null), notes: pub.readText(notes), notesMtime: mtime(notes) };
     }),
     preview: fileInfo(ws, "07-publish/preview.png"), previewSmall: fileInfo(ws, "07-publish/preview_small.png"),
     reviews: rev, review: exists(pub.pubFile(ws, "review.md")) ? { ...fileInfo(ws, "07-publish/review.md"), text: pub.readText(pub.pubFile(ws, "review.md")).slice(0, 20000) } : null,
@@ -83,7 +84,7 @@ export function shortsDetails(ws: string) {
     const feedbackP = path.join(sw, "02-scripting/feedback.md"), notesP = path.join(sw, SHORT_NOTES);
     const timings = (readJson<any[]>(path.join(sw, "timings.json")) ?? []).filter((r) => r && typeof r.step === "string");
     return {
-      id, entry, checks: entry.checks ?? null, progress: sh.shortProgress(ws, id), maxS: sh.lengthOf(ws, id),
+      id, entry, checks: applyAccepted(sw, "script", entry.checks ?? null), progress: sh.shortProgress(ws, id), maxS: sh.lengthOf(ws, id),
       rhythm: (() => {
         const r = readJson<any>(path.join(sw, "06-audio/rhythm.json"));
         return r ? { track: r.track, title: r.title, license: r.license ?? null, bpm: r.bpm, start: r.start, dur: r.dur, confidence: r.confidence, beats: r.beats, downbeats: r.downbeats, accents: r.accents, energy: r.energy, at: r.at } : null;
