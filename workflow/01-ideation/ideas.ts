@@ -25,7 +25,7 @@ import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming } from "../05-video/src/lib/timings";
 import { readSnapshot, workspaces, wsDir, readText } from "../09-analytics/lib";
 import { lintTitle, swipe, type SwipeRow } from "./skills";
-import { countrySummary, isoDur, isShort, scanWatchlist } from "./watchlist";
+import { countrySummary, isoDur, isShort, scanWatchlist, writeLastScan } from "./watchlist";
 import { AUDIENCE_FILE, IDEAS_DIR, REPO, ideaMarkdown, nextIdeaId, readIdeas, writeIdeas, type Competitor, type Found, type Idea, type Research } from "./lib";
 
 const args = process.argv.slice(2);
@@ -359,6 +359,7 @@ if (args.includes("--watchlist") && !args.includes("--discover")) {
     const fc = new Map<string, number>();
     for (const c of out) if (c.formula && c.formula !== "Unclassified") fc.set(c.formula, (fc.get(c.formula) ?? 0) + 1);
     if (fc.size) console.log(`   title formulas among them: ${[...fc].sort((a, b) => b[1] - a[1]).map(([f, n]) => `${f} ×${n}`).join(", ")}`);
+    writeLastScan({ at: new Date().toISOString(), days, min, channels: w.channels.map((c) => ({ handle: c.handle, title: c.title, country: c.country, subs: c.subs })), missing: w.missing, scanned: w.videos.length, outliers: out.slice(0, 80), quotaUnits: units });
     console.log(`   ${units} quota units · dataset: workspace/_ideas/watchlist/videos.json`);
   } catch (e) { console.error(`❌ ${(e as Error).message}`); process.exit(1); }
   process.exit(0);

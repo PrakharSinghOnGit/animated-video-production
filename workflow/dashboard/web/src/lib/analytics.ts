@@ -91,4 +91,7 @@ export interface Idea {
   id: string; title: string; note: string; keywords: string; status: "new" | "researched" | "started" | "dropped"; createdAt: string; ws?: string; found?: IdeaFound;
   research?: { at: string; queries: string[]; competitors: IdeaCompetitor[]; verdict: IdeaVerdict | null; model: string; costUsd: number; quotaUnits: number; error?: string; formulas?: { formula: string; n: number }[] };
 }
-export interface IdeasData { store: { ideas: Idea[] }; audience: string; hasKey: boolean; model: string; queryModel: string; running: { id: string; step: string; label: string } | null }
+export interface WatchEntry { handle: string; why?: string }
+/** the last free niche-radar scan (bun run ideas --watchlist) */
+export interface WatchScan { at: string; days: number; min: number; channels: { handle: string; title: string; country?: string; subs: number }[]; missing: string[]; scanned: number; outliers: IdeaCompetitor[]; quotaUnits: number }
+export interface IdeasData { store: { ideas: Idea[] }; audience: string; watchlist: WatchEntry[]; lastScan: WatchScan | null; hasKey: boolean; model: string; queryModel: string; running: { id: string; step: string; label: string } | null }

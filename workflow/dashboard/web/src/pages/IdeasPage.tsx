@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Check, CircleHelp, Compass, Lightbulb, Pencil, Plus, Rocket, Search, SpellCheck, Trash2, Undo2, X } from "lucide-react";
+import { ArrowRight, Check, CircleHelp, Compass, Lightbulb, Pencil, Plus, Radar, Rocket, Search, SpellCheck, Trash2, TriangleAlert, Undo2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
 import { ago, cn, money } from "@/lib/utils";
-import { fmtTime, int, type Idea, type IdeasData, type TitleLint } from "@/lib/analytics";
+import { fmtTime, int, type Idea, type IdeasData, type TitleLint, type WatchEntry, type WatchScan } from "@/lib/analytics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardSub, CardTitle } from "@/components/ui/card";
@@ -35,8 +35,8 @@ export function IdeasPage() {
   useEffect(() => { void load(); }, [load]);
 
   const setStore = (store: IdeasData["store"]) => setData((d) => (d ? { ...d, store } : d));
-  const discover = async (focus: string, check: number) => {
-    try { const r = await api.ideaDiscover(focus, check); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); }
+  const discover = async (focus: string, check: number, watchlist: boolean) => {
+    try { const r = await api.ideaDiscover(focus, check, watchlist); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); }
   };
   const research = async (i: Idea) => {
     try { const r = await api.ideaResearch(i.id); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); }
@@ -67,7 +67,10 @@ export function IdeasPage() {
       {job && <JobLog job={job.id} label={job.label} onEnd={() => void onEnd()} onClose={() => setJob(null)} />}
       {!data.hasKey && <Card><CardBody className="text-[13px] text-warning">Add <code>YOUTUBE_API_KEY</code> to <code>.env</code> to check ideas (the same read-only key as Comments).</CardBody></Card>}
 
-      <FindIdeas onRun={discover} disabled={!data.hasKey || busy} />
+      <FindIdeas onRun={discover} disabled={!data.hasKey || busy} channels={data.watchlist.length} />
+      <NicheRadar watchlist={data.watchlist} scan={data.lastScan} disabled={!data.hasKey || busy}
+        onWatchlist={(watchlist) => setData((d) => (d ? { ...d, watchlist } : d))}
+        onScan={async (days, min) => { try { const r = await api.watchlistScan(days, min); setJob({ id: r.job.id, label: r.job.label }); } catch (e) { toast((e as Error).message); } }} />
       <div className="grid items-start gap-3.5 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <AddIdea onAdded={(store, idea, check) => { setStore(store); if (check) void research(idea); }} canCheck={data.hasKey && !busy} />
         <div className="grid gap-3.5">
@@ -281,14 +284,20 @@ function TitleCheck() {
 
 /** Find ideas: what is working in the niche right now (recent outliers, yt-viral), turned into ranked ideas for this
  *  audience by the editor model. Optionally the full check of the best ones in the same run. */
-function FindIdeas({ onRun, disabled }: { onRun: (focus: string, check: number) => void; disabled: boolean }) {
+function FindIdeas({ onRun, disabled, channels }: { onRun: (focus: string, check: number, watchlist: boolean) => void; disabled: boolean; channels: number }) {
   const [focus, setFocus] = useStored("ideas.findFocus", "");
   const [check, setCheck] = useStored("ideas.findCheck", 3);
-  const cost = 0.2 + check * 0.15, units = 650 + check * 270;
+  const [source, setSource] = useStored<"search" | "watchlist">("ideas.findSource", "search");
+  const wl = source === "watchlist" && channels > 0;
+  const cost = 0.2 + check * 0.15, units = (wl ? 3 * channels + 5 : 650) + check * 270;
   return (
     <Card>
       <CardHeader><Compass className="size-4 text-muted-foreground" /><CardTitle>Find ideas</CardTitle><CardSub>from videos that beat their channel's normal reach in the last 6 months</CardSub></CardHeader>
       <CardBody className="text-[13px]">
+        <Segmented label="Where to look" value={wl ? "watchlist" : "search"} onChange={setSource} className="justify-self-start" options={[
+          { value: "search", label: "YouTube search" },
+          { value: "watchlist", label: `My watchlist (${channels} channels)` },
+        ]} />
         <div className="flex flex-wrap items-center gap-2">
           <Input aria-label="Focus" placeholder="Focus (optional): housing, taxes, debt, jobs… empty = across your audience's topics" value={focus} onChange={(e) => setFocus(e.target.value)} className="min-w-64 flex-1" />
           <label className="flex items-center gap-1.5 text-muted-foreground">Then check the top
@@ -296,9 +305,9 @@ function FindIdeas({ onRun, disabled }: { onRun: (focus: string, check: number) 
               {[0, 1, 2, 3, 5].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </label>
-          <Button variant="default" disabled={disabled} onClick={() => onRun(focus.trim(), check)}><Compass />Find ideas</Button>
+          <Button variant="default" disabled={disabled} onClick={() => onRun(focus.trim(), check, wl)}><Compass />Find ideas</Button>
         </div>
-        <span className="text-[12px] text-subtle-foreground">5 YouTube searches → each video scored against its channel's median → 6 ideas ranked by fit with your audience and proven demand, each with a linted package. About ${cost.toFixed(2)} and {units} of 10,000 daily quota units.</span>
+        <span className="text-[12px] text-subtle-foreground">{wl ? "Every upload of the last 6 months from your watchlist channels" : "5 YouTube searches"} → each video scored against its channel's median → 6 ideas ranked by fit with your audience and proven demand, each with a linted package. About ${cost.toFixed(2)} and {units} of 10,000 daily quota units.</span>
       </CardBody>
     </Card>
   );
@@ -330,5 +339,94 @@ function FoundBlock({ f }: { f: NonNullable<Idea["found"]> }) {
       )}
       <span className="text-[12px] text-subtle-foreground">Click Check for the full test: audience fit, the competition for this exact idea, and 3 linted packages.</span>
     </div>
+  );
+}
+
+const age = (iso: string) => { const d = Math.round((Date.now() - Date.parse(iso)) / 864e5); return d < 60 ? `${d}d` : `${Math.round(d / 30)}mo`; };
+
+/** Niche radar: the channels whose viewers you want (workflow/01-ideation/watchlist.json), scanned for uploads that
+ *  beat their own channel's median. The scan is free (no model, ~3 quota units per channel); Find ideas with
+ *  "My watchlist" turns the same outliers into ranked ideas. */
+function NicheRadar({ watchlist, scan, disabled, onWatchlist, onScan }: { watchlist: WatchEntry[]; scan: WatchScan | null; disabled: boolean; onWatchlist: (w: WatchEntry[]) => void; onScan: (days: number, min: number) => void }) {
+  const { toast } = useApp();
+  const [days, setDays] = useStored("ideas.radarDays", 180);
+  const [min, setMin] = useStored("ideas.radarMin", 3);
+  const [fmt, setFmt] = useStored<"long" | "short">("ideas.radarFmt", "long");
+  const [handle, setHandle] = useState("");
+  const [why, setWhy] = useState("");
+  const save = async (next: WatchEntry[]) => {
+    try { const r = await api.watchlistSave(next); onWatchlist(r.watchlist); } catch (e) { toast((e as Error).message); }
+  };
+  const add = () => {
+    const h = handle.trim();
+    if (!h) return;
+    void save([...watchlist, { handle: h, why: why.trim() || undefined }]);
+    setHandle(""); setWhy("");
+  };
+  const info = new Map((scan?.channels ?? []).map((c) => [c.handle.toLowerCase(), c]));
+  const rows = (scan?.outliers ?? []).filter((c) => (fmt === "short") === (c.durationS <= 180));
+  const nLong = (scan?.outliers ?? []).filter((c) => c.durationS > 180).length;
+  return (
+    <Card>
+      <CardHeader><Radar className="size-4 text-muted-foreground" /><CardTitle>Niche radar</CardTitle><CardSub>uploads from your watchlist channels that beat their own channel's median</CardSub></CardHeader>
+      <CardBody className="text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1.5 text-muted-foreground">Uploads from the last
+            <select aria-label="Days" value={days} onChange={(e) => setDays(Number(e.target.value))} className="h-8 rounded-md border bg-background px-1.5 text-foreground">
+              {[90, 180, 365].map((n) => <option key={n} value={n}>{n} days</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-muted-foreground">at least
+            <select aria-label="Minimum multiple" value={min} onChange={(e) => setMin(Number(e.target.value))} className="h-8 rounded-md border bg-background px-1.5 text-foreground">
+              {[2, 3, 5].map((n) => <option key={n} value={n}>{n}×</option>)}
+            </select>
+            their channel's median
+          </label>
+          <Button disabled={disabled || !watchlist.length} onClick={() => onScan(days, min)}><Radar />Scan (free)</Button>
+        </div>
+        {scan
+          ? <span className="text-[12px] text-subtle-foreground">Scanned {ago(scan.at)} · {scan.channels.length} channels · {scan.scanned} videos from the last {scan.days} days · {scan.outliers.length} at {scan.min}× or more · {scan.quotaUnits} quota units</span>
+          : <span className="text-[12px] text-subtle-foreground">Not scanned yet. A scan reads each channel's last 50 uploads (about 3 of 10,000 daily quota units per channel, no model).</span>}
+        {scan && scan.missing.length > 0 && <span className="flex items-start gap-1.5 text-[12px] text-warning"><TriangleAlert className="mt-0.5 size-3.5 shrink-0" />Skipped: {scan.missing.join(" · ")}</span>}
+        {scan && scan.outliers.length > 0 && <>
+          <Segmented label="Format" value={fmt} onChange={setFmt} className="justify-self-start" options={[
+            { value: "long", label: `Long videos (${nLong})` }, { value: "short", label: `Shorts (${scan.outliers.length - nLong})` },
+          ]} />
+          {rows.length
+            ? <div className="grid gap-1.5">{rows.slice(0, 30).map((c) => (
+              <a key={c.ytId} href={`https://www.youtube.com/watch?v=${c.ytId}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-3 rounded-md px-1 py-1 hover:bg-muted">
+                {c.thumb ? <img src={c.thumb} alt="" loading="lazy" className="aspect-video w-24 shrink-0 rounded object-cover max-sm:w-16" /> : <span className="aspect-video w-24 shrink-0 rounded bg-muted max-sm:w-16" />}
+                <span className="w-14 shrink-0 text-right font-semibold tabular-nums text-success max-sm:w-11">{c.multiple}×</span>
+                <span className="grid min-w-0 flex-1 gap-0.5">
+                  <span className="line-clamp-2 font-medium">{c.title}</span>
+                  <span className="truncate text-[12px] text-subtle-foreground">{c.channel} · {int(c.views)} views vs {int(c.median)} median · {age(c.publishedAt)} ago{c.durationS > 180 ? ` · ${Math.round(c.durationS / 60)} min` : ""}{c.formula && c.formula !== "Unclassified" ? ` · ${c.formula}` : ""}</span>
+                </span>
+              </a>))}</div>
+            : <span className="text-muted-foreground">No {fmt === "long" ? "long videos" : "shorts"} cleared the bar.</span>}
+          <span className="text-[12px] text-subtle-foreground">A high multiple means the topic or package beat that channel's normal reach. It is a clue, not a cause: timing and luck play a part. The formula is a judgement about the title's words.</span>
+        </>}
+        <Fold className="border-t pt-1" title={<span className="text-[13px] font-semibold">Channels ({watchlist.length})</span>}>
+          <div className="grid gap-1 pb-2">
+            {watchlist.map((w) => {
+              const c = info.get(w.handle.toLowerCase());
+              return (
+                <div key={w.handle} className="flex min-w-0 items-center gap-2">
+                  <a href={`https://www.youtube.com/${w.handle}`} target="_blank" rel="noreferrer" className="shrink-0 font-medium hover:underline">{w.handle}</a>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-subtle-foreground">{c ? `${c.title}${c.country ? ` · ${c.country}` : ""} · ${int(c.subs)} subs` : "not scanned yet"}{w.why ? ` · ${w.why}` : ""}</span>
+                  {c && c.subs < 10_000 && <Badge tone="warning" title="Under 10k subscribers: usually an impostor, check the handle">check handle</Badge>}
+                  <Button variant="ghost" size="icon" aria-label={`Remove ${w.handle}`} onClick={() => void save(watchlist.filter((x) => x.handle !== w.handle))}><X /></Button>
+                </div>
+              );
+            })}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Input aria-label="Channel handle" placeholder="@handle" value={handle} onChange={(e) => setHandle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} className="w-44" />
+              <Input aria-label="Why this channel" placeholder="Why (optional)" value={why} onChange={(e) => setWhy(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} className="min-w-40 flex-1" />
+              <Button disabled={!handle.trim()} onClick={add}><Plus />Add</Button>
+            </div>
+            <span className="text-[12px] text-subtle-foreground">Pick channels whose viewers are the viewers you want. Saved to <code>workflow/01-ideation/watchlist.json</code>; a new handle is checked on the next scan.</span>
+          </div>
+        </Fold>
+      </CardBody>
+    </Card>
   );
 }

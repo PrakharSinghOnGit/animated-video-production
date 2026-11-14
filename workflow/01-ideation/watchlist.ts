@@ -20,6 +20,7 @@ export const WATCHLIST_FILE = path.join(REPO, "workflow/01-ideation/watchlist.js
 const DIR = path.join(IDEAS_DIR, "watchlist");
 const CHANNELS_CACHE = path.join(DIR, "channels.json");
 const DATASET = path.join(DIR, "videos.json");
+export const LAST_SCAN = path.join(DIR, "last_scan.json");
 
 export interface WatchEntry { handle: string; why?: string }
 export interface WatchChannel { handle: string; channelId: string; title: string; country?: string; subs: number; uploads: string; resolvedAt: string }
@@ -45,6 +46,20 @@ export function normaliseWatchlist(raw: any[]): WatchEntry[] {
     out.push({ handle, why: typeof c?.why === "string" ? c.why : undefined });
   }
   return out;
+}
+
+/** The result of the last free scan (bun run ideas --watchlist), for the dashboard. */
+export interface LastScan { at: string; days: number; min: number; channels: { handle: string; title: string; country?: string; subs: number }[]; missing: string[]; scanned: number; outliers: Competitor[]; quotaUnits: number }
+export function readLastScan(): LastScan | null { return readJson<LastScan | null>(LAST_SCAN, null); }
+export function writeLastScan(s: LastScan) { writeJson(LAST_SCAN, s); }
+
+/** Replace the channel list, keeping the file's "about" note. Returns the normalised list. */
+export function writeWatchlist(raw: any[], file = WATCHLIST_FILE): WatchEntry[] {
+  const channels = normaliseWatchlist(raw).map((c) => (c.why ? { handle: c.handle, why: c.why.slice(0, 200) } : { handle: c.handle }));
+  if (channels.length > 100) throw new Error("at most 100 channels");
+  const about = readJson<any>(file, {})?.about;
+  fs.writeFileSync(file, JSON.stringify({ ...(about ? { about } : {}), channels }, null, 2) + "\n", "utf-8");
+  return channels;
 }
 
 const readJson = <T>(f: string, d: T): T => { try { return JSON.parse(fs.readFileSync(f, "utf-8")); } catch { return d; } };

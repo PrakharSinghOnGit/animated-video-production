@@ -1,4 +1,4 @@
-import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint } from "./analytics";
+import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint, WatchEntry } from "./analytics";
 import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
@@ -91,7 +91,9 @@ export const api = {
   ideaDelete: (id: string) => call<{ ok: true; store: IdeasData["store"] }>(`/api/ideas/${id}`, { method: "DELETE" }),
   ideaResearch: (id: string) => call<{ job: { id: string; label: string } }>(`/api/ideas/${id}/research`, { method: "POST", body: {} }),
   ideaStart: (id: string, name?: string) => call<{ ws: string; job: { id: string; label: string } }>(`/api/ideas/${id}/start`, { method: "POST", body: { name } }),
-  ideaDiscover: (focus: string, check: number) => call<{ job: { id: string; label: string } }>("/api/ideas/discover", { method: "POST", body: { focus, check } }),
+  ideaDiscover: (focus: string, check: number, watchlist = false) => call<{ job: { id: string; label: string } }>("/api/ideas/discover", { method: "POST", body: { focus, check, watchlist } }),
+  watchlistSave: (channels: WatchEntry[]) => call<{ ok: true; watchlist: WatchEntry[] }>("/api/ideas/watchlist", { method: "PUT", body: { channels } }),
+  watchlistScan: (days: number, min: number) => call<{ job: { id: string; label: string } }>("/api/ideas/watchlist/scan", { method: "POST", body: { days, min } }),
   ideaLint: (title: string, thumb: string) => call<TitleLint>("/api/ideas/lint", { method: "POST", body: { title, thumb } }),
   comments: () => call<CommentsData>("/api/analytics/comments"),
   commentUpdate: (id: string, patch: { status?: YtComment["status"]; draft?: string }) => call<{ ok: true; comment: YtComment }>(`/api/analytics/comments/${id}`, { method: "PUT", body: patch }),

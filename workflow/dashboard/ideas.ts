@@ -7,7 +7,10 @@
  *   POST   /api/ideas {title, note?, keywords?}
  *   PUT    /api/ideas/:id {title?, note?, keywords?, status?}
  *   DELETE /api/ideas/:id
- *   POST   /api/ideas/discover {focus?, check?}  job: bun run ideas --discover: recent niche outliers → ranked ideas (+ check top N)
+ *   POST   /api/ideas/discover {focus?, check?, watchlist?}  job: bun run ideas --discover [--watchlist]: recent niche outliers →
+ *                                            ranked ideas (+ check top N), from YouTube search or the channel watchlist
+ *   PUT    /api/ideas/watchlist {channels}   replace workflow/01-ideation/watchlist.json's channel list
+ *   POST   /api/ideas/watchlist/scan {days?, min?}  job: bun run ideas --watchlist (free, no model) → last_scan.json
  *   POST   /api/ideas/lint {title, thumb?}   yt-package/title.py on one title + thumbnail text (free, instant)
  *   POST   /api/ideas/:id/research           job: bun run ideas --id <id>
  *   POST   /api/ideas/:id/start {name?}      job: new video VID<n>_<name> (no name: VID<n>_Untitled, named from the idea
@@ -20,6 +23,7 @@ import { AUDIENCE_FILE, nextIdeaId, readIdeas, writeIdeas, type Idea } from "../
 import { AN_WS, hasCommentKey, type AnalyticsCtx } from "./analytics";
 import { nextUntitled } from "../lib/rename";
 import { lintTitle } from "../01-ideation/skills";
+import { readLastScan, readWatchlist, writeWatchlist } from "../01-ideation/watchlist";
 
 const B = (s: string, ...r: string[]) => ["bun", "run", s, ...r];
 const clip = (x: unknown, n: number) => (typeof x === "string" ? x.trim().slice(0, n) : "");
@@ -32,7 +36,9 @@ export async function ideasRoute(req: Request, url: URL, ctx: AnalyticsCtx): Pro
     const running = ctx.runningJob(AN_WS);
     let audience = "";
     try { audience = fs.readFileSync(AUDIENCE_FILE, "utf-8"); } catch {}
-    return ctx.json({ store: readIdeas(), audience, hasKey: hasCommentKey(), model: roleModel("ideas"), queryModel: roleModel("ideaQueries"), running: running ? ctx.jobSummary(running) : null });
+    let watchlist: { handle: string; why?: string }[] = [];
+    try { watchlist = readWatchlist(); } catch {}
+    return ctx.json({ store: readIdeas(), audience, watchlist, lastScan: readLastScan(), hasKey: hasCommentKey(), model: roleModel("ideas"), queryModel: roleModel("ideaQueries"), running: running ? ctx.jobSummary(running) : null });
   }
   if (p === "/api/ideas" && req.method === "POST") {
     const b = await ctx.body(req);
@@ -49,9 +55,23 @@ export async function ideasRoute(req: Request, url: URL, ctx: AnalyticsCtx): Pro
     if (!hasCommentKey()) return ctx.bad("YOUTUBE_API_KEY is missing in .env");
     if (ctx.runningJob(AN_WS)) return ctx.bad("another analytics or idea job is running", 409);
     const b = await ctx.body(req);
-    const focus = clip(b.focus, 300), check = Math.max(0, Math.min(5, Number(b.check) || 0));
-    const cmd = B("ideas", "--discover", ...(focus ? ["--focus", focus] : []), ...(check ? ["--check", String(check)] : []));
-    return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas", `Find ideas${focus ? ` (${focus.slice(0, 40)})` : ""}${check ? `, check top ${check}` : ""}`, [cmd])) });
+    const focus = clip(b.focus, 300), check = Math.max(0, Math.min(5, Number(b.check) || 0)), wl = b.watchlist === true;
+    const cmd = B("ideas", "--discover", ...(wl ? ["--watchlist"] : []), ...(focus ? ["--focus", focus] : []), ...(check ? ["--check", String(check)] : []));
+    return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas", `Find ideas${wl ? " from the watchlist" : ""}${focus ? ` (${focus.slice(0, 40)})` : ""}${check ? `, check top ${check}` : ""}`, [cmd])) });
+  }
+
+  if (p === "/api/ideas/watchlist" && req.method === "PUT") {
+    const b = await ctx.body(req);
+    if (!Array.isArray(b.channels)) return ctx.bad("channels: a list of {handle, why?}");
+    try { return ctx.json({ ok: true, watchlist: writeWatchlist(b.channels) }); } catch (e) { return ctx.bad((e as Error).message); }
+  }
+
+  if (p === "/api/ideas/watchlist/scan" && req.method === "POST") {
+    if (!hasCommentKey()) return ctx.bad("YOUTUBE_API_KEY is missing in .env");
+    if (ctx.runningJob(AN_WS)) return ctx.bad("another analytics or idea job is running", 409);
+    const b = await ctx.body(req);
+    const days = Math.max(14, Math.min(730, Number(b.days) || 180)), min = Math.max(1.5, Math.min(20, Number(b.min) || 3));
+    return ctx.json({ job: ctx.jobSummary(ctx.startJob(AN_WS, "ideas", `Niche radar scan (${days} days, ${min}×)`, [B("ideas", "--watchlist", "--days", String(days), "--min", String(min))])) });
   }
 
   if (p === "/api/ideas/lint" && req.method === "POST") {
