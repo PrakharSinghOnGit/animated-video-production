@@ -11,7 +11,7 @@ import { STEPS } from "@/lib/steps";
 import { cn } from "@/lib/utils";
 import { CHANNEL } from "@/theme/channel";
 
-const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics", comments: "Comments", ideas: "Ideas" };
+const PAGE: Record<string, string> = { overview: "Overview", usage: "Usage", machine: "Machine", settings: "Settings", analytics: "Analytics", comments: "Comments", ideas: "Ideas", posted: "Posted" };
 
 /** Thin menu bar: brand, breadcrumb, state pill, Remotion Studio for the open video, theme. No machine stats. */
 export function TopBar({ phone, showStats, onMenu, onStats }: { phone: boolean; showStats: boolean; onMenu: () => void; onStats: () => void }) {

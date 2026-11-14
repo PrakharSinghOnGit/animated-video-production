@@ -21,6 +21,7 @@
 import { dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
+import { postedRoute } from "./posted";
 import { listenRoute } from "./listen";
 import { publicHandler, readPass, startFunnel, stopFunnel, qr } from "./public";
 import { ANSI, DIST, ENV_FILE, HOST, PORT, PUBLIC, PUBLIC_PORT, REPO, WS_ID, bad, body, guard, json, lanIps, remote, validWs, viaPublic, wsDir } from "./server/core";
@@ -56,6 +57,8 @@ async function appFetch(req: Request): Promise<Response> {
   if (an) return an;
   const idr = await ideasRoute(req, url, anCtx);
   if (idr) return idr;
+  const por = await postedRoute(req, url, anCtx);
+  if (por) return por;
 
   if (p === "/api/listen/voices") { const r = await listenRoute(req, p, null, "", { json, bad, body, wsDir }); if (r) return r; }
   for (const route of [appRoutes, settingsRoutes]) { const r = await route(req, url); if (r) return r; }

@@ -18,6 +18,7 @@ import { MachinePage } from "@/pages/MachinePage";
 import { AnalyticsPage } from "@/pages/AnalyticsPage";
 import { CommentsPage } from "@/pages/CommentsPage";
 import { IdeasPage } from "@/pages/IdeasPage";
+import { PostedPage } from "@/pages/PostedPage";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { useTheme } from "@/hooks/useTheme";
@@ -53,7 +54,7 @@ function Shell() {
 
   const page = route.view === "ws" ? <WorkspacePage /> : (
     <div key={route.view} className="wg-enter min-h-0 flex-1 overflow-y-auto">
-      {route.view === "analytics" ? <AnalyticsPage /> : route.view === "comments" ? <CommentsPage /> : route.view === "ideas" ? <IdeasPage /> : route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
+      {route.view === "analytics" ? <AnalyticsPage /> : route.view === "comments" ? <CommentsPage /> : route.view === "ideas" ? <IdeasPage /> : route.view === "posted" ? <PostedPage /> : route.view === "usage" ? <UsagePage /> : route.view === "machine" ? <MachinePage /> : route.view === "settings" ? <SettingsPage /> : <OverviewPage />}
     </div>
   );
   return (

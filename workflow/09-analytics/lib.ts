@@ -103,6 +103,8 @@ export interface RetPoint { r: number; watch: number; rel?: number }
 export interface Video {
   ytId: string; title: string; publishedAt: string; durationS: number; thumb?: string;
   views: number; likes: number; comments: number;
+  /** Data API status.privacyStatus (public | private | unlisted) and a scheduled publish time, if any */
+  privacy?: string; publishAt?: string | null;
   /** Analytics API over the snapshot range (lifetime when the range starts before the upload) */
   minutes?: number; avdS?: number; avgPct?: number; subsGained?: number; subsLost?: number; shares?: number;
   /** Reporting API (reach report): only from the reporting job's start onward */

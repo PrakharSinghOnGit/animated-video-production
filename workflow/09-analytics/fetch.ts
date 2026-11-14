@@ -56,7 +56,7 @@ do {
 const map = mapping();
 const videos: Video[] = [];
 for (let i = 0; i < ids.length; i += 50) {
-  const j = await gapi(`${DATA}/videos?part=snippet,statistics,contentDetails&id=${ids.slice(i, i + 50).join(",")}`);
+  const j = await gapi(`${DATA}/videos?part=snippet,statistics,contentDetails,status&id=${ids.slice(i, i + 50).join(",")}`);
   units += 1;
   for (const v of j.items ?? []) {
     const durationS = isoDur(v.contentDetails?.duration);
@@ -65,6 +65,7 @@ for (let i = 0; i < ids.length; i += 50) {
       thumb: v.snippet.thumbnails?.medium?.url ?? v.snippet.thumbnails?.default?.url,
       views: +(v.statistics.viewCount ?? 0), likes: +(v.statistics.likeCount ?? 0), comments: +(v.statistics.commentCount ?? 0),
       ws: map[v.id], short: durationS > 0 && durationS <= 180,
+      privacy: v.status?.privacyStatus, publishAt: v.status?.publishAt ?? null,
     });
   }
 }

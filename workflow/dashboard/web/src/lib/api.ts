@@ -1,5 +1,5 @@
 import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint } from "./analytics";
-import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -83,6 +83,8 @@ export const api = {
   saveSfx: (ws: string, short: string | null | undefined, edits: SfxEdits) => call<{ ok: true; edits: SfxEdits }>(`${w(ws)}/sfx${short ? `?short=${short}` : ""}`, { method: "PUT", body: edits }),
 
   analytics: (mock = false) => call<AnalyticsData>(`/api/analytics${mock ? "?mock=1" : ""}`),
+  posted: () => call<PostedData>("/api/posted"),
+  setPosted: (b: { ws: string; short: string | null; platform: "instagram" | "facebook"; status: PostStatus; url?: string }) => call<unknown>("/api/posted", { method: "PUT", body: b }),
   ideas: () => call<IdeasData>("/api/ideas"),
   ideaAdd: (b: { title: string; note?: string; keywords?: string }) => call<{ ok: true; idea: Idea; store: IdeasData["store"] }>("/api/ideas", { method: "POST", body: b }),
   ideaUpdate: (id: string, b: { title?: string; note?: string; keywords?: string; status?: Idea["status"] }) => call<{ ok: true; store: IdeasData["store"] }>(`/api/ideas/${id}`, { method: "PUT", body: b }),

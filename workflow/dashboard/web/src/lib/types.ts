@@ -215,3 +215,14 @@ export interface ShortRhythm {
   track: string; title: string; license: string | null; bpm: number; start: number; dur: number; confidence: number;
   beats: number[]; downbeats: number[]; accents: { t: number; s: number }[]; energy: number[]; at: string;
 }
+
+/** Posted page (GET /api/posted, workflow/07-publish/posted.ts) */
+export type PostStatus = "none" | "draft" | "live";
+export interface PostedMark { status: PostStatus; url?: string; at: string }
+export interface PostedRow {
+  ws: string; short: string | null; kind: "video" | "short"; title: string; ready: boolean; finalAt: number | null;
+  youtube: { ytId: string | null; status: PostStatus; label: string; url: string | null; publishAt?: string | null };
+  instagram: PostedMark | null; facebook: PostedMark | null;
+  captions: { youtube: string; instagram: string; facebook: string };
+}
+export interface PostedData { rows: PostedRow[]; unlinked: { ytId: string; title: string; short: boolean; publishedAt: string; privacy: string | null }[]; fetchedAt: string | null }
