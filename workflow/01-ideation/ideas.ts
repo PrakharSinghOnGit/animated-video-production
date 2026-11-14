@@ -10,6 +10,8 @@
  *   bun run ideas --to-workspace I03 VID07_Name                                write the idea into the project's idea.md
  *   bun run ideas --discover [--focus "housing, taxes"] [--check 3]            find ideas: recent outliers in the niche → ranked
  *                                                                              ideas in the bank (+ the full check of the top N)
+ *   bun run ideas --discover --watchlist [--focus ..] [--check N]               the same, from the channels in watchlist.json
+ *   bun run ideas --watchlist [--days 180] [--min 3]                            free: just print the watchlist's outliers (no model)
  *
  * Cost per idea: 2 YouTube searches (100 quota units each, of 10,000 a day) + ~2 units for video/channel stats +
  * ~1 unit per competing channel and ~1 per 50 of their recent uploads (the channel medians, yt-viral/swipe.py);
@@ -23,6 +25,7 @@ import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming } from "../05-video/src/lib/timings";
 import { readSnapshot, workspaces, wsDir, readText } from "../09-analytics/lib";
 import { lintTitle, swipe, type SwipeRow } from "./skills";
+import { countrySummary, isoDur, isShort, scanWatchlist } from "./watchlist";
 import { AUDIENCE_FILE, IDEAS_DIR, REPO, ideaMarkdown, nextIdeaId, readIdeas, writeIdeas, type Competitor, type Found, type Idea, type Research } from "./lib";
 
 const args = process.argv.slice(2);
@@ -65,7 +68,6 @@ async function yt(pathAndQuery: string, cost: number): Promise<any> {
   if (!r.ok) throw new Error(`${r.status} ${pathAndQuery.split("?")[0]}: ${j?.error?.message ?? r.statusText}`);
   return j;
 }
-const isoDur = (s: string) => { const m = s?.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); return m ? (+(m[1] ?? 0)) * 86400 + (+(m[2] ?? 0)) * 3600 + (+(m[3] ?? 0)) * 60 + (+(m[4] ?? 0)) : 0; };
 
 async function agentJson(role: "ideas" | "ideaQueries", prompt: string, logPath: string): Promise<{ json: any; costUsd: number; model: string }> {
   const model = roleModel(role, role === "ideas" ? flag("--agent") : undefined);
@@ -92,7 +94,6 @@ function channelContext(): string {
   return `## Uploads${snap ? ` (snapshot ${snap.fetchedAt.slice(0, 10)}, ${snap.channel.subs} subscribers)` : ""}\n${ups.join("\n") || "(no analytics snapshot)"}\n\n## Projects (workspaces, published or not)\n${wip.join("\n") || "(none)"}`;
 }
 
-const isShort = (durationS: number) => durationS <= 180;
 /** below this median (views per recent upload) a channel's multiples are noise */
 const TINY_MEDIAN = 100;
 
@@ -231,13 +232,20 @@ Note: ${idea.note || "(none)"}
 
 // ───────────── discover: find ideas from what is working in the niche now ─────────────
 
-async function discover(focus: string, checkTop: number): Promise<void> {
+async function discover(focus: string, checkTop: number, fromWatchlist: boolean): Promise<void> {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const logs = path.join(IDEAS_DIR, "logs", "discover");
   let costUsd = 0;
   units = 0;
   const bank = readIdeas().ideas;
-  console.log(`🧭 Finding ideas${focus ? ` (focus: ${focus})` : ""}`);
+  console.log(`🧭 Finding ideas${fromWatchlist ? " from the watchlist" : ""}${focus ? ` (focus: ${focus})` : ""}`);
+  let queries: string[] = [], comps: Competitor[], source: string;
+  if (fromWatchlist) {
+    const w = await scanWatchlist(yt);
+    for (const m of w.missing) console.warn(`   ⚠️  skipped ${m}`);
+    comps = w.videos;
+    source = `the watchlist: every upload of the last 6 months from ${w.channels.length} channels (${w.channels.map((c) => c.title).join(", ")})`;
+  } else {
 
   // 1. search words across the audience's topics (or the creator's focus): a cheap model, from the brief and history
   const q = await agentJson("ideaQueries", `You pick YouTube searches to find what is working right now for a channel. Read the audience brief and the channel history below. Give 5 short YouTube search queries (2–5 words) a viewer of this channel would type, each on a DIFFERENT topic inside the channel's promise, covering all three of its content pillars (at least one query per pillar)${focus ? `, centred on this focus: ${focus}` : ""}. Not the channel's own past topics word for word. Reply with ONLY {"queries": ["...", ...]}.
@@ -248,12 +256,14 @@ ${readText(AUDIENCE_FILE)}
 # Channel history
 ${channelContext()}`, path.join(logs, `${stamp}_queries_${specSlug(roleModel("ideaQueries"))}.log`));
   costUsd += q.costUsd;
-  const queries: string[] = (Array.isArray(q.json?.queries) ? q.json.queries : []).map(String).filter(Boolean).slice(0, 5);
+  queries = (Array.isArray(q.json?.queries) ? q.json.queries : []).map(String).filter(Boolean).slice(0, 5);
   if (!queries.length) throw new Error("the query model gave no searches");
   console.log(`   searching (last 6 months, most viewed): ${queries.map((x) => `"${x}"`).join(", ")}`);
 
   // 2. recent most-viewed videos for each, scored against their own channel's recent median (yt-viral)
-  const comps = await competitors(queries, { days: 180, order: "viewCount", perQuery: 25 });
+  comps = await competitors(queries, { days: 180, order: "viewCount", perQuery: 25 });
+  source = `YouTube search, last 6 months, most viewed: ${queries.map((x) => `"${x}"`).join(", ")}`;
+  }
   const real = comps.filter((c) => (c.median ?? 0) >= TINY_MEDIAN && c.multiple !== undefined);
   let outliers = real.filter((c) => c.multiple! >= 3);
   const relaxed = outliers.length < 12;
@@ -275,7 +285,7 @@ ${channelContext()}
 # Ideas already in the bank (don't repeat them)
 ${bank.map((i) => `- ${i.id} [${i.status}${i.research?.verdict ? `, ${i.research.verdict.verdict}` : ""}]: ${i.title}`).join("\n") || "(none)"}
 
-# Outliers (YouTube search, last 6 months, most viewed: ${queries.map((x) => `"${x}"`).join(", ")})
+# Outliers (${source})
 Multiple = views ÷ the median views of the channel's recent uploads of the same format. Formula = the title's hook formula.
 | id | title | channel | published | length | views | channel median | multiple | formula |
 |---|---|---|---|---|---|---|---|---|
@@ -320,7 +330,7 @@ ${focus ? `\n# The creator's focus\n${focus}\n` : ""}`;
   });
   writeIdeas(st);
   fs.mkdirSync(path.join(IDEAS_DIR, "discover"), { recursive: true });
-  fs.writeFileSync(path.join(IDEAS_DIR, "discover", `${stamp}.json`), JSON.stringify({ at, focus, queries, outliers, patterns: v.json?.patterns ?? "", ideas: added.map((i) => i.id), costUsd, quotaUnits: units }, null, 1));
+  fs.writeFileSync(path.join(IDEAS_DIR, "discover", `${stamp}.json`), JSON.stringify({ at, focus, source: fromWatchlist ? "watchlist" : "search", queries, outliers, patterns: v.json?.patterns ?? "", ideas: added.map((i) => i.id), costUsd, quotaUnits: units }, null, 1));
   if (v.json?.patterns) console.log(`   what the outliers share: ${v.json.patterns}`);
   for (const i of added) console.log(`   ${i.found!.rank}. ${i.id} ${i.found!.score}/10 (fit ${i.found!.fit}, demand ${i.found!.demand}): ${i.title}`);
   console.log(`   $${costUsd.toFixed(3)} · ${units} quota units`);
@@ -331,8 +341,31 @@ ${focus ? `\n# The creator's focus\n${focus}\n` : ""}`;
   }
 }
 
+if (args.includes("--watchlist") && !args.includes("--discover")) {
+  try {
+    const days = Math.max(14, Number(flag("--days") ?? 180) || 180), min = Number(flag("--min") ?? 3) || 3;
+    console.log(`📡 Watchlist scan (uploads of the last ${days} days, outliers at ${min}× their channel's median or more)`);
+    const w = await scanWatchlist(yt, { days });
+    for (const m of w.missing) console.warn(`   ⚠️  skipped ${m}`);
+    console.log(`   ${w.channels.length} channels (registered in: ${countrySummary(w.channels)}), ${w.videos.length} recent videos`);
+    const out = w.videos.filter((c) => (c.median ?? 0) >= TINY_MEDIAN && (c.multiple ?? 0) >= min);
+    for (const [label, part] of [["long videos", out.filter((c) => !isShort(c.durationS))], ["shorts", out.filter((c) => isShort(c.durationS))]] as const) {
+      if (!part.length) continue;
+      console.log(`\n   ${label} (${part.length})`);
+      for (const c of part.slice(0, 20)) console.log(`   ${String(c.multiple).padStart(6)}×  ${c.views.toLocaleString().padStart(11)}  ${(isShort(c.durationS) ? "" : `${Math.round(c.durationS / 60)} min`).padEnd(6)} ${c.channel.slice(0, 22).padEnd(22)} ${c.title.slice(0, 70)}`);
+    }
+    console.log("");
+    if (!out.length) console.log("   nothing cleared the bar: lower --min or add channels");
+    const fc = new Map<string, number>();
+    for (const c of out) if (c.formula && c.formula !== "Unclassified") fc.set(c.formula, (fc.get(c.formula) ?? 0) + 1);
+    if (fc.size) console.log(`   title formulas among them: ${[...fc].sort((a, b) => b[1] - a[1]).map(([f, n]) => `${f} ×${n}`).join(", ")}`);
+    console.log(`   ${units} quota units · dataset: workspace/_ideas/watchlist/videos.json`);
+  } catch (e) { console.error(`❌ ${(e as Error).message}`); process.exit(1); }
+  process.exit(0);
+}
+
 if (args.includes("--discover")) {
-  try { await discover((flag("--focus") ?? "").trim().slice(0, 300), Math.max(0, Math.min(5, Number(flag("--check") ?? 0) || 0))); }
+  try { await discover((flag("--focus") ?? "").trim().slice(0, 300), Math.max(0, Math.min(5, Number(flag("--check") ?? 0) || 0)), args.includes("--watchlist")); }
   catch (e) { console.error(`❌ ${(e as Error).message}`); process.exit(1); }
   process.exit(process.exitCode ?? 0);
 }

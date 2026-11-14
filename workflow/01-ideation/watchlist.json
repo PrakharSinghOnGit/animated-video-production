@@ -1,0 +1,25 @@
+{
+  "about": "Channels the niche radar scans (bun run ideas --watchlist). Pick channels whose viewers are the viewers you want: mostly US/UK/Canada/Australia English speakers, explaining how money systems work. A channel stays only if its uploads are in the channel's promise; remove it when its outliers keep landing outside it. 'why' is for you; the scan ignores it. Handles are checked against YouTube on the first scan; one that does not resolve is reported and skipped.",
+  "channels": [
+    { "handle": "@HowMoneyWorks", "why": "closest format: animated explainers on how the money system works" },
+    { "handle": "@EconomicsExplained", "why": "macro and country economics for a general audience" },
+    { "handle": "@MoneyMacro", "why": "central banks, debt and markets, explained" },
+    { "handle": "@PBoyle", "why": "markets and finance scandals, dry and sourced" },
+    { "handle": "@ThePlainBagel", "why": "investing myths and scams, evidence first" },
+    { "handle": "@BenFelixCSI", "why": "evidence-based investing, the 'what the research says' angle" },
+    { "handle": "@Coffeezilla", "why": "investigative: how people get fleeced" },
+    { "handle": "@WallStreetMillennial", "why": "company and market breakdowns" },
+    { "handle": "@ModernMBA", "why": "how businesses make money from you" },
+    { "handle": "@BusinessCasual", "why": "animated business history" },
+    { "handle": "@LogicallyAnswered", "why": "business and economics explainers" },
+    { "handle": "@TwoCentsPBS", "why": "personal finance from a public broadcaster, explainer tone" },
+    { "handle": "@CNBCMakeIt", "why": "personal finance stories for young workers" },
+    { "handle": "@GrahamStephan", "why": "big US personal finance: housing, the economy, the Fed" },
+    { "handle": "@AndreiJikh", "why": "US personal finance and investing for young adults" },
+    { "handle": "@nischa", "why": "personal finance for working professionals" },
+    { "handle": "@MarkTilbury", "why": "money habits and wealth, a broad audience" },
+    { "handle": "@TheSwedishInvestor", "why": "animated finance book and investing explainers" },
+    { "handle": "@ColdFusion", "why": "tech and finance stories; which money topics break out" },
+    { "handle": "@johnnyharris", "why": "explainer storytelling; money-system episodes" }
+  ]
+}

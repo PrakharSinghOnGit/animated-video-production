@@ -19,6 +19,15 @@ This step captures the raw creative inspiration, competitor analysis, reference 
 > the top N. About $0.2 + $0.15 per check; ~650 + 270 quota units per check. Runs: `workspace/_ideas/discover/`.
 > Keep `AUDIENCE.md` current: it is the brief every idea is judged against.
 >
+> **Niche radar (watchlist):** `watchlist.json` lists the channels whose viewers the channel wants (US/UK English,
+> money-system explainers). `bun run ideas --watchlist [--days 180] [--min 3]` is free (no model, ~65 quota units):
+> it scans each channel's last 50 uploads, scores the ones from the last `--days` (older than a week) against the
+> channel's same-format median, and prints long videos and shorts separately. `bun run ideas --discover --watchlist`
+> feeds those outliers to the same editor instead of a search. Every scanned video is merged into
+> `workspace/_ideas/watchlist/videos.json` (the dataset for a future title + thumbnail scorer); resolved handles are
+> cached in `workspace/_ideas/watchlist/channels.json` (delete an entry after changing a handle). A handle that
+> resolves to a channel under 10k subscribers is flagged: it is usually an impostor.
+>
 > **Packages first (automated):** before writing, `bun run concepts --topic "..."` (or `--idea I03` for an idea in the
 > bank, which adds its YouTube research) proposes **five title + thumbnail concepts**: five different levers, thumbnails
 > on different axes, each with the question it leaves open, the video's first sentence, the claims the script must
