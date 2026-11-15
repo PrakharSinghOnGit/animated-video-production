@@ -39,7 +39,9 @@ export function ActsHeader() {
   const target = picked.length ? picked : todo;
   const modelArg = target.filter((id) => models[id] && models[id] !== "default").map((id) => `${id}=${models[id]}`).join(",");
   const batch = jobFor(schema["acts.all"]?.label ?? "Author acts"), reviewing = jobFor(schema["acts.reviewAll"]?.label ?? "Review acts");
-  const author = () => runWith("acts.all", undefined, { acts: picked, models: modelArg || undefined });
+  // nothing ticked = "Finish N acts": send exactly those acts and never --force, so a saved "Redo acts that exist"
+  // can't turn the button into a redo of every act, and a cut-off act continues its file instead of starting over
+  const author = () => runWith("acts.all", undefined, picked.length ? { acts: picked, models: modelArg || undefined } : { acts: todo, force: false, models: modelArg || undefined });
   const review = () => runWith("acts.reviewAll", undefined, { acts: picked });
   const changed = Object.entries(d.plan.changed ?? {});
   const updating = jobFor(schema["acts.changed"]?.label ?? "Update changed acts");

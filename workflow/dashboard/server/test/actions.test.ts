@@ -95,6 +95,19 @@ describe("args: client options → argv", () => {
     expect(args({ only: "video_full,stem_voice" }, "deliver.build")).toEqual(["--only", "video_full,stem_voice"]);
   });
 
+  test("Finish N acts names exactly those acts and never redoes the drawn ones, whatever the saved Redo option", () => {
+    // the Acts step sends { acts: todo, force: false } over the saved options when nothing is ticked
+    const cmd = (o: Record<string, unknown>) => (commandFor(WS, "acts.all", o) as { cmds: string[][] }).cmds[0].join(" ");
+    const saved: Record<string, unknown> = { force: true, acts: [], parallel: 2 };
+    const finish = cmd({ ...saved, acts: ["A02", "A03"], force: false });
+    expect(finish).toContain("--act A02,A03");
+    expect(finish).not.toContain("--force");
+    // the old call (empty list + a saved force) meant: every act, redone
+    const old = cmd({ acts: [], force: true });
+    expect(old).not.toContain("--act");
+    expect(old).toContain("--force");
+  });
+
   test("an option that depends on another is only passed while that one has the right value", () => {
     const gemini = args({ engine: "gemini", voice: "Kore", temperature: 0.8, force: false }, "voice.run");
     expect(gemini).toContain("--voice");
