@@ -39,6 +39,8 @@ import { isShortWorkspace, shortMaxS, lengthLabel } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes";
 import { changedActsPath } from "../src/lib/replan";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {

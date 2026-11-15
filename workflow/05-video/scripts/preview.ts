@@ -10,6 +10,8 @@ import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { currentMix } from "../src/lib/freshness";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {

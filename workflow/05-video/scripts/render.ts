@@ -5,6 +5,8 @@ import { spawn, spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { currentMix } from "../src/lib/freshness";
 import { checkSceneCoverage, writeRenderManifest } from "../src/lib/sceneCoverage";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 

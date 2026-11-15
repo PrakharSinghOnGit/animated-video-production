@@ -8,6 +8,7 @@ import path from "node:path";
 import { sample, treeUsage, wanted } from "../system";
 import { ANSI, LOG_CAP, REPO, exists, readJson, wsDir } from "./core";
 import { notifyEnd } from "./notify";
+import { awakeWhile } from "../../lib/awake";
 
 // ───────────────────────────── jobs ─────────────────────────────
 
@@ -37,6 +38,8 @@ export const jobs = new Map<string, Job>(); // jobId → job
 export const jobsByWs = new Map<string, string[]>(); // ws → jobIds (newest last)
 export let jobSeq = 0;
 export const enc = new TextEncoder();
+/** the Mac stays awake while any job runs (renders, act batches, paid agent runs), and may sleep once none does */
+export const awake = awakeWhile(() => [...jobs.values()].some((j) => j.status === "running"));
 
 /** The first running job of a video (any), see runningJobs for all of them. */
 export function runningJob(ws: string): Job | undefined {
@@ -155,6 +158,7 @@ export function startJob(ws: string, step: string, label: string, cmds: string[]
   const list = jobsByWs.get(ws)!;
   list.push(job.id);
   while (list.length > 60) jobs.delete(list.shift()!);
+  awake.sync();
   appendWsLog(ws, `\n▶▶ [${job.id}] step=${step} start ${new Date(job.startedAt).toISOString()} ${label}\n`);
   (async () => {
     let code = 0;
@@ -174,6 +178,7 @@ export function startJob(ws: string, step: string, label: string, cmds: string[]
     job.endedAt = Date.now();
     appendWsLog(ws, `◀◀ [${job.id}] step=${step} exit=${job.status === "stopped" ? "stopped" : code} end ${new Date(job.endedAt).toISOString()}\n`);
     recordRun(job);
+    awake.sync();
     notifyEnd(job);
     for (const c of job.subs) { sse(c, "end", jobSummary(job)); try { c.close(); } catch {} }
     job.subs.clear();
@@ -185,6 +190,7 @@ export function startJob(ws: string, step: string, label: string, cmds: string[]
     emit(job, `\n[dashboard] ${e?.message ?? e}\n`);
     job.status = "failed";
     job.endedAt = Date.now();
+    awake.sync();
     notifyEnd(job);
     for (const c of job.subs) { sse(c, "end", jobSummary(job)); try { c.close(); } catch {} }
   });

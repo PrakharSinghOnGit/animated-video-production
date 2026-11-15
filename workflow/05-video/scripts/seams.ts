@@ -48,6 +48,8 @@ import { runAgentAsync, extractJson } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };

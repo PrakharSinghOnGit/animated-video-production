@@ -17,6 +17,8 @@ import { renderStill, selectComposition } from "@remotion/renderer";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { findWord, type ActsPlan } from "../src/lib/acts";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {

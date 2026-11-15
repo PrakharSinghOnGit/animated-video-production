@@ -23,6 +23,8 @@ import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { runAgentAsync, runAgyJson, extractJson } from "../src/lib/agent";
 import { roleModel, isAgy, agyModel, specSlug } from "../../lib/models";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {

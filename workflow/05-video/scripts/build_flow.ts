@@ -4,6 +4,8 @@ import { execSync } from "node:child_process";
 import readline from "node:readline";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { recordTiming, formatDuration } from "../src/lib/timings";
+import { keepAwake } from "../../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 async function askConfirmation(query: string): Promise<boolean> {
   const rl = readline.createInterface({

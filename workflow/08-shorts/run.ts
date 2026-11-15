@@ -21,6 +21,8 @@
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { REPO, WS_ROOT, SHORT_TTS, shortVideoId, shortWs, listShorts, approvalState, exists } from "./lib";
+import { keepAwake } from "../lib/awake";
+keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 // shorts carry the bed louder than long-form (phone speakers): ~14 LU under the voice instead of ~22
 const SHORT_MUSIC = ["--music-db", "1", "--duck-db", "-9"];
