@@ -108,6 +108,14 @@ describe("args: client options → argv", () => {
     expect(old).toContain("--force");
   });
 
+  test("the draft render takes a scale (default 0.5); the final never does", () => {
+    const draft = (o: Record<string, unknown>) => (commandFor(WS, "render.draft", o) as { cmds: string[][] }).cmds.find((c) => c[2] === "draft")!.join(" ");
+    expect(draft({})).toContain("--scale 0.5");
+    expect(draft({ scale: "0.25" })).toContain("--scale 0.25");
+    expect(draft({ scale: "0.1" })).toContain("--scale 0.5");
+    expect((commandFor(WS, "render.final", {}) as { cmds: string[][] }).cmds.flat()).not.toContain("--scale");
+  });
+
   test("an option that depends on another is only passed while that one has the right value", () => {
     const gemini = args({ engine: "gemini", voice: "Kore", temperature: 0.8, force: false }, "voice.run");
     expect(gemini).toContain("--voice");

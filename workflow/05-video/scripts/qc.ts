@@ -110,11 +110,13 @@ async function main() {
         const [num, den] = rFrameRate.split("/").map(Number);
         const fps = Math.round(num / (den || 1));
 
-        if (width !== 1920 && width !== 1080) {
+        // a draft is rendered smaller on purpose (render --draft --scale): only its shape is checked
+        const isDraftFile = testVideo === draftPath;
+        if (isDraftFile ? Math.abs(width / height - (height > width ? 9 / 16 : 16 / 9)) > 0.01 : width !== 1920 && width !== 1080) {
           issues.push({
             type: "WARN",
             rule: "resolution",
-            message: `Video resolution is ${width}x${height} (standard is 1920x1080 or 1080x1920).`,
+            message: isDraftFile ? `Draft is ${width}x${height}: not 16:9 or 9:16.` : `Video resolution is ${width}x${height} (standard is 1920x1080 or 1080x1920).`,
           });
         }
         if (fps !== 30 && fps !== 60) {
@@ -143,7 +145,7 @@ async function main() {
       // short's chosen length (maxS, default 60 s; going past it is only a warning: YouTube Shorts and Reels allow 3 min)
       if (shortFormat && vStream) {
         const dur = parseFloat(data.format?.duration || "0");
-        if (vStream.width !== 1080 || vStream.height !== 1920) issues.push({ type: "ERROR", rule: "short_format", message: `A short must be 1080x1920, got ${vStream.width}x${vStream.height}.` });
+        if (testVideo === draftPath ? vStream.width * 16 !== vStream.height * 9 : vStream.width !== 1080 || vStream.height !== 1920) issues.push({ type: "ERROR", rule: "short_format", message: `A short must be 1080x1920, got ${vStream.width}x${vStream.height}.` });
         if (dur > SHORT_CAP_S + 0.05) issues.push({ type: "ERROR", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s; YouTube Shorts and Reels allow at most ${SHORT_CAP_S} s. Tighten the script (shorts:write --short <S> with notes).` });
         else if (dur > shortMax + 0.05) issues.push({ type: "WARN", rule: "short_duration", message: `The short runs ${dur.toFixed(1)} s, past its chosen length of ${shortMax} s (fine: the platforms allow ${SHORT_CAP_S} s). Tighten the script, or choose a longer length, if you want it shorter.` });
         else issues.push({ type: "INFO", rule: "short_duration", message: `Short runs ${dur.toFixed(1)} s (<= ${shortMax} s).` });

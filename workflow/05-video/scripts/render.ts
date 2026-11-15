@@ -21,10 +21,13 @@ async function main() {
   if (!["mix", "voice", "none"].includes(audio)) { console.error("--audio must be mix, voice or none"); process.exit(1); }
   // --concurrency N: Chrome tabs rendering in parallel (default: Remotion's, half the CPU cores). Fewer = less memory, slower.
   const concurrency = flag("--concurrency");
+  // Drafts only: --scale 1|0.5|0.25 of the timeline size (default 0.5 = 960x540; 0.25 = 480x270, fastest, to check timing)
+  const draftScale = flag("--scale") ?? "0.5";
+  if (!["1", "0.5", "0.25"].includes(draftScale)) { console.error("--scale must be 1, 0.5 or 0.25"); process.exit(1); }
   if (concurrency !== undefined && !(Number(concurrency) >= 1 && Number(concurrency) <= 16)) { console.error("--concurrency must be 1-16"); process.exit(1); }
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--res" || args[i] === "--audio" || args[i] === "--concurrency") { i++; continue; }
+    if (args[i] === "--res" || args[i] === "--audio" || args[i] === "--concurrency" || args[i] === "--scale") { i++; continue; }
     if (args[i] === "--video" || args[i] === "-v") {
       target = args[i + 1];
       i++;
@@ -41,7 +44,7 @@ async function main() {
   const paths = resolveJobPaths(effectiveTarget);
 
   console.log(`[render] Starting render for job: ${paths.jobId}`);
-  console.log(`[render] Profile: ${isDraft ? "DRAFT (Fast low-res 0.5x, 30fps)" : `FINAL (${res}p H.264, audio: ${audio})`}`);
+  console.log(`[render] Profile: ${isDraft ? `DRAFT (${draftScale}x, 30fps)` : `FINAL (${res}p H.264, audio: ${audio})`}`);
 
   const isKitWorkspace =
     fs.existsSync(path.join(paths.outputDir, "src", "index.ts")) &&
@@ -50,7 +53,7 @@ async function main() {
   const outFileName = isDraft ? "draft.mp4" : "final.mp4";
   const outFilePath = path.join(paths.outputDir, outFileName);
 
-  const scale = isDraft ? "0.5" : "1";
+  const scale = isDraft ? draftScale : "1";
   const crf = isDraft ? "26" : "16";
 
   let renderArgs: string[] = [];
