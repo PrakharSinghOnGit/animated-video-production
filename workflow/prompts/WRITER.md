@@ -113,7 +113,8 @@ Exactly this format (the voice pipeline parses it):
   a chapter header makes a silent pause with a title card.
 - **No chapter header in the first ~1:30** (about 220 spoken words). The cold open runs straight into the first
   explanation; a title card in the first minute is where this channel's viewers leave. `### Part 1: Hook` covers
-  all of it, and `### CHAPTER 1` starts at the first real turn after that.
+  all of it, and the first chapter header starts at the first real turn after that. Number every header in order
+  across the whole script: the hook is Part 1, so the first chapter is `### CHAPTER 2`, then 3, 4…
 - **The line before every chapter header leaves a question open** that the chapter answers ("So if the bank doesn't
   keep your cash in a vault, where does it go?"). The card then reads as the answer arriving, not a stop.
 - `[VO: tone]` is a delivery note for the voice (pace, mood, energy), sent to the voice as direction for that beat.

@@ -62,7 +62,7 @@ function deriveProsodyFromInstruction(instruction: string): {
   return { pace: 1.00, pitch: 0.00, loudness: 1.00, speed: 1.00 };
 }
 
-function parseScriptRaw(content: string): ParsedPart[] {
+export function parseScriptRaw(content: string): ParsedPart[] {
   const lines = content.split("\n");
   const parts: ParsedPart[] = [];
   let currentPart: ParsedPart | null = null;
@@ -81,8 +81,13 @@ function parseScriptRaw(content: string): ParsedPart[] {
         parts.push(currentPart);
       }
       const isChapter = partMatch[1].toUpperCase() === "CHAPTER";
+      // parts are numbered by their order in the script, not by the number written in the header: two headers with
+      // the same number (### Part 1: Hook, then ### CHAPTER 1) would otherwise write one part file over the other
+      const written = parseInt(partMatch[2], 10);
+      const partNum = parts.length + 1;   // the part before this one is already in `parts` (an empty one never is)
+      if (written !== partNum) console.warn(`  ⚠️  "${line}" is part ${partNum} of the script (numbered by order; the header says ${written})`);
       currentPart = {
-        partNum: parseInt(partMatch[2], 10),
+        partNum,
         partTitle: `${partMatch[1].toUpperCase()} ${partMatch[2]}: ${partMatch[3].trim()}`,
         ...(isChapter ? { chapterTitle: partMatch[3].trim() } : {}),
         beats: [],
@@ -290,7 +295,7 @@ ${exportList}
   console.log(``);
 }
 
-main().catch((err) => {
+if (import.meta.main) main().catch((err) => {
   console.error("Format sections error:", err);
   process.exit(1);
 });
