@@ -1,6 +1,7 @@
 /**
  * On-demand reviewer for one act: is what's on screen in sync with what the voice is saying?
- * Renders frames (every N s + at every hit word), hands them to the chosen agent together with the act's
+ * Renders the act densely (bun run frames: motion grids of 12 consecutive frames with the spoken words under each tile, a
+ * contact sheet, measured findings) and hands them to the chosen agent together with the act's
  * timed narration (word-aligned voiceover), and saves its findings. Separate from the author's critic: you
  * pick the agent and the context.
  *
@@ -10,7 +11,8 @@
  *   --give      context besides the frames (default transcript,plan): transcript = the voiceover's words with
  *               act-relative times; plan = the act's beats/hits; script = the script's [ON SCREEN] hints;
  *               code = the act's source file (lets the reviewer point at the line to change)
- *   --every     seconds between frames (default 2)
+ *   --every     seconds between review stills (default 2)
+ *   --grid-step seconds between motion-grid tiles (default 0.5: each grid image shows 6 s of the act)
  *   --focus     what to look at hardest (e.g. "sync of the strips with the words")
  *   --to-notes  append the findings to review/<act>/director_notes.md (the notes "Fix with notes" sends)
  *   --no-frames reuse the frames already in review/<act>/
@@ -21,6 +23,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { runAgentAsync, runAgyJson, extractJson } from "../src/lib/agent";
+import { readChecks, gridFiles, checksText } from "../src/lib/critic";
 import { roleModel, isAgy, agyModel, specSlug } from "../../lib/models";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { keepAwake } from "../../lib/awake";
@@ -37,6 +40,7 @@ const agent = roleModel("actReview", flag("--agent"));
 const agentSlug = specSlug(agent);
 const give = new Set((flag("--give") ?? "transcript,plan").split(",").map((s) => s.trim()).filter(Boolean));
 const every = flag("--every") ?? "2";
+const gridStep = flag("--grid-step") ?? "0.5";
 const focus = flag("--focus");
 if (!videoId || !actId || !agent) {
   console.error("Usage: bun run review --video <ID> --act A01 [--agent agy|haiku|sonnet|opus] [--give transcript,plan,script,code] [--every 2] [--focus text] [--to-notes] [--no-frames]");
@@ -59,7 +63,7 @@ const winMs = (scene.windowStartFrame / fps) * 1000, durS = scene.durationFrames
 const t0 = Date.now();
 if (!args.includes("--no-frames")) {
   console.log(`🖼  Rendering frames of ${actId} every ${every} s + hit words...`);
-  const fr = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", actId, "--every", every, "--words"], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
+  const fr = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", actId, "--every", every, "--words", "--grid-step", gridStep], { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] });
   if (fr.status !== 0) {
     console.error(`❌ frames failed:\n${(fr.stderr || fr.stdout).slice(-1500)}`);
     process.exit(1);
@@ -73,6 +77,7 @@ if (!frames.length) {
 }
 
 // 2. context
+const grids = gridFiles(reviewDir), checks = readChecks(reviewDir);
 type W = { text: string; startMs: number; endMs: number };
 const words: W[] = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "captions.json"), "utf-8"))
   .filter((w: W) => w.startMs >= winMs - 50 && w.startMs < winMs + durS * 1000);
@@ -105,9 +110,13 @@ const jsonOut = path.join(out, `${stamp}_${agentSlug}.json`);
 
 const prompt = `You review one act (${actId}, ${durS.toFixed(1)} s) of a narrated finance explainer. Your main job is SYNC: does what is on screen match what the voice says, at the moment it says it?
 
-Frames (act time in seconds in each file name, t_012.30.jpg = 12.30 s). Look at every one:
+${grids.length ? `Motion grids, the whole act in time order (look at every one): each image holds 12 consecutive frames ${gridStep} s apart, left to right and top to bottom, labelled with the act time; under each tile are the words spoken around that frame (hit words in yellow). Red outlines mark measured findings (listed below).
+${grids.map((g) => `- ${g}`).join("\n")}
+Then the contact sheet ${path.join(reviewDir, "sheet.jpg")} (review stills, flagged ones outlined). Full-size stills, if a tile is too small to judge (act time in the file name, t_012.30.jpg = 12.30 s): ${frames.map((f) => path.basename(f.file)).join(", ")} in ${reviewDir}.` : `Frames (act time in seconds in each file name, t_012.30.jpg = 12.30 s). Look at every one:
 ${frames.map((f) => `- ${f.t.toFixed(2)} s: ${f.file}`).join("\n")}
-Also the contact sheet: ${path.join(reviewDir, "sheet.jpg")}. The house style is described in workflow/styles/${style}/STYLE.md (skim it if a frame's look confuses you).
+Also the contact sheet: ${path.join(reviewDir, "sheet.jpg")}.`}
+Measured findings (free deterministic checks on every 0.1 s; confirm or dismiss each against the images, never repeat a false one):
+${checksText(checks)} The house style is described in workflow/styles/${style}/STYLE.md (skim it if a frame's look confuses you).
 
 ${ctx.join("\n\n")}
 ${focus ? `\nThe creator asks you to look hardest at: ${focus}\n` : ""}
@@ -140,7 +149,7 @@ if (!result?.issues) {
   console.error(`❌ the reviewer returned no usable JSON${lastText && !/[{]/.test(lastText) ? `: "${lastText.slice(0, 200)}"` : ""} (log: ${path.relative(process.cwd(), logPath)})`);
   process.exit(1);
 }
-result = { act: actId, agent, give: [...give], every: Number(every), focus: focus ?? null, frames: frames.length, at: new Date().toISOString(), costUsd, ms, ...result };
+result = { act: actId, agent, give: [...give], every: Number(every), focus: focus ?? null, frames: frames.length, grids: grids.length, at: new Date().toISOString(), costUsd, ms, ...result };
 fs.writeFileSync(jsonOut, JSON.stringify(result, null, 2), "utf-8");
 const md = [`## Review: ${actId} by ${agent}, ${new Date().toLocaleString()} (sync ${result.sync_score}/10, overall ${result.overall}/10)`, result.summary ?? "",
   ...result.issues.map((i: any) => `- ${i.time} [${i.kind}, ${i.severity}]: said "${i.said}", seen: ${i.seen}. Fix: ${i.fix}`)].join("\n");

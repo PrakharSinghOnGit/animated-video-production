@@ -38,6 +38,7 @@ import { recordTiming, formatDuration } from "../src/lib/timings";
 import { isShortWorkspace, shortMaxS, lengthLabel } from "../src/lib/format";
 import { requireFresh } from "../src/lib/freshness";
 import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes";
+import { readChecks, gridFiles, checksText, gateFindings, applyCaps, verdictNotes } from "../src/lib/critic";
 import { changedActsPath } from "../src/lib/replan";
 import { keepAwake } from "../../lib/awake";
 keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
@@ -164,42 +165,47 @@ async function critique(act: Act, round: number): Promise<{ pass: boolean; notes
   const sheet = path.join(reviewDir, "sheet.jpg");
   const frames = spawnSync("bun", ["run", "frames", "--video", paths.jobId, "--scene", act.id, "--every", short ? "2" : "4", "--words"], { encoding: "utf-8" });
   if (frames.status !== 0 || !fs.existsSync(sheet)) return { pass: false, layout: true, notes: `Frames failed to render:\n${(frames.stderr || frames.stdout).slice(-2000)}` };
-  // Free gate first: measured layout problems go straight back to the author, no critic call
+  const checks = readChecks(reviewDir);
+  // Free gate first: measured layout problems and precise high findings go straight back to the author, no critic call
   try {
     const layout: { t: number; flags: string[] }[] = JSON.parse(fs.readFileSync(path.join(reviewDir, "layout.json"), "utf-8"));
     const real = layout
       .map((r) => ({ t: r.t, flags: r.flags.filter((f) => !f.includes("right edge")) }))
       .filter((r) => r.flags.length);
-    if (real.length > 2) {
-      console.log(`   📏 ${act.id} layout r${round}: ${real.length} frames flagged, skipping the critic`);
-      return { pass: false, layout: true, notes: real.map((r) => `- ${r.t}s: ${r.flags.join("; ")}`).join("\n") };
+    const gate = gateFindings(checks);
+    if (real.length > 2 || gate.length) {
+      console.log(`   📏 ${act.id} layout r${round}: ${real.length} frames flagged, ${gate.length} measured fault(s), skipping the critic`);
+      const lines = [...gate.map((f) => `- ${f.t}s [measured ${f.kind}]: ${f.msg}`), ...(real.length > 2 ? real.map((r) => `- ${r.t}s: ${r.flags.join("; ")}`) : [])];
+      return { pass: false, layout: true, notes: lines.join("\n") };
     }
   } catch {}
   const out = path.join(reviewDir, `critic_${round}.json`);
   const free = isAgy(criticModel);
   const plan_ = JSON.stringify({ idea: act.idea, sheet: act.sheet, signature: act.signature, camera: act.camera, hits: act.beats.flatMap((b) => b.hits ?? []) });
-  const prompt = `You are a strict motion-design critic. You have never seen this project's code. Read the style guide ${path.resolve(styleGuide)}, then look at the contact sheet image ${sheet} (one frame every few seconds plus frames at the narration's hit words; each tile is labelled with its act-relative time).
-
-The act's plan: ${plan_}
-
-The measured layout report (free pixel checks) is in ${path.join(reviewDir, "layout.json")}: treat its flags as facts.${summaryNote(reviewDir)}
-
-Judge: (1) does it follow the style guide and not look like slides/boxes; (2) legibility at 1080p, nothing clipped or overlapping, nothing important in the subtitle band except the subtitle; (3) subjects large enough, frames never empty or static-looking; (4) the signature move is visible; (5) numbers on screen match the plan's data.
-
-Staging, the most common weakness (name the tiles): (a) small objects on an empty flat ground: is there a set behind or under the action, and does the beat's subject fill about a third of the frame height at its hit? (b) a diagram instead of a scene: same-sized labelled icons joined by arrows or dashed lines, a box with a chart or text in it; (c) a wide shot that shrinks everything into thumbnails; (d) one flat ground colour for the whole act with no turn; (e) type that is label-sized where the style asks for type as architecture. Any of these that a viewer would notice caps the score at 6. Look at individual frames in ${reviewDir} if a tile is unclear.
-
-${free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} with the Write tool`} this JSON: {"pass": boolean, "score": 1-10, "issues": [{"time": "12.0s", "problem": "...", "fix": "..."}]}. pass = score >= 7 and no issue that a viewer would notice. Max 8 issues, most important first.${free ? "" : ' Then reply "done".'}`;
+  const grids = gridFiles(reviewDir);
+  const rubricFile = path.resolve(`workflow/styles/${style}/RUBRIC.md`);
+  const fill: Record<string, string> = {
+    ACT: act.id, DUR: String(checks?.dur?.toFixed(1) ?? "?"), STYLE_GUIDE: path.resolve(styleGuide),
+    GRIDS: grids.length ? "\n" + grids.map((g) => `   - ${g}`).join("\n") : "(none: look at the contact sheet)", GRID_STEP: "0.5",
+    SHEET: sheet, FRAMES_DIR: reviewDir, PLAN: plan_, CHECKS: checksText(checks),
+    SUMMARY: `The layout report (free pixel checks on the stills) is in ${path.join(reviewDir, "layout.json")}.${summaryNote(reviewDir)}`,
+    RUBRIC: fs.existsSync(rubricFile) ? fs.readFileSync(rubricFile, "utf-8") : `Judge against ${path.resolve(styleGuide)}.`,
+    OUTPUT: free ? "Do not create or edit any file. Reply ONLY with" : `Write to ${out} with the Write tool`,
+  };
+  const prompt = loadPrompt("CRITIC").replace(/\{\{([A-Z_]+)\}\}/g, (m: string, k: string) => fill[k] ?? m) + (free ? "" : '\nThen reply "done".');
   const agy = free ? await runAgyJson({ prompt, model: agyModel(criticModel), logPath: path.join(reviewDir, `critic_${round}.log`) }).catch(() => null) : null;
   const r = agy ? agy.r : free
     ? await runAgy({ prompt, model: agyModel(criticModel), logPath: path.join(reviewDir, `critic_${round}.log`) })
-    : await runAgentAsync({ prompt, model: criticModel, tools: ["Read", "Write"], maxTurns: 12, logPath: path.join(reviewDir, `critic_${round}.log`) });
+    : await runAgentAsync({ prompt, model: criticModel, tools: ["Read", "Write"], maxTurns: 16, logPath: path.join(reviewDir, `critic_${round}.log`) });
   account(`critic ${act.id} r${round}`, criticModel, r);
   try {
-    if (free) fs.writeFileSync(out, JSON.stringify(agy ? agy.json : extractJson(r.text), null, 2), "utf-8");
-    const v = JSON.parse(fs.readFileSync(out, "utf-8"));
-    const notes = (v.issues ?? []).map((i: any) => `- ${i.time}: ${i.problem} → ${i.fix}`).join("\n");
-    console.log(`   🔎 ${act.id} critic r${round}: score ${v.score}/10 ${v.pass ? "PASS" : "FAIL"} (${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)})`);
-    return { pass: !!v.pass, notes };
+    const raw = free ? (agy ? agy.json : extractJson(r.text)) : JSON.parse(fs.readFileSync(out, "utf-8"));
+    // the rubric's caps are applied here, not trusted to the model; false findings never reach the author
+    const v = applyCaps(raw, checks);
+    fs.writeFileSync(out, JSON.stringify(v, null, 2), "utf-8");
+    const falseN = (v.findings ?? []).filter((f) => f.verdict === "false").length;
+    console.log(`   🔎 ${act.id} critic r${round}: score ${v.score}/10 ${v.pass ? "PASS" : "FAIL"}${v.capped ? ` (capped: ${v.capped})` : ""}${falseN ? `, ${falseN} finding(s) judged false` : ""} (${formatDuration(r.durationMs)}, $${r.costUsd.toFixed(2)})`);
+    return { pass: v.pass, notes: verdictNotes(v, checks) };
   } catch {
     return { pass: true, notes: "" }; // a broken critic run never blocks the act
   }
