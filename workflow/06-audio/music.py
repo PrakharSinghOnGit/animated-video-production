@@ -11,7 +11,7 @@ Usage:
   music.py --music-json music.json --out music.wav [--beats beats.json] [--sources music_sources.json] [--audition DIR] [--root REPO]
   music.py --plan music_plan.json --out music.wav            (legacy: every section = felt palette)
 """
-import argparse, json, os, subprocess, sys, tempfile
+import glob, argparse, json, os, subprocess, sys, tempfile
 import numpy as np, soundfile as sf
 from scipy.signal import butter, sosfilt, lfilter, fftconvolve
 
@@ -541,28 +541,58 @@ XF = 1.8   # crossfadeSec in music.json: a section starts this early, so a conti
 WANT = {"minor": {"tense", "dark", "curious"}, "dorian": {"curious", "tense", "calm"}, "major": {"calm", "hopeful", "curious", "triumphant"}}
 
 
-def pick_library(secs, root, log=print):
-    """One library track per chapter (a chapter = a section with intro "swell" plus the sections after it): mood from the
-    section's mode, energy near its intensity, no track twice in a video while unused ones fit. Later sections of the chapter
-    continue the same track where the previous one stopped. Synth stays where nothing is left. Returns how many got a track."""
+MAX_GROUP = 180.0   # s: a chapter longer than this changes track at an act boundary, so no bed runs for minutes unchanged
+RECENT = 4          # how many of the latest other videos count as "recently used"
+
+
+def recent_use(root, exclude=None):
+    """{track file: weight} from the music.json of the latest other videos (newest weighs most): a track the last videos
+    used is a track the audience just heard."""
+    paths = []
+    for d in glob.glob(os.path.join(root, "workspace", "*", "06-audio", "music.json")):
+        if exclude and os.path.abspath(d) == os.path.abspath(exclude): continue
+        paths.append((os.path.getmtime(d), d))
+    use = {}
+    for rank, (_, p) in enumerate(sorted(paths, reverse=True)[:RECENT]):
+        try: files = {s["source"].get("path") for s in json.load(open(p)).get("sections", []) if s.get("source", {}).get("type") == "file"}
+        except (OSError, ValueError, KeyError): continue
+        for f in files - {None}: use[f] = use.get(f, 0) + (1.0 - rank / (RECENT + 1))
+    return use
+
+
+def pick_library(secs, root, log=print, exclude=None):
+    """One library track per chapter (a chapter = a section with intro "swell" plus the sections after it; chapters longer
+    than MAX_GROUP split at act boundaries): mood from the section's mode, energy near its intensity. A track plays at most
+    max(2.5 x its length, 120 s) per video, so a short loop never carries a whole video; tracks the latest videos used
+    score lower. Later sections of a chapter continue the same track where the previous one stopped. Where no track is
+    left the synth palette stays and the log says which moods to add. Returns how many sections got a track."""
     idx = os.path.join(root, "assets/music/index.json")
     if not os.path.exists(idx): return 0
     tracks = [t for t in json.load(open(idx)).get("tracks", []) if os.path.exists(os.path.join(root, t["file"])) and t.get("duration", 0) >= 20]
     if not tracks: return 0
     groups = []
     for i, s in enumerate(secs):
-        if not groups or s.get("intro") == "swell": groups.append([])
+        long = groups and sum(float(secs[j]["t1"]) - float(secs[j]["t0"]) for j in groups[-1]) >= MAX_GROUP
+        if not groups or s.get("intro") == "swell" or long: groups.append([])
         groups[-1].append(i)
-    used, n = {}, 0
+    recent = recent_use(root, exclude)
+    covered, n, short = {}, 0, []
     for g in groups:
         head = secs[g[0]]["source"]; want = WANT.get(head.get("mode", "major"), WANT["major"])
         inten = float(head.get("intensity", .45)); target = min(1.0, .15 + inten * 1.1)   # plan intensities run ~0.3-0.7
+        need = sum(float(secs[i]["t1"]) - float(secs[i]["t0"]) for i in g)
+        cap = lambda t: max(2.5 * float(t["duration"]), 120.0)
         def score(t):
             mood = set(t.get("mood") or [])
             m = 2.0 if mood & want else (0.6 if "untagged" in mood or not mood else 0.0)
             e = -abs((t["energy"] if t.get("energy") is not None else .5) - target) * 2
-            return m + e - 3.0 * used.get(t["file"], 0)
-        t = max(tracks, key=score); used[t["file"]] = used.get(t["file"], 0) + 1
+            return m + e - 3.0 * (covered.get(t["file"], 0) > 0) - 1.5 * recent.get(t["file"], 0)
+        fit = [t for t in tracks if covered.get(t["file"], 0) + need <= cap(t)]
+        if not fit:
+            short.append((secs[g[0]]["label"], sorted(want), need))
+            log("[music] %s: no library track left that fits %.0f s (%s) -> synth %s" % (secs[g[0]]["label"], need, "/".join(sorted(want)), head.get("palette")))
+            continue
+        t = max(fit, key=score); covered[t["file"]] = covered.get(t["file"], 0) + need
         off = 0.0
         for i in g:
             s = secs[i]; synth = dict(s["source"])
@@ -570,14 +600,18 @@ def pick_library(secs, root, log=print):
                                bpm=t.get("bpm"), license=t.get("license"), credit=t.get("credit"), title=t.get("title"))
             s["fallback"] = synth
             off += float(s["t1"]) - float(s["t0"]); n += 1
-        log("[music] chapter at %.0f s (%s, intensity %.2f) -> %s%s" % (secs[g[0]]["t0"], head.get("mode"), inten, t["file"], " (again: add tracks to the library for variety)" if used[t["file"]] > 1 else ""))
+        log("[music] %s (%.0f s, %s, intensity %.2f) -> %s%s" % (secs[g[0]]["label"], need, head.get("mode"), inten, t["file"],
+            " (used in a recent video)" if recent.get(t["file"]) else ""))
+    if short:
+        log("[music] the library is too small for this video: add tracks to assets/music/<mood>/ (moods %s) and run bun run music:lib"
+            % ", ".join(sorted({m for _, w, _ in short for m in w})))
     return n
 
 
 def init_music_json(a):
     plan = json.load(open(a.plan)); chapters = json.load(open(a.chapters)) if a.chapters and os.path.exists(a.chapters) else None
     secs = build_sections(plan, chapters)
-    lib = 0 if a.synth else pick_library(secs, a.root)
+    lib = 0 if a.synth else pick_library(secs, a.root, exclude=a.music_json)
     if a.refresh_timing and os.path.exists(a.music_json):
         old = json.load(open(a.music_json))
         if len(old["sections"]) == len(secs):
