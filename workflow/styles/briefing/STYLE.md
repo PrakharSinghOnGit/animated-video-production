@@ -81,6 +81,7 @@ Framing: strong diagonals (a camera roll up to ~6° on a hold), big flat grounds
 
 - **Music**: a small 1960s spy jazz combo, long-form version: walking upright bass, brushes, vibraphone, a muted trumpet or organ, surf-guitar twang for a chapter's first downbeat. Minor keys, 84–112 BPM, original motifs only (never the famous spy themes). Brass stabs only on the act's big hits, placed ~8 ms early so their peak lands on the frame.
 - **Foley follows the material**: paper (slides, slaps for letters landing, a cut "shh", a tear), metal (clicks, a lock, coins), tape (click, hiss) — light in the mix.
+- **Design layer, used sparingly**: a riser into the act's reveal, a deep boom or impact on its biggest number, a sub drop when the floor gives way, a camera shutter on a freeze, a transition whoosh on a whip. The act changes, chapter cards and silences are scored automatically.
 - **Silence**: true silence for stop-time and before each act's turn; the first sound after it is the most important one.
 - **Mix**: narration on top; music ducked ~10 dB under speech; −14 LUFS, −1 dBTP.
 

@@ -22,7 +22,8 @@ export const meta = { id: "A01", title: "…" };
 // Foley (act-relative seconds), denser than long-form: one on every visual hit.
 export const events = (word: (text: string, occurrence?: number) => number) => [
   { t: word("trillion") - 0.2, type: "card_slap" },
-  // types: card_slap paper_slide paper_cut tear metal_click coin_drop tape_click whip stamp_thud pop cash_register typewriter
+  // foley: card_slap paper_slide paper_cut tear metal_click coin_drop tape_click whip stamp_thud pop cash_register typewriter shutter notify glitch clock_tick heartbeat
+  // design: riser (ends on the word) impact boom sub_drop swoosh (peaks on the word) record_scratch  (workflow/06-audio/sfx_types.json)
 ];
 
 const K = INKS.noir;

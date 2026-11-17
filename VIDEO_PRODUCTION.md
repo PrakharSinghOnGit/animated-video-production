@@ -170,9 +170,12 @@ Show the user the act list (the command prints it), the variety notes and the un
    logo appears nowhere else.
 
 ### Step 6: Sound (~2 min, free)
-`bun run cues --video <ID>` (foley events from the acts + music cue plan) → `bun run audio:music --video <ID>`
+`bun run cues --video <ID>` (SFX events from the acts + the automatic score: transitions on act changes, swell + boom into
+chapters, riser → silence → hit on the plan's silences; clutter thinned; plus the music cue plan) → `bun run audio:music --video <ID>`
 (procedural spy-jazz bed as a **separate stem**, `06-audio/music.wav`) → `bun run audio:mix --video <ID>`
-(voice + foley only, −14 LUFS; the user adds music in post; `--with-music` includes the bed).
+(voice + SFX only, −14 LUFS / ≤ −1 dBTP; the user adds music in post; `--with-music` includes the bed) → optional
+`bun run audio:report --video <ID>` (loudness, SFX density, repeats, masking). SFX types and the library:
+`workflow/06-audio/README.md`; to add sounds you found, `bun run sfx:import`.
 Optional: the user can retime/regain every foley clip and try music loops in openDAW (`bun run daw --video <ID>`, then the
 dashboard's openDAW button); their export `06-audio/mix_daw.wav` replaces `mix.wav` at render. See `docs/OPENDAW.md`.
 

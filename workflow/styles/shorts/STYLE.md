@@ -46,7 +46,7 @@
 
 ## 6. Sound
 
-Foley is denser than long-form (a slap, slide or click on every visual hit) and slightly louder; a `whip` on each whip. A music bed is mixed in (procedural spy palette, ~14 LU under the voice; `bun run shorts --no-music` drops it); leave silence before the payoff word (one `silence` in the plan).
+Foley is denser than long-form (a slap, slide or click on every visual hit) and slightly louder; a `whip` on each whip; a `riser` into the payoff and an `impact` on it. A music bed is mixed in (procedural spy palette, ~14 LU under the voice; `bun run shorts --no-music` drops it); leave silence before the payoff word (one `silence` in the plan).
 
 ## 7. Pitfalls
 

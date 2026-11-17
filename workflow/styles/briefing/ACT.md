@@ -21,7 +21,10 @@ export const meta = { id: "A01", title: "…" };
 // Foley for this act (act-relative seconds). word(text, n) = start of that spoken word.
 export const events = (word: (text: string, occurrence?: number) => number) => [
   { t: word("trillions") - 0.3, type: "card_slap" },
-  // types: card_slap paper_slide paper_cut tear metal_click coin_drop tape_click whip stamp_thud pop cash_register typewriter
+  { t: word("trillions"), type: "riser", d: 2 },     // design: ENDS on the word (then the hit below)
+  { t: word("trillions"), type: "boom" },
+  // foley: card_slap paper_slide paper_cut tear metal_click coin_drop tape_click whip stamp_thud pop cash_register typewriter shutter notify glitch clock_tick heartbeat
+  // design (1-2 big moments per act): riser reverse_swell impact boom sub_drop braam swoosh record_scratch tension  (workflow/06-audio/sfx_types.json)
 ];
 
 const K = INKS.noir;             // this chapter's ink set
