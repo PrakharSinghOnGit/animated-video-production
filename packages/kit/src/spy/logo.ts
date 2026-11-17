@@ -35,7 +35,7 @@ export function logo(g: G, name: string, x: number, y: number, size: number, col
     cutCache.set(key, local);
   }
   g.save(); g.translate(x, y); if (rot) g.rotate(rot);
-  measure(g, "logo", name, Math.max(placed.rect[2] - placed.rect[0], placed.rect[3] - placed.rect[1]), (placed.rect[0] + placed.rect[2]) / 2, (placed.rect[1] + placed.rect[3]) / 2);
+  measure(g, "logo", name, Math.max(placed.rect[2] - placed.rect[0], placed.rect[3] - placed.rect[1]), (placed.rect[0] + placed.rect[2]) / 2, (placed.rect[1] + placed.rect[3]) / 2, placed.rect, col);
   piece(g, local, col, { ...pieceOpts, rule: "nonzero" });
   g.restore();
   const [x0, y0, x1, y1] = placed.rect;

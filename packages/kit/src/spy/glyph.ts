@@ -123,7 +123,7 @@ export function drawLine(g: G, lay: Layout, x: number, y: number, opt: LineOpts 
     piece(g, cutLetter(L, seed + L.i, amp), e?.col ?? col, { gap: gap0 * k, gapCol: opt.gapCol, shadow: opt.shadow, shA: opt.shA, shB: 5 * k, shX: 2.5 * k, shY: 3.5 * k, rule: "nonzero" });
     g.restore();
   }
-  if (shown === lay.letters.length && shown) measure(g, "type", lay.str, lay.size * 0.76, x + lay.width / 2, y - lay.size * 0.38);
+  if (shown === lay.letters.length && shown) measure(g, "type", lay.str, lay.size * 0.76, x + lay.width / 2, y - lay.size * 0.38, [x, y - lay.size * 0.76, x + lay.width, y + lay.size * 0.04], col);
 }
 /** Width in px of the inked line (use for centring and for framing rects). */
 export const lineWidth = (lay: Layout): number => lay.width;

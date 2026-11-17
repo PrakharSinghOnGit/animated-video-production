@@ -261,7 +261,8 @@ export function label(g: G, s: string, x: number, y: number, font: string, col: 
     const on = fpx * curScale(g);
     if (on > 0.01 && on < o.minPx) { const k = o.minPx / on; g.translate(x, y); g.scale(k, k); g.translate(-x, -y); }
   }
-  measure(g, "label", s, fpx, x, y);
+  const tw = g.measureText(s).width, lx = align === "center" ? x - tw / 2 : align === "right" || align === "end" ? x - tw : x;
+  measure(g, "label", s, fpx, x, y, [lx, y - fpx * 0.78, lx + tw, y + fpx * 0.2], col);
   const hc = o.haloCol ?? state(g).bg, isHex = (c: string) => /^#[0-9a-f]{6}$/i.test(c);
   const halo = o.halo ?? (isHex(col) && isHex(hc) && Math.abs(luma(col) - luma(hc)) > 0.35 ? 3 : 0);
   if (halo > 0) { g.lineJoin = "round"; g.lineWidth = (halo * 2) / curScale(g); g.strokeStyle = hc; g.strokeText(s, x, y); }
