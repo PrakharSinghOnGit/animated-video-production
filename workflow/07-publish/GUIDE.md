@@ -22,6 +22,7 @@ Source numbers like [S3] point to the Sources list at the end.
 6. Title: key words first, aim for about 30-50 characters, hard cap 100. Anything past about 60-70 characters may be cut off in feeds. [YT for 100 and "key words first" S3,S12; 30-50 and 60-70 are 3P S10]
 7. Finance titles: a specific, sourced number beats a vague promise. Never state a number the video does not source. [3P S10 for the effect; the sourcing rule is house policy]
 8. Test & Compare takes up to 3 variants (thumbnails, titles, or both). The winner is chosen by watch-time share, not click rate. Make the 3 variants three different bets: three levers, three subjects, every pair two axes apart (4.2; the code rejects less). [YT S1 for the facts; the axes are REC]
+8a. Start from a proven structure: the ten faceless recipes and the topic findings from 1,031 finance outliers (section 12, `workflow/01-ideation/swipe/RECIPES.md`). Borrow the shape, never the words or the picture. [REC; correlation from S17]
 8b. A package is for a stranger who does not know the channel or the topic's vocabulary. It is about the viewer's problem, not a diagram or the name of the video's mechanism (section 10). [REC, from this channel's own results]
 9. Description: put the hook and the promise in the first two lines; chapters start at 00:00, at least 3, each at least 10 s; at most 3 hashtags are shown near the title. [YT S4,S6; the "first two lines" length is UNVERIFIED]
 10. Tags barely matter. Do not spend time on them (YouTube says so, S3, S7). Spend it on the thumbnail and title.
@@ -114,6 +115,7 @@ The page gives no numeric text-size, word-count or safe-zone rules. Everything n
   - The Agent has no face, so pose and scale carry the feeling (reaching, skidding, hiding, looked down on by something larger). Penny has moods (`worried`, `surprised`): use them.
   - One thing happens to the character, close and large (the door, the bill, the tag). Not a character standing next to a chart.
   - Whether a character variant earns more clicks than an object variant on this channel is unknown: that is what the test is for.
+- Section 12 lists ten faceless structures that recur among finance outliers (number-hero, logo-twist, defaced-icon, ...); use them as the starting points for the subject axis. [REC; S17]
 - Do not use claims like "an expressive face adds 18-32% CTR": the only source found is an unsourced blog. [UNVERIFIED]
 
 ### 2.8 Channel consistency
@@ -395,6 +397,18 @@ So, for every package from here on:
 - Whether the phone check's thresholds (2.2) and the blind read predict what a person can read on a phone: they are calibrated on 24 images from this channel and have not been tested against people.
 - Whether any of section 10's hypotheses hold: no Test & Compare result has been recorded yet.
 
+## 12. What 1,031 finance outliers show (collected 2026-11-17) [S17]
+
+Method: 46 finance / economics / business channels, full upload histories (up to 600 each), 12,344 long-form videos. An outlier has 2x or more the median views of its 30 neighbouring uploads on the same channel (this cancels channel size and growth); 1,031 picked, at most 26 per channel. A control group of 1,030 ordinary videos (0.5-1.2x) from the same channels. Every image was measured (text by OCR, faces, colour) and tagged by eye. Data and recipes: `workflow/01-ideation/swipe/` (the images stay in `workspace/_ideas/swipe/`, they are the channels' copyright).
+
+1. **Style does not separate outliers from ordinary videos.** Within a channel both have a median of 5 words on the image, faces in 73% vs 72%, numbers 38% vs 35%, the same brightness and colours; no measured feature favoured outliers in more than 26 of 42 channels. A strong, readable house style is the entry ticket; the promise decides the outlier.
+2. **The viewer's own money beats the news.** Outlier rate by title word against the 18.9% base: *per month* 2.3x, *credit cards* 2.3x, *guide / beginners* 1.9-2.1x, a `$` figure up to 1.9x, *house* 1.8x, *index funds* 1.7x, *fraud / fake* 1.6-1.7x; *news* 0.2x, *markets / rate* 0.3x, *Fed* 0.3x, *stocks* 0.4x, *inflation* 0.5x. Frame a money system by what it does to the viewer ("How your credit card really makes money"), not as an event.
+3. **Title form matters less**: a `$` figure 1.46x, colon or dash 1.21x, "How ..." 1.21x; `!` or emoji 0.73x, a question mark 0.82x, 40 characters or fewer 0.78x. These agree with sections 3 and 6.
+4. **Faceless outliers** (267): one centred subject (60%), about 4 words, a label bar or highlighter behind them (36%), a logo when a company is the topic (40%). The ten recurring structures are in `RECIPES.md`; the concepts step shows them to the editor with the outliers closest to the topic, and every concept names the recipe it adapts.
+5. **Limits**: correlation only (an outlier topic may also have had a better thumbnail; only Test & Compare shows a thumbnail effect); English, US-heavy, mostly presenter-led channels; tags are one visual pass by a model.
+6. **Borrowing**: a composition, a layout or a title shape is free to reuse; another video's image, artwork, or its exact words are not, and neither is a near-identical package (same subject + words + layout) that could be taken for theirs. A logo names the company discussed, never suggests its endorsement. [REC; not legal advice]
+
+---------------------------------------------------------------------
 ---------------------------------------------------------------------
 ## Sources (all accessed 2026-10-29 unless noted)
 
@@ -413,3 +427,4 @@ So, for every package from here on:
 - S13. https://zackchewning.substack.com/p/content-lessons-from-the-1-youtubers : Secondhand summary of the leaked MrBeast memo (thumbnail team, expectations must be met). Authenticity of the memo unconfirmed.
 - S15. https://socialk.it/en/sizes/youtube-thumbnail-size : Third-party thumbnail size/safe-zone claims (duration badge bottom-right, display sizes). Unverified; see 11.
 - S16. https://www.tubefilter.com/2018/07/18/youtube-hashtags-above-titles/amp/ : 2018 report quoting a 15-hashtag limit and 3 hashtags above titles; superseded by S6 for the limit.
+- S17. workflow/01-ideation/swipe/ (README.md, outliers.json, RECIPES.md): this channel's own study of 1,031 finance outliers against 1,030 ordinary videos from the same 46 channels, YouTube Data API, collected 2026-11-17. Correlation only.

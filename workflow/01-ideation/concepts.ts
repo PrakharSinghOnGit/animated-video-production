@@ -26,6 +26,7 @@ import { runAgentAsync, runAgyJson, extractJson } from "../05-video/src/lib/agen
 import { roleModel, isAgy, agyModel, specSlug } from "../lib/models";
 import { recordTiming } from "../05-video/src/lib/timings";
 import { AUDIENCE_FILE, IDEAS_DIR, REPO, readIdeas, type Idea } from "./lib";
+import { copiedTitle, readRecipes, swipeExamples, swipeRow } from "./swipe";
 import { AXES, AXIS_KEYS, BANNED, EMOJI, LEVERS, THUMB_MAX_WORDS, axisDistance, channelPackages, contentWords, numbersIn, readJson, readText, titleOverlap, usedThumbWords, wsDir, type Axes, type Lever } from "../07-publish/lib";
 
 export const CONCEPTS_DIR = path.join(IDEAS_DIR, "concepts");
@@ -33,6 +34,8 @@ export const N_CONCEPTS = 5;
 export interface Concept {
   title: string; lever: Lever; axes: Axes; thumbText: string; thumbnail: string;
   gap: string; opens: string; mustProve: string[]; kill: string; why: string;
+  /** the proven structure(s) it adapts, from swipe/RECIPES.md (e.g. "number-hero + hidden-hand") */
+  recipe?: string;
   /** yt-package/title.py on the title + thumbnail words (absent when python3 or the linter is missing) */
   lint?: { score: number; issues: [string, string][] };
   /** the blind viewer's answer */
@@ -78,6 +81,9 @@ export function checkConcepts(concepts: any[], given: string): { errors: string[
     if (/\{[^}]*\}/.test(`${title} ${tt}`) && !(Array.isArray(c.mustProve) && c.mustProve.length)) errors.push(`${n}: a {slot} needs the claim that fills it in mustProve`);
     if (!Array.isArray(c.mustProve) || !c.mustProve.length) errors.push(`${n}: mustProve is empty (the claims the script must source)`);
     if (!String(c.kill ?? "").trim()) warnings.push(`${n}: no kill condition`);
+    // borrow the structure of a proven package, never its words
+    const copied = copiedTitle(title.replace(/[{}]/g, ""));
+    if (copied) errors.push(`${n}: the title copies an outlier's words ("${copied}"): keep the structure, write it in this video's own words`);
   });
   const levers = new Set(concepts.map((c) => c?.lever).filter((l) => LEVERS.includes(l)));
   if (levers.size < 4) errors.push(`the five concepts use ${levers.size} different levers (${[...levers].join(", ")}): at least 4, or they are one bet repeated`);
@@ -94,9 +100,27 @@ export function checkConcepts(concepts: any[], given: string): { errors: string[
   return { errors, warnings };
 }
 
+/** The proven-packages evidence for the editor: the recipes, the outliers closest to the topic, the strongest faceless ones. */
+export function swipeSection(topic: string): string {
+  const recipes = readRecipes();
+  if (!recipes) return "";
+  const { related, faceless } = swipeExamples(topic);
+  const head = "| title | reach | thumbnail (archetype, layout, devices) | words on it | the reusable idea |\n|---|---|---|---|---|";
+  return `
+# Proven packages (swipe file)
+${recipes.replace(/^# .*\n/, "")}
+## Outliers closest to this topic
+${related.length ? `${head}\n${related.map(swipeRow).join("\n")}` : "(none share words with the topic)"}
+
+## The strongest faceless outliers
+${head}
+${faceless.map(swipeRow).join("\n")}
+`;
+}
+
 export function conceptsMarkdown(s: ConceptSet): string {
   const row = (c: Concept, i: number) => `## ${i + 1}. ${c.title}${s.chosen === i + 1 ? "  ← chosen" : ""}
-- Lever: **${c.lever}** · thumbnail: ${AXIS_KEYS.map((k) => c.axes[k]).join(", ")}${c.lint ? ` · title check ${c.lint.score}/100` : ""}
+- Lever: **${c.lever}**${c.recipe ? ` · recipe: ${c.recipe}` : ""} · thumbnail: ${AXIS_KEYS.map((k) => c.axes[k]).join(", ")}${c.lint ? ` · title check ${c.lint.score}/100` : ""}
 - Thumbnail: ${c.thumbnail}${c.thumbText ? ` Words: **${c.thumbText}**` : " No words."}
 - The gap: ${c.gap}
 - Opens with: "${c.opens}"
@@ -204,6 +228,7 @@ Words already used on thumbnails (do not reuse): ${[...usedThumbWords("").keys()
 
 # Competition on this topic
 ${comps.length ? `From the idea check's YouTube search (${idea!.research!.at.slice(0, 10)}). "reach" is views ÷ the channel's normal views: 3 or more means the package or the topic beat that channel's usual.\n| title | channel | views | reach |\n|---|---|---|---|\n${comps.map((c) => `| ${c.title.replace(/\|/g, "/")} | ${c.channel.replace(/\|/g, "/")} | ${c.views.toLocaleString()} | ${(c as any).multiple ?? c.ratio} |`).join("\n")}` : `(not researched: no YouTube search was run for this topic${idea ? `; bun run ideas --id ${idea.id} adds it` : "; add it as an idea and run the idea check to get it"})`}
+${swipeSection(`${topic} ${note}`)}
 ${idea?.research?.verdict ? `\n# The idea check's angle\n${idea.research.verdict.angle}\n` : ""}
 # The topic
 ${topic}
@@ -227,6 +252,7 @@ ${note ? `\nThe creator's note (figures stated here are the only ones you may us
   concepts = r.json.concepts.map((c: any) => ({
     title: String(c.title).trim(), lever: c.lever, axes: c.axes, thumbText: String(c.thumbText ?? "").trim(), thumbnail: String(c.thumbnail ?? ""),
     gap: String(c.gap ?? ""), opens: String(c.opens ?? ""), mustProve: (c.mustProve ?? []).map(String), kill: String(c.kill ?? ""), why: String(c.why ?? ""),
+    ...(c.recipe ? { recipe: String(c.recipe) } : {}),
   }));
   warnings = [...v.warnings];
   editor = { stake: String(r.json.stake ?? ""), pick: Number(r.json.pick) >= 1 && Number(r.json.pick) <= concepts.length ? Number(r.json.pick) : 1, verdict: { strong: r.json.verdict?.strong !== false, note: String(r.json.verdict?.note ?? "") }, model: r.model };

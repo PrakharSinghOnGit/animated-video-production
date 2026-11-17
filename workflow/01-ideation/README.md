@@ -36,6 +36,8 @@ This step captures the raw creative inspiration, competitor analysis, reference 
 > `bun run concepts --pick I03 2 --to VID07_Name` writes the chosen package into the project's `02-scripting/idea.md`
 > ("Chosen package"): the writer keeps its promise and `bun run meta` keeps one final package faithful to it.
 > Results: `workspace/_ideas/concepts/<key>.md`. If none of the five is strong, change the angle before writing.
+> The editor starts from the **swipe file** (`swipe/`: 1,031 finance outliers and ten faceless recipes): each concept
+> names the recipe it adapts, and a title that copies an outlier's words is rejected.
 >
 > The rest of this file is the manual workflow inside a project (references, notes).
 
