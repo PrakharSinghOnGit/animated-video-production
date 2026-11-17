@@ -63,9 +63,10 @@ exactly) and rendered with today's kit.
   at 67 s; VID05 A08: the people popping in, at 9.5 s in this render) and **2 more at low** (VID03 A04 26 s, 73 s).
   Missed: small things at the frame edge that the camera reveals or leaves (VID03 A04 52 s, 78 s) and a pose timing
   (VID05 A03 9.9 s).
-- The new critic prompt, on 5 of these acts, names the VID03 A04 pops at 14, 67 and 76 s (old prompt: 67 s), the A08
-  people (old: no) and the A06 end swipe to plum (old: yes too). The old prompt caught VID05 A09's inconsistent zoom at
-  56 s. Both score every act 4/10. (The old prompt could also read checks.json in the review folder, so its run already
+- The new critic prompt, on 6 of these acts (free Gemini critic), names the VID03 A04 pops at 14, 67 and 76 s (old
+  prompt: 67 s), the A08 people (old: no), the A06 end swipe to plum and VID05 A09's inconsistent zoom at 56 s (old: both
+  too). Both score every act 4/10. The new prompt is slower (2.7–6 min vs 1.5–2.7 min per act) and reads up to ~5x the
+  input tokens on long acts (the grids): free on agy, worth knowing before pointing it at a paid model. (The old prompt could also read checks.json in the review folder, so its run already
   benefited from the checks.)
 - Neither critic prompt (old or new) catches drawing-quality notes (hands backwards, broken candle, mask not following
   the head, inverted $, the book blending into its ground, the truck). Those still need your eye.
