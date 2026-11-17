@@ -10,7 +10,9 @@ It also prints an act summary (written next to the report as layout_summary.json
 (median content, share of sparse frames), the longest stretch where
 the picture barely changes, and whether the act is settled on a picture 1 s after it opens and 1 s before it ends.
 --measure measure.json (from frames.ts: on-screen sizes reported by the kit) adds text, figures and logos that
-are too small on screen to read."""
+are too small on screen to read.
+--flags checks.json (from act_checks.py) outlines the tiles of flagged moments in red with the finding's number and box,
+and lists the findings under the sheet."""
 import argparse
 import os
 import re
@@ -26,7 +28,12 @@ ap.add_argument("--dur", type=float, default=0)
 ap.add_argument("--no-band", action="store_true", help="style has no subtitle band: check edges over the full height, skip the band check")
 ap.add_argument("--measure", help="measure.json written by frames.ts: [{t, items: [{kind, text, px, x, y}]}]")
 ap.add_argument("--vertical", action="store_true", help="9:16 short: Shorts safe area (YouTube overlays on the right and bottom)")
+ap.add_argument("--flags", help="checks.json from act_checks.py: mark the flagged tiles and list the findings under the sheet")
 a = ap.parse_args()
+FLAGS = []
+if a.flags and os.path.exists(a.flags):
+    import json as _json
+    FLAGS = [f for f in _json.load(open(a.flags)).get("findings", []) if f["severity"] != "low"]
 
 
 
@@ -179,16 +186,43 @@ for p in a.imgs:
         font = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", 20)
     except OSError:
         font = ImageFont.load_default()
+    t_tile = float(m.group(1)) if m else -1
+    # a tile shows a finding when it falls in the finding's time span (nearest dense step either side)
+    hit = [f for f in FLAGS if f["t"] - 0.06 <= t_tile <= f.get("t1", f["t"]) + 0.06]
+    for f in hit:
+        if f.get("box"):
+            b = f["box"]
+            d.rectangle((b[0] * im.width, b[1] * im.height, b[2] * im.width, b[3] * im.height), outline=(255, 40, 40), width=3)
+    if hit:
+        d.rectangle((0, 0, im.width - 1, im.height - 1), outline=(255, 40, 40), width=5)
+        label += "  " + " ".join(f"#{f['id']}" for f in hit[:4])
     box = d.textbbox((8, 6), label, font=font)
-    d.rectangle((box[0] - 4, box[1] - 3, box[2] + 4, box[3] + 3), fill=(0, 0, 0))
+    d.rectangle((box[0] - 4, box[1] - 3, box[2] + 4, box[3] + 3), fill=(190, 20, 20) if hit else (0, 0, 0))
     d.text((8, 6), label, fill=(255, 255, 255), font=font)
     tiles.append(im)
 
 th = max(t.height for t in tiles)
 rows = (len(tiles) + a.cols - 1) // a.cols
-sheet = Image.new("RGB", (a.cols * a.w + (a.cols - 1) * 4, rows * th + (rows - 1) * 4), (20, 20, 20))
+sw = a.cols * a.w + (a.cols - 1) * 4
+legend = []
+if FLAGS:
+    import textwrap
+    try:
+        lfont = ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial.ttf", 19)
+    except OSError:
+        lfont = ImageFont.load_default()
+    for f in FLAGS:
+        for j, line in enumerate(textwrap.wrap(f"#{f['id']} [{f['severity']}] {f['kind']}: {f['msg']}", width=max(40, sw // 10))):
+            legend.append(("    " if j else "") + line)
+lh = 24
+sheet = Image.new("RGB", (sw, rows * th + (rows - 1) * 4 + (len(legend) * lh + 16 if legend else 0)), (20, 20, 20))
 for i, t in enumerate(tiles):
     sheet.paste(t, ((i % a.cols) * (a.w + 4), (i // a.cols) * (th + 4)))
+if legend:
+    d = ImageDraw.Draw(sheet)
+    y0 = rows * th + (rows - 1) * 4 + 8
+    for j, line in enumerate(legend):
+        d.text((10, y0 + j * lh), line, fill=(255, 120, 120) if "[high]" in line else (235, 235, 235), font=lfont)
 sheet.save(a.out, quality=85)
 
 if a.report:
