@@ -40,6 +40,11 @@ every two frames are measured (phase correlation) and removed before looking for
 | `camera-jump` | the camera estimate jumps in one step | low | 0/5 real (landing letters and whips fool it) |
 | `fast-entry`, `title-safe`, `contrast` (not visible) | something flies in from off frame; text outside 5 % margins; text measured but covered | low | information |
 
+**Known blind spot of `pop`:** a pop right next to other change in the same instant is read as motion. Two real ones on
+VID11 A02 are missed this way: the coin halves vanishing at 12.0 s just after the coin opens, and the SALE tag appearing at
+32.8 s while $30,000 vanishes beside it. Loosening the two rules that cause it (flux 5 → 10 %, margin 6 → 3 px) recovered
+neither and added 33 false candidates across the 65 acts, so the rules stay; the motion grids show both to the critic.
+
 **Gate.** High `blank` and `text-clipped` findings go straight back to the author without a critic call
 (`GATE_KINDS` in `workflow/05-video/src/lib/critic.ts`), like the old layout gate. Everything else goes to the critic, who
 marks each finding real or false; false ones never reach the author.
