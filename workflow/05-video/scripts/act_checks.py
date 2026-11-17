@@ -367,6 +367,9 @@ for n, items in by_frame.items():
             A, B = texts[p]["box"], texts[q]["box"]
             if texts[p]["text"] == texts[q]["text"]:
                 continue
+            big, small = max(texts[p]["px"], texts[q]["px"]), min(texts[p]["px"], texts[q]["px"])
+            if big > 2.5 * small or (0 < i < N - 1 and max(area[i - 1], area[i]) > 0.05):
+                continue    # giant set type behind a label is the style (numbers are the set); mid-transition is not judged
             iw, ih = min(A[2], B[2]) - max(A[0], B[0]), min(A[3], B[3]) - max(A[1], B[1])
             if iw <= 0 or ih <= 0:
                 continue

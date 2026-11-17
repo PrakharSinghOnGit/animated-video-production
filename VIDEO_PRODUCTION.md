@@ -137,11 +137,16 @@ Show the user the act list (the command prints it), the variety notes and the un
 
 ### Step 5: Acts 💲 (~17 min, ~$3 per act, Opus author + free Gemini critic) → **G2 after A01**
 1. `bun run act --video <ID> --act A01`, then look: `bun run frames --video <ID> --scene A01 --every 4 --words`
-   and Read `05-video/review/A01/sheet.jpg`.
+   and Read `05-video/review/A01/sheet.jpg` (flagged stills outlined in red) and the motion grids `grid_*.jpg`
+   (12 frames 0.5 s apart per image, the spoken words under each tile). `frames` renders the whole act every 0.1 s in
+   parallel (~20 s for a 40 s act) and runs free deterministic checks on it (`checks.json`: pop-ins/outs, blanks, freezes,
+   hard cuts, clipped/overlapping/low-contrast text, late hits, an unsettled ending, seam flags). The critic
+   (`workflow/prompts/CRITIC.md` + `workflow/styles/<style>/RUBRIC.md`) scores the grids against the rubric and marks
+   each finding real or false; `blank` and `text-clipped` findings go straight back to the author without a critic call.
 2. `bun run preview --video <ID> --act A01` → `review/A01/preview.mp4` (the act with voice + foley, GPU render).
 3. **Sync review** (free by default): `bun run review --video <ID> --act A01 [--agent agy|haiku|sonnet|opus]
-   [--give transcript,plan,script,code] [--every 2] [--focus "..."] [--to-notes]`. It renders frames every N s + at
-   hit words and gives the agent the act's word-aligned narration, so it can say "X appears 6 s before it is
+   [--give transcript,plan,script,code] [--every 2] [--focus "..."] [--to-notes]`. It renders the act densely (motion grids + measured
+   findings, as `frames`) and gives the agent the act's word-aligned narration, so it can say "X appears 6 s before it is
    spoken". Findings: `review/A01/reviews/*.json|md`; `--to-notes` appends them to `director_notes.md`.
 4. Show the user the preview (dashboard: Acts → the act) and wait for notes. They collect notes in
    `review/<act>/director_notes.md` (the dashboard has "Add note at current time" on the preview).

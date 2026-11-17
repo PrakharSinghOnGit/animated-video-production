@@ -28,7 +28,9 @@ Don't explore the rest of the repo.
 1. Plan the vertical layout, the camera actions and the loop (short comment block at the top of the file).
 2. Write the file.
 3. `bun run assemble --video <ID>` (must pass), then `bun run frames --video <ID> --scene A01 --every 2 --words`. Fix every flag
-   in the layout report (the Shorts overlay flags mean content a phone hides), then **Read** `review/A01/sheet.jpg`.
+   in the layout report (the Shorts overlay flags mean content a phone hides) and every medium/high **check** (pop-ins,
+   blanks, freezes, clipped or low-contrast text, late hits), then **Read** `review/A01/sheet.jpg` (flagged stills outlined
+   in red) and the motion grids `review/A01/grid_*.jpg` (consecutive frames 0.5 s apart, the spoken words under each tile).
 4. Fix what you see: tiny text, a hook that isn't visible in the first tile, captions over impact text, colour on the same colour,
    an end that doesn't match the start. Repeat step 3 at most 3 times.
 5. Reply with 3 lines: what the short shows, what you are least sure about, and the frames to check.
