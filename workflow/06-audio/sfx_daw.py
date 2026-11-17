@@ -39,11 +39,11 @@ def main():
     os.makedirs(a.out_dir, exist_ok=True)
     for f in os.listdir(a.out_dir):   # a rebuild replaces the previous set
         if f.endswith(".wav") or f == "manifest.json": os.remove(os.path.join(a.out_dir, f))
-    evs = json.load(open(a.events)); out = []; seen = {}; skipped = 0
+    evs = json.load(open(a.events)); out = []; seen = {}; skipped = 0; sfx.reset_picks()
     for i, e in enumerate(evs):
         if e["type"] not in sfx.FOLEY: skipped += 1; continue
         sfx.seed(1234 + e.get("seed", i))
-        x, ent = sfx.render_event_ex(e["type"], e.get("d"), not a.no_lib)
+        x, ent = sfx.render_event_ex(e["type"], e.get("d"), not a.no_lib, e.get("take"))
         x = x.astype(np.float64) * 10 ** (sfx.FOLEY[e["type"]][2] / 20) / .8
         pan = float(e.get("pan", 0))
         if pan:

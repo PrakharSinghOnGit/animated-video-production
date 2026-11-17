@@ -329,19 +329,28 @@ def whip(d=.4, v=1.0):
     return _out(x) * v
 
 
-# type -> (function, default duration or None, base level in dBFS peak at mix input)
-FOLEY = {
-    "pencil_tap": (pencil_tap, None, -16), "pencil_scratch": (pencil_scratch, .6, -23),
-    "ruler_hiss": (ruler_hiss, .8, -25), "paper_slide": (paper_slide, .45, -20),
-    "stamp_thud": (stamp_thud, None, -11), "page_turn": (page_turn, None, -18),
-    "adding_clack": (adding_clack, None, -16), "pop": (pop, None, -19), "whoosh": (whoosh, .5, -26),
-    "coin_drop": (coin_drop, .7, -17), "cash_register": (cash_register, 1.1, -16), "typewriter": (typewriter, .9, -22),
-    "card_slap": (card_slap, None, -18), "paper_cut": (paper_cut, .5, -24), "tear": (tear, .6, -20),
-    "metal_click": (metal_click, None, -20), "tape_click": (tape_click, None, -22), "whip": (whip, .4, -22),
+# Every type, its layer, anchor, default length and level live in sfx_types.json (shared with cues.ts).
+import json as _json, os as _os
+with open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "sfx_types.json")) as _f: TYPES = _json.load(_f)["types"]
+_FN = {
+    "pencil_tap": pencil_tap, "pencil_scratch": pencil_scratch, "ruler_hiss": ruler_hiss, "paper_slide": paper_slide,
+    "stamp_thud": stamp_thud, "page_turn": page_turn, "adding_clack": adding_clack, "pop": pop, "whoosh": whoosh,
+    "coin_drop": coin_drop, "cash_register": cash_register, "typewriter": typewriter, "card_slap": card_slap,
+    "paper_cut": paper_cut, "tear": tear, "metal_click": metal_click, "tape_click": tape_click, "whip": whip,
     # Drafting style (workflow/styles/drafting/ACT.md): stand-ins from the synths above until its own foley set exists
-    "tick": (lambda: click(1.7, .7), None, -26), "ratchet": (adding_clack, None, -22), "click": (click, None, -23),
-    "sweep": (whoosh, .45, -28), "press": (stamp_thud, None, -17), "step": (step, None, -27),
+    "tick": lambda: click(1.7, .7), "ratchet": adding_clack, "click": click, "sweep": whoosh, "press": stamp_thud, "step": step,
 }
+import sfx_design as _design   # noqa: E402  (cinematic layer; imports this module back)
+for _k, _f in _design.FNS.items():
+    _FN[_k] = (lambda f: (lambda *a: _out(f(*a))))(_f)
+# type -> (function, default duration or None, base level in dBFS peak at mix input)
+FOLEY = {k: (_FN[k], v.get("d"), v["level"]) for k, v in TYPES.items()}
+missing = set(TYPES) - set(_FN)
+if missing: raise RuntimeError("sfx_types.json types without a renderer: %s" % sorted(missing))
+
+
+def anchor_of(kind): return TYPES.get(kind, {}).get("anchor", "start")
+def layer_of(kind): return TYPES.get(kind, {}).get("layer", "foley")
 
 
 def render_event(kind, d=None):
@@ -352,9 +361,18 @@ def render_event(kind, d=None):
 # ===================================================================
 # Licensed sample library (assets/sfx, filled by `bun run sfx:fetch`). Used when present, else the synth above.
 # ===================================================================
-import json as _json, os as _os
 LIB_DIR = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..", "assets", "sfx")
-_lib = None; _wav = {}; _ref = {}
+_lib = None; _wav = {}; _ref = {}; _last = {}
+
+
+def reset_picks():
+    """Forget the previous pick per type (call before rendering an event list from the top)."""
+    _last.clear()
+
+
+def _licensed(e):
+    """Epidemic Sound free-tier audio never reaches a mix; a paid licence is declared with EPIDEMIC_COMMERCIAL=1."""
+    return "epidemic" not in str(e.get("license", "")).lower() or _os.environ.get("EPIDEMIC_COMMERCIAL") == "1"
 
 
 def library():
@@ -364,7 +382,7 @@ def library():
         _lib = {}
         try:
             for e in _json.load(open(_os.path.join(LIB_DIR, "manifest.json"))):
-                if _os.path.exists(_os.path.join(LIB_DIR, e["file"])): _lib.setdefault(e["type"], []).append(e)
+                if _os.path.exists(_os.path.join(LIB_DIR, e["file"])) and _licensed(e): _lib.setdefault(e["type"], []).append(e)
         except (OSError, ValueError): pass
     return _lib
 
@@ -379,6 +397,11 @@ def _load(entry):
     return _wav[entry["file"]]
 
 
+def uniform_filter1d_(x, n):
+    from scipy.ndimage import uniform_filter1d
+    return uniform_filter1d(x, max(1, n))
+
+
 def _ref_rms(kind):
     """RMS of the procedural design for this foley type: library samples are matched to it so the mix stays light."""
     if kind not in _ref:
@@ -390,23 +413,51 @@ def _ref_rms(kind):
     return _ref[kind]
 
 
-def lib_render(kind, d=None):
+def _bag(kind, n, take):
+    """Shuffle-bag pick: every take of a type cycles through all n samples in a seeded order, reshuffled each round,
+    never the same sample twice running (also across rounds). Stateless: the same take always gets the same sample."""
+    import zlib
+    prev = None; c = take // n
+    for k in range(c + 1):
+        p = list(np.random.default_rng(zlib.crc32(kind.encode()) + 7919 * k).permutation(n))
+        if prev is not None and n > 1 and p[0] == prev[-1]: p[0], p[1] = p[1], p[0]
+        prev = p
+    return int(prev[take % n])
+
+
+def lib_render(kind, d=None, take=None):
     """Seeded pick from the library with +-4 % pitch and +-1.5 dB gain variation; matched to the procedural level.
     Returns (mono float32 @ SR, manifest entry) or None when the type is not in the library."""
     ents = library().get(kind)
     if not ents: return None
-    e = ents[int(_rng.integers(len(ents)))]; x = _load(e).copy()
+    if take is not None: i = _bag(kind, len(ents), int(take))
+    else:                                                # events without a take (older events.json): avoid an immediate repeat
+        i = int(_rng.integers(len(ents)))
+        if len(ents) > 1 and _last.get(kind) == i: i = (i + 1 + int(_rng.integers(len(ents) - 1))) % len(ents)
+        _last[kind] = i
+    e = ents[i]; x = _load(e).copy()
     rate = 1 + _rng.uniform(-.04, .04)
     if abs(rate - 1) > 1e-3:
         import soxr; x = soxr.resample(x, SR, int(round(SR / rate)), quality="HQ")
     want = d if d is not None else (FOLEY[kind][1] if kind in FOLEY else None)
-    if want is not None:
+    anchor, layer = anchor_of(kind), layer_of(kind)
+    if anchor == "end" and want is not None:            # the recording's end lands on the hit: cut or pad its front
+        n = int(want * SR); x = x[-n:] if len(x) > n else np.concatenate([np.zeros(n - len(x)), x])
+        x = _fx(x, min(.12, want / 3), .008)
+    elif anchor == "peak":                               # its loudest moment lands on the hit
+        pre = int(TYPES[kind].get("pre", .2) * SR); env = uniform_filter1d_(np.abs(x), int(.01 * SR)); pk = int(np.argmax(env))
+        x = x[pk - pre:] if pk > pre else np.concatenate([np.zeros(pre - pk), x])
+        x = _fx(x[:pre + int(2.5 * SR)], .02, .05)
+    elif want is not None and layer == "design":         # a hit or a blast: never looped, trimmed with a fade if long
+        n = int(want * SR)
+        if len(x) > n: x = x[:n]; x[-int(.15 * SR):] *= np.linspace(1, 0, int(.15 * SR))
+    if anchor == "start" and want is not None and layer != "design":
         n = int(want * SR)
         if len(x) < n:                                   # loop with short crossfades
             xf = max(1, min(int(.03 * SR), len(x) // 3)); w = np.linspace(0, 1, xf); base = x
             while len(x) < n: x = np.concatenate([x[:-xf], x[-xf:] * np.cos(w * np.pi / 2) + base[:xf] * np.sin(w * np.pi / 2), base[xf:]])
         x = x[:n]
-    x = _fx(x, .002, .03)
+    if anchor == "start": x = _fx(x, .002, .03)
     a = np.abs(x); act = x[a > .02 * a.max()] if a.max() > 0 else x
     g = _ref_rms(kind) / (float(np.sqrt((act ** 2).mean())) + 1e-9) * 10 ** (_rng.uniform(-1.5, 1.5) / 20)
     g = min(g, 3.0); x = x * g; pk = np.abs(x).max()
@@ -414,9 +465,10 @@ def lib_render(kind, d=None):
     return x.astype(np.float32), e
 
 
-def render_event_ex(kind, d=None, use_lib=True):
-    """(samples, manifest entry or None). Library first, procedural fallback."""
+def render_event_ex(kind, d=None, use_lib=True, take=None):
+    """(samples, manifest entry or None). Library first, procedural fallback. take: the event's rank among events of its
+    type (cues.ts writes it), which picks the sample from a shuffle bag."""
     if use_lib:
-        r = lib_render(kind, d if d is not None else None)
+        r = lib_render(kind, d if d is not None else None, take)
         if r: return r
     return render_event(kind, d), None
