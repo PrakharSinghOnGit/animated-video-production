@@ -65,6 +65,26 @@ export function ActFlow({ a }: { a: ActRow }) {
           <Button size="sm" type="submit" disabled={!a.scene || !Number.isFinite(parseFloat(at)) || !canRun("acts.frames", a.id)}><Camera />Render frame</Button>
           <span className="text-[11px] text-subtle-foreground">Adds one frame (act time) to the ones below and tags it for the reviewer.</span>
         </form>
+        {!!a.grids?.length && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1" aria-label="Motion grids">
+            {a.grids.map((g, i) => (
+              <a key={g.path} href={file(g.path)} target="_blank" rel="noreferrer" className="shrink-0" title="Motion grid: 12 frames 0.5 s apart, the spoken words under each">
+                <img loading="lazy" src={`${file(g.path)}&v=${Math.round(g.mtime)}`} alt={`Motion grid ${i + 1}`} className="block h-[96px] rounded border" />
+              </a>
+            ))}
+          </div>
+        )}
+        {a.checks && (a.checks.findings.length > 0 || a.checks.low > 0) && (
+          <div className="text-[12.5px]">
+            {a.checks.findings.map((f) => (
+              <div key={f.id} className="grid grid-cols-[56px_1fr] gap-2.5 border-b border-border/60 py-1.5">
+                <span className="font-mono text-brand">{f.t.toFixed(1)} s</span>
+                <div><span className={cn("mr-1.5 font-mono text-[11px]", f.severity === "high" ? "text-destructive" : "text-muted-foreground")}>#{f.id} {f.kind}</span>{f.msg}</div>
+              </div>
+            ))}
+            {a.checks.low > 0 && <div className="py-1.5 text-[11px] text-subtle-foreground">{a.checks.low} low finding(s) in review/{a.id}/checks.json</div>}
+          </div>
+        )}
         {thumbs.length > 0 && (
           <div className="flex gap-1.5 overflow-x-auto pb-1">
             {thumbs.map((t, i) => (

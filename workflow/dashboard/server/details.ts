@@ -215,6 +215,12 @@ export function details(ws: string) {
       id: a.id, title: a.title, status, scene,
       thumbs: ls(abs, /^t_.*\.jpg$/).map((f) => fileInfo(ws, `${rdir}/${f}`)),
       sheet: fileInfo(ws, `${rdir}/sheet.jpg`),
+      // motion grids (12 consecutive frames per image) and the measured findings, from bun run frames
+      grids: ls(abs, /^grid_\d+\.jpg$/).map((f) => fileInfo(ws, `${rdir}/${f}`)).filter(Boolean),
+      checks: (() => {
+        const c = readJson<any>(path.join(abs, "checks.json"));
+        return c ? { findings: (c.findings ?? []).filter((f: any) => f.severity !== "low").map((f: any) => ({ id: f.id, kind: f.kind, severity: f.severity, t: f.t, msg: f.msg })), low: (c.findings ?? []).filter((f: any) => f.severity === "low").length } : null;
+      })(),
       critic: critic ? { file: critics[critics.length - 1], score: critic.score, pass: critic.pass, issues: critic.issues ?? [] } : null,
       notes: exists(notesPath) ? fs.readFileSync(notesPath, "utf-8") : "",
       preview: fileInfo(ws, `${rdir}/preview.mp4`),

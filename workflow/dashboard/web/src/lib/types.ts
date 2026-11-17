@@ -39,6 +39,7 @@ export interface Issue { time: string; severity: string; kind: string; seen: str
 export interface Review { file: string; agent: string; at: string; sync: number; overall: number; summary?: string; issues: Issue[]; costUsd: number; ms: number; give: string[] }
 export interface ActRow {
   id: string; title: string; status: St; scene: FileInfo | null; thumbs: FileInfo[]; sheet: FileInfo | null;
+  grids?: FileInfo[]; checks?: { findings: { id: number; kind: string; severity: "high" | "medium"; t: number; msg: string }[]; low: number } | null;
   critic: { file: string; score: number; pass: boolean; issues: { time: string; problem: string; fix: string }[] } | null;
   notes: string; preview: FileInfo | null; reviews: Review[]; start: number; end: number; idea?: string; notesMtime: number; meta: StepMeta | null;
   /** explicit human approval, valid only while the scene file is the one approved */

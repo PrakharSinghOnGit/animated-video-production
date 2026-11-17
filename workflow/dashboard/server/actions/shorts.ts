@@ -61,7 +61,7 @@ export const shortsActions: Record<string, Action> = {
     },
   },
   "shorts.frames": {
-    step: "shorts", perShort: true, label: "Render frames", help: "Stills every N s + at each hit word, a contact sheet and a layout report for the short's act A01.", long: "~1 min",
+    step: "shorts", perShort: true, label: "Render frames", help: "The short's act A01 every 0.1 s: stills, a marked contact sheet, motion grids and free checks (pop-ins, blanks, freezes, clipped or low-contrast text, late hits).", long: "~30 s",
     opts: [
       { key: "every", label: "Every (s)", type: "number", min: 0.5, max: 10, step: 0.5, def: 2, flag: "--every" },
       { key: "words", label: "Also at hit words", type: "bool", def: true, flag: "--words" },
