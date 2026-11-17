@@ -3,7 +3,7 @@ import { Crosshair, Loader2, Play, RotateCcw, Square, Trash2 } from "lucide-reac
 import { useApp } from "@/hooks/app";
 import { useRunSaved } from "@/hooks/useRunSaved";
 import { api } from "@/lib/api";
-import type { SfxEdits, SfxInfo } from "@/lib/types";
+import type { SfxEdits, SfxEvent, SfxInfo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ActionCard } from "@/components/ActionCard";
 import { DataTable, Td } from "@/components/DataTable";
@@ -17,8 +17,9 @@ const fmtT = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStar
 type Save = "saved" | "dirty" | "saving" | "error";
 
 /**
- * The foley of a video (short = null) or of one short: every event the acts declare (05-video/events_all.json), with a clip to
- * play, a remove/restore toggle and a gain. Edits are saved to 05-video/sfx_edits.json as you make them; Apply re-reads them
+ * The SFX of a video (short = null) or of one short: every event the acts declare plus the automatic score (05-video/events_all.json),
+ * with a clip to play, a remove/restore toggle and a gain. Events the cues step thinned (pile-ups, clutter) start removed; Restore
+ * puts one back (sfx_edits.json `keep`). Edits are saved to 05-video/sfx_edits.json as you make them; Apply re-reads them
  * (cues, mix, new draft). The draft player on the side can jump to an event's time.
  */
 export function SfxReview({ short }: { short?: string | null }) {
@@ -63,16 +64,24 @@ export function SfxReview({ short }: { short?: string | null }) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => { void flush().catch(() => {}); }, 600);
   };
-  const off = useMemo(() => new Set(edits.off), [edits.off]);
-  const toggle = (k: string) => edit((e) => ({ ...e, off: e.off.includes(k) ? e.off.filter((x) => x !== k) : [...e.off, k] }));
+  const offSet = useMemo(() => new Set(edits.off), [edits.off]), keep = useMemo(() => new Set(edits.keep ?? []), [edits.keep]);
+  const isOffEv = (e: SfxEvent) => offSet.has(e.key) || (!!e.thinned && !keep.has(e.key));
+  const off = { has: (k: string) => { const e = byKey.get(k); return e ? isOffEv(e) : offSet.has(k); } };
+  const toggle = (k: string) => edit((e) => {
+    const ev = byKey.get(k), kp = e.keep ?? [];
+    if (ev?.thinned && !e.off.includes(k)) return { ...e, keep: kp.includes(k) ? kp.filter((x) => x !== k) : [...kp, k] };
+    return { ...e, off: e.off.includes(k) ? e.off.filter((x) => x !== k) : [...e.off, k] };
+  });
   const setGain = (k: string, v: number) => edit((e) => { const g = { ...e.gainDb }; if (v === 0) delete g[k]; else g[k] = v; return { ...e, gainDb: g }; });
 
   const clip = useMemo(() => new Map((info?.clips ?? []).map((c) => [c.key, c])), [info?.clips]);
   const events = useMemo(() => [...(info?.events ?? [])].sort((a, b) => a.t - b.t), [info?.events]);
+  const byKey = useMemo(() => new Map(events.map((e) => [e.key, e])), [events]);
   const acts = useMemo(() => [...new Set(events.map((e) => e.act))], [events]);
   const types = useMemo(() => [...new Set(events.map((e) => e.type))].sort(), [events]);
   const shown = events.filter((e) => (!actFilter || e.act === actFilter) && (!typeFilter || e.type === typeFilter)
     && (view === "all" || (view === "off" ? off.has(e.key) : off.has(e.key) || (edits.gainDb[e.key] ?? 0) !== 0)));
+  const nThin = events.filter((e) => e.thinned && !keep.has(e.key) && !offSet.has(e.key)).length;
   const nOff = events.filter((e) => off.has(e.key)).length, nGain = events.filter((e) => (edits.gainDb[e.key] ?? 0) !== 0).length;
 
   const play = (key: string) => {
@@ -107,7 +116,7 @@ export function SfxReview({ short }: { short?: string | null }) {
     <div className="grid gap-3">
       <audio ref={audio} onEnded={() => setPlaying(null)} onPause={() => setPlaying(null)} preload="none" />
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-        <span><b className="text-foreground">{events.length}</b> events · <b className={cn(nOff ? "text-warning" : "text-foreground")}>{nOff}</b> removed · <b className="text-foreground">{nGain}</b> with a level change</span>
+        <span><b className="text-foreground">{events.length}</b> events · <b className={cn(nOff ? "text-warning" : "text-foreground")}>{nOff}</b> removed{nThin ? ` (${nThin} thinned automatically)` : ""} · <b className="text-foreground">{nGain}</b> with a level change</span>
         <span className={cn(save === "error" && "text-destructive", save === "dirty" && "text-warning")}>{save === "saved" ? "edits saved" : save === "saving" ? "saving…" : save === "dirty" ? "unsaved…" : "save failed"}</span>
         <span className="ml-auto flex flex-wrap items-center gap-2">
           <NativeSelect aria-label="Act" className="h-8 w-28" value={actFilter} onChange={(e) => setActFilter(e.target.value)}><option value="">all acts</option>{acts.map((a) => <option key={a}>{a}</option>)}</NativeSelect>
@@ -137,7 +146,7 @@ export function SfxReview({ short }: { short?: string | null }) {
                   </Td>
                   <Td className="whitespace-nowrap font-mono">{fmtT(e.t)}</Td>
                   <Td className="font-mono">{e.act}</Td>
-                  <Td>{e.type}</Td>
+                  <Td>{e.type}{e.auto && <span className="ml-1.5 text-[10.5px] text-muted-foreground" title="Added by the automatic score (act changes, chapters, silences)">auto</span>}{e.thinned && !keep.has(e.key) && !offSet.has(e.key) && <span className="ml-1.5 text-[10.5px] text-muted-foreground" title="Left out by thinning (too close to another sound, or too many in a few seconds)">thinned</span>}</Td>
                   <Td>
                     <Button size="icon" variant="ghost" className="size-8" disabled={!c} onClick={() => play(e.key)} aria-label={`${playing === e.key ? "Stop" : "Play"} ${e.type} at ${fmtT(e.t)}`} title={c ? "Play this event's clip" : "No clip preview yet"}>
                       {playing === e.key ? <Square className="fill-current" /> : <Play className="fill-current" />}

@@ -97,7 +97,7 @@ export async function projectRoutes(req: Request, url: URL, ws: string, rest: st
       const have = new Set((clips ?? []).map((c) => c?.key));
       return json({
         events: Array.isArray(events) ? events : null, eventsAt: mtime(path.join(dir, "05-video/events_all.json")),
-        edits: { off: Array.isArray(edits.off) ? edits.off : [], gainDb: edits.gainDb && typeof edits.gainDb === "object" ? edits.gainDb : {} },
+        edits: { off: Array.isArray(edits.off) ? edits.off : [], gainDb: edits.gainDb && typeof edits.gainDb === "object" ? edits.gainDb : {}, keep: Array.isArray(edits.keep) ? edits.keep : [] },
         clips: Array.isArray(clips) ? clips : null, clipsMissing: Array.isArray(events) && Array.isArray(clips) ? events.filter((e) => !have.has(e.key)).length : null,
         draft: fileInfo(ws, sid ? `shorts/${sid}/05-video/draft.mp4` : "05-video/draft.mp4"),
       });

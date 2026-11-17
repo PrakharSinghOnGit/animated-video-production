@@ -168,9 +168,9 @@ export interface DeliverInfo { builtAt: number; items: DeliverItem[] }
 /** Disk size and the downloads of the long video and of each short (GET /overview). */
 export interface Overview { bytes: { total: number; shorts: Record<string, number> }; deliver: { video: DeliverInfo | null; shorts: Record<string, DeliverInfo | null> } }
 /** One foley event of events_all.json (the user's edits annotated). */
-export interface SfxEvent { key: string; t: number; type: string; act: string; d?: number; gain?: number; pan?: number; off?: boolean; gainDb?: number }
+export interface SfxEvent { key: string; t: number; type: string; act: string; d?: number; gain?: number; pan?: number; off?: boolean; gainDb?: number; thinned?: boolean; auto?: boolean; hit?: number }
 export interface SfxClip { key: string; file: string; type: string; act: string; t: number; dur: number }
-export interface SfxEdits { off: string[]; gainDb: Record<string, number> }
+export interface SfxEdits { off: string[]; gainDb: Record<string, number>; keep?: string[] }
 export interface SfxInfo { events: SfxEvent[] | null; eventsAt: number; edits: SfxEdits; clips: SfxClip[] | null; clipsMissing: number | null; draft: FileInfo | null }
 
 /** Settings → Agent models (/api/models) */

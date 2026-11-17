@@ -61,18 +61,20 @@ export function deliverInfo(dir: string) {
 }
 
 export const FOLEY_KEY = /^[^\0\r\n]{1,200}$/;
-/** sfx_edits.json: { off: [key], gainDb: { key: -24..6 } }; anything else is refused. */
-export function validSfxEdits(b: any): { off: string[]; gainDb: Record<string, number> } | string {
+/** sfx_edits.json: { off: [key], gainDb: { key: -24..6 }, keep: [key] (thinned events put back) }; anything else is refused. */
+export function validSfxEdits(b: any): { off: string[]; gainDb: Record<string, number>; keep: string[] } | string {
   if (!b || typeof b !== "object" || Array.isArray(b)) return "body must be an object";
-  const off = b.off ?? [], gain = b.gainDb ?? {};
-  if (!Array.isArray(off) || off.length > 20000 || off.some((k: unknown) => typeof k !== "string" || !FOLEY_KEY.test(k))) return "off: a list of event keys";
+  const off = b.off ?? [], gain = b.gainDb ?? {}, keep = b.keep ?? [];
+  const keys = (l: unknown) => Array.isArray(l) && l.length <= 20000 && l.every((k: unknown) => typeof k === "string" && FOLEY_KEY.test(k));
+  if (!keys(off)) return "off: a list of event keys";
+  if (!keys(keep)) return "keep: a list of event keys";
   if (!gain || typeof gain !== "object" || Array.isArray(gain)) return "gainDb: an object of key → dB";
   const g: Record<string, number> = {};
   for (const [k, v] of Object.entries(gain)) {
     if (!FOLEY_KEY.test(k) || typeof v !== "number" || !Number.isFinite(v) || v < -24 || v > 6) return `gainDb ${k.slice(0, 40)}: a number from -24 to 6`;
     if (v !== 0) g[k] = Math.round(v * 10) / 10;
   }
-  return { off: [...new Set<string>(off)], gainDb: g };
+  return { off: [...new Set<string>(off)], gainDb: g, keep: [...new Set<string>(keep)] };
 }
 
 export function serveFile(req: Request, abs: string): Response {
