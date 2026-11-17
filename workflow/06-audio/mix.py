@@ -2,7 +2,7 @@
 """Final mix: voice on top, sidechain-ducked music, SFX in two buses (foley, design = sfx_types.json layers), gentle
 bus compression, 48 kHz / 24-bit stereo, two-pass ffmpeg loudnorm to -14 LUFS / -1 dBTP.
 
-SFX sit under the voice three ways: both buses are keyed to the voice (foley -3 dB, design -5 dB while it speaks,
+SFX sit under the voice three ways: both buses are keyed to the voice (foley -3 dB, design -2 dB while it speaks,
 --sfx-duck-db scales both), the 1.5-4 kHz band where consonants live is cut 3 dB on them (presence carve), and a short
 shared room (foley) / hall (design) puts dry library samples and procedural sounds into one space.
 Writes mix_picks.json beside the output: which sample each event played (for report.py).
@@ -153,7 +153,7 @@ def main():
     ap.add_argument("--out", required=True); ap.add_argument("--trim", type=float)
     ap.add_argument("--duck-db", type=float, default=-12); ap.add_argument("--music-db", type=float, default=-4)
     ap.add_argument("--foley-db", type=float, default=0); ap.add_argument("--design-db", type=float, default=0)
-    ap.add_argument("--sfx-duck-db", type=float, default=-4, help="SFX ducking under the voice (foley 0.75x, design 1.25x of this)")
+    ap.add_argument("--sfx-duck-db", type=float, default=-4, help="SFX ducking under the voice (foley 0.75x, design 0.5x of this)")
     ap.add_argument("--dry", action="store_true", help="no presence carve, no room: the SFX as rendered")
     ap.add_argument("--lufs", type=float, default=-14); ap.add_argument("--tp", type=float, default=-1)
     ap.add_argument("--no-lib", action="store_true", help="ignore assets/sfx, use procedural foley only")
@@ -185,7 +185,7 @@ def main():
         fol = space(peaking(fol, 2600, -3, .8), .45, .10, 5000) if np.abs(fol).max() else fol
         des = space(peaking(des, 2600, -3, .8), 1.6, .08, 3500) if np.abs(des).max() else des
     fol *= 10 ** (curve * abs(a.sfx_duck_db) * .75 / 20)[:, None]
-    des *= 10 ** (curve * abs(a.sfx_duck_db) * 1.25 / 20)[:, None]
+    des *= 10 ** (curve * abs(a.sfx_duck_db) * .5 / 20)[:, None]     # hits land on the stab word on purpose: duck them only a little
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     json.dump(picks, open(os.path.join(os.path.dirname(os.path.abspath(a.out)), "mix_picks.json"), "w"))
     write_credits(a.credits or os.path.join(os.path.dirname(os.path.abspath(a.out)), "credits.txt"), used_sfx, a.music)

@@ -30,15 +30,15 @@
     "glitch":         {"layer": "foley", "anchor": "start", "d": 0.35, "level": -21, "desc": "a digital stutter: a screen or chart breaking, a number corrupting"},
     "clock_tick":     {"layer": "foley", "anchor": "start", "d": 2.0,  "level": -24, "desc": "a clock ticking (d seconds): time running out, a deadline"},
     "heartbeat":      {"layer": "foley", "anchor": "start", "d": null, "level": -16, "desc": "one heartbeat (lub-dub): fear, a held breath"},
-    "riser":          {"layer": "design", "anchor": "end",  "d": 2.0, "level": -18, "desc": "a build that ENDS on the word (d = build length, 1-4 s): before a reveal, an impact or a silence"},
-    "reverse_swell":  {"layer": "design", "anchor": "end",  "d": 1.2, "level": -18, "desc": "a reversed swell that ENDS on the word: sucks into a cut, a title, a big number"},
-    "impact":         {"layer": "design", "anchor": "start", "d": null, "level": -12, "desc": "a big cinematic hit with a tail: the act's biggest reveal (at most 1-2 per act)"},
-    "boom":           {"layer": "design", "anchor": "start", "d": null, "level": -13, "desc": "a deep sub boom: a heavy number lands, a chapter title"},
-    "sub_drop":       {"layer": "design", "anchor": "start", "d": 1.2, "level": -14, "desc": "a falling sub tone: a crash, a price falling, the floor giving way"},
-    "braam":          {"layer": "design", "anchor": "start", "d": 2.2, "level": -17, "desc": "a dark low brass blast: menace, a threat revealed"},
-    "tension":        {"layer": "bed",    "anchor": "start", "d": 6.0, "level": -24, "desc": "a low suspense drone under a passage (d = length, 3-15 s)"},
-    "transition":     {"layer": "design", "anchor": "peak", "pre": 0.3, "d": 0.8, "level": -17, "desc": "a big whoosh that PEAKS on the cut: a scene change, a camera jump"},
-    "swoosh":         {"layer": "design", "anchor": "peak", "pre": 0.15, "d": 0.4, "level": -20, "desc": "a fast bright swoosh that PEAKS on the word: text or a card flying in"},
-    "record_scratch": {"layer": "design", "anchor": "start", "d": null, "level": -16, "desc": "a record scratch stop: 'wait, what?', a comic reversal"}
+    "riser":          {"layer": "design", "anchor": "end",  "d": 2.0, "level": -10, "desc": "a build that ENDS on the word (d = build length, 1-4 s): before a reveal, an impact or a silence"},
+    "reverse_swell":  {"layer": "design", "anchor": "end",  "d": 1.2, "level": -10, "desc": "a reversed swell that ENDS on the word: sucks into a cut, a title, a big number"},
+    "impact":         {"layer": "design", "anchor": "start", "d": null, "level": -3, "desc": "a big cinematic hit with a tail: the act's biggest reveal (at most 1-2 per act)"},
+    "boom":           {"layer": "design", "anchor": "start", "d": null, "level": -4, "desc": "a deep sub boom: a heavy number lands, a chapter title"},
+    "sub_drop":       {"layer": "design", "anchor": "start", "d": 1.2, "level": -6, "desc": "a falling sub tone: a crash, a price falling, the floor giving way"},
+    "braam":          {"layer": "design", "anchor": "start", "d": 2.2, "level": -8, "desc": "a dark low brass blast: menace, a threat revealed"},
+    "tension":        {"layer": "bed",    "anchor": "start", "d": 6.0, "level": -18, "desc": "a low suspense drone under a passage (d = length, 3-15 s)"},
+    "transition":     {"layer": "design", "anchor": "peak", "pre": 0.3, "d": 0.8, "level": -11, "desc": "a big whoosh that PEAKS on the cut: a scene change, a camera jump"},
+    "swoosh":         {"layer": "design", "anchor": "peak", "pre": 0.15, "d": 0.4, "level": -14, "desc": "a fast bright swoosh that PEAKS on the word: text or a card flying in"},
+    "record_scratch": {"layer": "design", "anchor": "start", "d": null, "level": -9, "desc": "a record scratch stop: 'wait, what?', a comic reversal"}
   }
 }

@@ -441,7 +441,8 @@ def lib_render(kind, d=None, take=None):
         import soxr; x = soxr.resample(x, SR, int(round(SR / rate)), quality="HQ")
     want = d if d is not None else (FOLEY[kind][1] if kind in FOLEY else None)
     anchor, layer = anchor_of(kind), layer_of(kind)
-    if anchor == "end" and want is not None:            # the recording's end lands on the hit: cut or pad its front
+    if anchor == "end" and want is not None:            # the build's climax lands on the hit: drop any tail after it, cut or pad the front
+        env = uniform_filter1d_(np.abs(x), int(.03 * SR)); x = x[:int(np.argmax(env)) + int(.02 * SR)]
         n = int(want * SR); x = x[-n:] if len(x) > n else np.concatenate([np.zeros(n - len(x)), x])
         x = _fx(x, min(.12, want / 3), .008)
     elif anchor == "peak":                               # its loudest moment lands on the hit

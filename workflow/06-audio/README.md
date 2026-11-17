@@ -73,7 +73,7 @@ Every type lives in `sfx_types.json` (read by `sfx.py` and by `cues`): its **lay
 
 ### Mix bus
 
-Foley and design go to separate buses. Both are keyed to the voice (`--sfx-duck-db -4`: foley −3 dB, design −5 dB while it speaks), get a −3 dB cut around 2.6 kHz (the consonants' band) and a shared synthetic space (foley: 0.45 s room, 10 %; design: 1.6 s hall, 8 %; `--dry` turns both off). `--design-db` trims the design bus. `mix_picks.json` (beside the mix) lists which sample every event played.
+Foley and design go to separate buses. Both are keyed to the voice (`--sfx-duck-db -4`: foley −3 dB while it speaks; design only −2 dB, since its hits land on the stab word on purpose), get a −3 dB cut around 2.6 kHz (the consonants' band) and a shared synthetic space (foley: 0.45 s room, 10 %; design: 1.6 s hall, 8 %; `--dry` turns both off). `--design-db` trims the design bus. `mix_picks.json` (beside the mix) lists which sample every event played.
 
 `bun run audio:report --video <ID>` measures a mix: integrated LUFS, true peak, LRA, short-term spread; SFX per minute, the busiest 10 s, pile-ups, share of procedural sounds, repeats; with stems (`bun run audio:mix --video <ID> --stems workspace/<ID>/06-audio/stems`) how often SFX and music come within 6 dB of the voice in 1–4 kHz. Writes `06-audio/mix_report.json`.
 
