@@ -30,6 +30,29 @@ const TYPES: Record<string, [string[], number, number]> = {
   coin_drop: [["coin drop", "coin dropping table"], 4, 8],
   cash_register: [["cash register", "cash register ka-ching"], 20, 3.5],
   typewriter: [["typewriter key", "typewriter typing"], 6, 8],
+  // the types that were procedural only
+  card_slap: [["card slap", "paper slap", "cardboard hit"], 4, 0.4],
+  paper_cut: [["scissors cutting paper", "scissors cut"], 6, 1.2],
+  tear: [["paper tear", "paper rip"], 5, 1.5],
+  metal_click: [["metal click", "lock click", "latch click"], 4, 0.4],
+  tape_click: [["cassette button", "tape recorder button", "button click mechanical"], 4, 0.5],
+  whip: [["whip swoosh", "swish fast", "whoosh fast"], 2, 1.0],
+  // the design layer (sfx_types.json); cinematic sounds are long, so most keep their full length
+  riser: [["riser", "tension riser", "uplifter", "sweep riser"], 12, 8],
+  reverse_swell: [["reverse cymbal", "reverse swell", "reverse crash"], 6, 6],
+  impact: [["cinematic impact", "trailer hit", "cinematic boom hit"], 10, 4],
+  boom: [["sub boom", "deep boom", "bass drop boom"], 8, 4],
+  sub_drop: [["sub drop", "bass drop"], 6, 3],
+  braam: [["braam", "cinematic brass hit", "horn of doom"], 10, 4],
+  tension: [["tension drone", "dark drone", "suspense drone"], 60, 15],
+  transition: [["transition whoosh", "cinematic whoosh", "whoosh transition"], 4, 3],
+  swoosh: [["swoosh", "swish"], 2, 1.2],
+  shutter: [["camera shutter", "camera click shutter"], 4, 0.6],
+  notify: [["notification sound", "message notification", "phone notification"], 3, 1.5],
+  glitch: [["glitch", "digital glitch"], 3, 1.2],
+  clock_tick: [["clock ticking", "clock tick"], 30, 8],
+  heartbeat: [["heartbeat"], 20, 1.0],
+  record_scratch: [["record scratch", "vinyl scratch stop"], 4, 1.5],
 };
 // a candidate must mention one of these in its title or tags (Openverse text search alone returns machine guns for "adding machine")
 const KW: Record<string, RegExp> = {
@@ -37,6 +60,13 @@ const KW: Record<string, RegExp> = {
   paper_slide: /paper|slid|envelope|sheet|rustle/i, stamp_thud: /stamp/i, page_turn: /page|book|paper|turn|flip/i,
   adding_clack: /adding|calculator|ticker|register|typewriter|key|button|till/i, pop: /pop|bubble/i, whoosh: /whoosh|swoosh|swosh|swish|air|whip|swing/i,
   coin_drop: /coin|money|change/i, cash_register: /cash|register|till|ching/i, typewriter: /typewriter|typing|keyboard|type\b/i,
+  card_slap: /card|slap|paper|cardboard/i, paper_cut: /scissor|cut/i, tear: /tear|rip/i, metal_click: /metal|lock|latch|click|clasp/i,
+  tape_click: /tape|cassette|button|recorder|click/i, whip: /whip|swish|swoosh|whoosh/i,
+  riser: /rise|riser|uplift|build|sweep|tension/i, reverse_swell: /revers/i, impact: /impact|hit|boom|slam/i, boom: /boom|sub|bass|thud|impact/i,
+  sub_drop: /drop|sub|bass/i, braam: /braam|brass|horn|bwaa|inception/i, tension: /drone|tension|suspense|dark|ambien/i,
+  transition: /whoosh|swoosh|transition|swish/i, swoosh: /swoosh|swish|whoosh/i, shutter: /shutter|camera/i,
+  notify: /notif|alert|message|ding|chime|ping/i, glitch: /glitch|digital|error|corrupt/i, clock_tick: /clock|tick/i,
+  heartbeat: /heart/i, record_scratch: /scratch|record|vinyl/i,
 };
 // pronunciation / voice recordings, by title, tags or creator ("Speaker: …")
 const SPEECH = /^LL-Q|pronunciation|\bspeaker\b|\bspoken\b|\bvoice\b|\bsaying\b|\bword\b|\bvocal/i;
@@ -97,9 +127,11 @@ function speechIn(files: string[]): Map<string, string> {
 function drop(e: any, why: string) { fs.rmSync(path.join(OUT, e.file), { force: true }); console.log(`  dropping ${why} ${e.type}: ${e.title} (${e.file})`); }
 
 let manifest: any[] = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, "utf-8")) : [];
-for (const e of manifest.filter((e) => !KW[e.type]?.test(e.title + " " + (e.tags ?? [])))) drop(e, "off-topic");
-for (const e of manifest.filter((e) => SPEECH.test(meta(e)))) drop(e, "speech recording");
-manifest = manifest.filter((e) => KW[e.type]?.test(e.title + " " + (e.tags ?? [])) && !SPEECH.test(meta(e)));
+// the keyword/title checks are for Openverse search results; clips you imported yourself (sfx:import) are trusted
+const fetched = (e: any) => e.provider !== "import";
+for (const e of manifest.filter((e) => fetched(e) && !KW[e.type]?.test(e.title + " " + (e.tags ?? [])))) drop(e, "off-topic");
+for (const e of manifest.filter((e) => fetched(e) && SPEECH.test(meta(e)))) drop(e, "speech recording");
+manifest = manifest.filter((e) => !fetched(e) || (KW[e.type]?.test(e.title + " " + (e.tags ?? [])) && !SPEECH.test(meta(e))));
 if (args.includes("--check")) {
   console.log(`[sfx:check] listening to ${manifest.length} clips for spoken words (local Whisper)…`);
   const hits = speechIn(manifest.map((e) => e.file));

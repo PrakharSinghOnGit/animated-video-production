@@ -33,6 +33,7 @@ __pycache__/
 # Audio libraries (manifests stay tracked)
 assets/**/*.wav
 assets/**/*.mp3
+assets/sfx/_inbox/
 
 # Local fixtures (keep on disk, not in git)
 workspace/_FX*

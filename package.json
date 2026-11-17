@@ -40,6 +40,8 @@
     "sfx:fetch": "bun run workflow/06-audio/sfx_fetch.ts",
     "sfx:check": "bun run workflow/06-audio/sfx_fetch.ts --check",
     "sfx:clips": "bun run workflow/06-audio/sfx_clips.ts",
+    "sfx:import": "bun run workflow/06-audio/sfx_import.ts",
+    "audio:report": "bun run workflow/06-audio/report.ts",
     "deliver": "bun run workflow/deliver/deliver.ts",
     "fcp": "bun run workflow/deliver/deliver.ts --only fcp",
     "transcribe": "bun run workflow/04-transcription/transcribe.ts",
