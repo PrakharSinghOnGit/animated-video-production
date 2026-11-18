@@ -300,6 +300,13 @@ export async function runAgentAsync(opts: AgentOptions): Promise<AgentResult> {
   return r;
 }
 
+/** Bun reports a command that is not on PATH as a silent close with a negative code (ENOENT = -2) and no output: say
+ *  so, instead of letting the caller report "no usable JSON". "" when the process ran. */
+export function notStarted(cmd: string, code: number | null | undefined, stdout: string, stderr: string): string {
+  if (code == null || code >= 0 || stdout || stderr) return "";
+  return `could not start \`${cmd}\` (exit ${code}${code === -2 ? ": not found on PATH" : ""}). Check that \`which ${cmd}\` finds it in the shell that runs this job.`;
+}
+
 function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
   const sp = parseSpec(opts.model);
   if (sp.provider === "ollama") ensureOllama();
@@ -331,9 +338,10 @@ function spawnAgent(opts: AgentOptions): Promise<AgentResult> {
       timedOut = true; child.kill("SIGTERM");
       setTimeout(() => { try { child.kill("SIGKILL"); } catch {} }, 5000).unref();
     }, (opts.timeoutS + 10) * 1000) : null;
-    const why = () => (timedOut ? `timed out after ${opts.timeoutS} s` : "");
-    child.on("error", (e) => { if (timer) clearTimeout(timer); resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))); });
-    child.on("close", (code) => { if (timer) clearTimeout(timer); const r = pl.parse(opts, code, stdout, stderr, why(), Date.now() - t0); resolve(noteLimit(opts, timedOut ? { ...r, ok: false } : r)); });
+    let said = false;
+    const why = (code?: number | null) => (timedOut ? `timed out after ${opts.timeoutS} s` : notStarted(pl.cmd, code, stdout, stderr));
+    child.on("error", (e) => { if (timer) clearTimeout(timer); said = true; console.error(`   ❌ could not start \`${pl.cmd}\`: ${e.message}`); resolve(noteLimit(opts, pl.parse(opts, null, stdout, stderr, e.message, Date.now() - t0))); });
+    child.on("close", (code) => { if (timer) clearTimeout(timer); const w = why(code); if (w && !timedOut && !said) console.error(`   ❌ ${w}`); const r = pl.parse(opts, code, stdout, stderr, w, Date.now() - t0); resolve(noteLimit(opts, timedOut ? { ...r, ok: false } : r)); });
     child.stdin.end(pl.stdin);
   });
 }
