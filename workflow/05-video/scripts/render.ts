@@ -6,6 +6,7 @@ import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { currentMix } from "../src/lib/freshness";
 import { checkSceneCoverage, writeRenderManifest } from "../src/lib/sceneCoverage";
 import { keepAwake } from "../../lib/awake";
+import { tryRefreshLibrary } from "../../../scripts/library";
 keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
@@ -231,7 +232,7 @@ function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res
   console.log(`[render] ${what}${res > 1080 ? ` + ${res}p upscale` : ""}${grain > 0 ? ` + grain ${grain}` : ""} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 
-main().catch((err) => {
+main().then(() => { if (!process.argv.includes("--draft")) tryRefreshLibrary(); }).catch((err) => {
   console.error("[render] Fatal error:", err);
   process.exit(1);
 });

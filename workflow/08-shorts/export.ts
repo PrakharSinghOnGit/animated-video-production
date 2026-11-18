@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readText, freshSrt } from "../07-publish/lib";
 import { WS_ROOT, shortsDir, shortWs, listShorts, readJson, exists, shortProgress, type ShortEntry } from "./lib";
+import { tryRefreshLibrary } from "../../scripts/library";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -53,4 +54,5 @@ for (const sid of ids) {
 fs.writeFileSync(path.join(out, "upload.md"), upload.join("\n"), "utf-8");
 console.log(done.length ? `✅ exported ${done.join(", ")} → ${path.relative(process.cwd(), out)}` : "⚠️  nothing exported");
 for (const s of skipped) console.log(`   ⏩ ${s}`);
+if (done.length) tryRefreshLibrary();
 if (skipped.length && !done.length) process.exit(1);

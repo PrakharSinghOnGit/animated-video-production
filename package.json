@@ -82,6 +82,7 @@
     "shorts": "bun run workflow/08-shorts/run.ts",
     "shorts:export": "bun run workflow/08-shorts/export.ts",
     "compact": "bun run scripts/compact.ts",
+    "library": "bun run scripts/library.ts",
     "yt:auth": "bun run workflow/09-analytics/auth.ts",
     "yt:fetch": "bun run workflow/09-analytics/fetch.ts",
     "yt:mock": "bun run workflow/09-analytics/mock.ts",

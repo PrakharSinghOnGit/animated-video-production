@@ -56,3 +56,6 @@ workflow/styles/drafting/reference/
 workspace/.*
 # one-step undo copies written by the dashboard's Settings file editor
 *.prev
+
+# Symlinks to every exported video (bun run library)
+library/

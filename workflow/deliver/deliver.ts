@@ -20,6 +20,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { REPO_ROOT, findPython, videoArg } from "../06-audio/py";
 import { buildFcpxml, type FcpClip } from "./fcpxml";
+import { tryRefreshLibrary } from "../../scripts/library";
 
 const TAG = "deliver";
 const video = videoArg(TAG);
@@ -158,3 +159,4 @@ fs.writeFileSync(path.join(out, "deliver.json"), JSON.stringify({ builtAt: Date.
 const mb = (b: number) => (b / 1e6).toFixed(1) + " MB";
 for (const i of list) console.log(`  ${i.group.padEnd(7)} ${i.key.padEnd(18)} ${mb(i.bytes).padStart(9)}  ${i.file}`);
 console.log(`[${TAG}] ✅ ${list.length} items → ${rel(path.join(out, "deliver.json"))}`);
+tryRefreshLibrary();
