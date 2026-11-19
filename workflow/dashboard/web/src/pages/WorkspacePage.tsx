@@ -6,6 +6,7 @@ import type { Details, StepKey } from "@/lib/types";
 
 type VideoKey = Exclude<StepKey, "publish" | "shorts">;
 import { StepBar } from "@/components/StepBar";
+import { AutopilotBar } from "@/components/AutopilotBar";
 import { StepPage } from "@/components/StepPage";
 import { StatTile } from "@/components/StatTile";
 import { ScriptStep } from "@/steps/ScriptStep";
@@ -70,6 +71,7 @@ function VideoSection() {
   return (
     <>
       <StepBar current={cur} onPick={(k) => go({ sec: "video", step: k })} />
+      <AutopilotBar />
       <div key={cur} className="min-h-0 flex-1 overflow-y-auto" id="step-scroll">{body}</div>
     </>
   );

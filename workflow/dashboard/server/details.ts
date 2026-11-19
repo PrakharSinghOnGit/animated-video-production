@@ -8,6 +8,7 @@ import { applyAccepted } from "../../lib/accepted";
 import { REPO, SHORT_BAR, WS_ID, WS_ROOT, briefTitle, exists, fileInfo, kindOf, ls, mtime, notesRel, readJson, readText, voiceReviewPath, wsDir } from "./core";
 import { jobSummary, jobs, jobsByWs, runningJob, runningJobs } from "./jobs";
 import { studioState } from "./studio";
+import { readAutopilot } from "./autopilot";
 import { type St, actApproval, approvalState, lastRuns, planApproval, publishApproval, publishStaleReasons, renderStates, sceneFiles, sceneStatus, stepStatuses } from "./status";
 
 // ───────────────────────────── artifacts per step ─────────────────────────────
@@ -296,6 +297,8 @@ export function details(ws: string) {
       return { at: r.at, mtime: mtime(f), seams: r.seams.map((s) => { const m = marks[`${s.a}-${s.b}`]; return m ? { ...s, mark: { ok: !!m.ok, note: m.note ?? "", side: m.side ?? "both", at: m.at, stale: m.key !== s.key } } : s; }) };
     })() },
     timings: allRows,
+    // autopilot (server/autopilot.ts) and, while the act batch sleeps through a usage reset, until when (author_act.ts --wait)
+    autopilot: readAutopilot(ws), usageWait: readJson<any>(path.join(d, "05-video/.autopilot_wait.json")),
     jobs: (jobsByWs.get(ws) ?? []).map((j) => jobs.get(j)).filter(Boolean).map((j) => jobSummary(j!)),
     lastRuns: last,
     publish: publishDetails(ws),

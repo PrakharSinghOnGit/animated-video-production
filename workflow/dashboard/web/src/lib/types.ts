@@ -96,7 +96,15 @@ export interface CompactEntry { at: string; bytes: number; deep: boolean; fcp?: 
 export interface ShortsInfo {
   items: ShortItem[]; notes: string | null; indexFile: FileInfo | null; feedback: string; feedbackMtime: number; exported: FileInfo[]; compact: CompactEntry[];
 }
+export interface AutopilotState {
+  on: boolean; until: "acts" | "review"; planGate: boolean; startedAt: number; now: string; waiting: string | null;
+  current: { action: string; jobId: string; startedAt: number } | null; failures: Record<string, number>;
+  history: { at: number; action: string; result: string }[]; endedAt: number | null; endReason: string | null;
+}
+/** The act batch sleeping through a usage reset (05-video/.autopilot_wait.json) */
+export interface UsageWait { until: number; pct: number; need: number; left: string[]; since: number }
 export interface Details {
+  autopilot: AutopilotState | null; usageWait: UsageWait | null;
   /** "shorts" = a shorts project (SH…): no long video, its shorts are written from the brief (script.idea) */
   id: string; kind: "video" | "shorts"; style: string | null; title: string | null; statuses: Record<string, St>; meta: Record<string, StepMeta | null>;
   script: { file: FileInfo | null; sections: number; idea: string; /** 02-scripting/research.md (bun run research) */ research: string; researchInfo: FileInfo | null; feedback: string; notes: string; approval: string; approvedAt: string | null; words: number };

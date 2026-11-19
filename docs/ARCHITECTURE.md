@@ -77,6 +77,7 @@ survives restarts and hand edits. The server is split by feature:
 | `server/jobs.ts` | running a job (spawn, logs, SSE, locks, resource sampling, run records) |
 | `server/notify.ts`, `studio.ts`, `naming.ts` | job-end notifications, Remotion studio, naming untitled projects |
 | `server/actions/` | the allowlist: `base.ts` (types, shared options, `args` validation, `commandFor`, locks), one file per step |
+| `server/autopilot.ts` | runs a video's steps by itself (idea → drawn acts), stopping at your approvals; `workflow/lib/usage.ts` reads the Claude window |
 | `server/status.ts` | step status from disk (stale / done / partial), approvals, act staleness |
 | `server/details.ts` | everything one project's page shows, and the project list |
 | `server/files.ts`, `settings.ts` | file serving (path checks, ranges), downloads, the web app; settings files, .env view |

@@ -38,11 +38,13 @@ import { shortsRoutes } from "./server/routes/shorts";
 import { actsRoutes } from "./server/routes/acts";
 import { voiceRoutes } from "./server/routes/voice";
 import { acceptRoutes } from "./server/routes/accept";
+import { autopilotRoutes } from "./server/routes/autopilot";
+import { startAutopilotLoop } from "./server/autopilot";
 
 const anCtx: AnalyticsCtx = { json, bad, body, startJob, runningJob, jobSummary, getJob: (id) => jobs.get(id), logStream };
 
 /** Routes of one project (/api/ws/<id>/…), tried in order; each answers or returns null. */
-const WS_ROUTES = [projectRoutes, scriptRoutes, publishRoutes, shortsRoutes, actsRoutes, voiceRoutes, acceptRoutes];
+const WS_ROUTES = [projectRoutes, scriptRoutes, publishRoutes, shortsRoutes, actsRoutes, voiceRoutes, acceptRoutes, autopilotRoutes];
 
 async function appFetch(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -84,6 +86,7 @@ async function appFetch(req: Request): Promise<Response> {
 }
 
 startSampler();
+startAutopilotLoop();
 
 const LIMIT_BODY = 1024 * 1024 * 1024; // uploads (music, footage) can be large
 const server = Bun.serve({ hostname: HOST, port: PORT, idleTimeout: 0, maxRequestBodySize: LIMIT_BODY, fetch: appFetch });

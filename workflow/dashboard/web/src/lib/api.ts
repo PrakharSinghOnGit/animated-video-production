@@ -1,5 +1,5 @@
 import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint, WatchEntry } from "./analytics";
-import type { Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { AutopilotState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -23,6 +23,9 @@ const w = (ws: string) => `/api/ws/${encodeURIComponent(ws)}`;
 export const api = {
   listenVoices: () => call<{ voices: { name: string; lang: string }[]; default: string; available: boolean }>("/api/listen/voices"),
   listen: (ws: string, text: string, voice: string, wpm: number) => call<{ url: string; bytes: number; voice: string; wpm: number }>(`/api/ws/${encodeURIComponent(ws)}/listen`, { method: "POST", body: { text, voice, wpm } }),
+  /** autopilot for one video: on with how far to go and each step's saved options, or off */
+  autopilot: (ws: string, b: { on: true; until: "acts" | "review"; planGate: boolean; opts: Record<string, Record<string, unknown>> } | { on: false }) =>
+    call<AutopilotState | null>(`${w(ws)}/autopilot`, { method: "POST", body: b }),
   workspaces: () => call<{ workspaces: WsSummary[]; studio: StudioState | null; renames?: Record<string, string> }>("/api/workspaces"),
   /** no id: the next number, untitled (named automatically once its idea or script is written) */
   createWorkspace: (id: string | null, kind: "video" | "shorts" = "video") => call<{ id: string; job: Job }>("/api/workspaces", { method: "POST", body: { id, kind } }),

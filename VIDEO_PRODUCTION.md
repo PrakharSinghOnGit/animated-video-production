@@ -164,6 +164,10 @@ Show the user the act list (the command prints it), the variety notes and the un
    showing the user. No paid fix round runs by itself: the critic's notes (`review/<act>/critic_1.json`) and layout
    flags are saved and the user decides per act (step 5). `--auto-fix` brings back one automatic round on layout
    flags (`--strict`: also on a failed critic); on VID06 it cost ~$4–6 per act and did not raise the critic's score.
+   **Overnight:** `--wait` starts an act only when it fits in Claude's 5-hour window and otherwise sleeps until the reset
+   (notification, `05-video/.autopilot_wait.json`), then goes on; an act cut off by a limit anyway is continued after
+   the reset. Usage comes from Claude Code's own `rate_limit_event` (recorded from every agent run, else a one-word Haiku
+   probe), what one act uses is learned per model (`~/.claude/wealthgap/act_usage.json`, first guess 22%): `workflow/lib/usage.ts`.
    A new plan can reuse act IDs for different acts: the director (and the act author) move the old plan's scene
    files to `05-video/old_scenes/<time>/`, and an act whose plan entry changed shows as stale and is redone.
 7. The act holding the subscribe line ends with the brand end card (`brandEndCard`, see the style's ACT.md). The
@@ -322,6 +326,11 @@ video; unfinished workspaces (no final.mp4) are skipped unless `--force`. Run `b
 Never run it with `--yes` unless the user asked.
 
 ## Dashboard
+**Autopilot** (dashboard, the bar under the step bar; `server/autopilot.ts`): from the idea it writes the script, waits
+for your approval, then splits, voices, aligns, plans and draws every act (`acts.all --wait`), optionally stopping for
+plan approval and finishing with previews + the free review. Each step runs with the options saved on its card; it
+notifies you when it needs you, waits for a reset, fails twice, or is done. State: `workspace/<ID>/autopilot.json`.
+
 `bun run dashboard` → http://127.0.0.1:4600. Every step above with all its options as form controls, live logs,
 duration/CPU/memory/GPU per run (history in `workspace/<ID>/dashboard_runs.json`), players for every audio/video
 output, script editing and approval, per-act preview + reviews + notes, a Usage page (every provider's logs,
