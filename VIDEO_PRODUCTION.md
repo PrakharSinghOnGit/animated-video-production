@@ -176,8 +176,7 @@ chapters, riser → silence → hit on the plan's silences; clutter thinned; plu
 (voice + SFX only, −14 LUFS / ≤ −1 dBTP; the user adds music in post; `--with-music` includes the bed) → optional
 `bun run audio:report --video <ID>` (loudness, SFX density, repeats, masking). SFX types and the library:
 `workflow/06-audio/README.md`; to add sounds you found, `bun run sfx:import`.
-Optional: the user can retime/regain every foley clip and try music loops in openDAW (`bun run daw --video <ID>`, then the
-dashboard's openDAW button); their export `06-audio/mix_daw.wav` replaces `mix.wav` at render. See `docs/OPENDAW.md`.
+To retime or regain foley clips and add music by hand, use the Final Cut Pro project (`bun run deliver`, see `workflow/deliver/`).
 
 ### Step 7: Render → **G3** (~2–4 min draft, free)
 `bun run assemble --video <ID>` → `bun run seams --video <ID>` (plans every act-to-act transition with one owner and the neighbours' real frames, then renders a ~3 s clip and 12 frames per cut and a free frame check for flicker, jumps and empty screens: `05-video/review/seams/`, dashboard Render → Seams. **You watch each clip and mark it fine or not fine** with a note and the side to fix (`review/seams/marks.json`; a mark made before the acts changed shows as out of date); **Fix marked** (`seams --fix-marked`) runs one fresh fix round per not-fine cut with your note, then re-renders its clip. One cut: `seams --fix A03-A04 [--notes ..] [--side a|b|both]`; re-render one clip: `--only A03-A04`. The AI review is opt-in (`--review`, slow: agy one at a time). The draft/final chains only run `seams --plan-only` (seconds), which the render needs. Unchanged seams keep their frames and clip, `--force` redoes all) → `bun run draft --video <ID>` → user watches `05-video/draft.mp4` →
@@ -315,10 +314,10 @@ Channel numbers feed lessons back into the prompts. Dashboard → **Analytics** 
 ## Housekeeping: compact a finished video
 `bun run compact --video <ID>` (dry run: lists what it would delete and the space freed) → `--yes` deletes. Default removes only
 caches and previews (05-video/node_modules with Remotion's cache and Chrome, review frames/sheets/previews, draft.mp4,
-public/voiceover.wav, TTS takes, audition clips, the openDAW raw export); the final can still be re-rendered. `--deep` also drops
-the regenerable audio (voice, master, mix, music stem, sfx caches), `--daw` the openDAW session and the Final Cut Pro
+public/voiceover.wav, TTS takes, audition clips, leftover openDAW projects); the final can still be re-rendered. `--deep` also drops
+the regenerable audio (voice, master, mix, music stem, sfx caches), `--fcp` the Final Cut Pro
 project's media, `--final` final.mp4. Downloads and SFX previews go by default (rebuildable). Scripts,
-plans, act code, notes, reviews, metadata, thumbnails, exports and `mix_daw.wav` are always kept; shorts are compacted with their
+plans, act code, notes, reviews, metadata, thumbnails and exports are always kept; shorts are compacted with their
 video; unfinished workspaces (no final.mp4) are skipped unless `--force`. Run `bun install` before working on it again.
 Never run it with `--yes` unless the user asked.
 
@@ -334,7 +333,7 @@ reviews; you can run the same commands from the CLI.
 it prints the link and a QR code. Port 4600 stays login-free on the Mac. Installable as an app (manifest, icons,
 offline page in `workflow/dashboard/web/public/`). Sessions last 30 days; changing `PWA_PASS` signs every device
 out. One-time setup: `brew install --cask tailscale-app`, open it and log in; the first run prints a link to allow Funnel.
-Remotion Studio and openDAW open on the Mac only (they run on localhost).
+Remotion Studio opens on the Mac only (they run on localhost).
 
 ## 4. Preview one act with sound (manual)
 ```bash

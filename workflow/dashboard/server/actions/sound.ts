@@ -1,4 +1,4 @@
-/** Sound step: cues, music stem, mix, foley edits, clip previews, the openDAW project. */
+/** Sound step: cues, music stem, mix, foley edits, clip previews. */
 import * as sh from "../../../08-shorts/lib";
 import { B, args, SOUND_MIX_OPTS, type Action } from "./base";
 
@@ -30,10 +30,4 @@ export const soundActions: Record<string, Action> = {
   },
   "sfx.clips": { step: "sound", label: "Build clip previews", help: "One short WAV per foley event (including removed ones) in 06-audio/sfx_clips, so each can be played in the review table.", long: "seconds", build: (ws) => [B("sfx:clips", "--video", ws)] },
   "sfx.clips.short": { step: "shorts", perShort: true, label: "Build clip previews", help: "One short WAV per foley event (including removed ones) of this short, to play in the review table.", long: "seconds", build: (ws, _o, s) => [B("sfx:clips", "--video", sh.shortVideoId(ws, s!))] },
-  "daw.build": { step: "sound", label: "Build openDAW project", help: "Voice, every foley event on its own clip and the music stem as one openDAW project (06-audio/daw/project.odb). Rebuilding replaces the project: edits not exported to the video are lost.", long: "~10 s",
-    opts: [
-      { key: "noMusic", label: "Leave the music stem out", type: "bool", def: false, flag: "--no-music" },
-      { key: "noLib", label: "Procedural foley only", type: "bool", def: false, flag: "--no-lib" },
-    ],
-    build: (ws, o) => [B("daw", "--video", ws, ...args(o, "daw.build"))] },
 };

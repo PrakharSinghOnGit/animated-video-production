@@ -1,7 +1,6 @@
 /** What the page shows for one project (GET /api/ws/<id>/status) and the project list: every step's artifacts, read from disk. */
 import fs from "node:fs";
 import path from "node:path";
-import { dawInfo } from "../daw";
 import { publishedSummaries, shortLinkMap } from "../../09-analytics/lib";
 import * as pub from "../../07-publish/lib";
 import * as sh from "../../08-shorts/lib";
@@ -238,7 +237,7 @@ export function details(ws: string) {
   });
 
   // sound
-  const soundFiles = ["06-audio/music.wav", "06-audio/mix.wav", "06-audio/mix_daw.wav"].map((r) => fileInfo(ws, r)).filter(Boolean);
+  const soundFiles = ["06-audio/music.wav", "06-audio/mix.wav"].map((r) => fileInfo(ws, r)).filter(Boolean);
   const stems = [...ls(path.join(d, "06-audio/stems"), /\.wav$/).map((f) => fileInfo(ws, `06-audio/stems/${f}`)), ...ls(path.join(d, "06-audio/audition"), /\.wav$/).map((f) => fileInfo(ws, `06-audio/audition/${f}`))].filter(Boolean);
   const events = readJson<any[]>(path.join(d, "05-video/events.json"));
   const credits = exists(path.join(d, "06-audio/credits.txt")) ? fs.readFileSync(path.join(d, "06-audio/credits.txt"), "utf-8").slice(0, 4000) : "";
@@ -276,7 +275,7 @@ export function details(ws: string) {
       // acts whose narration a script change rewrote (replan), until Update changed acts redraws them
       changed: readJson<any>(path.join(d, "05-video/changed_acts.json"))?.acts ?? {} },
     acts: actRows,
-    sound: { daw: dawInfo(ws, wsDir), files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits,
+    sound: { files: soundFiles, stems, events: events?.length ?? null, musicPlan: fileInfo(ws, "06-audio/music_plan.json"), credits,
       // what Cues / Music stem made: events per sound and per act, and the music sections (with where each came from)
       eventTypes: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {})).sort((a: any, b: any) => b[1] - a[1]),
       eventActs: Object.entries((events ?? []).reduce((m: Record<string, number>, e: any) => { m[e.act] = (m[e.act] ?? 0) + 1; return m; }, {})),

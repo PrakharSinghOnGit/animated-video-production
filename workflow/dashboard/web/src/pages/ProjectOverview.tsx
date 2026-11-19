@@ -151,7 +151,7 @@ export function ProjectOverview() {
                       <tr key={i}>
                         <Td className="whitespace-nowrap text-muted-foreground">{new Date(c.at).toLocaleString()}</Td>
                         <Td right>{mb(c.bytes)}</Td>
-                        <Td>{[c.deep && "deep", c.daw && "daw", c.final && "final"].filter(Boolean).join(", ") || "default"}</Td>
+                        <Td>{[c.deep && "deep", (c.fcp || c.daw) && "fcp", c.final && "final"].filter(Boolean).join(", ") || "default"}</Td>
                         <Td className="text-muted-foreground">{c.items.map((x) => `${x.why} (${x.n})`).join(", ")}</Td>
                       </tr>
                     ))}

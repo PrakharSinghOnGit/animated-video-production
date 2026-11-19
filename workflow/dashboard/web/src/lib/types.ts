@@ -92,7 +92,7 @@ export interface ShortItem {
   files: ShortFiles; thumbs: FileInfo[]; qc: (FileInfo & { text: string }) | null;
   timings: { runs: number; ms: number; costUsd: number };
 }
-export interface CompactEntry { at: string; bytes: number; deep: boolean; daw: boolean; final: boolean; items: { why: string; n: number; bytes: number }[] }
+export interface CompactEntry { at: string; bytes: number; deep: boolean; fcp?: boolean; daw?: boolean; final: boolean; items: { why: string; n: number; bytes: number }[] }
 export interface ShortsInfo {
   items: ShortItem[]; notes: string | null; indexFile: FileInfo | null; feedback: string; feedbackMtime: number; exported: FileInfo[]; compact: CompactEntry[];
 }
@@ -111,7 +111,7 @@ export interface Details {
   acts: ActRow[];
   publish: PublishInfo;
   shorts: ShortsInfo;
-  sound: { daw: DawInfo; files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
+  sound: { files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
     library: { tracks: MusicTrack[]; prompts: { about: string; common: string; prompts: MusicPrompt[] } | null };
     music: { duration: number; crossfadeSec: number | null; planDuration: number | null; sections: { label: string; title: string | null; t0: number; t1: number; intro: string | null; source: string; bpm: number | null; key: string | null; intensity: number | null }[] } | null };
   render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St; seams: SeamsReport | null };
@@ -126,11 +126,6 @@ export interface Published {
   ytId: string | null; title: string | null; publishedAt: string | null; thumb: string | null; views: number | null; ctr: number | null; avgPct: number | null;
   subsGained: number | null; comments: number | null; fetchedAt: string | null; shorts: { id: string; ytId: string | null; title: string | null; views: number | null }[];
 }
-export interface DawInfo {
-  setUp: boolean; bundle: FileInfo | null; mix: FileInfo | null; autoMix: FileInfo | null; bundleStale: boolean;
-  build: { builtAt: number; regions: number; samples: number; bytes: number; events: number; music: boolean; tracks: string[] } | null;
-}
-export interface DawState { setUp: boolean; port: number; running: boolean; ready: boolean; url: string | null; exited: number | null; tail: string }
 export interface StudioState { ws: string; running: boolean; port: number | null; url: string | null; exited: number | null }
 export interface Sample {
   t: number; cpu: number; cores: number[]; memUsedGB: number; memTotalGB: number; swapUsedGB: number; gpu: number | null; gpuMemGB: number | null; load: number[]; diskFreeGB: number | null;

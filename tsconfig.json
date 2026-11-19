@@ -20,7 +20,6 @@
       "@wealthgap/kit/*": ["./packages/kit/src/*"]
     }
   },
-  // tools/ is the vendored openDAW checkout; the dashboard web app has its own tsconfig (bun run typecheck runs both);
-  // the two opendaw tests run inside that checkout with vitest; 07-publish/template only compiles inside a generated project
-  "exclude": ["workspace", "node_modules", "_baseline_stills", "dist", "build", "tools", "workflow/dashboard/web", "workflow/06-audio/opendaw/*.test.ts", "workflow/07-publish/template"]
+  // the dashboard web app has its own tsconfig (bun run typecheck runs both); 07-publish/template only compiles inside a generated project
+  "exclude": ["workspace", "node_modules", "_baseline_stills", "dist", "build", "tools", "workflow/dashboard/web", "workflow/07-publish/template"]
 }

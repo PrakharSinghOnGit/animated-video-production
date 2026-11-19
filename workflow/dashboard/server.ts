@@ -18,7 +18,6 @@
  *   core (paths, helpers, guard) · jobs · notify · studio · naming · actions/ (the allowlist, one file per step)
  *   status · details (what the page shows) · files · settings · routes/ (one file per feature)
  */
-import { dawRoute, stopDaw, type DawCtx } from "./daw";
 import { analyticsRoute, type AnalyticsCtx } from "./analytics";
 import { ideasRoute } from "./ideas";
 import { postedRoute } from "./posted";
@@ -40,7 +39,6 @@ import { actsRoutes } from "./server/routes/acts";
 import { voiceRoutes } from "./server/routes/voice";
 import { acceptRoutes } from "./server/routes/accept";
 
-const dawCtx: DawCtx = { guard, json, bad, wsDir, validWs, childEnv, killTree, pump, ansi: ANSI };
 const anCtx: AnalyticsCtx = { json, bad, body, startJob, runningJob, jobSummary, getJob: (id) => jobs.get(id), logStream };
 
 /** Routes of one project (/api/ws/<id>/…), tried in order; each answers or returns null. */
@@ -49,8 +47,6 @@ const WS_ROUTES = [projectRoutes, scriptRoutes, publishRoutes, shortsRoutes, act
 async function appFetch(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const p = url.pathname;
-  const daw = await dawRoute(req, url, dawCtx);
-  if (daw) return daw;
   const g = guard(req);
   if (g) return g;
   const an = await analyticsRoute(req, url, anCtx);
@@ -89,7 +85,7 @@ async function appFetch(req: Request): Promise<Response> {
 
 startSampler();
 
-const LIMIT_BODY = 1024 * 1024 * 1024; // the mix exported from openDAW is ~150 MB
+const LIMIT_BODY = 1024 * 1024 * 1024; // uploads (music, footage) can be large
 const server = Bun.serve({ hostname: HOST, port: PORT, idleTimeout: 0, maxRequestBodySize: LIMIT_BODY, fetch: appFetch });
 
 console.log(`🎛  WealthGap dashboard on http://${HOST}:${server.port}`);
@@ -117,7 +113,6 @@ function shutdown() {
   if (remote.url) stopFunnel();
   const studio = currentStudio();
   if (studio?.pid) killTree(studio.pid);
-  stopDaw(dawCtx);
   process.exit(0);
 }
 process.on("SIGINT", shutdown);

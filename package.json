@@ -31,8 +31,6 @@
     "tts:list": "bun run workflow/03-voiceover/run.ts --list",
     "audio:master": "bun run workflow/06-audio/master.ts",
     "audio:mix": "bun run workflow/06-audio/mix.ts",
-    "daw": "bun run workflow/06-audio/opendaw/build.ts",
-    "daw:setup": "bun run workflow/06-audio/opendaw/setup.ts",
     "audio:music": "bun run workflow/06-audio/music.ts",
     "music:beat": "bun run workflow/06-audio/rhythm.ts",
     "music:search": "bun run workflow/06-audio/music_search.ts",
@@ -90,7 +88,7 @@
     "yt:comments": "bun run workflow/09-analytics/comments.ts",
     "ideas": "bun run workflow/01-ideation/ideas.ts",
     "concepts": "bun run workflow/01-ideation/concepts.ts",
-    "test": "bun test $(git ls-files -co --exclude-standard 'packages/*.test.ts' 'workflow/*.test.ts' 'scripts/*.test.ts' ':!workflow/06-audio/opendaw')",
+    "test": "bun test $(git ls-files -co --exclude-standard 'packages/*.test.ts' 'workflow/*.test.ts' 'scripts/*.test.ts')",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p workflow/dashboard/web"
   },
   "dependencies": {

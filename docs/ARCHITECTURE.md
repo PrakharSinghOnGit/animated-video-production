@@ -81,7 +81,7 @@ survives restarts and hand edits. The server is split by feature:
 | `server/details.ts` | everything one project's page shows, and the project list |
 | `server/files.ts`, `settings.ts` | file serving (path checks, ranges), downloads, the web app; settings files, .env view |
 | `server/routes/` | `app`, `settings`, `project`, `script`, `publish`, `shorts`, `acts`, `voice` |
-| `analytics.ts`, `ideas.ts`, `daw.ts`, `listen.ts`, `public.ts`, `usage.ts`, `system.ts` | features that were already separate |
+| `analytics.ts`, `ideas.ts`, `listen.ts`, `public.ts`, `usage.ts`, `system.ts` | features that were already separate |
 
 The web app lays pages out by the width of the content column (CSS container queries on `main`), not the window,
 because the side panels take up to 600 px. Colours come from five seeds in `web/src/theme/channel.ts`.
@@ -101,8 +101,7 @@ because the side panels take up to 600 px. Colours come from five seeds in `web/
 
 ## Tests and CI
 
-`bun run test` runs the repo's own test files (git-listed `*.test.ts` outside `tools/` and the two openDAW vitest
-files) in under a second; `bun run typecheck` checks the pipeline and the web app. CI (`.github/workflows/ci.yml`)
+`bun run test` runs the repo's own test files (git-listed `*.test.ts` outside `tools/`) in under a second; `bun run typecheck` checks the pipeline and the web app. CI (`.github/workflows/ci.yml`)
 runs both on every push: no secrets, no paid steps, no rendering. The tests where a bug would hurt most:
 
 | Area | Tests |

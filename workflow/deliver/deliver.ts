@@ -73,8 +73,7 @@ const put = (key: string, group: string, label: string, file: string, note?: str
 for (const k of want) items.delete(k);
 
 // ---------------------------------------------------------------- picture
-if (want.has("video_final")) put("video_final", "video", picture === finalMp4 ? "Final (as rendered)" : "Draft (no final yet)", picture,
-  exists(path.join(ws, "06-audio/mix_daw.wav")) ? "audio: your openDAW mix if it was newer than mix.wav at render time" : undefined);
+if (want.has("video_final")) put("video_final", "video", picture === finalMp4 ? "Final (as rendered)" : "Draft (no final yet)", picture);
 const silent = path.join(out, "video_silent.mp4");
 const needSilent = want.has("video_silent") || want.has("fcp") || [...want].some((k) => k.startsWith("video_") && k !== "video_final");
 if (needSilent) {

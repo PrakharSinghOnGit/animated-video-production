@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-"""Render every foley event to its own WAV, with exactly the sound mix.py puts in the mix, for the openDAW project.
+"""Render every foley event to its own WAV, with exactly the sound mix.py puts in the mix, for the clip previews and the Final Cut Pro project.
 
 Usage: sfx_daw.py --events events.json --out-dir DIR [--no-lib]
 
 mix.py renders event i with sfx.seed(1234 + e.get("seed", i)) -> sfx.render_event_ex(type, d), scales it by the type's level
 (sfx.FOLEY[type][2] dB, /0.8) and by the event's own `gain`, and pans it. Here the type level and the pan are baked
-into the WAV (same seed, same level), while the event's own `gain` is NOT: bun run daw puts it on the region
-(in dB) so it can be changed in openDAW. At every region gain 0 dB, mix.py's foley and this are sample-identical.
+into the WAV (same seed, same level), while the event's own `gain` is NOT: the Final Cut Pro project puts it on the
+clip (in dB) so it can be changed there. At every clip gain 0 dB, mix.py's foley and this are sample-identical.
 
-Output: DIR/NNN_type.wav (32-bit float, canonical 44-byte header: openDAW needs the data 4-byte aligned; mono when
+Output: DIR/NNN_type.wav (32-bit float, canonical 44-byte header with the data 4-byte aligned; mono when
 pan is 0, which is exactly what a centre pan renders) and DIR/manifest.json:
 [{i, file, type, act, t, d, gain, pan, dur, sourceId}]. Identical renders share one file.
 """

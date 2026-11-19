@@ -192,12 +192,12 @@ async function main() {
 
 type AudioMode = "mix" | "voice" | "none";
 
-/** 06-audio/mix_daw.wav (exported from openDAW, see docs/OPENDAW.md) wins over the auto mix.wav when it is newer. */
+/** 06-audio/mix.wav, when it was built from the current voice. */
 function pickMixFile(audioDir: string): string {
   // only a mix built from the current voice; an older one would put the old narration under the new picture
   const cm = currentMix(path.dirname(audioDir));
   if (!cm.file) { console.log(`[render] ⚠️ audio: ${cm.note}; keeping the voice-only track`); return path.join(audioDir, "__no_current_mix__.wav"); }
-  console.log(`[render] audio: ${path.basename(cm.file) === "mix_daw.wav" ? "mix_daw.wav (openDAW export)" : "mix.wav (auto mix)"}`);
+  console.log("[render] audio: mix.wav (auto mix)");
   return cm.file;
 }
 

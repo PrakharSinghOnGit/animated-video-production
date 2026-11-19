@@ -1,5 +1,5 @@
 import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint, WatchEntry } from "./analytics";
-import type { DawState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -45,9 +45,6 @@ export const api = {
   settingsFiles: () => call<{ files: { path: string; mtime: number }[] }>("/api/settings/files"),
   settingsFile: (p: string) => call<string>(`/api/settings/file?path=${encodeURIComponent(p)}`),
   saveSettingsFile: (p: string, text: string) => call<unknown>(`/api/settings/file?path=${encodeURIComponent(p)}`, { method: "PUT", body: text }),
-  daw: () => call<DawState>("/api/daw"),
-  startDaw: () => call<DawState>("/api/daw/start", { method: "POST", body: {} }),
-  stopDaw: () => call<{ ok: true }>("/api/daw/stop", { method: "POST", body: {} }),
   stopStudio: () => call<{ ok: true }>("/api/studio/stop", { method: "POST", body: {} }),
 
   status: (ws: string) => call<Details>(`${w(ws)}/status`),

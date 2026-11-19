@@ -47,13 +47,13 @@ export function requireFresh(ws: string, step: "plan" | "acts"): void {
 }
 
 /**
- * The sound mix to play with the picture, only if it was built from the current voice: the openDAW export when it is
- * the newer mix, else the auto mix; null (with the reason) when it predates the mastered voice.
+ * The sound mix to play with the picture (06-audio/mix.wav), only if it was built from the current voice; null (with the
+ * reason) when it predates the mastered voice.
  */
 export function currentMix(ws: string): { file: string | null; note?: string } {
   const a = path.join(ws, "06-audio");
-  const auto = path.join(a, "mix.wav"), daw = path.join(a, "mix_daw.wav"), master = mt(path.join(a, "voiceover_master.wav"));
-  const file = mt(daw) && mt(daw) >= mt(auto) ? daw : mt(auto) ? auto : null;
+  const auto = path.join(a, "mix.wav"), master = mt(path.join(a, "voiceover_master.wav"));
+  const file = mt(auto) ? auto : null;
   if (!file) return { file: null, note: "no sound mix yet" };
   if (master && mt(file) < master) return { file: null, note: `${path.basename(file)} was built from an older voice (re-run Sound → Mix)` };
   return { file };

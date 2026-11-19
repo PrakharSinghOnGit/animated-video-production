@@ -69,7 +69,7 @@ Every type lives in `sfx_types.json` (read by `sfx.py` and by `cues`): its **lay
 
 `bun run cues` also adds the **automatic score** from the plan's structure (`autoScore` in `workflow/05-video/src/lib/cues.ts`, `--no-score` to skip): a `transition` on each act change, a `reverse_swell` + `boom` into each chapter act, and for each planned silence a `riser` that ends where the silence starts and an `impact` (intense act) or `sub_drop` on the word after it. What an act scores itself within 0.6 s wins. Then **thinning** (`--no-thin` to skip): foley closer than 0.09 s to another, foley past 6 per 5 s, and design hits of one type too close together (impact 6 s, boom 4 s, riser 6 s…) are left out of `events.json`; they stay in `events_all.json` as `thinned` and the SFX review's Restore puts one back (`sfx_edits.json` `keep`).
 
-`events.json`: `[{"t":12.4,"type":"pencil_scratch","d":0.8,"gain":1,"pan":0,"seed":3,"take":1}]`; `gain` 0..2, `pan` -1..1. `seed` (index in the full list) seeds pitch/level variation; `take` (rank among events of the type) picks the sample from a seeded **shuffle bag**: all samples of a type are used before one repeats and never the same one twice running, and the mix, the clip previews and the openDAW/FCP export all get the same sample.
+`events.json`: `[{"t":12.4,"type":"pencil_scratch","d":0.8,"gain":1,"pan":0,"seed":3,"take":1}]`; `gain` 0..2, `pan` -1..1. `seed` (index in the full list) seeds pitch/level variation; `take` (rank among events of the type) picks the sample from a seeded **shuffle bag**: all samples of a type are used before one repeats and never the same one twice running, and the mix, the clip previews and the Final Cut Pro export all get the same sample.
 
 ### Mix bus
 

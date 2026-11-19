@@ -45,8 +45,6 @@ workspace/_analytics/
 workspace/_ideas/
 .claude/worktrees/
 
-# Local openDAW checkout (bun run daw:setup)
-tools/opendaw/
 
 # designed voices: keep design.json + the picked reference, not every take
 workflow/03-voiceover/voices/*/take*.wav
