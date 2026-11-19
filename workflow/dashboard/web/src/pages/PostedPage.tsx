@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Copy, ExternalLink, RefreshCw, Send } from "lucide-react";
+import { Copy, ExternalLink, ImageOff, Play, RefreshCw, Send, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
@@ -80,9 +80,12 @@ export function PostedPage() {
 }
 
 function Item({ r, unlinked, reload }: { r: PostedRow; unlinked: PostedData["unlinked"]; reload: () => Promise<void> }) {
+  const [playing, setPlaying] = useState(false);
   return (
     <Card className={cn(!r.ready && "opacity-70")}>
-      <CardBody className="grid gap-3">
+      <CardBody className="grid gap-3 md:grid-cols-[200px_minmax(0,1fr)]">
+        <Preview r={r} playing={playing} onPlay={() => setPlaying(true)} />
+        <div className="grid min-w-0 content-start gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={r.kind === "short" ? "info" : "neutral"}>{r.short ?? "Long video"}</Badge>
           <b className="min-w-0 flex-1 text-[13.5px]">{r.title}</b>
@@ -93,8 +96,39 @@ function Item({ r, unlinked, reload }: { r: PostedRow; unlinked: PostedData["unl
           <ManualCell r={r} platform="instagram" reload={reload} />
           <ManualCell r={r} platform="facebook" reload={reload} />
         </div>
+        </div>
+        {playing && r.media.video && (
+          <div className="relative md:col-span-2">
+            <video src={api.fileUrl(r.ws, r.media.video)} controls autoPlay playsInline className={cn("mx-auto max-h-[70dvh] rounded-md bg-black", r.kind === "short" ? "aspect-[9/16]" : "w-full")} />
+            <Button size="icon" variant="secondary" className="absolute right-2 top-2" aria-label="Close the player" onClick={() => setPlaying(false)}><X /></Button>
+          </div>
+        )}
       </CardBody>
     </Card>
+  );
+}
+
+/** What the item looks like, so it can be told apart without its title (Instagram shows none): a long video's YouTube or
+ *  package thumbnail, a short's three frames. Falls through to the next picture when one does not load. Click = play. */
+function Preview({ r, playing, onPlay }: { r: PostedRow; playing: boolean; onPlay: () => void }) {
+  const m = r.media;
+  const frames = m.frames ? `/api/posted/frames?ws=${encodeURIComponent(r.ws)}${r.short ? `&short=${encodeURIComponent(r.short)}` : ""}` : null;
+  const pkg = m.thumb ? api.fileUrl(r.ws, m.thumb) : null;
+  const srcs = (r.kind === "short" ? [frames, m.ytThumb] : [m.ytThumb, pkg, frames]).filter((x): x is string => !!x);
+  const [i, setI] = useState(0);
+  const src = srcs[i];
+  const label = src === frames ? "frames of the video" : "the video's thumbnail";
+  const body = src
+    ? <img src={src} alt={`${r.title}: ${label}`} loading="lazy" onError={() => setI((n) => n + 1)} className="aspect-video w-full rounded-md bg-muted object-contain" />
+    : <div className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded-md bg-muted text-[11.5px] text-muted-foreground"><ImageOff className="size-4" />no picture yet</div>;
+  if (!m.video || playing) return body;
+  return (
+    <button type="button" onClick={onPlay} className="group relative block w-full rounded-md focus-visible:outline-2 focus-visible:outline-ring" aria-label={`Play ${r.title}`} title="Play the final render">
+      {body}
+      <span className="absolute inset-0 flex items-center justify-center rounded-md bg-black/0 transition-colors group-hover:bg-black/30">
+        <span className="flex size-9 items-center justify-center rounded-full bg-black/60 text-white opacity-80 group-hover:opacity-100"><Play className="size-4 fill-current" /></span>
+      </span>
+    </button>
   );
 }
 

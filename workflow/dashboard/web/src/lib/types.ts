@@ -220,5 +220,6 @@ export interface PostedRow {
   youtube: { ytId: string | null; status: PostStatus; label: string; url: string | null; publishAt?: string | null };
   instagram: PostedMark | null; facebook: PostedMark | null;
   captions: { youtube: string; instagram: string; facebook: string };
+  media: { thumb: string | null; ytThumb: string | null; frames: boolean; video: string | null };
 }
 export interface PostedData { rows: PostedRow[]; unlinked: { ytId: string; title: string; short: boolean; publishedAt: string; privacy: string | null }[]; fetchedAt: string | null }

@@ -3,13 +3,21 @@
  *
  *   GET /api/posted                                  rows (YouTube from the links + last analytics refresh) + unlinked uploads
  *   PUT /api/posted {ws, short?, platform, status, url?}   mark Instagram / Facebook: none | draft | live
+ *   GET /api/posted/frames?ws=<id>[&short=S1]       three frames of the final render as one JPEG (built once, cached)
  * Linking a YouTube upload reuses PUT /api/analytics/link.
  */
-import { mapping, readSnapshot, shortLinks } from "../09-analytics/lib";
-import { postedRows, setPosted } from "../07-publish/posted";
+import { mapping, readSnapshot, shortIds, shortLinks, workspaces } from "../09-analytics/lib";
+import { framesStrip, postedRows, setPosted } from "../07-publish/posted";
+import { serveFile } from "./server/files";
 import type { AnalyticsCtx } from "./analytics";
 
 export async function postedRoute(req: Request, url: URL, ctx: AnalyticsCtx): Promise<Response | null> {
+  if (url.pathname === "/api/posted/frames" && req.method === "GET") {
+    const ws = url.searchParams.get("ws") ?? "", short = url.searchParams.get("short");
+    if (!workspaces().includes(ws) || (short && !shortIds(ws).includes(short))) return ctx.bad("unknown video", 404);
+    const f = await framesStrip(ws, short);
+    return f ? serveFile(req, f) : ctx.bad("no final render", 404);
+  }
   if (url.pathname !== "/api/posted") return null;
   if (req.method === "GET") {
     const { rows, fetchedAt } = postedRows();
