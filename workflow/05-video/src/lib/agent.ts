@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { parseSpec, ollamaModels, CLAUDE_DIRS, REPO, type Spec } from "../../../lib/models";
+import { fromEvent, recordUsage, type Usage } from "../../../lib/usage";
 
 export interface AgentResult {
   ok: boolean;
@@ -116,6 +117,11 @@ function finish(opts: AgentOptions, status: number | null, stdout: string, stder
   // stream-json: the result is the last "result" event; the rest becomes a readable transcript in the log (tool
   // results, e.g. contact-sheet images, are left out so the log stays small). A plain JSON reply still parses.
   const events = jsonLines(stdout);
+  // the plan usage this run saw (free): the act batch's autopilot reads it before starting the next act
+  const sp = parseSpec(opts.model);
+  let usage: Usage | null = null;
+  for (const e of events) usage = fromEvent(e) ?? usage;
+  if (usage && (sp.provider === "claude" || sp.provider === "claude-iit")) recordUsage(sp.provider, usage);
   let parsed: any = [...events].reverse().find((e) => e.type === "result");
   if (!parsed) { try { parsed = JSON.parse(stdout || "{}"); } catch { parsed = { is_error: true }; } }
   const transcript = events.flatMap(describe).join("\n");

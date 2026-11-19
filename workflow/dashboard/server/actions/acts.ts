@@ -16,6 +16,7 @@ export const actsActions: Record<string, Action> = {
       { key: "force", label: "Redo acts that exist", type: "bool", def: false, flag: "--force" },
       { key: "autoFix", label: "Automatic fix round", help: "Off: the critic's notes are saved and you fix the acts that need it (Fix with notes). On: a paid fix round runs by itself when the free layout check flags an act (~$1–5 per act)", type: "bool", def: false, flag: "--auto-fix" },
       { key: "strict", label: "…also when the critic fails it", help: "Implies the automatic fix round", type: "bool", def: false, flag: "--strict" },
+      { key: "wait", label: "Wait through usage resets", help: "Overnight mode: before each act, checks Claude's 5-hour window and starts the act only if it will fit (what one act uses is learned from earlier acts); otherwise waits for the reset, sends a notification, and goes on. Replaces the stop-at option", type: "bool", def: false, flag: "--wait" },
       { key: "stopAt", label: "Start no new act at 5-h usage (%)", help: "Claude (default profile) only, read from the status line; empty = never. Running acts always finish", type: "number", min: 10, max: 100, step: 5, def: 90, flag: "--stop-at" },
       { ...modelOpt("actAuthor", "On a usage limit, switch to", "--on-limit", "onLimit"), help: "default = stop: start no new acts. A model here redoes the stopped act and the rest with it (e.g. the other Claude profile)" },
       { key: "models", label: "Per-act models", help: "set in the act list above (A01=claude:sonnet,…)", type: "text", flag: "--models" },

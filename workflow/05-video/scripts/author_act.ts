@@ -24,6 +24,10 @@
  *   --on-limit <model>  when an act stops on a usage limit: redo it and the rest with this model (e.g. claude-iit:opus);
  *                       without it, no new acts start after a limit
  *   A file 05-video/.batch_stop (dashboard: "Start no more acts") lets the running acts finish and starts no new ones.
+ *   --wait              autopilot (overnight): before each Claude act, read the 5-hour window (workflow/lib/usage.ts) and
+ *                       start the act only if what one act uses (learned from earlier acts) still fits; otherwise wait
+ *                       for the reset (notification + 05-video/.autopilot_wait.json), then go on. An act cut off by a
+ *                       limit anyway is queued again and continued after the reset. --stop-at is ignored with --wait.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -41,6 +45,8 @@ import { retireOldScenes, planChanged, recordPlanHash } from "../src/lib/scenes"
 import { readChecks, gridFiles, checksText, gateFindings, applyCaps, verdictNotes } from "../src/lib/critic";
 import { changedActsPath } from "../src/lib/replan";
 import { keepAwake } from "../../lib/awake";
+import { actEstimate, clock, lastUsage, recordActUsage, usageNow, type ClaudeProfile, type Usage } from "../../lib/usage";
+import { notify } from "../../dashboard/server/notify";
 keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
 
 const args = process.argv.slice(2);
@@ -84,6 +90,7 @@ const perActModel: Record<string, string> = Object.fromEntries((flag("--models")
   .map((x) => { const i = x.indexOf("="); return [x.slice(0, i).trim().toUpperCase(), roleModel("actAuthor", x.slice(i + 1).trim())]; }));
 const stopAt = flag("--stop-at") ? parseFloat(flag("--stop-at")!) : undefined;
 const onLimit = flag("--on-limit") ? roleModel("actAuthor", flag("--on-limit")) : undefined;
+const waitMode = args.includes("--wait");
 if (!videoId) {
   console.error("Usage: bun run act --video <ID> [--act A01] [--parallel 2] [--model opus] [--critic sonnet] [--no-critic] [--force]");
   process.exit(1);
@@ -222,6 +229,11 @@ function hitLimit(act: Act, model: string): Outcome {
     queue.unshift(act);
     return "limit";
   }
+  if (waitMode) {
+    queue.unshift(act);
+    console.log(`   ⛔ ${act.id}: ${model} hit its usage limit part way: it continues after the reset (the partial act is kept)`);
+    return "limit";
+  }
   if (limitSwitch !== null) limitSwitch = null;
   console.log(`   ⛔ ${act.id}: ${model} hit its usage limit: no new acts will start (the ones running finish)`);
   return "limit";
@@ -246,7 +258,7 @@ function holdReason(id: string): string {
   if (fs.existsSync(stopFile)) return "you asked to start no more acts";
   if (limitSwitch === null) return "a model hit its usage limit";
   const m = parseSpec(modelFor(id));
-  if (stopAt !== undefined && m.provider === "claude") {
+  if (stopAt !== undefined && m.provider === "claude" && !waitMode) {
     const pct = limitPct();
     if (pct !== null && pct >= stopAt) return `Claude's 5-hour usage is at ${pct}% (stop at ${stopAt}%)`;
   }
@@ -428,6 +440,57 @@ async function fixAct(act: Act, file: string, reviewDir: string, notes?: string)
   return "failed";
 }
 
+// ───────────── --wait: start an act only when it fits in the 5-hour window, else sleep to the reset ─────────────
+let inFlight = 0, startedSince = 0;
+const waitFile = path.join(paths.outputDir, ".autopilot_wait.json");
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Never wait longer than this for a reset (a 7-day limit can be days away: stop instead). */
+const MAX_WAIT_MS = 8 * 3600_000;
+
+/** Whether authorAct will call the author for this act (the same rules it uses), so a drawn act never waits for a reset. */
+function callsModel(act: Act): boolean {
+  if (fixMode || changedMode || force) return true;
+  const file = sceneFile(act), reviewDir = path.join(paths.outputDir, "review", act.id);
+  if (!fs.existsSync(file) || fs.existsSync(unfinishedFile(reviewDir))) return true;
+  return planChanged(paths.outputDir, act.id, file);
+}
+
+/** One worker at a time checks the window and claims a place (inFlight + 1), so two workers never both take the last room. */
+let gate: Promise<void> = Promise.resolve();
+async function claimSlot(profile: ClaudeProfile, model: string): Promise<string> {
+  const prev = gate;
+  let release!: () => void;
+  gate = new Promise((r) => (release = r));
+  await prev;
+  try { const why = await waitForRoom(profile, model); if (!why) inFlight++; return why; } finally { release(); }
+}
+
+/** Wait until the next act fits in the window (sleeping through resets). "" = start it; else why the batch stops. */
+async function waitForRoom(profile: ClaudeProfile, model: string): Promise<string> {
+  for (;;) {
+    if (fs.existsSync(stopFile)) return "you asked to start no more acts";
+    const u: Usage | null = await usageNow(profile, inFlight ? 60_000 : 3 * 60_000);
+    if (!u) { console.log("   ⚠️  could not read Claude's usage: starting the act anyway"); return ""; }
+    const est = actEstimate(profile, model);
+    const need = est.pct * 1.15 * (inFlight + 1);   // the acts still running will use some too
+    if (u.status !== "rejected" && u.pct + need <= 100) return "";
+    if (inFlight) { await sleep(60_000); continue; }   // let the running act finish; it moves the reading
+    const until = u.resetsAt ? u.resetsAt * 1000 + 2 * 60_000 : Date.now() + 15 * 60_000;
+    if (until - Date.now() > MAX_WAIT_MS) return `the ${u.type.replace("_", "-")} limit only resets ${new Date(until).toLocaleString()}`;
+    const left = queue.map((a) => a.id);
+    const msg = `${u.pct}% of the 5-hour window used; one act needs ~${Math.round(est.pct)}%${est.n ? ` (measured on ${est.n})` : " (first guess)"}. ${u.resetsAt ? `Resuming at ${clock(u.resetsAt + 120)}` : "Reset time unknown: checking again in 15 min"}; ${left.length} act(s) left: ${left.join(", ")}.`;
+    console.log(`⏸  ${msg}`);
+    notify(`${paths.jobId}: waiting for the usage reset`, msg, true, "hourglass_flowing_sand");
+    fs.writeFileSync(waitFile, JSON.stringify({ until, pct: u.pct, need: Math.round(need), left, since: Date.now() }));
+    while (Date.now() < until) {
+      if (fs.existsSync(stopFile)) { fs.rmSync(waitFile, { force: true }); return "you asked to start no more acts"; }
+      await sleep(Math.min(30_000, Math.max(1000, until - Date.now())));
+    }
+    fs.rmSync(waitFile, { force: true });
+    console.log(`▶  ${new Date().toLocaleTimeString()}: the window should have reset, checking again`);
+  }
+}
+
 const todo = plan.acts.filter((a) => !only || only.includes(a.id));
 if (changedMode && !todo.length) { console.log("✅ no act's narration changed: nothing to update"); process.exit(0); }
 const t0 = Date.now();
@@ -439,13 +502,30 @@ if (Object.keys(perActModel).length) console.log(`Per-act models: ${Object.entri
 await Promise.all(
   Array.from({ length: Math.min(parallel, queue.length) }, async () => {
     while (queue.length) {
-      const why = holdReason(queue[0].id);
-      if (why) { console.log(`⏸  Not starting ${queue.map((a) => a.id).join(", ")}: ${why}.`); skipped.push(...queue.splice(0).map((a) => a.id)); break; }
+      const m = parseSpec(modelFor(queue[0].id));
+      const claude = m.provider === "claude" || m.provider === "claude-iit" ? (m.provider as ClaudeProfile) : null;
+      const gated = waitMode && !!claude && !fs.existsSync(stopFile) && callsModel(queue[0]);
+      const why = gated ? await claimSlot(claude!, m.model) : holdReason(queue[0].id);
+      if (why) { if (queue.length) console.log(`⏸  Not starting ${queue.map((a) => a.id).join(", ")}: ${why}.`); skipped.push(...queue.splice(0).map((a) => a.id)); break; }
+      if (!queue.length) { if (gated) inFlight--; break; }   // another worker took the last act while this one waited
       const act = queue.shift()!;
+      if (!gated) inFlight++;
+      const alone = inFlight === 1, before = claude ? lastUsage(claude) : null;
+      startedSince++;
+      const mark0 = startedSince;
       results[act.id] = await authorAct(act);
+      inFlight--;
+      // what this act used of the window: only when it ran alone, in one window, from a fresh reading
+      const after = claude ? lastUsage(claude) : null;
+      if (claude && alone && startedSince === mark0 && before && after && Date.now() - before.at < 5 * 60_000 && before.resetsAt && before.resetsAt === after.resetsAt
+        && (results[act.id] === "ok" || results[act.id] === "notes")) {
+        recordActUsage(claude, m.model, after.pct - before.pct);
+        console.log(`   📊 ${act.id} used ${(after.pct - before.pct).toFixed(1)}% of the 5-hour window (now ${after.pct}%)`);
+      }
     }
   })
 );
+try { fs.rmSync(waitFile); } catch {}
 try { fs.rmSync(stopFile); } catch {}
 if (changedMode) {
   // updated acts leave the list; the rest stay for the next run
