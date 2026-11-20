@@ -43,6 +43,9 @@ import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import { bundle } from "@remotion/bundler";
 import { renderStill, renderMedia, selectComposition } from "@remotion/renderer";
+// the Node API ignores the CLI's --gl=angle: without it canvas acts draw on the software renderer (~30× slower) and a
+// heavy act can miss Remotion's ~30 s "render the React component" timeout on a busy machine. Same options as thumbs.ts.
+const R = { chromiumOptions: { gl: "angle" as const }, timeoutInMilliseconds: 120_000 };
 import { spawnSync } from "node:child_process";
 import { runAgentAsync, extractJson } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
@@ -96,12 +99,12 @@ async function probe(): Promise<Record<string, Ask>> {
   const serveUrl = await bundle({ entryPoint: entry, publicDir });
   const asks: Record<string, Ask> = {};
   for (const s of scenes) {
-    const composition = await selectComposition({ serveUrl, id: s.id, inputProps: { seamProbe: true } });
+    const composition = await selectComposition({ serveUrl, id: s.id, inputProps: { seamProbe: true }, ...R });
     let ask: Ask | null = null;
     const onBrowserLog = (l: { text: string }) => { const m = /WGSEAM (\{.*\})/.exec(l.text); if (m) ask = JSON.parse(m[1]); };
     const last = composition.durationInFrames - 1;
     for (const [frame, name] of [[0, "first"], [last, "last"]] as const) {
-      await renderStill({ serveUrl, composition, frame, output: path.join(seamDir, `${s.id}_${name}.jpg`), imageFormat: "jpeg", jpegQuality: 90, inputProps: { seamProbe: true }, onBrowserLog, logLevel: "error" });
+      await renderStill({ serveUrl, composition, frame, output: path.join(seamDir, `${s.id}_${name}.jpg`), imageFormat: "jpeg", jpegQuality: 90, inputProps: { seamProbe: true }, onBrowserLog, logLevel: "error", ...R });
     }
     asks[s.id] = ask ?? { style: "briefing", open: "none", close: "none", ground: "#000000" };
     if (!ask) console.warn(`  ⚠️  ${s.id}: no drawAct report (placeholder or a custom wrapper): treated as plain cuts`);
@@ -175,7 +178,7 @@ async function check(seams: { a: string; b: string; owner: string; kind: string;
   if (!seams.length) return [...reused.values()];
   console.log(`📦 Bundling (check: ${seams.length} seam${seams.length > 1 ? "s" : ""} to render)...`);
   const serveUrl = await bundle({ entryPoint: entry, publicDir });
-  const composition = await selectComposition({ serveUrl, id: "Main", inputProps: {} });
+  const composition = await selectComposition({ serveUrl, id: "Main", inputProps: {}, ...R });
   const jobs: { seam: string; cut: number; files: string[]; wide: [string, number][] }[] = [];
   const last = composition.durationInFrames - 1;
   for (const s of seams) {
@@ -184,20 +187,20 @@ async function check(seams: { a: string; b: string; owner: string; kind: string;
     const files: string[] = [];
     for (const f of [cut - 2, cut - 1, cut, cut + 1]) {
       const file = path.join(reviewDir, `${id}_${f - cut >= 0 ? "+" : ""}${f - cut}.jpg`);
-      await renderStill({ serveUrl, composition, frame: Math.max(0, f), output: file, imageFormat: "jpeg", jpegQuality: 80, scale: 0.25, logLevel: "error" });
+      await renderStill({ serveUrl, composition, frame: Math.max(0, f), output: file, imageFormat: "jpeg", jpegQuality: 80, scale: 0.25, logLevel: "error", ...R });
       files.push(file);
     }
     const wide: [string, number][] = [];
     for (const dt of WIDE) {
       const f = Math.min(last, Math.max(0, cut + Math.round(dt * fps)));
       const file = path.join(reviewDir, `${id}_w${dt}.jpg`);
-      await renderStill({ serveUrl, composition, frame: f, output: file, imageFormat: "jpeg", jpegQuality: 80, scale: 0.25, logLevel: "error" });
+      await renderStill({ serveUrl, composition, frame: f, output: file, imageFormat: "jpeg", jpegQuality: 80, scale: 0.25, logLevel: "error", ...R });
       wide.push([file, dt]);
     }
     // the transition as a short silent clip, to watch it without a full render
     const from = Math.max(0, cut - Math.round(CLIP_S * fps)), to = Math.min(last, cut + Math.round(CLIP_S * fps));
     try {
-      await renderMedia({ serveUrl, composition, codec: "h264", outputLocation: path.join(reviewDir, `${id}.mp4`), frameRange: [from, to], scale: 0.5, muted: true, logLevel: "error" });
+      await renderMedia({ serveUrl, composition, codec: "h264", outputLocation: path.join(reviewDir, `${id}.mp4`), frameRange: [from, to], scale: 0.5, muted: true, logLevel: "error", ...R });
     } catch (e: any) { console.warn(`  ⚠️  ${id}: clip failed (${e.message?.slice(0, 120)})`); }
     console.log(`  🎞  ${id}: frames + clip (${jobs.length + 1}/${seams.length})`);
     jobs.push({ seam: id, cut, files, wide });
