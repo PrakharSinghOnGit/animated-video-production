@@ -1,6 +1,10 @@
 /** Packaging: titles and description, thumbnails, their review, export. */
+import fs from "node:fs";
 import * as pub from "../../../07-publish/lib";
 import { B, args, modelOpt, type Action } from "./base";
+
+/** Thumbnails not made yet: what to run first (the review and the re-render need all three). */
+const noThumbs = (ws: string) => { const m = pub.VARIANTS.filter((v) => !pub.thumbPath(ws, v)); return m.length ? `no thumbnail${m.length > 1 ? "s" : ""} ${m.join(", ")} yet: run Thumbnails (or Publish all: titles → thumbnails → review) first` : null; };
 
 export const publishActions: Record<string, Action> = {
   "publish.all": {
@@ -33,7 +37,11 @@ export const publishActions: Record<string, Action> = {
   "publish.render": {
     step: "publish", label: "Render thumbnails", help: "Renders the images and the preview sheets from the thumbnail files (after you edited one by hand). No model.", long: "~1 min",
     opts: [{ key: "variant", label: "Variant", type: "select", choices: ["all", "A", "B", "C"], def: "all", map: (v) => (v === "all" ? [] : ["--variant", v]) }],
-    build: (ws, o) => [B("thumbs:render", "--video", ws, ...args(o, "publish.render"))],
+    build: (ws, o) => {
+      const vs = o.variant && o.variant !== "all" ? [String(o.variant)] : [...pub.VARIANTS];
+      const none = vs.filter((v) => !fs.existsSync(pub.pubFile(ws, `remotion/thumbs/${v}.tsx`)));
+      return none.length ? `no thumbnail file for ${none.join(", ")} yet: run Thumbnails first` : [B("thumbs:render", "--video", ws, ...args(o, "publish.render"))];
+    },
   },
   "publish.review": {
     step: "publish", label: "Review thumbnails", help: "A vision critic checks each thumbnail and the preview sheets against the guide's checklist (168 px legibility, words, focal point, contrast, badge zone, truth, distinctness).", paid: "~$0.1–0.3", long: "~1–3 min",
@@ -41,7 +49,7 @@ export const publishActions: Record<string, Action> = {
       modelOpt("thumbsReview", "Reviewer", "--agent", "agent"),
       { key: "toNotes", label: "Append findings to each variant's notes", type: "bool", def: true, flag: "--to-notes" },
     ],
-    build: (ws, o) => [B("thumbs:review", "--video", ws, ...args(o, "publish.review"))],
+    build: (ws, o) => noThumbs(ws) ?? [B("thumbs:review", "--video", ws, ...args(o, "publish.review"))],
   },
   "publish.fix": {
     step: "publish", variant: true, label: "Fix with notes", help: "Sends this variant's notes to the thumbnail author for one revision (resumes its session).", paid: "~$0.5–2", long: "~3–6 min",
