@@ -77,8 +77,8 @@ export const actsActions: Record<string, Action> = {
     build: (ws, o, act) => [B("frames", "--video", ws, "--scene", act!, ...args(o, "acts.frames"))],
   },
   "acts.preview": {
-    step: "acts", perAct: true, label: "Render preview", help: "The act as a video with voice + effects, to watch and annotate.", long: "~30 s–2 min",
-    opts: [{ key: "scale", label: "Scale", type: "select", choices: ["1", "0.5", "0.25"], def: "1", flag: "--scale", help: "0.5 = 960×540, 0.25 = 480×270: faster renders for checking timing" }],
+    step: "acts", perAct: true, label: "Render preview", help: "The act as a video with voice + effects, to watch and annotate. It is the act's own piece of the video (transitions included): at full size the draft and the final reuse it, and an act that did not change is not rendered again.", long: "~30 s–2 min (unchanged: seconds)",
+    opts: [{ key: "scale", label: "Scale", type: "select", choices: ["1", "0.5", "0.25"], def: "1", flag: "--scale", help: "1 = full size, shared with the draft and the final. 0.5 = 960×540, 0.25 = 480×270: faster, for checking timing only" }, { key: "force", label: "Render again even if unchanged", type: "bool", def: false, flag: "--force" }],
     build: (ws, o, act) => [B("preview", "--video", ws, "--act", act!, ...args(o, "acts.preview"))],
   },
   "acts.review": {

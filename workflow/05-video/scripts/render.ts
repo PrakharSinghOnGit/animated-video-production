@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import { recordTiming } from "../src/lib/timings";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { renderChunks, joinChunks, frameCount, type Scale } from "../src/lib/chunks";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { currentMix } from "../src/lib/freshness";
 import { checkSceneCoverage, writeRenderManifest } from "../src/lib/sceneCoverage";
@@ -56,10 +57,6 @@ async function main() {
   const outFileName = isDraft ? "draft.mp4" : "final.mp4";
   const outFilePath = path.join(paths.outputDir, outFileName);
 
-  const scale = isDraft ? draftScale : "1";
-  const crf = isDraft ? "26" : "16";
-
-  let renderArgs: string[] = [];
   let vertical = false;   // a 9:16 short (timeline 1080x1920)
 
   if (isKitWorkspace) {
@@ -91,7 +88,6 @@ async function main() {
       console.warn(`\n⚠️  [render] ${msg}\n`);
     }
 
-    const entryFile = path.join(paths.outputDir, "src", "index.ts");
     const timelinePath = path.join(paths.outputDir, "timeline.json");
     let timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
     vertical = timeline.height > timeline.width;
@@ -118,82 +114,30 @@ async function main() {
       if (sp.status !== 0) { console.error(`[render] planning the seams failed (exit ${sp.status}); refusing to render plain cuts.`); process.exit(1); }
       timeline = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "timeline.json"), "utf-8"));
     }
-    const renderPropsPath = path.join(paths.outputDir, "render-props.json");
-    const propsPayload = {
-      timeline: {
-        ...timeline,
-        audioFile: fs.existsSync(publicVo) ? "voiceover.wav" : undefined,
-      },
-      showVoiceOver: fs.existsSync(publicVo),
-    };
-    fs.writeFileSync(renderPropsPath, JSON.stringify(propsPayload, null, 2), "utf-8");
+    // what was rendered (the chunks get the same timeline as inputProps); kept for debugging
+    fs.writeFileSync(path.join(paths.outputDir, "render-props.json"), JSON.stringify({ timeline, showVoiceOver: false }, null, 2), "utf-8");
 
-    renderArgs = [
-      "remotion",
-      "render",
-      entryFile,
-      "Main",
-      outFilePath,
-      `--public-dir=${path.join(paths.outputDir, "public")}`,
-      `--props=${renderPropsPath}`,
-      "--codec=h264",
-      `--crf=${crf}`,
-      `--scale=${scale}`,
-      "--overwrite",
-      "--gl=angle",
-      ...(concurrency ? [`--concurrency=${concurrency}`] : []),
-    ];
-
+    // one act at a time (src/lib/chunks.ts): acts whose inputs did not change since their last render are reused
+    const chunkScale = (isDraft ? draftScale : "1") as Scale;
+    const startTime = Date.now();
+    const plan = await renderChunks({ outputDir: paths.outputDir, timeline, scale: chunkScale, concurrency: concurrency ? Number(concurrency) : undefined });
+    joinChunks(plan, outFilePath);
+    const frames = frameCount(outFilePath), want = plan[plan.length - 1].to;
+    if (frames !== want) { console.error(`[render] the joined video has ${frames} frames, the timeline ${want}: refusing to keep it`); fs.rmSync(outFilePath, { force: true }); process.exit(1); }
+    console.log(`[render] joined ${plan.length} acts: ${frames} frames`);
+    finishAudio(outFilePath, paths.outputDir, isDraft, isDraft ? 1080 : res, isDraft ? "mix" : audio, vertical, publicVo);
+    recordTiming(path.dirname(paths.outputDir), { step: isDraft ? "render draft" : "render final", ms: Date.now() - startTime });
+    const sizeMB = (fs.statSync(outFilePath).size / (1024 * 1024)).toFixed(2);
+    console.log(`\n✅ Render succeeded in ${((Date.now() - startTime) / 1000).toFixed(1)}s!`);
+    console.log(`   File: ${outFilePath}`);
+    console.log(`   Size: ${sizeMB} MB`);
+    const manifest = writeRenderManifest(paths.outputDir, outFilePath, isDraft ? "draft" : "final");
+    console.log(`   Manifest: ${manifest.sceneCount - manifest.missingScenes.length}/${manifest.sceneCount} scenes authored`);
+    process.exit(0);
   } else {
     console.error(`[render] ${paths.outputDir} is not a kit workspace (needs src/index.ts and timeline.json). Run direct -> assemble first.`);
     process.exit(1);
   }
-
-  console.log(`[render] Executing: bun x ${renderArgs.join(" ")}`);
-  const startTime = Date.now();
-
-  const logStream = fs.createWriteStream(path.join(paths.outputDir, "render.log"), { flags: "w" });
-  logStream.write(`Render started at ${new Date().toISOString()}\nCommand: bun x ${renderArgs.join(" ")}\n\n`);
-
-  const proc = spawn("bun", ["x", ...renderArgs], {
-    cwd: process.cwd(),
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-  proc.stdout.on("data", (data) => {
-    process.stdout.write(data);
-    logStream.write(data);
-  });
-
-  proc.stderr.on("data", (data) => {
-    process.stderr.write(data);
-    logStream.write(data);
-  });
-
-  proc.on("close", (code) => {
-    const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
-    logStream.write(`\nRender finished in ${elapsedSec}s with exit code ${code}\n`);
-    logStream.end();
-
-    if (code === 0) {
-      finishAudio(outFilePath, paths.outputDir, isDraft, isDraft ? 1080 : res, isDraft ? "mix" : audio, vertical);
-      recordTiming(path.dirname(paths.outputDir), { step: isDraft ? "render draft" : "render final", ms: Date.now() - startTime });
-      const stats = fs.statSync(outFilePath);
-      const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
-      console.log(`\n✅ Render succeeded in ${elapsedSec}s!`);
-      console.log(`   File: ${outFilePath}`);
-      console.log(`   Size: ${sizeMB} MB`);
-      if (isKitWorkspace) {
-        const manifest = writeRenderManifest(paths.outputDir, outFilePath, isDraft ? "draft" : "final");
-        console.log(`   Manifest: ${manifest.sceneCount - manifest.missingScenes.length}/${manifest.sceneCount} scenes authored`);
-      }
-      process.exit(0);
-    } else {
-      console.error(`\n❌ Render failed with code ${code} after ${elapsedSec}s`);
-      process.exit(code ?? 1);
-    }
-  });
 }
 
 type AudioMode = "mix" | "voice" | "none";
@@ -212,21 +156,23 @@ function pickMixFile(audioDir: string): string {
  * drop audio; upscale finals to 1440p/2160p (lanczos) and add film grain: grain drawn per frame would make every frame
  * slow and incompressible. Drafts keep the voice-only track if there is no mix, and get no grain.
  */
-function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res = 1080, audio: AudioMode = "mix", vertical = false): void {
+function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res = 1080, audio: AudioMode = "mix", vertical = false, voiceFile = ""): void {
   const mixFile = pickMixFile(path.join(path.dirname(outputDir), "06-audio"));
   const mix = audio === "mix" && fs.existsSync(mixFile);
   const grain = isDraft ? 0 : parseFloat(process.env.WG_GRAIN ?? "3");
   const vf = [res > 1080 ? (vertical ? `scale=${res}:-2:flags=lanczos` : `scale=-2:${res}:flags=lanczos`) : "", grain > 0 ? `noise=alls=${grain}:allf=t` : ""].filter(Boolean);
-  if (!mix && !vf.length && audio !== "none") return;
+  // the video comes silent from the chunks: the voice-only track is the voiceover file
+  const voice = !mix && audio !== "none" && !!voiceFile && fs.existsSync(voiceFile);
   const tmp = videoPath.replace(/\.mp4$/, ".mux.mp4");
   const ff = ["-v", "error", "-y", "-i", videoPath];
   // mix.wav ends before the video (end-card hold): pad it with silence, -shortest then stops at the video. The voice track comes from Remotion at full length.
   const pad = ["-af", "apad", "-shortest"];
   if (mix) ff.push("-i", mixFile, "-map", "0:v", "-map", "1:a", ...pad);
-  else ff.push("-map", "0:v", ...(audio === "none" ? [] : ["-map", "0:a?"]));
+  else if (voice) ff.push("-i", voiceFile, "-map", "0:v", "-map", "1:a", ...pad);
+  else ff.push("-map", "0:v");
   if (vf.length) ff.push("-vf", vf.join(","), "-c:v", "libx264", "-crf", res > 1080 ? "18" : "21", "-preset", "medium", "-pix_fmt", "yuv420p");
   else ff.push("-c:v", "copy");
-  ff.push(...(audio === "none" ? ["-an"] : ["-c:a", "aac", "-b:a", "256k"]), tmp);
+  ff.push(...(mix || voice ? ["-c:a", "aac", "-b:a", "256k"] : ["-an"]), tmp);
   const t0 = Date.now();
   const r = spawnSync("ffmpeg", ff, { encoding: "utf-8" });
   if (r.status !== 0) {
@@ -234,7 +180,7 @@ function finishAudio(videoPath: string, outputDir: string, isDraft: boolean, res
     return;
   }
   fs.renameSync(tmp, videoPath);
-  const what = audio === "none" ? "No audio" : mix ? "Mixed audio (voice+music+foley)" : "Voice audio";
+  const what = mix ? "Mixed audio (voice+music+foley)" : voice ? "Voice audio" : "No audio";
   console.log(`[render] ${what}${res > 1080 ? ` + ${res}p upscale` : ""}${grain > 0 ? ` + grain ${grain}` : ""} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 }
 

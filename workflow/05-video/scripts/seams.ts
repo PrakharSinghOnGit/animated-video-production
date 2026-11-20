@@ -50,6 +50,7 @@ import { spawnSync } from "node:child_process";
 import { runAgentAsync, extractJson } from "../src/lib/agent";
 import { roleModel } from "../../lib/models";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
+import { probeKey, sharedKey } from "../src/lib/chunks";
 import { recordTiming, formatDuration } from "../src/lib/timings";
 import { keepAwake } from "../../lib/awake";
 keepAwake();  // a long run: the Mac must not sleep mid-way (workflow/lib/awake.ts)
@@ -307,7 +308,9 @@ if (checkOnly) {
   seamList = p.seams;
   for (const s of timeline.scenes) s.seams = p.sides[s.id];
   fs.writeFileSync(tlPath, JSON.stringify(timeline, null, 2));
-  fs.writeFileSync(seamsJson, JSON.stringify({ at: new Date().toISOString(), asks, seams: p.seams }, null, 2));
+  // what each act's probe frames were drawn from (src/lib/chunks.ts keys the act renders that show them by this)
+  const shared = sharedKey(out), probeKeys = Object.fromEntries(timeline.scenes.map((sc: any) => [sc.id, probeKey(out, sc, shared)]));
+  fs.writeFileSync(seamsJson, JSON.stringify({ at: new Date().toISOString(), asks, seams: p.seams, probeKeys }, null, 2));
   console.log(`🧵 ${p.seams.length} seams planned:`);
   for (const s of p.seams) console.log(`  ${s.a} → ${s.b}: ${s.how}`);
   if (planOnly) { recordTiming(path.dirname(out), { step: "seams", ms: Date.now() - t0 }); console.log(`✅ seams planned in ${formatDuration(Date.now() - t0)} (clips to watch: Render → Seams)`); process.exit(0); }

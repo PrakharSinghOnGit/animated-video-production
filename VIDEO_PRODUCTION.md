@@ -143,7 +143,7 @@ Show the user the act list (the command prints it), the variety notes and the un
    hard cuts, clipped/overlapping/low-contrast text, late hits, an unsettled ending, seam flags). The critic
    (`workflow/prompts/CRITIC.md` + `workflow/styles/<style>/RUBRIC.md`) scores the grids against the rubric and marks
    each finding real or false; `blank` and `text-clipped` findings go straight back to the author without a critic call.
-2. `bun run preview --video <ID> --act A01` → `review/A01/preview.mp4` (the act with voice + foley, GPU render).
+2. `bun run preview --video <ID> --act A01` → `review/A01/preview.mp4` (the act's own piece of the video with voice + foley: its slice of the Main composition, transitions included, so it is exactly what the final shows; at `--scale 1`, the default, the draft and final reuse it, and an unchanged act is not rendered again; `--force` redoes it).
 3. **Sync review** (free by default): `bun run review --video <ID> --act A01 [--agent agy|haiku|sonnet|opus]
    [--give transcript,plan,script,code] [--every 2] [--focus "..."] [--to-notes]`. It renders the act densely (motion grids + measured
    findings, as `frames`) and gives the agent the act's word-aligned narration, so it can say "X appears 6 s before it is
@@ -185,6 +185,13 @@ To retime or regain foley clips and add music by hand, use the Final Cut Pro pro
 ### Step 7: Render → **G3** (~2–4 min draft, free)
 `bun run assemble --video <ID>` → `bun run seams --video <ID>` (plans every act-to-act transition with one owner and the neighbours' real frames, then renders a ~3 s clip and 12 frames per cut and a free frame check for flicker, jumps and empty screens: `05-video/review/seams/`, dashboard Render → Seams. **You watch each clip and mark it fine or not fine** with a note and the side to fix (`review/seams/marks.json`; a mark made before the acts changed shows as out of date); **Fix marked** (`seams --fix-marked`) runs one fresh fix round per not-fine cut with your note, then re-renders its clip. One cut: `seams --fix A03-A04 [--notes ..] [--side a|b|both]`; re-render one clip: `--only A03-A04`. The AI review is opt-in (`--review`, slow: agy one at a time). The draft/final chains only run `seams --plan-only` (seconds), which the render needs. Unchanged seams keep their frames and clip, `--force` redoes all) → `bun run draft --video <ID>` → user watches `05-video/draft.mp4` →
 `bun run render --video <ID>` → `bun run qc --video <ID>` (hard fails on placeholders, loudness, duration).
+**Renders are per act** (`workflow/05-video/src/lib/chunks.ts`): draft, final and act previews render each act's slice of
+Main into `05-video/chunks/s<scale>/<ACT>.mp4` and join them without re-encoding (bit-exact, frame count checked); then
+the mix, grain and upscale go on in one pass as before. An act is reused while its key holds: its file, its timeline
+entry (words, seams, music) and frame range, the template, public assets, the kit's source, the render scale, and the
+probe keys of the neighbour frames its transitions show (`seams.json probeKeys`). So a changed act re-renders itself,
+plus a neighbour whose transition shows it (after the seams re-probe); a kit or template change, or a voice change that
+moves the timing, re-renders every act it moves. Full size (`s1`, crf 16) is shared by previews, a scale-1 draft and the final.
 Hand over: the final mp4, the `.srt`, `06-audio/music.wav` (stem), `06-audio/credits.txt`, the timings table.
 
 `bun run build --video <ID>` chains steps 3–7 (Publish is separate) with confirmation prompts at the gates; use it once the act
