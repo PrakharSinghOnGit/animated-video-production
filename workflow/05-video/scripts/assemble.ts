@@ -69,6 +69,7 @@ async function main() {
     }
     console.log(`✓ Music beats from ${path.relative(process.cwd(), rhythmPath)}: ${r.bpm} BPM, ${r.beats.length} beats → ctx.music`);
   }
+  keepSeamPlan(paths.outputDir, timeline);
   fs.writeFileSync(path.join(paths.outputDir, "timeline.json"), JSON.stringify(timeline, null, 2), "utf-8");
 
   // 1b. Ensure workspace has Remotion template structure (Root.tsx, Main.tsx, index.ts, configs)
@@ -299,3 +300,29 @@ main().catch((err) => {
   console.error(`\n❌ Assemble failed: ${err.message}\n`);
   process.exit(1);
 });
+
+/**
+ * Carry the transition plan (bun run seams writes each scene's `seams` into timeline.json) over to the new timeline,
+ * while it still fits: the same acts in the same order, and no act file, plan or caption newer than the plan (its
+ * neighbour frames would be out of date). Rebuilding the timeline without it made every cut a jump: render.ts runs
+ * assemble itself, after the render chain had just planned the seams (VID13).
+ */
+function keepSeamPlan(out: string, timeline: any): void {
+  const tl = path.join(out, "timeline.json"), plan = path.join(out, "seams.json");
+  if (!fs.existsSync(tl) || !fs.existsSync(plan)) return;
+  let prev: any;
+  try { prev = JSON.parse(fs.readFileSync(tl, "utf-8")); } catch { return; }
+  const old: any[] = prev.scenes ?? [];
+  if (!old.some((s) => s.seams)) return;
+  const order = (xs: any[]) => [...xs].sort((a, b) => a.windowStartFrame - b.windowStartFrame).map((s) => s.id).join(",");
+  const mt = (f: string) => { try { return fs.statSync(f).mtimeMs; } catch { return 0; } };
+  const sceneDir = path.join(out, "src", "scenes");
+  const inputs = [path.join(out, "acts.json"), path.join(out, "captions.json"),
+    ...(fs.existsSync(sceneDir) ? fs.readdirSync(sceneDir).filter((n) => /^A\d+.*\.tsx$/.test(n)).map((n) => path.join(sceneDir, n)) : [])];
+  const newest = Math.max(0, ...inputs.map(mt));
+  if (order(old) !== order(timeline.scenes)) { console.log("⚠️  the acts changed order or count since the transitions were planned: run Seams (bun run seams) again"); return; }
+  if (newest > mt(plan)) { console.log("⚠️  an act, the plan or the voice changed after the transitions were planned: the plan is dropped (render plans them again)"); return; }
+  const byId = new Map(old.map((s) => [s.id, s.seams]));
+  for (const s of timeline.scenes) if (byId.get(s.id)) s.seams = byId.get(s.id);
+  console.log("✓ Kept the transition plan (seams.json)");
+}

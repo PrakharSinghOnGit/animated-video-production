@@ -93,7 +93,7 @@ async function main() {
 
     const entryFile = path.join(paths.outputDir, "src", "index.ts");
     const timelinePath = path.join(paths.outputDir, "timeline.json");
-    const timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
+    let timeline = JSON.parse(fs.readFileSync(timelinePath, "utf-8"));
     vertical = timeline.height > timeline.width;
 
     // Check voiceover file in public and keep it synchronized with master audio
@@ -111,7 +111,13 @@ async function main() {
       }
     }
 
-    if (timeline.scenes.length > 1 && !timeline.scenes.some((s: any) => s.seams)) console.warn("[render] ⚠️  no seam plan in timeline.json: every act runs its own transitions (flicker at cuts). Run `bun run seams --video <ID>` after assemble.");
+    // no transition plan (never planned, or assemble dropped an out-of-date one): plan it now, or every cut is a jump
+    if (timeline.scenes.length > 1 && !timeline.scenes.some((s: any) => s.seams)) {
+      console.log("[render] no transition plan in timeline.json: planning the seams first (bun run seams --plan-only)");
+      const sp = spawnSync("bun", ["run", path.join(REPO_ROOT, "workflow/05-video/scripts/seams.ts"), "--video", effectiveTarget, "--plan-only"], { cwd: REPO_ROOT, stdio: "inherit", env: process.env });
+      if (sp.status !== 0) { console.error(`[render] planning the seams failed (exit ${sp.status}); refusing to render plain cuts.`); process.exit(1); }
+      timeline = JSON.parse(fs.readFileSync(path.join(paths.outputDir, "timeline.json"), "utf-8"));
+    }
     const renderPropsPath = path.join(paths.outputDir, "render-props.json");
     const propsPayload = {
       timeline: {
