@@ -108,11 +108,11 @@ describe("args: client options → argv", () => {
     expect(old).toContain("--force");
   });
 
-  test("the draft render takes a scale (default 0.5); the final never does", () => {
+  test("the draft render takes a scale (default 1: shares the per-act renders with previews and the final); the final never does", () => {
     const draft = (o: Record<string, unknown>) => (commandFor(WS, "render.draft", o) as { cmds: string[][] }).cmds.find((c) => c[2] === "draft")!.join(" ");
-    expect(draft({})).toContain("--scale 0.5");
+    expect(draft({})).toContain("--scale 1");
     expect(draft({ scale: "0.25" })).toContain("--scale 0.25");
-    expect(draft({ scale: "0.1" })).toContain("--scale 0.5");
+    expect(draft({ scale: "0.1" })).toContain("--scale 1");
     expect((commandFor(WS, "render.final", {}) as { cmds: string[][] }).cmds.flat()).not.toContain("--scale");
   });
 
