@@ -5,6 +5,7 @@
 import type { G, Pt } from "../paper/engine";
 import { measure } from "../paper/measure";
 import { roughC, rough, smooth, piece, silhouette, slit, circP, INKS, type SilOpts } from "./engine";
+import { faceSide, exprOf, skinOf, EXPR, type Expr, type ExprName, type Look } from "./face";
 
 const R = Math;
 /** Puppets are stepped to 12 fps ("on twos") while the camera stays on ones: pass the result in place of t when sampling poses. */
@@ -31,15 +32,16 @@ const hand = (): Pt[] => [[-7, -3], [8, -3], [8, 16], [2, 36], [-5, 21]];
 const collar = (): Pt[] => [[16, -170], [27, -164], [22, -150]];
 
 /** Streamer (tie) polyline: fly 0 = hangs on the chest, 1 = streams flat behind; ph = flutter phase. */
-function tiePoly(fly: number, ph: number, len = 96 + R.abs(fly) * 18): { body: Pt[]; knot: Pt[] } {
-  let x = 0, y = 0; const n = 10, Lf: Pt[] = [], Rt: Pt[] = [], base = 0.1 + fly * 1.45;
+function tiePoly(fly: number, ph: number, len = 104 + R.abs(fly) * 14): { body: Pt[]; knot: Pt[] } {
+  let x = 0, y = 0; const n = 12, Lf: Pt[] = [], Rt: Pt[] = [], base = 0.06 + fly * 1.45;
   for (let i = 0; i <= n; i++) {
-    const u = i / n, w = i === n ? 0.5 : (7 - 2.2 * u) * (1 + 0.12 * R.sin(ph * 1.3 + u * 7));
+    // a necktie: narrow under the knot, widening to the blade, ending in a point (not a ribbon that thins out)
+    const u = i / n, w = i === n ? 0.3 : u > 0.86 ? 6.4 * (1 - (u - 0.86) / 0.14) + 0.3 : (3.2 + 3.4 * R.min(1, u / 0.86)) * (1 + 0.06 * R.sin(ph * 1.3 + u * 7));
     const a = base + R.sin(ph + u * 5.5) * (0.1 + R.abs(fly) * 0.5) * u, dx = -R.sin(a), dy = R.cos(a);
     if (i > 0) { x += (dx * len) / n; y += (dy * len) / n; }
     Lf.push([x + dy * w, y - dx * w]); Rt.push([x - dy * w, y + dx * w]);
   }
-  return { body: Lf.concat(Rt.reverse()), knot: [[-6, -4], [6, -4], [4, 7], [-4, 7]] };
+  return { body: Lf.concat(Rt.reverse()), knot: [[-5, -5], [5, -5], [3.4, 5], [-3.4, 5]] };
 }
 
 /** Joint angles in radians (0 = hanging straight down, + swings forward). th = thigh, kn = knee fold, ft = foot, sh = shoulder, el = elbow; F/B = near/far side. */
@@ -50,6 +52,10 @@ export interface Pose {
   /** streamer: 0 hanging .. 1 flying flat behind; tph = flutter phase */
   tie?: number; tph?: number;
   eye?: "open" | "peek"; suck?: number; headFlip?: boolean;
+  /** the face (face.ts): an expression name or your own; overrides the figure's `expr` for this pose */
+  expr?: Expr | ExprName;
+  /** where the eyes look [-1..1, -1..1] */
+  look?: Look;
 }
 export const POSE = {
   stand: { lean: 0, bob: 0, head: 0, thF: 0.04, knF: 0.02, ftF: 0, thB: -0.04, knB: 0.02, ftB: 0, shF: 0.05, elF: 0.12, shB: -0.04, elB: 0.1, tie: 0, tph: 0 },
@@ -105,6 +111,16 @@ export interface FigureOpts {
   warm?: string;
   /** headwear: "fedora" (default; the Agent always wears it), "bowler" (a banker, a clerk), "none" (bareheaded) */
   hat?: "fedora" | "bowler" | "none";
+  /** draw a face (paper plate + features). Default: on for the Agent (hero) and for any figure given an expr; off for extras */
+  face?: boolean;
+  /** expression (face.ts EXPR): "neutral" | "happy" | "smile" | "smug" | "worried" | "scared" | "shocked" | "sad" | "angry" | "thinking" | "doubt", or an Expr */
+  expr?: Expr | ExprName;
+  /** where the eyes look [-1..1, -1..1] */
+  look?: Look;
+  /** 0 open .. 1 shut: pass blinkAt(t, seed) to keep a face alive on a hold */
+  blink?: number;
+  /** face and hand colour (default: the paper warmed toward warm, skinOf) */
+  skin?: string;
 }
 /**
  * Draw the figure in profile, feet at (x, y), facing +x (flip faces -x). Returns the near wrist in screen/world coordinates
@@ -119,6 +135,7 @@ export function figureSide(g: G, x: number, y: number, s: number, pose: Pose, op
 function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: FigureOpts): { wrist: Pt } {
   const p = { ...POSE.stand, ...pose } as Required<Pick<Pose, "lean" | "bob" | "head" | "thF" | "knF" | "ftF" | "thB" | "knB" | "ftB" | "shF" | "elF" | "shB" | "elB" | "tie" | "tph">> & Pose;
   const ink = opt.col ?? INKS.noir.ink, accent = opt.accent ?? INKS.noir.hot, paper = opt.paper ?? INKS.noir.paper;
+  const showFace = opt.face ?? (!!opt.hero || !!pose.expr || !!opt.expr), skin = opt.skin ?? skinOf(paper, opt.warm ?? INKS.noir.warm);
   g.save(); g.translate(x, y); g.scale(s * (opt.flip ? -1 : 1), s);
   const hip: Pt = [0, AG.hipY + p.bob], leanR = p.lean;
   const T = (px: number, py: number): Pt => [hip[0] + px * R.cos(leanR) - py * R.sin(leanR), hip[1] + px * R.sin(leanR) + py * R.cos(leanR)];
@@ -137,7 +154,7 @@ function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: Figur
     const wr: Pt = [elb[0] + R.sin(fa) * AG.farm, elb[1] + R.cos(fa) * AG.farm];
     part(g, P("fgUarm", () => limbP(AG.uarm, 26, 19), 21), ink, sh[0], sh[1], -shA);
     part(g, P("fgFarm", () => limbP(AG.farm, 19, 15), 22), ink, elb[0], elb[1], -fa);
-    part(g, P("fgHand", hand, 24), ink, wr[0] + R.sin(fa) * 4, wr[1] + R.cos(fa) * 4, -fa);
+    part(g, P("fgHand", hand, 24), showFace ? skin : ink, wr[0] + R.sin(fa) * 4, wr[1] + R.cos(fa) * 4, -fa);
     if (near) {
       part(g, P("fgCuff", () => [[-8, -2], [8, -2], [8, 3], [-8, 3]], 23, 0.5), paper, wr[0], wr[1], -fa);
       slit(g, sh[0] + R.sin(shA) * 10, sh[1] + R.cos(shA) * 10, -shA, 30);
@@ -151,11 +168,23 @@ function figureRaw(g: G, x: number, y: number, s: number, pose: Pose, opt: Figur
   if (p.suck) g.scale(0.86, 1);
   piece(g, P("fgJacket", jacket, 31), ink);
   piece(g, P("fgCollar", collar, 32, 0.5), paper, { gap: 0, shadow: false });
+  if (showFace) {                                                                           // coat detail: shirt front, lapel, pockets, buttons
+    piece(g, [[16, -170], [27, -165], [31, -136], [25, -128], [21, -150]], paper, { gap: 0, shadow: false });
+    slit(g, 20, -132, 1.25, 52, 1.4);
+    slit(g, 10, -106, 0, 18, 1.4);
+    slit(g, 8, -40, 0.05, 26, 1.4);
+    for (const by of [-86, -58]) slit(g, 37, by, 0, 5, 3.2);
+  }
   g.restore();
   g.save(); g.translate(neck[0], neck[1]); g.rotate(p.head + leanR * 0.4); if (p.headFlip) g.scale(-1, 1);   // head + hat
-  piece(g, P("fgHead", head, 41, 1.0, 7), ink);
+  const headPoly = P("fgHead", head, 41, 1.0, 7);
+  piece(g, headPoly, ink);
   const e = p.eye ?? opt.eye;
-  if (e) piece(g, e === "peek" ? [[16, -52], [26, -54], [25, -50], [16, -49]] : [[15, -53], [25, -55], [24, -49], [15, -48]], paper, { gap: 0, shadow: false });
+  if (showFace) {
+    // the old eye slits map onto faces: peek = a wary squint, open = alert
+    const ex = exprOf(pose.expr ?? opt.expr ?? (e === "peek" ? { ...EXPR.worried, eye: "squint" as const } : e === "open" ? { ...EXPR.neutral, browY: 0.5 } : undefined));
+    faceSide(g, headPoly, { expr: ex, look: pose.look ?? opt.look ?? [0, 0], blink: opt.blink ?? 0, ink, skin });
+  } else if (e) piece(g, e === "peek" ? [[16, -52], [26, -54], [25, -50], [16, -49]] : [[15, -53], [25, -55], [24, -49], [15, -48]], paper, { gap: 0, shadow: false });
   const hat = opt.hero ? "fedora" : opt.hat ?? "fedora";
   if (hat === "fedora") {
     piece(g, P("fgBrim", brim, 42, 0.9, 7), ink);

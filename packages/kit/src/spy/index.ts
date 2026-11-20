@@ -2,6 +2,8 @@ export * from "./engine";
 export * from "./fonts";
 export * from "./glyph";
 export * from "./chars";
+export * from "./face";
+export * from "./front";
 export * from "./title";
 export * from "./camera";
 export * from "./transitions";

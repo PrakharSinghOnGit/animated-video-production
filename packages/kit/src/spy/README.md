@@ -30,8 +30,10 @@ League Gothic outlines, each letter re-cut as its own piece. Capitals ~0.76 x si
 ## Puppets (chars.ts)
 `hero: true` makes the figure **the Agent**, the channel's recurring hero (three slanted hatband cuts + a gold coin tie clip in `warm`, default noir warm); extras leave it off. Sheet: `brand-assets/mascot/agent_sheet.png` (composition `AgentSheet` in `preview/Root.tsx`).
 One figure, ~7 heads tall, hat and coat, one accent streamer (tie). Origin = between the feet, y down, faces +x.
-- `figureSide(g, x, y, s, pose, {col, accent, paper, flip, eye, sil, hat})` -> `{wrist}` (attach a prop there). s = 1 is ~540 px tall; 0.6 is a good scene scale. `hat`: `"fedora"` (default, always on the Agent) | `"bowler"` (a banker, a clerk) | `"none"` (bareheaded, short hair) to tell extras apart.
+- `figureSide(g, x, y, s, pose, {col, accent, paper, flip, eye, sil, hat, face, expr, look, blink, skin})` -> `{wrist}` (attach a prop there). s = 1 is ~540 px tall; 0.6 is a good scene scale. `hat`: `"fedora"` (default, always on the Agent) | `"bowler"` (a banker, a clerk) | `"none"` (bareheaded, short hair) to tell extras apart.
 - `POSE.stand | flatten | skid | overShoulder | leap | reach`; `walkPose(p)`, `runPose(p)` with p = cycle 0..1 (one cycle = two steps); `walkStride(s)` = world px per walk cycle (advance `x` by this per cycle and the feet do not slide).
+- `figureFront(g, x, y, s, pose, opts)` -> `{wristL, wristR, head}`: the same figure facing the viewer (front.ts). `FRONT.stand | shrug | handsUp | point | offer | cheer | chin | clutch | slump`, `mixFront(a, b, k)`; pose fields `shL/elL/shR/elR`, `fsL/fsR`, `handL/handR` (`open | palm | fist | point`), `lean, bob, head, nod, hunch, stance, knee`, `expr`, `look`.
+- Faces (face.ts): on for the Agent, `face: true` or any `expr` for others. `expr`: `EXPR.neutral | happy | smile | smug | worried | scared | shocked | sad | angry | thinking | doubt` or `{brow, browY, eye, mouth, quirk}`; `mixExpr(a, b, k)`, `blinkAt(t, seed)`, `look: [x, y]`, `skin` (default `skinOf(paper, warm)`). Profile poses take `expr`/`look` too; the old `eye: "peek"` maps to a wary squint.
 - `onTwos(t)`: stepped to 12 fps. Sample puppet poses and puppet x with `onTwos(t)`; keep the camera and the type on ones.
 
 ## Camera (camera.ts)

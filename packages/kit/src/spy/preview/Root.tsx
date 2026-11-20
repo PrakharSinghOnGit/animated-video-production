@@ -8,6 +8,8 @@ import {
 } from "../engine";
 import { layout, drawLine, landEach, lineRect } from "../glyph";
 import { figureSide, POSE, walkPose, runPose, onTwos, walkStride } from "../chars";
+import { figureFront, FRONT } from "../front";
+import { EXPR, type ExprName } from "../face";
 import { focusCam, whip, pushIn, spotlight, rectToScreen, type Focus } from "../camera";
 import { drawAct, irisWipe, stripWipe, pixelWipe, fillScreen, chapterCard, chapterPill, ACT_OUT } from "../transitions";
 import { autoSubtitle } from "../subtitle";
@@ -138,21 +140,32 @@ const EndCard: React.FC = () => <SpyCanvas draw={drawEnd} />;
 function drawAgent(g: G, c: SpyCtx) {
   const K = INKS.noir;
   clear(g, K.paper);
-  const lab = (t: string, x: number, y: number) => { g.save(); g.font = '600 22px "League Spartan"'; g.fillStyle = K.ink; g.textAlign = "center"; g.fillText(t, x, y); g.restore(); };
-  g.save(); g.font = '700 28px "League Spartan"'; g.fillStyle = K.ink; g.fillText("THE AGENT — CHARACTER SHEET (BRIEFING)", 80, 70); g.restore();
-  figureSide(g, 260, 900, 1.25, POSE.stand, { col: K.ink, accent: K.hot, paper: K.paper, hero: true, eye: "open" });
-  lab("CLOSE-UP: HATBAND CUTS + COIN CLIP", 260, 1000);
-  const poses: [string, any][] = [["STAND", POSE.stand], ["WALK", walkPose(0.25)], ["RUN", runPose(0.3)], ["REACH", POSE.reach], ["LEAP", POSE.leap], ["OVER SHOULDER", POSE.overShoulder]];
-  poses.forEach(([n, p], i) => { const x = 700 + i * 205; figureSide(g, x, 470, 0.5, p, { col: K.ink, accent: K.hot, paper: K.paper, hero: true }); lab(n, x + 20, 510); });
-  const sets: [string, any][] = [["NOIR", INKS.noir], ["TEAL", INKS.teal], ["COBALT", INKS.cobalt], ["PLUM", INKS.plum]];
-  sets.forEach(([n, k], i) => {
-    const x = 640 + i * 260;
-    piece(g, rectP(x - 100, 580, 220, 380), k.hot, { gap: 0 });
-    figureSide(g, x + 10, 920, 0.6, POSE.stand, { col: k.ink, accent: k.warm, paper: k.paper, warm: k.warm, hero: true });
-    lab(n, x + 10, 1000);
+  const lab = (t: string, x: number, y: number) => { g.save(); g.font = '600 19px "League Spartan"'; g.fillStyle = K.ink; g.textAlign = "center"; g.fillText(t, x, y); g.restore(); };
+  g.save(); g.font = '700 28px "League Spartan"'; g.fillStyle = K.ink; g.fillText("THE AGENT — CHARACTER SHEET (BRIEFING)", 60, 56); g.restore();
+  const hero = { col: K.ink, accent: K.hot, paper: K.paper, warm: K.warm, hero: true };
+  // the expressions, as head-and-shoulders close-ups
+  const names = Object.keys(EXPR) as ExprName[];
+  names.forEach((n, i) => {
+    const cx = 120 + i * 168, top = 80;
+    g.save(); g.beginPath(); g.rect(cx - 80, top, 160, 190); g.clip();
+    figureFront(g, cx, top + 700, 1.2, { ...FRONT.stand, expr: n }, hero);
+    g.restore();
+    lab(n.toUpperCase(), cx, top + 212);
   });
-  figureSide(g, 1790, 920, 0.6, POSE.stand, { col: K.ink, accent: K.hot, paper: K.paper });
-  lab("EXTRA (NO SIGNATURE)", 1790, 1000);
+  // front poses
+  const fronts: [string, any][] = [["STAND", FRONT.stand], ["SHRUG", { ...FRONT.shrug, expr: "doubt" }], ["HANDS UP", { ...FRONT.handsUp, expr: "scared" }], ["POINT", { ...FRONT.point, expr: "smile", look: [1, 0] }], ["OFFER", { ...FRONT.offer, expr: "sad" }], ["CHEER", { ...FRONT.cheer, expr: "happy" }], ["CHIN", { ...FRONT.chin, expr: "thinking", look: [0.6, -0.6] }], ["CLUTCH", { ...FRONT.clutch, expr: "worried" }], ["SLUMP", { ...FRONT.slump, expr: "sad" }]];
+  fronts.forEach(([n, p], i) => { const x = 120 + i * 210; figureFront(g, x, 655, 0.6, p, hero); lab(n, x, 692); });
+  // profile poses, now with a face
+  const sides: [string, any][] = [["STAND", POSE.stand], ["WALK", walkPose(0.25)], ["RUN", { ...runPose(0.3), expr: "worried" }], ["REACH", { ...POSE.reach, expr: "shocked" }], ["LEAP", { ...POSE.leap, expr: "angry" }], ["OVER SHOULDER", POSE.overShoulder], ["FLATTEN", POSE.flatten]];
+  sides.forEach(([n, p], i) => { const x = 110 + i * 215; figureSide(g, x, 1010, 0.56, p, hero); lab(n, x + 20, 1050); });
+  // inks + the extra
+  const sets: [string, any][] = [["TEAL", INKS.teal], ["COBALT", INKS.cobalt]];
+  sets.forEach(([n, k], i) => {
+    const x = 1640 + i * 150;
+    piece(g, rectP(x - 70, 740, 140, 280), k.hot, { gap: 0 });
+    figureFront(g, x, 1000, 0.45, { ...FRONT.stand, expr: "smile" }, { col: k.ink, accent: k.warm, paper: k.paper, warm: k.warm, hero: true });
+    lab(n, x, 1050);
+  });
   paperFinish(g);
 }
 const AgentSheet: React.FC = () => <SpyCanvas draw={drawAgent} />;
