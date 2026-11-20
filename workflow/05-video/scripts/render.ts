@@ -16,6 +16,9 @@ async function main() {
   const args = process.argv.slice(2);
   let target: string | undefined;
   const isDraft = args.includes("--draft");
+  // --acts-only: render the acts whose piece is out of date and stop (no join, no audio, no QC): watch them in the
+  // dashboard's act timeline, stitch when you want one file (a draft or final run without it)
+  const actsOnly = args.includes("--acts-only");
   const allowPlaceholders = args.includes("--allow-placeholders");
   const flag = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
   // Finals only: --res 1080|1440|2160 (acts draw at 1920x1080, so higher is a lanczos upscale) and --audio mix|voice|none.
@@ -121,6 +124,11 @@ async function main() {
     const chunkScale = (isDraft ? draftScale : "1") as Scale;
     const startTime = Date.now();
     const plan = await renderChunks({ outputDir: paths.outputDir, timeline, scale: chunkScale, concurrency: concurrency ? Number(concurrency) : undefined });
+    if (actsOnly) {
+      recordTiming(path.dirname(paths.outputDir), { step: "render acts", ms: Date.now() - startTime });
+      console.log(`\n✅ ${plan.length} acts ready at ${chunkScale === "1" ? "full size" : `${chunkScale}×`} (05-video/chunks/s${chunkScale}); not stitched: Stitch makes one file`);
+      process.exit(0);
+    }
     joinChunks(plan, outFilePath);
     const frames = frameCount(outFilePath), want = plan[plan.length - 1].to;
     if (frames !== want) { console.error(`[render] the joined video has ${frames} frames, the timeline ${want}: refusing to keep it`); fs.rmSync(outFilePath, { force: true }); process.exit(1); }

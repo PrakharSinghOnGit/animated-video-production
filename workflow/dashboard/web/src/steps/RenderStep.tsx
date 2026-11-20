@@ -4,6 +4,7 @@ import { stepSpec } from "@/lib/pipeline";
 import { MediaPlayer } from "@/components/MediaPlayer";
 import { Prose } from "@/components/FileLine";
 import { SeamsPanel } from "./SeamsPanel";
+import { ActTimeline } from "@/components/ActTimeline";
 
 export function RenderStep() {
   const { d } = useApp();
@@ -13,7 +14,8 @@ export function RenderStep() {
   const spec = stepSpec("render", d);
   const kids: Record<string, React.ReactNode> = {
     seams: <SeamsPanel />,
-    watch: draft ? <MediaPlayer f={draft} kind="video" className="max-h-[60vh]" /> : <div className="text-xs text-muted-foreground">No draft yet.</div>,
+    pieces: r.pieces ? <ActTimeline p={r.pieces} /> : <div className="text-xs text-muted-foreground">No timeline yet: run Assemble.</div>,
+    draft: draft ? <MediaPlayer f={draft} kind="video" className="max-h-[60vh]" /> : undefined,
     final: fin ? <MediaPlayer f={fin} kind="video" className="max-h-[60vh]" /> : undefined,
     qc: r.qc ? <Prose>{r.qc.text}</Prose> : undefined,
   };

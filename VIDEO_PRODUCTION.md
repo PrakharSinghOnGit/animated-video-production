@@ -192,6 +192,12 @@ entry (words, seams, music) and frame range, the template, public assets, the ki
 probe keys of the neighbour frames its transitions show (`seams.json probeKeys`). So a changed act re-renders itself,
 plus a neighbour whose transition shows it (after the seams re-probe); a kit or template change, or a voice change that
 moves the timing, re-renders every act it moves. Full size (`s1`, crf 16) is shared by previews, a scale-1 draft and the final.
+**Render acts** (`draft --acts-only`, dashboard Render → Act pieces) renders only the out-of-date acts and stops: no
+join. The Act pieces timeline plays the pieces back to back with the sound mix (one segment per act: rendered / out of
+date / not rendered; a marker at every cut with its transition and your seam mark). **Stitch draft** joins them into
+draft.mp4 only when you want one file; the final stitches by itself. **Final Cut Pro** (`bun run fcp`): when every
+act's full-size piece is current, the project has one picture clip per act (each sound and act marker hangs on the act
+it starts in; the pieces have no grain, add it in FCP), else the one picture from final.mp4.
 Hand over: the final mp4, the `.srt`, `06-audio/music.wav` (stem), `06-audio/credits.txt`, the timings table.
 
 `bun run build --video <ID>` chains steps 3–7 (Publish is separate) with confirmation prompts at the gates; use it once the act

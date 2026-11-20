@@ -87,4 +87,23 @@ describe("buildFcpxml", () => {
     const open = (xml.match(/<(?!\/|\?|!)[^>]*[^/]>/g) ?? []).length, close = (xml.match(/<\/[^>]+>/g) ?? []).length;
     expect(open).toBe(close);
   });
+
+  test("one picture clip per act: back to back on the spine, each sound and marker on the act it starts in, at that act's own time", () => {
+    const xml = buildFcpxml(project([
+      { file: "/a/voice.wav", t: 0, dur: 10, name: "Voice", role: "dialogue" },
+      { file: "/a/s1.wav", t: 4, dur: 1, name: "s1", role: "effects.tick" },        // frame 120: in A02 (frames 90–209), local 30
+    ], { markers: [{ t: 0, name: "A01" }, { t: 3, name: "A02" }, { t: 7, name: "A03" }],
+      video: { file: "/x.mp4", dur: 10, parts: [{ file: "/c/A01.mp4", frames: 90, name: "A01" }, { file: "/c/A02.mp4", frames: 120, name: "A02" }, { file: "/c/A03.mp4", frames: 90, name: "A03" }] } }));
+    const spine = [...xml.matchAll(/<asset-clip ref="(v\d+)" name="([^"]*)" offset="(\d+)\/30s" start="0s" duration="(\d+)\/30s" format="f1"/g)].map((m) => [m[2], Number(m[3]), Number(m[4])]);
+    expect(spine).toEqual([["A01", 0, 90], ["A02", 90, 120], ["A03", 210, 90]]);
+    expect(xml).toContain('<sequence format="f1" duration="300/30s"');
+    expect(xml).toContain('src="file:///c/A02.mp4"');
+    const c = placed(xml);
+    expect(c.find((x) => x.name === "Voice")).toMatchObject({ offset: 0, dur: 300 });     // anchored on A01, runs on past it
+    expect(c.find((x) => x.name === "s1")).toMatchObject({ offset: 30 });
+    // the A02 clip holds s1 and the A02 marker at local 0; A03's marker is local 0 in A03
+    const a02 = xml.slice(xml.indexOf('name="A02" offset="90/30s"'), xml.indexOf('name="A03" offset="210/30s"'));
+    expect(a02).toContain('name="s1"'); expect(a02).toContain('<marker start="0/30s" duration="1/30s" value="A02"/>');
+    expect(xml).toMatch(/name="A03" offset="210\/30s"[\s\S]*<marker start="0\/30s" duration="1\/30s" value="A03"\/>/);
+  });
 });

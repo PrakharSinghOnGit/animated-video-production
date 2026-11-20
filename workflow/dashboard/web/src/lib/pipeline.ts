@@ -140,16 +140,19 @@ export function stepSpec(k: Exclude<StepKey, "acts" | "shorts">, d: Details): Sp
     case "render": {
       const r = d.render;
       const draft = r.videos.find((v) => v.path.endsWith("draft.mp4")), fin = r.videos.find((v) => v.path.endsWith("final.mp4"));
+      const full = r.pieces?.qualities.find((q) => q.scale === "1")?.acts ?? [];
+      const ready = full.filter((a) => a.fresh).length;
       return {
         loops: [
-          { from: "watch", to: "draft", label: "changes → re-draft", ran: reruns(d, "Draft render") },
+          { from: "watch", to: "pieces", label: "changes → re-render those acts", ran: reruns(d, "Render acts") },
           { from: "qc", to: "final", label: "QC failed → re-render", ran: reruns(d, "Final render") },
         ],
         blocks: [
           { id: "asm", title: "Assemble", action: "render.assemble", label: "Assemble", done: ok(d, "Assemble") || !!draft },
           { id: "seams", title: "Seams between acts", desc: "A short clip of every cut between acts: watch each, mark it fine or not fine with a note, then Fix marked. (The draft and final renders only plan the transitions, in seconds.)", action: "render.seams", label: "Seams", done: !!r.seams && r.seams.seams.every((x) => x.mark && !x.mark.stale && x.mark.ok), outAt: r.seams?.mtime, costRe: /^seams\b/i },
-          { id: "draft", title: "Draft render", desc: "Assemble, draft render, QC.", action: "render.draft", label: "Draft render", done: !!draft, outAt: draft?.mtime, costRe: /^render draft/i },
-          { id: "watch", title: "Watch & approve draft", desc: "Gate G3: watch the draft, then go on or loop back and re-render. Done once a current draft exists (the file is not older than the mix, timeline or scenes).", done: !!draft && r.draft === "done" },
+          { id: "pieces", title: "Act pieces", desc: `The video is rendered one act at a time; only acts that changed render again. Watch them back to back with the sound on the timeline (no joining needed). ${full.length ? `${ready} of ${full.length} acts ready at full size.` : ""}`, action: "render.acts", label: "Render acts", done: full.length > 0 && ready === full.length, costRe: /^render acts/i },
+          { id: "watch", title: "Watch & approve", desc: "Gate G3: watch the acts on the timeline (or the stitched draft), then go on or loop back and fix an act. Done once every act's piece is current.", done: full.length > 0 && ready === full.length },
+          { id: "draft", title: "Stitch draft (optional)", desc: "Joins the pieces into one draft.mp4 with the sound mix, then QC. Only when you want one file; the final stitches by itself.", action: "render.draft", label: "Stitch draft", done: !!draft && r.draft === "done", outAt: draft?.mtime, costRe: /^render draft/i },
           { id: "final", title: "Final render", desc: "1080p H.264 with grain, then QC.", action: "render.final", label: "Final render", done: !!fin && r.final === "done", outAt: fin?.mtime, costRe: /^render final/i },
           { id: "qc", title: "QC", desc: "Reads the final file, else the draft. Done when a report exists.", action: "render.qc", label: "QC", done: !!r.qc, outAt: r.qc?.mtime, costRe: /^qc\b/i },
         ],

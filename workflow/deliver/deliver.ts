@@ -20,6 +20,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { REPO_ROOT, findPython, videoArg } from "../06-audio/py";
 import { buildFcpxml, type FcpClip } from "./fcpxml";
+import { planChunks } from "../05-video/src/lib/chunks";
 import { tryRefreshLibrary } from "../../scripts/library";
 
 const TAG = "deliver";
@@ -129,7 +130,15 @@ if (want.has("sfx_zip") && hasMusic) put("music_file", "sfx", "Music bed (unduck
 // ---------------------------------------------------------------- Final Cut Pro
 if (want.has("fcp")) {
   const fps = timeline?.fps ?? 30;
-  const [width, height] = probeWH(silent);
+  // one picture clip per act when every act's full-size piece (05-video/chunks/s1) is current; else the one picture
+  let parts: { file: string; frames: number; name: string }[] | undefined;
+  if ((timeline?.scenes?.length ?? 0) > 1) {
+    const plan = planChunks(path.join(ws, "05-video"), timeline, "1"), slug = Object.fromEntries(timeline.scenes.map((x: any) => [x.id, x.slug ?? ""]));
+    if (plan.every((c) => c.fresh)) parts = plan.map((c) => ({ file: c.file, frames: c.to - c.from, name: `${c.id} ${slug[c.id]}`.trim() }));
+    else console.log(`[${TAG}] Final Cut Pro: one picture clip (${plan.filter((c) => !c.fresh).map((c) => c.id).join(", ")} not rendered for the current state: Render acts for one clip per act)`);
+  }
+  // the pieces are drawn at the timeline size (a 1440p/4K final is an upscale of them)
+  const [width, height] = parts ? [timeline.width, timeline.height] : probeWH(silent);
   const title: string = (isShort ? readJson(path.join(ws, "02-scripting/short.json"))?.title : readJson(path.join(ws, "05-video/acts.json"))?.video?.title) ?? video;
   const name = `${title} (${video.replace(/\/shorts\//, " ")})`.slice(0, 120);
   const fclips: FcpClip[] = [{ file: voice, t: 0, dur: probeDur(voice), name: "Voice", role: "dialogue" }];
@@ -142,13 +151,13 @@ if (want.has("fcp")) {
   if (hasMusic) fclips.push(exists(ducked) ? { file: ducked, t: 0, dur: probeDur(ducked), name: "Music (ducked)", role: "music", channels: 2 }
     : { file: music, t: 0, dur: probeDur(music), name: "Music bed", role: "music", gainDb: -14, channels: 2 });
   const markers = (timeline?.scenes ?? []).map((s: any) => ({ t: s.windowStartFrame / fps, name: `${s.id} ${s.slug ?? ""}`.trim() }));
-  const xml = buildFcpxml({ name, fps, width, height, video: { file: silent, dur: probeDur(silent) }, clips: fclips, markers });
+  const xml = buildFcpxml({ name, fps, width, height, video: { file: silent, dur: probeDur(silent), parts }, clips: fclips, markers });
   const dir = path.join(out, "fcp");
   fs.mkdirSync(dir, { recursive: true });
   for (const f of fs.readdirSync(dir)) if (f.endsWith(".fcpxml")) fs.rmSync(path.join(dir, f));
   const file = path.join(dir, `${video.replace(/\//g, "_")}.fcpxml`);
   fs.writeFileSync(file, xml, "utf-8");
-  put("fcp", "project", "Final Cut Pro project (.fcpxml)", file, `voice, ${clips.length} SFX clips, ${hasMusic ? "music" : "no music"}; File → Import → XML`);
+  put("fcp", "project", "Final Cut Pro project (.fcpxml)", file, `${parts ? `${parts.length} act clips (no grain: add it in FCP), ` : ""}voice, ${clips.length} SFX clips, ${hasMusic ? "music" : "no music"}; File → Import → XML`);
   console.log(`[${TAG}] Final Cut Pro project → ${rel(file)}`);
   if (argv.includes("--open")) run("open", [file], "open in Final Cut Pro");
 }

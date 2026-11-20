@@ -9,6 +9,8 @@ import { REPO, SHORT_BAR, WS_ID, WS_ROOT, briefTitle, exists, fileInfo, kindOf, 
 import { jobSummary, jobs, jobsByWs, runningJob, runningJobs } from "./jobs";
 import { studioState } from "./studio";
 import { readAutopilot, STAGES } from "./autopilot";
+import { planChunks, sharedKeyCached, type Scale } from "../../05-video/src/lib/chunks";
+import { END_HOLD_S } from "../../../packages/kit/src/main/hold";
 import { type St, actApproval, approvalState, lastRuns, planApproval, publishApproval, publishStaleReasons, renderStates, sceneFiles, sceneStatus, stepStatuses } from "./status";
 
 // ───────────────────────────── artifacts per step ─────────────────────────────
@@ -248,6 +250,7 @@ export function details(ws: string) {
   const qcPath = path.join(d, "05-video/review/qc-report.md");
   const qc = exists(qcPath) ? { ...fileInfo(ws, "05-video/review/qc-report.md"), text: fs.readFileSync(qcPath, "utf-8").slice(0, 20000) } : null;
   const manifest = readJson(path.join(d, "05-video/draft.manifest.json"));
+  const pieces = chunkTimeline(ws);
 
   return {
     id: ws,
@@ -290,7 +293,7 @@ export function details(ws: string) {
             source: x.source?.type === "file" ? `file: ${path.basename(String(x.source.path ?? x.source.file ?? ""))}` : x.source?.type === "synth" ? `synth (${x.source.palette ?? "default"})` : String(x.source?.type ?? "?"),
             bpm: x.source?.bpm ?? null, key: x.source?.key ? `${x.source.key} ${x.source.mode ?? ""}`.trim() : null, intensity: x.source?.intensity ?? null })) };
       })() },
-    render: { videos, qc, manifest, ...renderStates(ws), seams: (() => {
+    render: { videos, qc, manifest, ...renderStates(ws), pieces, seams: (() => {
       const f = path.join(wsDir(ws), "05-video/review/seams/report.json"), r = readJson<{ at: string; seams: any[] }>(f);
       if (!r) return null;
       const marks = readJson<Record<string, any>>(path.join(path.dirname(f), "marks.json")) ?? {};
@@ -326,4 +329,37 @@ export function listWorkspaces() {
         // a shorts project: each short's upload (S1 → id or null); it is published once all are linked
         ...(sh.isShortsProject(id) ? { shortLinks: shortLinkMap(id) } : {}) };
     });
+}
+
+/**
+ * The act pieces (05-video/chunks, src/lib/chunks.ts) as a timeline for the Render page: per quality, each act's
+ * frame range, whether its piece is rendered for the current state, and the transition at each cut with your mark.
+ */
+function chunkTimeline(ws: string) {
+  const out = path.join(wsDir(ws), "05-video"), tl = readJson<any>(path.join(out, "timeline.json"));
+  if (!tl?.scenes?.length) return null;
+  let shared = "";
+  try { shared = sharedKeyCached(out); } catch { return null; }
+  const scales = (["1", "0.5", "0.25"] as Scale[]).filter((sc) => sc === "1" || exists(path.join(out, "chunks", `s${sc}`)));
+  const bySlug = Object.fromEntries(tl.scenes.map((x: any) => [x.id, x.slug ?? ""]));
+  const qualities = scales.map((scale) => ({
+    scale,
+    acts: planChunks(out, tl, scale, shared).map((c) => {
+      const meta = readJson<any>(c.file.replace(/\.mp4$/, ".json"));
+      return { id: c.id, slug: bySlug[c.id] ?? "", from: c.from, to: c.to, fresh: c.fresh, exists: exists(c.file),
+        rel: path.relative(wsDir(ws), c.file), mtime: exists(c.file) ? mtime(c.file) : 0, renderMs: meta?.ms ?? null };
+    }),
+  }));
+  // the transitions: the plan (seams.json) and your marks on the seam clips (review/seams)
+  const plan = readJson<any>(path.join(out, "seams.json"))?.seams ?? [];
+  const report = readJson<any>(path.join(out, "review/seams/report.json"))?.seams ?? [];
+  const marks = readJson<Record<string, any>>(path.join(out, "review/seams/marks.json")) ?? {};
+  const sorted = [...tl.scenes].sort((a: any, b: any) => a.windowStartFrame - b.windowStartFrame);
+  const cuts = sorted.slice(1).map((b: any, i: number) => {
+    const a = sorted[i], key = `${a.id}-${b.id}`, p = plan.find((x: any) => x.a === a.id && x.b === b.id), r = report.find((x: any) => x.a === a.id && x.b === b.id), m = marks[key];
+    const kind = b.seams?.in?.kind && b.seams.in.kind !== "none" ? b.seams.in.kind : a.seams?.out?.kind && a.seams.out.kind !== "none" ? a.seams.out.kind : "cut";
+    return { a: a.id, b: b.id, frame: b.windowStartFrame, kind, how: p?.how ?? null, flag: r?.flag ?? null,
+      mark: m ? (r && m.key !== r.key ? "stale" : m.ok ? "fine" : "bad") : "none", note: m?.note ?? "" };
+  });
+  return { fps: tl.fps, total: Math.max(1, tl.durationFrames) + Math.round(tl.fps * (tl.endHoldS ?? END_HOLD_S)), qualities, cuts };
 }

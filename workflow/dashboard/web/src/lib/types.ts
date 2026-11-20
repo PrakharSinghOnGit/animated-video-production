@@ -126,7 +126,7 @@ export interface Details {
   sound: { files: FileInfo[]; stems: FileInfo[]; events: number | null; credits: string; eventTypes: [string, number][]; eventActs: [string, number][];
     library: { tracks: MusicTrack[]; prompts: { about: string; common: string; prompts: MusicPrompt[] } | null };
     music: { duration: number; crossfadeSec: number | null; planDuration: number | null; sections: { label: string; title: string | null; t0: number; t1: number; intro: string | null; source: string; bpm: number | null; key: string | null; intensity: number | null }[] } | null };
-  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St; seams: SeamsReport | null };
+  render: { videos: FileInfo[]; qc: (FileInfo & { text: string }) | null; draft: St; final: St; seams: SeamsReport | null; pieces: Pieces | null };
   timings: Timing[]; jobs: Job[];
 }
 /** An act whose narration a script change rewrote: what was said, what is said now, plan items that went with it. */
@@ -235,3 +235,9 @@ export interface PostedRow {
   media: { thumb: string | null; ytThumb: string | null; frames: boolean; video: string | null };
 }
 export interface PostedData { rows: PostedRow[]; unlinked: { ytId: string; title: string; short: boolean; publishedAt: string; privacy: string | null }[]; fetchedAt: string | null }
+
+/** One act's piece of the video (05-video/chunks, src/lib/chunks.ts): frames [from, to), rendered for the current state or not. */
+export interface PieceAct { id: string; slug: string; from: number; to: number; fresh: boolean; exists: boolean; rel: string; mtime: number; renderMs: number | null }
+/** A cut between two acts: the transition (whip, iris, strips…, or a plain cut) and your mark on its seam clip. */
+export interface PieceCut { a: string; b: string; frame: number; kind: string; how: string | null; flag: string | null; mark: "fine" | "bad" | "stale" | "none"; note: string }
+export interface Pieces { fps: number; total: number; qualities: { scale: "1" | "0.5" | "0.25"; acts: PieceAct[] }[]; cuts: PieceCut[] }

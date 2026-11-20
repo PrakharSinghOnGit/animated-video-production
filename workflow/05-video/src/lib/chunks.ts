@@ -19,10 +19,21 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { END_HOLD_S } from "../../../../packages/kit/src/main/hold";
 
 const REPO = path.resolve(import.meta.dir, "../../../..");
 export type Scale = "1" | "0.5" | "0.25";
 export interface Chunk { id: string; from: number; to: number; key: string; file: string; fresh: boolean }
+
+/** sharedKey for a server that asks often (the dashboard): recomputed at most every `ttlMs`. */
+const sharedMemo = new Map<string, { at: number; key: string }>();
+export function sharedKeyCached(outputDir: string, ttlMs = 15_000): string {
+  const m = sharedMemo.get(outputDir);
+  if (m && Date.now() - m.at < ttlMs) return m.key;
+  const key = sharedKey(outputDir);
+  sharedMemo.set(outputDir, { at: Date.now(), key });
+  return key;
+}
 
 export const crfFor = (scale: Scale) => (scale === "1" ? 16 : 26);
 export const chunkDir = (outputDir: string, scale: Scale) => path.join(outputDir, "chunks", `s${scale}`);
@@ -64,10 +75,10 @@ function sceneFile(outputDir: string, id: string): string | null {
 }
 
 /** The chunks of this timeline at this quality: frame ranges, keys, and whether the file on disk is still current. */
-export function planChunks(outputDir: string, timeline: any, scale: Scale): Chunk[] {
+export function planChunks(outputDir: string, timeline: any, scale: Scale, shared = sharedKey(outputDir)): Chunk[] {
   const scenes: any[] = [...timeline.scenes].sort((a, b) => a.windowStartFrame - b.windowStartFrame);
-  const fps = timeline.fps, total = Math.max(1, timeline.durationFrames) + Math.round(fps * (timeline.endHoldS ?? 5));
-  const shared = sharedKey(outputDir), dir = chunkDir(outputDir, scale);
+  const fps = timeline.fps, total = Math.max(1, timeline.durationFrames) + Math.round(fps * (timeline.endHoldS ?? END_HOLD_S));
+  const dir = chunkDir(outputDir, scale);
   let probed: Record<string, string> = {};
   try { probed = JSON.parse(fs.readFileSync(path.join(outputDir, "seams.json"), "utf-8")).probeKeys ?? {}; } catch {}
   const global = JSON.stringify({ fps, w: timeline.width, h: timeline.height, dur: timeline.durationFrames, hold: timeline.endHoldS ?? null, fade: timeline.fadeOutFrames ?? null, total, scale, crf: crfFor(scale), v: 1 });
