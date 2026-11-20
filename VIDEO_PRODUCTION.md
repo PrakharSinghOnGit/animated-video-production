@@ -326,10 +326,14 @@ video; unfinished workspaces (no final.mp4) are skipped unless `--force`. Run `b
 Never run it with `--yes` unless the user asked.
 
 ## Dashboard
-**Autopilot** (dashboard, the bar under the step bar; `server/autopilot.ts`): from the idea it writes the script, waits
-for your approval, then splits, voices, aligns, plans and draws every act (`acts.all --wait`), optionally stopping for
-plan approval and finishing with previews + the free review. Each step runs with the options saved on its card; it
-notifies you when it needs you, waits for a reset, fails twice, or is done. State: `workspace/<ID>/autopilot.json`.
+**Autopilot** (dashboard, the bar under the step bar; `server/autopilot.ts`): walks research → script → voice → align →
+plan → acts → act review → sound → draft → final → publish (+ export) → short scripts → shorts → downloads, each step in
+the mode you pick: **Auto** (run, go on; the script and short scripts are approved for you, which counts as the user
+saying so), **Review** (run, then wait: the step's own approval for script/plan/packages/short scripts, else Continue
+in the bar; an OK holds for that output, a redone step asks again), **Me** (never started: waits until you did it),
+**Off** (left out; a step needing it runs only if it is already done). Modes can be changed while it runs (Steps…).
+Acts run `acts.all --wait`; shorts start at each short's first missing stage. Each step runs with the options saved on
+its card; it notifies you when it needs you, waits for a reset, fails twice, or is done. State: `workspace/<ID>/autopilot.json`.
 
 `bun run dashboard` → http://127.0.0.1:4600. Every step above with all its options as form controls, live logs,
 duration/CPU/memory/GPU per run (history in `workspace/<ID>/dashboard_runs.json`), players for every audio/video
