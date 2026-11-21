@@ -127,6 +127,10 @@ function speechIn(files: string[]): Map<string, string> {
 function drop(e: any, why: string) { fs.rmSync(path.join(OUT, e.file), { force: true }); console.log(`  dropping ${why} ${e.type}: ${e.title} (${e.file})`); }
 
 let manifest: any[] = fs.existsSync(MANIFEST) ? JSON.parse(fs.readFileSync(MANIFEST, "utf-8")) : [];
+// sounds you threw out (assets/sfx/rejected.json: marked _bad and removed): never fetched again
+const REJECTED = path.join(OUT, "rejected.json");
+const rejected: any[] = fs.existsSync(REJECTED) ? JSON.parse(fs.readFileSync(REJECTED, "utf-8")) : [];
+const isRejected = (c: any) => rejected.some((r) => r.id === c.id || (r.sourceUrl && r.sourceUrl === c.url) || (r.landingUrl && r.landingUrl === c.foreign_landing_url));
 // the keyword/title checks are for Openverse search results; clips you imported yourself (sfx:import) are trusted
 const fetched = (e: any) => e.provider !== "import";
 for (const e of manifest.filter((e) => fetched(e) && !KW[e.type]?.test(e.title + " " + (e.tags ?? [])))) drop(e, "off-topic");
@@ -159,7 +163,7 @@ for (const [type, [queries, maxDur, crop]] of Object.entries(TYPES)) {
   let n = manifest.filter((e) => e.type === type).length;
   for (const c of cands) {
     if (n >= perType) break;
-    if (manifest.some((e) => e.id === c.id)) continue;
+    if (manifest.some((e) => e.id === c.id) || isRejected(c)) continue;
     const file = `${type}/${c.id.slice(0, 8)}.wav`;
     const mp3 = path.join(dir, `.dl_${n}.mp3`);
     try {
