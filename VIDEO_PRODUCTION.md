@@ -333,10 +333,13 @@ Channel numbers feed lessons back into the prompts. Dashboard → **Analytics** 
 caches and previews (05-video/node_modules with Remotion's cache and Chrome, review frames/sheets/previews, draft.mp4,
 public/voiceover.wav, TTS takes, takes of an older script (audio/stale), act pieces, audition clips, openDAW leftovers, temp
 files of an interrupted deliver); the final can still be re-rendered. `--deep` also drops the regenerable audio (raw takes, voice,
-master, mix, music stem, sfx caches), `--fcp` the Final Cut Pro project's media (incl. act pieces it uses), `--final` final.mp4. Downloads (every stem but the music one FCP plays) and SFX previews go by default (rebuildable). Scripts,
+master, mix, music stem, sfx caches), `--fcp` the Final Cut Pro project's media (incl. act pieces it uses), `--final` final.mp4. **`--archive`** (a published video kept as a record) = `--deep --fcp` plus every log, the probe frames, each
+short that is linked to its upload (its final and export; unlinked shorts stay), and the generated thumbnails once the real
+one is saved from YouTube (`07-publish/thumbnails/youtube.jpg`; the Posted page uses it, and the shorts' frame strips). Downloads (every stem but the music one FCP plays) and SFX previews go by default (rebuildable). Scripts,
 plans, act code, notes, reviews, metadata, thumbnails and exports are always kept; shorts are compacted with their
-video; unfinished workspaces (no final.mp4, never compacted) are skipped unless `--force`. Typical result: 35–75 MB per
-published video after `--deep --fcp --final`-style cleaning, ~300 MB while its final.mp4 is kept. Run `bun install` before working on it again.
+video; unfinished workspaces (no final.mp4, never compacted) are skipped unless `--force`. Typical result: 4–16 MB per
+published video after `--archive --final`-style cleaning (act code, script, idea, plan, timings and costs, lessons, reviews,
+notes, metadata, the real thumbnail), ~250–350 MB while its final.mp4 is kept. Run `bun install` before working on it again.
 Never run it with `--yes` unless the user asked.
 
 ## Dashboard

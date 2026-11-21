@@ -108,8 +108,10 @@ export function postedRows(): { rows: PostedRow[]; fetchedAt: string | null } {
   return { rows, fetchedAt: snap?.fetchedAt ?? null };
 }
 
-/** Package A's thumbnail (B, C when A has none), or null. Same files as 07-publish/lib.ts thumbPath. */
+/** The real thumbnail saved from YouTube (compact --archive), else package A's (B, C when A has none), or null. */
 function thumbPath(ws: string): string | null {
+  const yt = path.join(wsDir(ws), "07-publish", "thumbnails", "youtube.jpg");
+  if (fs.existsSync(yt)) return yt;
   for (const v of ["A", "B", "C"]) for (const ext of ["png", "jpg"]) {
     const p = path.join(wsDir(ws), "07-publish", "thumbnails", `${v}.${ext}`);
     if (fs.existsSync(p)) return p;
@@ -126,7 +128,9 @@ export function playable(ws: string, short: string | null): string | null {
 
 function media(ws: string, short: string | null, pkg: string | null, ytThumb: string | undefined): PostedRow["media"] {
   const video = playable(ws, short);
-  return { thumb: pkg ? path.relative(wsDir(ws), pkg) : null, ytThumb: ytThumb ?? null, frames: !!video, video };
+  // an archived project (compact --archive) has no video left, but its frame strip was cut before
+  const strip = fs.existsSync(path.join(wsDir(ws), "07-publish", "posted_frames", `${short ?? "video"}.jpg`));
+  return { thumb: pkg ? path.relative(wsDir(ws), pkg) : null, ytThumb: ytThumb ?? null, frames: !!video || strip, video };
 }
 
 /**
@@ -146,8 +150,8 @@ export function framesStrip(ws: string, short: string | null): Promise<string | 
 
 /** Async (never spawnSync): it runs inside the dashboard server, which must keep answering while ffmpeg works. */
 async function buildStrip(ws: string, short: string | null): Promise<string | null> {
-  const rel = playable(ws, short);
-  if (!rel) return null;
+  const rel = playable(ws, short), kept = path.join(wsDir(ws), "07-publish", "posted_frames", `${short ?? "video"}.jpg`);
+  if (!rel) return fs.existsSync(kept) ? kept : null;   // archived: the video is gone, the strip stays
   const final = path.join(wsDir(ws), rel), out = path.join(wsDir(ws), "07-publish", "posted_frames", `${short ?? "video"}.jpg`);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const fm = mtime(final);

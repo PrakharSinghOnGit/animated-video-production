@@ -14,12 +14,19 @@
  *               mix.wav, music.wav + music/, 06-audio/sfx
  *   --fcp       also the Final Cut Pro project media in 08-deliver/ (bun run fcp rebuilds it; --daw is the old name)
  *   --final     also 05-video/final.mp4 (only once it is uploaded / backed up)
+ *   --archive   a published video, kept only as a record: --deep + --fcp, and also every log, the finished shorts
+ *               (each short's final.mp4 and shorts/export/*.mp4: they are on YouTube), the transition probe frames, and the
+ *               generated thumbnails (A/B/C, preview sheets, renders) once the real one is saved from YouTube
+ *               (07-publish/thumbnails/youtube.jpg, from youtube.json's videoId; without it they stay). The long
+ *               video's final.mp4 stays unless --final. Act code, script, idea, plan, timings and costs, lessons,
+ *               reviews, notes and metadata always stay.
  *   --force     compact even if there is no final.mp4 and it was never compacted (an unfinished video)
  *   --yes       actually delete (otherwise: dry run)
  * Writes compact.json in each workspace (what was deleted, when, bytes freed). To work on it again: bun install.
  */
 import fs from "node:fs";
 import path from "node:path";
+import { shortLinkMap } from "../workflow/09-analytics/lib";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -27,10 +34,29 @@ const vid = flag("--video") ?? flag("-v") ?? args.find((a) => !a.startsWith("-")
 const REPO = path.resolve(import.meta.dir, "..");
 const root = vid ? path.join(REPO, "workspace", vid) : "";
 if (!vid || !/^[\w-]+$/.test(vid) || !fs.existsSync(root)) {
-  console.error("Usage: bun run compact --video <VID> [--yes] [--deep] [--fcp] [--final] [--no-shorts] [--force]");
+  console.error("Usage: bun run compact --video <VID> [--yes] [--deep] [--fcp] [--archive] [--final] [--no-shorts] [--force]");
   process.exit(1);
 }
-const yes = args.includes("--yes"), deep = args.includes("--deep"), fcp = args.includes("--fcp") || args.includes("--daw"), final = args.includes("--final");
+const yes = args.includes("--yes"), archive = args.includes("--archive");
+const deep = archive || args.includes("--deep"), fcp = archive || args.includes("--fcp") || args.includes("--daw"), final = args.includes("--final");
+const isShortWs = (ws: string) => /\/shorts\/S\d+$/.test(ws);
+const ytId = (ws: string): string | null => { try { const id = JSON.parse(fs.readFileSync(path.join(ws, "07-publish", "youtube.json"), "utf-8")).videoId; return /^[\w-]{11}$/.test(id) ? id : null; } catch { return null; } };
+const ytThumbFile = (ws: string) => path.join(ws, "07-publish", "thumbnails", "youtube.jpg");
+/** Save the video's live thumbnail from YouTube (the one viewers see, whichever package won). true when it is on disk. */
+async function saveYtThumb(ws: string): Promise<boolean> {
+  const id = ytId(ws), out = ytThumbFile(ws);
+  if (!id) return false;
+  if (fs.existsSync(out)) return true;
+  for (const q of ["maxresdefault", "sddefault", "hqdefault"]) {
+    try {
+      const r = await fetch(`https://i.ytimg.com/vi/${id}/${q}.jpg`);
+      const b = r.ok ? Buffer.from(await r.arrayBuffer()) : null;
+      if (b && b.length > 5000) { fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, b); console.log(`   saved the YouTube thumbnail (${q}) → ${path.relative(REPO, out)}`); return true; }
+    } catch {}
+  }
+  console.log(`   ⚠️  could not fetch the YouTube thumbnail of ${id}: the generated thumbnails stay`);
+  return false;
+}
 
 const MEDIA = /\.(jpe?g|png|webp|mp4|mov|wav)$/i;
 function size(p: string): number {
@@ -90,6 +116,33 @@ function targets(ws: string): { p: string; why: string }[] {
   }
   if (fcp) for (const r of ["08-deliver/video_silent.mp4", "08-deliver/sfx", "08-deliver/stems/music.wav"]) add(r, "media of the Final Cut Pro project (bun run fcp rebuilds)");
   if (final) add("05-video/final.mp4", "final render (--final)");
+  if (archive) {
+    const logs = (d: string) => { for (const f of listDir(d)) { const p = path.join(d, f); if (f === "node_modules" || (p === path.join(ws, "shorts"))) continue; if (fs.lstatSync(p).isDirectory()) logs(p); else if (/\.log$/.test(f)) out.push({ p, why: "log (the timings, costs, reviews and notes stay)" }); } };
+    logs(ws);
+    add("05-video/public/seams", "transition probe frames (bun run seams re-probes them)");
+    // a finished short goes only once it is linked to its upload (Analytics → link): an unposted one stays
+    const linked = (vid: string, s: string) => { try { return !!shortLinkMap(vid)[s]; } catch { return false; } };
+    if (isShortWs(ws)) { if (linked(path.basename(path.dirname(path.dirname(ws))), path.basename(ws))) add("05-video/final.mp4", "finished short (it is on YouTube)"); }
+    else {
+      for (const f of listDir(path.join(ws, "shorts", "export"))) {
+        const s = f.replace(/\.mp4$/, "");
+        if (!/\.mp4$/.test(f)) continue;
+        if (linked(path.basename(ws), s)) add(`shorts/export/${f}`, "finished short (it is on YouTube)");
+        else console.log(`   (keeping shorts/export/${f}: ${s} is not linked to a YouTube upload)`);
+      }
+      const pngs = (d: string): void => { for (const f of listDir(d)) { const p = path.join(d, f); if (fs.lstatSync(p).isDirectory()) pngs(p); else if (/\.(png|jpe?g)$/.test(f)) out.push({ p, why: "generated thumbnail render" }); } };
+      // the generated thumbnails go once the real one is saved (or will be, in a dry run)
+      if (fs.existsSync(ytThumbFile(ws)) || (!yes && ytId(ws))) {
+        for (const v of ["A", "B", "C"]) for (const ext of ["png", "jpg"]) add(`07-publish/thumbnails/${v}.${ext}`, "generated thumbnail (the YouTube one is kept)");
+        add("07-publish/preview.png", "generated preview sheet"); add("07-publish/preview_small.png", "generated preview sheet");
+        add("07-publish/thumbnails/phone", "generated phone-size checks");
+        // older copies of the packaging folder: their text stays, their images go
+        for (const b of listDir(path.join(ws)).filter((f) => /^07-publish\.bak/.test(f))) pngs(path.join(ws, b));
+        for (const f of listDir(path.join(ws, "07-publish", "export"))) if (/^thumb_.*\.(png|jpe?g)$/.test(f)) add(`07-publish/export/${f}`, "generated thumbnail export");
+        pngs(path.join(ws, "07-publish", "remotion"));
+      }
+    }
+  }
   return out;
 }
 
@@ -99,10 +152,14 @@ let total = 0;
 for (const ws of workspaces) {
   const rel = path.relative(path.join(REPO, "workspace"), ws);
   // finished = a final render, or compacted before (an earlier --final may have taken the final)
-  if (!fs.existsSync(path.join(ws, "05-video", "final.mp4")) && !fs.existsSync(path.join(ws, "compact.json")) && !args.includes("--force")) {
+  // a shorts project (SH…) has no long video: it is finished once a short is exported
+  const shortsProjectDone = /^SH\d+_/.test(path.basename(ws)) && listDir(path.join(ws, "shorts", "export")).some((f) => f.endsWith(".mp4"));
+  if (!fs.existsSync(path.join(ws, "05-video", "final.mp4")) && !fs.existsSync(path.join(ws, "compact.json")) && !shortsProjectDone && !args.includes("--force")) {
     console.log(`⏩ ${rel}: no final.mp4 (not finished); --force to compact it anyway`);
     continue;
   }
+  if (archive && yes && !isShortWs(ws) && ytId(ws)) await saveYtThumb(ws);
+  else if (archive && !isShortWs(ws) && !ytId(ws)) console.log(`   (${rel}: not linked to a YouTube upload, so its generated thumbnails stay)`);
   const t = targets(ws).map((x) => ({ ...x, bytes: size(x.p) })).filter((x) => x.bytes > 0);
   const sum = t.reduce((s, x) => s + x.bytes, 0);
   total += sum;
@@ -116,7 +173,7 @@ for (const ws of workspaces) {
     const logFile = path.join(ws, "compact.json");
     let log: any[] = [];
     try { log = JSON.parse(fs.readFileSync(logFile, "utf-8")); } catch {}
-    log.push({ at: new Date().toISOString(), bytes: sum, deep, fcp, final, items: [...groups].map(([why, g]) => ({ why, n: g.n, bytes: g.bytes })) });
+    log.push({ at: new Date().toISOString(), bytes: sum, deep, fcp, final, archive, items: [...groups].map(([why, g]) => ({ why, n: g.n, bytes: g.bytes })) });
     fs.writeFileSync(logFile, JSON.stringify(log, null, 2), "utf-8");
   }
 }
