@@ -8,12 +8,13 @@
  *   (default)   caches and previews, all regenerable for free; the final can still be re-rendered as is:
  *               05-video/node_modules (Remotion's webpack cache + headless Chrome), review frames/sheets/previews,
  *               draft.mp4, public/voiceover.wav (render re-copies it), chunks/, TTS takes (part-*; combined/ is kept),
- *               06-audio/audition, leftovers of the removed openDAW integration (06-audio/daw/)
- *   --deep      also the audio a re-render needs (re-run voice/align/sound to rebuild): combined voice, voiceover_master.wav,
+ *               06-audio/audition, leftovers of the removed openDAW integration (06-audio/daw/, mix_daw.wav), takes of
+ *               lines an older script had (03-voiceover/audio/stale), stem downloads (08-deliver/stems/*.wav but music.wav)
+ *   --deep      also the audio a re-render needs (re-run voice/align/sound to rebuild): combined voice, raw takes, voiceover_master.wav,
  *               mix.wav, music.wav + music/, 06-audio/sfx
  *   --fcp       also the Final Cut Pro project media in 08-deliver/ (bun run fcp rebuilds it; --daw is the old name)
  *   --final     also 05-video/final.mp4 (only once it is uploaded / backed up)
- *   --force     compact even if there is no final.mp4 (an unfinished video)
+ *   --force     compact even if there is no final.mp4 and it was never compacted (an unfinished video)
  *   --yes       actually delete (otherwise: dry run)
  * Writes compact.json in each workspace (what was deleted, when, bytes freed). To work on it again: bun install.
  */
@@ -60,16 +61,27 @@ function targets(ws: string): { p: string; why: string }[] {
   add("05-video/draft.mp4", "draft render");
   for (const f of listDir(path.join(ws, "05-video"))) if (/\.mux\.mp4$/.test(f)) add(`05-video/${f}`, "leftover mux temp");
   add("05-video/public/voiceover.wav", "copy of the master voice (render re-copies it)");
-  for (const f of listDir(path.join(ws, "05-video", "chunks"))) if (f !== ".gitkeep") add(`05-video/chunks/${f}`, "render chunk");
+  // act pieces; a Final Cut Pro project built from them (one clip per act) keeps its pieces unless --fcp
+  const fcpXml = listDir(path.join(ws, "08-deliver", "fcp")).filter((f) => f.endsWith(".fcpxml")).map((f) => fs.readFileSync(path.join(ws, "08-deliver", "fcp", f), "utf-8")).join("");
+  for (const f of listDir(path.join(ws, "05-video", "chunks"))) {
+    if (f === ".gitkeep") continue;
+    if (!fcp && fcpXml.includes(`/05-video/chunks/${f}/`)) { console.log(`   (keeping 05-video/chunks/${f} in ${path.basename(ws)}: the Final Cut Pro project uses it; --fcp removes it)`); continue; }
+    add(`05-video/chunks/${f}`, "act pieces (render acts rebuilds them)");
+  }
   for (const f of listDir(path.join(ws, "03-voiceover", "audio"))) if (/^part-/.test(f)) add(`03-voiceover/audio/${f}`, "TTS takes (combined voice kept)");
   add("06-audio/audition", "music/sfx audition clips");
   add("06-audio/daw", "openDAW project (integration removed)");
   add("06-audio/sfx_clips", "SFX review previews (bun run sfx:clips)");
   // downloads (bun run deliver rebuilds them); what the Final Cut Pro project uses stays unless --fcp
   for (const f of listDir(path.join(ws, "08-deliver"))) if (/^(video_(full|voice\w*)\.mp4|audio_\w+\.wav|sfx_clips\.zip)$/.test(f)) add(`08-deliver/${f}`, "download (bun run deliver)");
-  add("08-deliver/stems/voice.wav", "voice stem download"); add("08-deliver/stems/foley.wav", "SFX stem download");
+  // every stem download (voice, foley, sfx_foley, sfx_design, duck, ...) except the music stem the FCP project plays
+  for (const f of listDir(path.join(ws, "08-deliver", "stems"))) if (/\.wav$/.test(f) && f !== "music.wav") add(`08-deliver/stems/${f}`, "stem download (bun run deliver)");
+  add("03-voiceover/audio/stale", "takes of lines an older script had (voice:sync moved them aside)");
+  for (const f of listDir(path.join(ws, "08-deliver"))) if (/^tmp\w+\.(wav|mp4)$/.test(f)) add(`08-deliver/${f}`, "temp file of an interrupted deliver run");
+  add("06-audio/mix_daw.wav", "mix of the removed openDAW integration");
   if (deep) {
     add("03-voiceover/audio/combined", "combined voice (re-run voice to rebuild)");
+    add("03-voiceover/audio/raw", "untouched TTS takes Speed & gaps starts from (re-run voice to rebuild)");
     add("06-audio/voiceover_master.wav", "mastered voice (audio:master)");
     add("06-audio/mix.wav", "auto mix (audio:mix)");
     add("06-audio/music.wav", "procedural music stem (audio:music)");
@@ -86,7 +98,8 @@ const workspaces = [root, ...(args.includes("--no-shorts") ? [] : listDir(shorts
 let total = 0;
 for (const ws of workspaces) {
   const rel = path.relative(path.join(REPO, "workspace"), ws);
-  if (!fs.existsSync(path.join(ws, "05-video", "final.mp4")) && !args.includes("--force")) {
+  // finished = a final render, or compacted before (an earlier --final may have taken the final)
+  if (!fs.existsSync(path.join(ws, "05-video", "final.mp4")) && !fs.existsSync(path.join(ws, "compact.json")) && !args.includes("--force")) {
     console.log(`⏩ ${rel}: no final.mp4 (not finished); --force to compact it anyway`);
     continue;
   }

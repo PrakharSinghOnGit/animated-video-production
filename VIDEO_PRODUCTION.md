@@ -331,11 +331,12 @@ Channel numbers feed lessons back into the prompts. Dashboard → **Analytics** 
 ## Housekeeping: compact a finished video
 `bun run compact --video <ID>` (dry run: lists what it would delete and the space freed) → `--yes` deletes. Default removes only
 caches and previews (05-video/node_modules with Remotion's cache and Chrome, review frames/sheets/previews, draft.mp4,
-public/voiceover.wav, TTS takes, audition clips, leftover openDAW projects); the final can still be re-rendered. `--deep` also drops
-the regenerable audio (voice, master, mix, music stem, sfx caches), `--fcp` the Final Cut Pro
-project's media, `--final` final.mp4. Downloads and SFX previews go by default (rebuildable). Scripts,
+public/voiceover.wav, TTS takes, takes of an older script (audio/stale), act pieces, audition clips, openDAW leftovers, temp
+files of an interrupted deliver); the final can still be re-rendered. `--deep` also drops the regenerable audio (raw takes, voice,
+master, mix, music stem, sfx caches), `--fcp` the Final Cut Pro project's media (incl. act pieces it uses), `--final` final.mp4. Downloads (every stem but the music one FCP plays) and SFX previews go by default (rebuildable). Scripts,
 plans, act code, notes, reviews, metadata, thumbnails and exports are always kept; shorts are compacted with their
-video; unfinished workspaces (no final.mp4) are skipped unless `--force`. Run `bun install` before working on it again.
+video; unfinished workspaces (no final.mp4, never compacted) are skipped unless `--force`. Typical result: 35–75 MB per
+published video after `--deep --fcp --final`-style cleaning, ~300 MB while its final.mp4 is kept. Run `bun install` before working on it again.
 Never run it with `--yes` unless the user asked.
 
 ## Dashboard
