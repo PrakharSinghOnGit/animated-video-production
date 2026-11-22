@@ -174,11 +174,13 @@ function main() {
   run(ln(measured), output, wavArgs);
 
   let after = measure(output);
-  // Safety limiter only if true peak still exceeds the ceiling.
-  if (after.truePeak > opts.truePeak + 0.05) {
-    console.log(`[audio:master] true peak ${after.truePeak.toFixed(2)} > ${opts.truePeak}; applying alimiter`);
-    const ceiling = Math.pow(10, (opts.truePeak - 0.5) / 20).toFixed(5);
-    run(`${ln(measured)},alimiter=limit=${ceiling}:level=disabled:attack=5:release=50`, output, wavArgs);
+  // Safety limiter only if true peak still exceeds the ceiling. alimiter only sees sample peaks, while
+  // ebur128 measures true (inter-sample) peaks, so limit at 4x oversampling and back off if still over.
+  for (const margin of [0.5, 1.0, 1.5, 2.0]) {
+    if (after.truePeak <= opts.truePeak + 0.05) break;
+    console.log(`[audio:master] true peak ${after.truePeak.toFixed(2)} > ${opts.truePeak}; applying 4x-oversampled alimiter at ${(opts.truePeak - margin).toFixed(1)} dBFS`);
+    const ceiling = Math.pow(10, (opts.truePeak - margin) / 20).toFixed(5);
+    run(`${ln(measured)},aresample=${SAMPLE_RATE * 4},alimiter=limit=${ceiling}:level=disabled:attack=5:release=50,aresample=${SAMPLE_RATE}`, output, wavArgs);
     after = measure(output);
   }
   console.log(`[audio:master] after:  ${fmt(after)}`);
