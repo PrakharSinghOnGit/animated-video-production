@@ -64,7 +64,7 @@ export function Terminal({ phone }: { phone: boolean }) {
       {open && (
         <>
           {job && <div className="truncate border-b px-3 py-1 font-mono text-[11px] text-muted-foreground" title={job.cmd}>$ {job.cmd}</div>}
-          {ws && active ? <JobLogView key={`${ws}:${active}`} ws={ws} tab={active} /> : <div className="p-3 font-mono text-xs text-muted-foreground">$ run a step to see its output here</div>}
+          {ws && active ? <JobLogView key={`${ws}:${active}`} ws={ws} tab={active} cmd={job?.cmd} /> : <div className="p-3 font-mono text-xs text-muted-foreground">$ run a step to see its output here</div>}
         </>
       )}
     </section>

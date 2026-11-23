@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine } from "lucide-react";
+import { ArrowDownToLine, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
+import { copyText } from "@/lib/utils";
 
 const MAX_LINES = 5000;
 const nl = (s: string) => { let n = 0; for (let i = s.indexOf("\n"); i >= 0; i = s.indexOf("\n", i + 1)) n++; return n; };
@@ -12,9 +13,10 @@ const nl = (s: string) => { let n = 0; for (let i = s.indexOf("\n"); i >= 0; i =
  * Only the last ~5,000 lines are kept; older ones are counted in a marker with a link to the full log.
  * Sticks to the bottom while you are at the end; scrolling up pauses it until "jump to end".
  * `log:<step>` shows the last saved block for a step (from before a server restart).
+ * Copy puts the command and the output on the clipboard, ready to paste into a chat when something fails.
  */
-export function JobLogView({ ws, tab }: { ws: string; tab: string }) {
-  const { refresh } = useApp();
+export function JobLogView({ ws, tab, cmd }: { ws: string; tab: string; cmd?: string }) {
+  const { refresh, toast } = useApp();
   const scroller = useRef<HTMLDivElement>(null);
   const pre = useRef<HTMLPreElement>(null);
   const stick = useRef(true);
@@ -64,6 +66,12 @@ export function JobLogView({ ws, tab }: { ws: string; tab: string }) {
     stick.current = atEnd;
     setPaused((p) => (p === !atEnd ? p : !atEnd));
   };
+  const copy = async () => {
+    const out = (pre.current?.textContent ?? "").trimEnd();
+    if (!out) { toast("Nothing to copy yet"); return; }
+    const text = `${cmd ? `$ ${cmd}\n` : ""}${hidden ? `(${hidden.toLocaleString()} earlier lines not included)\n` : ""}${out}`;
+    toast((await copyText(text)) ? "Log copied" : "Copy failed: select the text and copy it");
+  };
   const full = tab.startsWith("log:") ? null : api.logPlainUrl(ws, tab);
   return (
     <div className="relative min-h-0 flex-1">
@@ -73,6 +81,7 @@ export function JobLogView({ ws, tab }: { ws: string; tab: string }) {
         )}
         <pre ref={pre} className="m-0 whitespace-pre-wrap break-words font-[inherit]" />
       </div>
+      <Button size="sm" variant="secondary" className="absolute right-4 top-2 opacity-80 shadow-sm hover:opacity-100" onClick={copy} title="Copy the command and its output"><Copy />Copy</Button>
       {paused && (
         <Button size="sm" className="absolute bottom-3 right-4 shadow-lg" onClick={() => { stick.current = true; setPaused(false); const el = scroller.current!; el.scrollTop = el.scrollHeight; }}>
           <ArrowDownToLine /> Paused · jump to end
