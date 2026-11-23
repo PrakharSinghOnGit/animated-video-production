@@ -24,6 +24,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveJobPaths } from "../src/lib/workspaceBridge";
 import { normWord, type ActsPlan } from "../src/lib/acts";
+import { spy } from "@wealthgap/kit";
 import { anchorEvent, applySfxEdits, autoScore, type FoleyEvent, type ScoreAct, type SfxEdits, type SfxTypes } from "../src/lib/cues";
 
 const args = process.argv.slice(2);
@@ -42,6 +43,9 @@ const fps: number = timeline.fps;
 const scenesDir = path.join(paths.outputDir, "src", "scenes");
 const types: SfxTypes = JSON.parse(fs.readFileSync(path.join(import.meta.dir, "../../06-audio/sfx_types.json"), "utf-8")).types;
 const score = !args.includes("--no-score"), thinOn = !args.includes("--no-thin");
+
+// acts may lay out League Gothic text inside `events` (to time per-letter sounds), which needs the font outlines loaded
+await spy.loadGothic();
 
 const events: FoleyEvent[] = [];
 const scoreActs: ScoreAct[] = [];

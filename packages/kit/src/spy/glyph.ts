@@ -12,7 +12,10 @@ let font: Font | null = null, loading: Promise<void> | null = null;
 /** Fetch and parse the bundled League Gothic. Resolves immediately when already loaded. ensureSpyFonts() calls this. */
 export function loadGothic(): Promise<void> {
   if (font) return Promise.resolve();
-  loading ??= fetch(gothicUrl).then((r) => r.arrayBuffer()).then((b) => { font = parse(b); });
+  // outside a browser (Bun scripts such as cues import act files), the import is a file path and fetch rejects it
+  const bun = (globalThis as { Bun?: { file(p: string): { arrayBuffer(): Promise<ArrayBuffer> } } }).Bun;
+  const bytes = typeof window === "undefined" && bun ? bun.file(gothicUrl).arrayBuffer() : fetch(gothicUrl).then((r) => r.arrayBuffer());
+  loading ??= bytes.then((b) => { font = parse(b); });
   return loading;
 }
 
