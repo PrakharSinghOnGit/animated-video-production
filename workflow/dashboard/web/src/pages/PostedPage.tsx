@@ -3,7 +3,7 @@ import { Copy, ExternalLink, ImageOff, Play, RefreshCw, Send, X } from "lucide-r
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { useStored } from "@/lib/storage";
-import { ago, cn } from "@/lib/utils";
+import { ago, cn, copyText } from "@/lib/utils";
 import type { PostedData, PostedMark, PostedRow, PostStatus } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,17 +15,6 @@ import { JobLog } from "@/components/analytics/JobLog";
 type Filter = "todo" | "all";
 const TONE: Record<PostStatus, "neutral" | "warning" | "success"> = { none: "neutral", draft: "warning", live: "success" };
 const WORD: Record<PostStatus, string> = { none: "not posted", draft: "draft", live: "live" };
-
-/** Copy that also works over plain http on the LAN, where navigator.clipboard is unavailable. */
-async function copyText(text: string): Promise<boolean> {
-  try { await navigator.clipboard.writeText(text); return true; } catch {}
-  const ta = document.createElement("textarea");
-  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-  document.body.appendChild(ta); ta.select();
-  const ok = document.execCommand("copy");
-  ta.remove();
-  return ok;
-}
 
 const done = (r: PostedRow) => r.youtube.status === "live" && r.instagram?.status === "live" && r.facebook?.status === "live";
 

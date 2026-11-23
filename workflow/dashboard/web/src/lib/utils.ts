@@ -27,3 +27,14 @@ export const shortId = (ws: string) => ws.replace(/^((?:VID|SH)\d+)_.*/, "$1");
 export const STATUS_LABEL: Record<string, string> = {
   none: "Not started", done: "Done", stale: "Out of date", partial: "In progress", running: "Running", failed: "Failed",
 };
+
+/** Copy that also works over plain http on the LAN, where navigator.clipboard is unavailable. */
+export async function copyText(text: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(text); return true; } catch { /* fall back below */ }
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  return ok;
+}

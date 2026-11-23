@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Headphones, Pause, Play, Square } from "lucide-react";
+import { Copy, Download, Headphones, Pause, Play, Square } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApp } from "@/hooks/app";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/fields";
-import { cn } from "@/lib/utils";
+import { cn, copyText } from "@/lib/utils";
 
 /**
  * The script as it will be heard: part titles and the spoken lines only. Tone notes (`[VO: …]`), on-screen hints,
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
  * not a preview of the real voiceover. Click a paragraph to start from it.
  * Audio file: the same words as an .m4a made by macOS's `say` on the server (free, local): it keeps playing with the
  * phone locked, so a script can be reviewed while walking. Download it or play it here.
+ * Copy: the clean script as shown (part titles + spoken lines), ready to paste anywhere.
  */
 /** macOS lists joke voices (Bells, Boing, Bubbles, …) as English; they sing or make noises, so they're never offered */
 const NOVELTY = /^(Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Grandma|Grandpa|Rocko|Shelley|Flo|Eddy|Reed|Sandy|Fred|Junior|Ralph|Kathy)\b/;
@@ -46,6 +47,9 @@ function sentences(s: string) { return s.replace(/\.{3}/g, "…").match(/[\s\S]+
 
 // ALL-CAPS emphasis words (LOOKS, NEED) would be spelled out by some voices; short ones (AI, ETF, USD) stay as acronyms
 const forSpeech = (s: string) => s.replace(/\b[A-Z]{4,}\b/g, (w) => w.toLowerCase()).replace(/\.\.\./g, "…");
+
+/** The clean script as plain text: part titles as headings, one paragraph per spoken line */
+const asText = (parts: Part[]) => parts.map((p) => [p.title, ...p.paras.map((x) => x.text)].filter(Boolean).join("\n\n")).join("\n\n\n");
 
 const store = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } } };
 const RATES = [0.9, 1, 1.1, 1.25, 1.4, 1.6];
@@ -94,6 +98,8 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
   const pause = () => { token.current++; speechSynthesis.cancel(); setPlaying(false); };
   const stop = () => { pause(); setAt(0); };
   const from = (key: string) => { const i = flat.findIndex((f) => f.key === key); if (i >= 0) { setAt(i); setPlaying(true); } };
+  const { toast } = useApp();
+  const copy = async () => toast((await copyText(asText(parts))) ? "Script copied" : "Copy failed: select the text and copy it");
   const activeKey = (playing || at > 0) ? flat[at]?.key : undefined;
   const mins = words ? ` · ${(words / 150).toFixed(1)} min at 150 wpm` : "";
 
@@ -113,6 +119,7 @@ export function ScriptReader({ raw, words }: { raw: string; words?: number }) {
             {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
           </NativeSelect>
         </> : <span className="text-xs text-muted-foreground">This browser has no built-in speech.</span>}
+        <Button size="sm" variant="secondary" onClick={copy}><Copy />Copy</Button>
         <span className="text-[11px] text-subtle-foreground">browser voice, not the real voiceover · click a paragraph to start there{mins}</span>
       </div>
       <AudioFile parts={parts} rate={rate} />
