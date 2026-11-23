@@ -247,6 +247,15 @@ duration badge and chapters use it).
    not edit them while the test runs.
 Dashboard "Publish all" = meta, thumbs, review.
 
+**vidIQ (optional, vidIQ credits, never blocking).** One-time `bun run vidiq:login` (browser sign-in on the Mac; pick the
+account with the credits; `vidiq:status` shows account + balance). Then, only when you start it:
+`bun run vidiq --video <ID> --titles [--no-suggest]` scores A/B/C (5 credits each) + 3 suggestions (5) and
+`bun run vidiq --video <ID> --thumb A|B|C|all` makes an AI thumbnail per variant (22 each, ~2 min) styled on our three
+renders → `07-publish/vidiq.json` + `07-publish/vidiq/`. Your packages are not changed; suggestions and AI thumbnails skip our
+checks, so read them before using one. Not connected or too few credits → "vidIQ skipped" and nothing else happens.
+Dashboard: Packaging → vidIQ block. The writer also reads vidIQ's free script advice (`02-scripting/vidiq_guidance.md`)
+when connected (`--no-vidiq` turns it off).
+
 ### Step 9: Shorts 💲 (~$3–5 per short) → **SG1 scripts**, **SG2 drafts**
 2–3 standalone 9:16 shorts (60 s by default; up to 3 min with `--length 90|120|160|180`, dashboard "Max length") per video: a fact, a myth, a teaser, a quick math or a story cut from the video, each
 with its own script, voice and one-act vertical animation, so the shorts bring views and point at the long video. A short is

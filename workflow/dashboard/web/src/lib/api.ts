@@ -1,5 +1,5 @@
 import type { AnalyticsData, CommentsData, Idea, IdeasData, YtComment, LessonStore, TitleLint, WatchEntry } from "./analytics";
-import type { AutopilotMode, AutopilotState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, WsSummary } from "./types";
+import type { AutopilotMode, AutopilotState, Details, EnvView, HoldItem, HoldPoints, Limits, Job, ModelsData, Overview, PostedData, PostStatus, Schema, SfxEdits, SfxInfo, StudioState, SystemInfo, UsageReport, VidiqStatus, WsSummary } from "./types";
 
 /** The only place that talks to server.ts. Every write carries `x-wg: 1` (the server rejects writes without it). */
 async function call<T>(path: string, init: { method?: string; body?: unknown; text?: boolean } = {}): Promise<T> {
@@ -38,6 +38,7 @@ export const api = {
   session: () => call<{ remote: boolean; publicUrl: string | null }>("/api/session"),
   logout: () => call<{ ok: true }>("/api/logout", { method: "POST" }),
   limits: () => call<Limits>("/api/limits"),
+  vidiq: (refresh = false) => call<VidiqStatus>(`/api/vidiq${refresh ? "?refresh" : ""}`),
   models: (refresh = false) => call<ModelsData>("/api/models", refresh ? { method: "POST" } : undefined),
   modelSet: (role: string, spec: string | null) => call<{ ok: true }>("/api/models", { method: "PUT", body: { role, spec } }),
   env: () => call<EnvView>("/api/settings/env"),

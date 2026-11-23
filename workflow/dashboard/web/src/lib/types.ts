@@ -21,6 +21,13 @@ export interface Job {
   startedAt: number; endedAt: number | null; ms: number; cmd?: string; cmds: string[]; cmdIndex: number; cmdCount: number; opts: Record<string, unknown>; locks?: string[]; stats: JobStats;
 }
 export interface FileInfo { path: string; size: number; mtime: number }
+/** vidIQ results for a video's packaging (07-publish/vidiq.json): title scores + suggestions, AI thumbnails (newest first). */
+export interface PubVidiq {
+  titles: { at: string; scores: Partial<Record<"A" | "B" | "C", { title: string; score: number | null; note?: string }>>; suggestions: { title: string; score: number | null }[] } | null;
+  thumbs: { variant: "A" | "B" | "C"; file: string; info: FileInfo; score?: number | null; references: number; at: string }[];
+}
+/** vidIQ connection (GET /api/vidiq, free, cached a minute). */
+export interface VidiqStatus { connected: boolean; reason?: string; account?: string; channels?: { id: string; title: string | null; handle: string | null }[]; credits?: number; resetsAt?: string }
 /** Your review of one voice section (03-voiceover/review.json). */
 export interface VoiceReview { note: string; direction?: string; status: "open" | "regenerated"; at: string; regeneratedAt?: string }
 export interface VoiceSection {
@@ -75,6 +82,7 @@ export interface PublishInfo {
   reviews: PubReview[]; review: (FileInfo & { text: string }) | null;
   /** your approval of these exact thumbnails + metadata; valid = nothing changed since */
   approval: { at: string; valid: boolean } | null; stale: string[]; exported: FileInfo[]; badge: string;
+  vidiq: PubVidiq | null;
 }
 export interface ShortFiles { draft: FileInfo | null; final: FileInfo | null; sheet: FileInfo | null; preview: FileInfo | null; mix: FileInfo | null; voice: FileInfo | null; srt: FileInfo | null }
 export const SHORT_STAGES = ["script", "approved", "voice", "align", "beat", "plan", "act", "sound", "render", "qc", "exported"] as const;

@@ -11,6 +11,10 @@ import { renames } from "../naming";
 import { B, schema } from "../actions";
 import { listWorkspaces, timingsAll } from "../details";
 import { limits } from "../settings";
+import { status as vidiqStatus, type VidiqStatus } from "../../../lib/vidiq";
+
+/** vidIQ connection + balance, asked at most once a minute (free, but a network round trip). ?refresh asks now. */
+let vq: { at: number; s: VidiqStatus } | null = null;
 
 export async function appRoutes(req: Request, url: URL): Promise<Response | null> {
   const p = url.pathname;
@@ -31,6 +35,10 @@ export async function appRoutes(req: Request, url: URL): Promise<Response | null
     return json(usageReport(rows));
   }
   if (p === "/api/limits" && req.method === "GET") return json(limits());
+  if (p === "/api/vidiq" && req.method === "GET") {
+    if (!vq || Date.now() - vq.at > 60_000 || url.searchParams.has("refresh")) vq = { at: Date.now(), s: await vidiqStatus() };
+    return json(vq.s);
+  }
   if (p === "/api/session" && req.method === "GET") return json({ remote: viaPublic.has(req), publicUrl: remote.url });
 
   const bm = p.match(/^\/brand\/(Logo|Banner|WaterMark)\.png$/);

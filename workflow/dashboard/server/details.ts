@@ -49,6 +49,13 @@ export function spokenWords(script: string): number {
   return script.split("\n").filter((l) => /^\*\*VO:\*\*/i.test(l)).join(" ").replace(/`\[[^\]]*\]`/g, "").replace(/\*\*VO:\*\*/gi, "").split(/\s+/).filter(Boolean).length;
 }
 
+/** vidIQ's title scores and AI thumbnails (07-publish/vidiq.json), each thumbnail with its file info; null when never run. */
+function vidiqDetails(ws: string) {
+  const v = readJson<any>(pub.pubFile(ws, "vidiq.json"));
+  if (!v) return null;
+  return { titles: v.titles ?? null, thumbs: (v.thumbs ?? []).map((t: any) => ({ ...t, info: fileInfo(ws, `07-publish/${t.file}`) })).filter((t: any) => t.info).reverse() };
+}
+
 export function publishDetails(ws: string) {
   const d = wsDir(ws);
   const meta = readJson<any>(pub.pubFile(ws, "metadata.json"));
@@ -68,6 +75,7 @@ export function publishDetails(ws: string) {
     preview: fileInfo(ws, "07-publish/preview.png"), previewSmall: fileInfo(ws, "07-publish/preview_small.png"),
     reviews: rev, review: exists(pub.pubFile(ws, "review.md")) ? { ...fileInfo(ws, "07-publish/review.md"), text: pub.readText(pub.pubFile(ws, "review.md")).slice(0, 20000) } : null,
     approval: publishApproval(ws), stale: publishStaleReasons(ws),
+    vidiq: vidiqDetails(ws),
     exported: ls(pub.pubFile(ws, "export")).map((f) => fileInfo(ws, `07-publish/export/${f}`)).filter(Boolean),
     badge: pub.badgeTime(meta?.durationS ?? 0),
   };

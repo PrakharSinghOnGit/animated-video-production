@@ -51,6 +51,22 @@ export const publishActions: Record<string, Action> = {
     ],
     build: (ws, o) => noThumbs(ws) ?? [B("thumbs:review", "--video", ws, ...args(o, "publish.review"))],
   },
+  // vidIQ (optional, paid in vidIQ credits): the click is the approval; each run checks the balance first and skips
+  // cleanly (exit 0) when vidIQ is not connected or short of credits. Results sit beside the normal packages.
+  "publish.vidiq.titles": {
+    step: "publish", label: "vidIQ title scores", help: "vidIQ scores the A/B/C titles for click potential and suggests 3 more. Your titles are not changed.", paid: "15–20 vidIQ credits", long: "~30 s",
+    opts: [{ key: "noSuggest", label: "Scores only (no suggestions)", help: "saves 5 credits", type: "bool", def: false, flag: "--no-suggest" }],
+    build: (ws, o) => (pub.readJson(pub.pubFile(ws, "metadata.json")) ? [B("vidiq", "--video", ws, "--titles", ...args(o, "publish.vidiq.titles"))] : "run Titles & description first"),
+  },
+  "publish.vidiq.thumbs": {
+    step: "publish", label: "vidIQ thumbnails", help: "vidIQ draws an AI thumbnail from each package's brief and words, styled on our three rendered thumbnails. Saved in 07-publish/vidiq/; your A/B/C are not changed.", paid: "22 vidIQ credits each", long: "~1–2 min each",
+    opts: [{ key: "variant", label: "Variant", type: "select", choices: ["A", "B", "C", "all"], def: "A", map: (v) => ["--thumb", String(v)] }],
+    build: (ws, o) => (pub.readJson(pub.pubFile(ws, "metadata.json")) ? [B("vidiq", "--video", ws, ...args(o, "publish.vidiq.thumbs"))] : "run Titles & description first"),
+  },
+  "publish.vidiq.login": {
+    step: "publish", label: "Connect vidIQ", help: "Opens vidIQ's sign-in in the browser on the Mac running the dashboard (pick the account with the credits). One time; it renews itself.", long: "until you sign in (5 min max)",
+    build: () => [B("vidiq:login")],
+  },
   "publish.fix": {
     step: "publish", variant: true, label: "Fix with notes", help: "Sends this variant's notes to the thumbnail author for one revision (resumes its session).", paid: "~$0.5–2", long: "~3–6 min",
     opts: [modelOpt("thumbs", "Model", "--model")],

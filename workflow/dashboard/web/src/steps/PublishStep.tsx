@@ -15,6 +15,7 @@ import { CHANNEL } from "@/theme/channel";
 import { Note } from "@/components/FileLine";
 import { TextEditor, useDraft } from "@/components/TextEditor";
 import { BlockFold, Flow, withKids } from "@/components/Flow";
+import { VidiqPanel } from "@/components/VidiqPanel";
 import { cn } from "@/lib/utils";
 
 const V: Variant[] = ["A", "B", "C"];
@@ -176,6 +177,7 @@ export function PublishStep() {
   const noteM = useDraft(d?.publish.metaNotes ?? "");
   const notes: Record<string, ReturnType<typeof useDraft>> = { A: noteA, B: noteB, C: noteC, meta: noteM };
   const [lb, setLb] = useState<number | null>(null);
+  const [vqBig, setVqBig] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   // titles follow the saved metadata until the user types
   const metaTitles = meta ? V.map((v) => meta.titles[v].title).join("\u0000") : "";
@@ -221,6 +223,7 @@ export function PublishStep() {
         {p.preview && <a className="text-xs text-brand" href={file(p.preview.path)} target="_blank" rel="noreferrer">Open preview.png (large) · rendered {ago(p.preview.mtime)}</a>}
       </div>) : undefined,
     review: <ReviewList reviews={p.reviews} toNotes={addNote} />,
+    vidiq: <VidiqPanel vq={p.vidiq} onEnlarge={setVqBig} />,
     notes: (
       <div className="grid gap-3">
         {V.map((v) => (
@@ -272,6 +275,7 @@ export function PublishStep() {
     <>
       <Flow loops={spec.loops} blocks={withKids(spec.blocks, kids)} />
       {lb !== null && <Enlarge items={shown} index={lb} onIndex={setLb} onClose={() => setLb(null)} />}
+      {vqBig && <Enlarge items={[{ id: "vidIQ", src: vqBig }]} index={0} onIndex={() => {}} onClose={() => setVqBig(null)} />}
     </>
   );
 }
