@@ -137,7 +137,18 @@
     "8a02c955e326818d",
     "ade8829e1d2fcb4a",
     "0281783f86a7c6ee",
-    "da6d85c5dfa4263c"
+    "da6d85c5dfa4263c",
+    "60a4167f156b7d89",
+    "e29157c2705155e5",
+    "ea561ee1e7ad3c90",
+    "9e9ffb1dba478a2f",
+    "cd87418887fb2d27",
+    "515179d6cc0908d8",
+    "b2d49ec8a147b813",
+    "b04074fa0e2825d9",
+    "cd0bf6bf4a157353",
+    "823c1927f1ac3404",
+    "f70645bc89b27c9d"
   ],
   "observations": [
     {
@@ -200,6 +211,12 @@
           "act": "A07",
           "quote": "A stray black bar fragment sits at the right edge",
           "at": "2026-11-09T09:39:06.244Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A07",
+          "quote": "no stray labels or fragments at the edges",
+          "at": "2026-11-23T14:38:57.334Z"
         }
       ],
       "lesson": "L008"
@@ -452,6 +469,30 @@
           "act": "A08",
           "quote": "will suddenly appear on screen",
           "at": "2026-11-09T09:40:18.712Z"
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "act": "A09",
+          "quote": "the phone suddenly disappears with no out animation",
+          "at": "2026-11-11T15:38:07.820Z"
+        },
+        {
+          "video": "VID13_GTA_Six_Price",
+          "act": "A03",
+          "quote": "they are appearing out of nowhere",
+          "at": "2026-11-20T13:59:55.051Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A08",
+          "quote": "nothing that flashes, pops or jumps in the first frames",
+          "at": "2026-11-23T14:40:42.352Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A02",
+          "quote": "nothing that flashes, pops or jumps in the first frames",
+          "at": "2026-11-23T14:46:39.377Z"
         }
       ],
       "lesson": "L020"
@@ -830,6 +871,12 @@
           "act": "A05",
           "quote": "the left page is same color as the bakcgorund",
           "at": "2026-11-09T09:39:49.451Z"
+        },
+        {
+          "video": "VID13_GTA_Six_Price",
+          "act": "A03",
+          "quote": "the characters are same color as the background fix that",
+          "at": "2026-11-20T13:59:55.051Z"
         }
       ],
       "lesson": "L018"
@@ -884,8 +931,15 @@
           "act": "A07",
           "quote": "only a black blob floating above the pool",
           "at": "2026-11-09T09:39:06.244Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A02",
+          "quote": "A good start: a clean first frame that builds",
+          "at": "2026-11-23T14:46:39.377Z"
         }
-      ]
+      ],
+      "lesson": "L042"
     },
     {
       "id": "O036",
@@ -923,8 +977,21 @@
           "act": "A07",
           "quote": "its branch is cut off at x≈600 mid-frame",
           "at": "2026-11-09T09:39:06.244Z"
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "act": "A09",
+          "quote": "the thumb should not end like this it is a finger and should continue till the edge of the screen",
+          "at": "2026-11-11T15:38:07.820Z"
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "act": "A09",
+          "quote": "the ribbon or whatever wavy orange is in between dosnt go all the way to right border",
+          "at": "2026-11-11T15:38:07.820Z"
         }
-      ]
+      ],
+      "lesson": "L034"
     },
     {
       "id": "O039",
@@ -1532,6 +1599,66 @@
           "at": "2026-11-09T09:41:38.195Z"
         }
       ]
+    },
+    {
+      "id": "O078",
+      "target": "ACT",
+      "rule": "Open each act's transition as a match cut from the previous act's matching shape or character, not as an unrelated wipe or blank start.",
+      "hits": [
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "act": "A09",
+          "quote": "the transition on the staring of the act is not good it should match the character",
+          "at": "2026-11-11T15:38:07.820Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A08",
+          "quote": "straight cut (neither act asked for a transition)",
+          "at": "2026-11-23T14:40:42.352Z"
+        }
+      ],
+      "lesson": "L039"
+    },
+    {
+      "id": "O079",
+      "target": "ACT",
+      "rule": "Hold an act's final second still on a finished, settled frame, with no element still entering, exiting or vanishing.",
+      "hits": [
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A07",
+          "quote": "the final picture is finished, settled and uncluttered for its last ~1 s; nothing vanishing in the last frames",
+          "at": "2026-11-23T14:38:57.334Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A01",
+          "quote": "the final picture is finished, settled and uncluttered for its last ~1 s; nothing half-drawn, no stray labels or fragments at the edges",
+          "at": "2026-11-23T14:44:33.324Z"
+        }
+      ],
+      "lesson": "L040"
+    },
+    {
+      "id": "O080",
+      "target": "ACT",
+      "rule": "Make a straight cut between unrelated compositions land on a spoken word and show a clear change of focus, so it reads as deliberate rather than a jump.",
+      "hits": [
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A01",
+          "quote": "jump: the picture changes all at once at the cut",
+          "at": "2026-11-23T14:44:33.324Z"
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "act": "A02",
+          "quote": "straight cut (neither act asked for a transition)",
+          "at": "2026-11-23T14:46:39.377Z"
+        }
+      ],
+      "lesson": "L041"
     }
   ]
 }

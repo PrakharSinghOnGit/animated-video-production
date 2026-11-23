@@ -1,5 +1,5 @@
 {
-  "version": 57,
+  "version": 77,
   "lessons": [
     {
       "id": "L001",
@@ -81,13 +81,14 @@
       ],
       "confidence": "high",
       "basis": 3,
-      "status": "proposed",
+      "status": "active",
       "createdAt": "2026-11-09T09:37:51.833Z",
       "source": {
         "review": "notes VID04_Stop_Hunt/A01",
         "agent": "notes learner"
       },
-      "verify": "Check that the next videos' review notes stop raising it."
+      "verify": "Check that the next videos' review notes stop raising it.",
+      "decidedAt": "2026-11-14T05:21:36.038Z"
     },
     {
       "id": "L003",
@@ -236,13 +237,14 @@
       ],
       "confidence": "high",
       "basis": 2,
-      "status": "proposed",
+      "status": "active",
       "createdAt": "2026-11-09T09:38:14.725Z",
       "source": {
         "review": "notes VID04_Stop_Hunt/A02",
         "agent": "notes learner"
       },
-      "verify": "Check that the next videos' review notes stop raising it."
+      "verify": "Check that the next videos' review notes stop raising it.",
+      "decidedAt": "2026-11-14T05:21:48.384Z"
     },
     {
       "id": "L008",
@@ -274,17 +276,23 @@
           "video": "VID04_Stop_Hunt",
           "metric": "note on A07:",
           "value": "\"A stray black bar fragment sits at the right edge\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A07:",
+          "value": "\"no stray labels or fragments at the edges\""
         }
       ],
       "confidence": "high",
-      "basis": 2,
-      "status": "proposed",
+      "basis": 3,
+      "status": "active",
       "createdAt": "2026-11-09T09:38:14.726Z",
       "source": {
         "review": "notes VID04_Stop_Hunt/A02",
         "agent": "notes learner"
       },
-      "verify": "Check that the next videos' review notes stop raising it."
+      "verify": "Check that the next videos' review notes stop raising it.",
+      "decidedAt": "2026-11-14T05:21:54.888Z"
     },
     {
       "id": "L009",
@@ -315,13 +323,14 @@
       ],
       "confidence": "high",
       "basis": 3,
-      "status": "proposed",
+      "status": "active",
       "createdAt": "2026-11-09T09:38:14.727Z",
       "source": {
         "review": "notes VID04_Stop_Hunt/A02",
         "agent": "notes learner"
       },
-      "verify": "Check that the next videos' review notes stop raising it."
+      "verify": "Check that the next videos' review notes stop raising it.",
+      "decidedAt": "2026-11-14T05:22:10.842Z"
     },
     {
       "id": "L010",
@@ -384,13 +393,14 @@
       ],
       "confidence": "high",
       "basis": 1,
-      "status": "proposed",
+      "status": "active",
       "createdAt": "2026-11-09T09:38:21.005Z",
       "source": {
         "review": "notes VID04_Stop_Hunt/A03",
         "agent": "notes learner"
       },
-      "verify": "Check that the next videos' review notes stop raising it."
+      "verify": "Check that the next videos' review notes stop raising it.",
+      "decidedAt": "2026-11-14T05:21:20.110Z"
     },
     {
       "id": "L012",
@@ -584,10 +594,15 @@
           "video": "VID05_Inducement_Trap",
           "metric": "note on A05:",
           "value": "\"the left page is same color as the bakcgorund\""
+        },
+        {
+          "video": "VID13_GTA_Six_Price",
+          "metric": "note on A03:",
+          "value": "\"the characters are same color as the background fix that\""
         }
       ],
-      "confidence": "low",
-      "basis": 2,
+      "confidence": "medium",
+      "basis": 3,
       "status": "proposed",
       "createdAt": "2026-11-09T09:39:49.452Z",
       "source": {
@@ -643,10 +658,30 @@
           "video": "VID05_Inducement_Trap",
           "metric": "note on A08:",
           "value": "\"will suddenly appear on screen\""
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "note on A09:",
+          "value": "\"the phone suddenly disappears with no out animation\""
+        },
+        {
+          "video": "VID13_GTA_Six_Price",
+          "metric": "note on A03:",
+          "value": "\"they are appearing out of nowhere\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A08:",
+          "value": "\"nothing that flashes, pops or jumps in the first frames\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A02:",
+          "value": "\"nothing that flashes, pops or jumps in the first frames\""
         }
       ],
-      "confidence": "low",
-      "basis": 2,
+      "confidence": "high",
+      "basis": 5,
       "status": "proposed",
       "createdAt": "2026-11-09T09:40:18.712Z",
       "source": {
@@ -1012,6 +1047,308 @@
       "createdAt": "2026-11-09T09:44:06.863Z",
       "source": {
         "review": "notes VID06_AI_Bubble/A04",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L034",
+      "target": "ACT",
+      "rule": "Let every drawn line run past the frame edge or end on a visible endpoint; never stop it abruptly mid-frame.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID08_Bank_Savings_Spread).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"its branch is cut off at x≈600 mid-frame\""
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "note on A09:",
+          "value": "\"the thumb should not end like this it is a finger and should continue till the edge of the screen\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-11T15:38:07.821Z",
+      "source": {
+        "review": "notes VID08_Bank_Savings_Spread/A09",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L035",
+      "target": "WRITER",
+      "rule": "Open the first chapter after the hook on a new number or consequence the hook did not state; keep any analogy, anecdote or replay under 20 seconds and defer mechanism explanations until after that.",
+      "why": "The first chapter after the hook is the worst or near-worst act in all 5 videos: 24.0, 17.0, 14.5, 11.9 and 6.6/9.3 %/min vs 2.1–4.2 typical.",
+      "evidence": [
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "A02 loss per minute",
+          "value": "24.0%",
+          "baseline": "2.1%",
+          "note": "vault metaphor and money-creation detour before the personal cost"
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "A02 loss per minute",
+          "value": "17.0%",
+          "baseline": "2.8%",
+          "note": "lemonade analogy retells the loop the hook already stated"
+        },
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "A02 loss per minute",
+          "value": "14.5%",
+          "baseline": "4.2%",
+          "note": "anecdote before the first new figure"
+        },
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "A02 loss per minute",
+          "value": "11.9%",
+          "baseline": "2.7%",
+          "note": "85 s replay of the hook's own story"
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "A02 and A03 loss per minute",
+          "value": "6.6% and 9.3%",
+          "baseline": "2.8%",
+          "note": "I did not open the script for the cause here, so it is the least certain of the five"
+        }
+      ],
+      "confidence": "medium",
+      "basis": 5,
+      "status": "proposed",
+      "createdAt": "2026-11-18T12:43:56.465Z",
+      "source": {
+        "review": "2026-11-18T12-42-55",
+        "agent": "claude:sonnet"
+      },
+      "replaces": "L001",
+      "verify": "On the next video, the first chapter after the hook should lose under about 8%/min and no more than about 2x the video's typical per-act loss. It should open on a new number within its first two sentences."
+    },
+    {
+      "id": "L036",
+      "target": "WRITER",
+      "rule": "Keep the closing chapter under 45 seconds: one recap line, one question, one call to action; add no new caveats or re-explanations after the last concrete payoff.",
+      "why": "Closing acts of 82 s, 57 s and 63 s lost 13.2, 8.5 and 4.8 %/min vs 2.7–2.8 typical, while 53 s and 43 s closes held at 2.1–2.2.",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "A07 loss per minute",
+          "value": "13.2%",
+          "baseline": "2.7%",
+          "note": "82 s of qualifiers and reflection"
+        },
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "A10 loss per minute",
+          "value": "8.5%",
+          "baseline": "2.8%",
+          "note": "57 s recap plus relabelling of the opening pattern"
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "A12 loss per minute",
+          "value": "4.8%",
+          "baseline": "2.8%",
+          "note": "63 s close"
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "A10 loss per minute",
+          "value": "2.1%",
+          "baseline": "2.1%",
+          "note": "43 s close that held"
+        }
+      ],
+      "confidence": "low",
+      "basis": 5,
+      "status": "proposed",
+      "createdAt": "2026-11-18T12:43:56.465Z",
+      "source": {
+        "review": "2026-11-18T12-42-55",
+        "agent": "claude:sonnet"
+      },
+      "verify": "The final act of the next video should lose at most about 4%/min. Check that the close is a single arc of 45 s or less. Note that some end-of-video drop is natural, so compare it to the video's own typical act."
+    },
+    {
+      "id": "L037",
+      "target": "WRITER",
+      "rule": "Never announce a digression or section change ('worth thirty seconds', 'this is where it becomes about X'); open each chapter on its first concrete claim or number and let the mechanism follow it.",
+      "why": "VID08 A03, introduced as 'worth thirty seconds', loses 11.3%/min vs 1.3% for the next act; VID03's 6:01 'where it stops being about prices' line sits at a 4.0% drop.",
+      "evidence": [
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "A03 loss per minute",
+          "value": "11.3%/min",
+          "baseline": "2.1%/min typical for this video",
+          "note": "chapter announces itself as a plumbing detour before any number"
+        },
+        {
+          "video": "VID03_Pseudo_Rich",
+          "metric": "drop around 6:01 (A06)",
+          "value": "4.0%",
+          "baseline": "A06 typical 4.2%/min, A05 1.8%/min",
+          "note": "line announces the shift to the wealth gap instead of delivering it"
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-18T12:46:39.032Z",
+      "source": {
+        "review": "2026-11-18T12-45-42",
+        "agent": "claude:sonnet"
+      },
+      "verify": "In the next video, no chapter opens with an announcement of what is coming next, and no act in the first 3 minutes loses more than about 6%/min."
+    },
+    {
+      "id": "L038",
+      "target": "WRITER",
+      "rule": "End with one specific hook for the next video or a tie to a named earlier video, then a single subscribe line; avoid a generic 'that's what this channel does' pitch.",
+      "why": "Specific closes (VID08 teaser, VID05 callback) got 10.5 and 26.3 subs/1k; VID06's generic pitch got 0.0 against a 3.7 median.",
+      "evidence": [
+        {
+          "video": "VID05_Inducement_Trap",
+          "metric": "subs/1k",
+          "value": "26.3",
+          "baseline": "3.7 channel median",
+          "note": "close references 'The Art of Stop Hunting', then subscribe"
+        },
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "subs/1k",
+          "value": "10.5",
+          "baseline": "3.7 channel median",
+          "note": "open loop: who decides how much a bank may type, 'Subscribe and you'll see who'"
+        },
+        {
+          "video": "VID06_AI_Bubble",
+          "metric": "subs/1k",
+          "value": "0.0",
+          "baseline": "3.7 channel median",
+          "note": "generic 'we do this every week... subscribe' close"
+        }
+      ],
+      "confidence": "low",
+      "basis": 3,
+      "status": "proposed",
+      "createdAt": "2026-11-18T12:46:39.032Z",
+      "source": {
+        "review": "2026-11-18T12-45-42",
+        "agent": "claude:sonnet"
+      },
+      "verify": "The next video closes on a named next topic or earlier video. If its subs/1k is above 3.7 and VID09 and later generic closes stay below it, the lesson holds. Subscriber counts here are only 0-4 per video, so treat the result as weak."
+    },
+    {
+      "id": "L039",
+      "target": "ACT",
+      "rule": "Open each act's transition as a match cut from the previous act's matching shape or character, not as an unrelated wipe or blank start.",
+      "why": "Came up in review notes on 2 acts (VID08_Bank_Savings_Spread, VID14_Who_Owns_US_Debt).",
+      "evidence": [
+        {
+          "video": "VID08_Bank_Savings_Spread",
+          "metric": "note on A09:",
+          "value": "\"the transition on the staring of the act is not good it should match the character\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A08:",
+          "value": "\"straight cut (neither act asked for a transition)\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-23T14:40:42.353Z",
+      "source": {
+        "review": "notes VID14_Who_Owns_US_Debt/A08",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L040",
+      "target": "ACT",
+      "rule": "Hold an act's final second still on a finished, settled frame, with no element still entering, exiting or vanishing.",
+      "why": "Came up in review notes on 2 acts (VID14_Who_Owns_US_Debt).",
+      "evidence": [
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A07:",
+          "value": "\"the final picture is finished, settled and uncluttered for its last ~1 s; nothing vanishing in the last frames\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A01:",
+          "value": "\"the final picture is finished, settled and uncluttered for its last ~1 s; nothing half-drawn, no stray labels or fragments at the edges\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-23T14:44:33.326Z",
+      "source": {
+        "review": "notes VID14_Who_Owns_US_Debt/A01",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L041",
+      "target": "ACT",
+      "rule": "Make a straight cut between unrelated compositions land on a spoken word and show a clear change of focus, so it reads as deliberate rather than a jump.",
+      "why": "Came up in review notes on 2 acts (VID14_Who_Owns_US_Debt).",
+      "evidence": [
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A01:",
+          "value": "\"jump: the picture changes all at once at the cut\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A02:",
+          "value": "\"straight cut (neither act asked for a transition)\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 1,
+      "status": "proposed",
+      "createdAt": "2026-11-23T14:46:39.378Z",
+      "source": {
+        "review": "notes VID14_Who_Owns_US_Debt/A02",
+        "agent": "notes learner"
+      },
+      "verify": "Check that the next videos' review notes stop raising it."
+    },
+    {
+      "id": "L042",
+      "target": "ACT",
+      "rule": "Draw an illustration in its recognisable form from its cue word; never show it as an ambiguous blob that resolves seconds later.",
+      "why": "Came up in review notes on 2 acts (VID04_Stop_Hunt, VID14_Who_Owns_US_Debt).",
+      "evidence": [
+        {
+          "video": "VID04_Stop_Hunt",
+          "metric": "note on A07:",
+          "value": "\"only a black blob floating above the pool\""
+        },
+        {
+          "video": "VID14_Who_Owns_US_Debt",
+          "metric": "note on A02:",
+          "value": "\"A good start: a clean first frame that builds\""
+        }
+      ],
+      "confidence": "low",
+      "basis": 2,
+      "status": "proposed",
+      "createdAt": "2026-11-23T14:46:39.379Z",
+      "source": {
+        "review": "notes VID14_Who_Owns_US_Debt/A02",
         "agent": "notes learner"
       },
       "verify": "Check that the next videos' review notes stop raising it."
@@ -1383,6 +1720,132 @@
       "action": "propose",
       "id": "L033",
       "version": 57
+    },
+    {
+      "at": "2026-11-11T15:38:07.821Z",
+      "action": "propose",
+      "id": "L034",
+      "version": 58
+    },
+    {
+      "at": "2026-11-11T15:38:07.823Z",
+      "action": "edit",
+      "id": "L020",
+      "note": "+1 evidence",
+      "version": 59
+    },
+    {
+      "at": "2026-11-14T05:21:20.110Z",
+      "action": "approve",
+      "id": "L011",
+      "version": 60
+    },
+    {
+      "at": "2026-11-14T05:21:36.038Z",
+      "action": "approve",
+      "id": "L002",
+      "version": 61
+    },
+    {
+      "at": "2026-11-14T05:21:48.384Z",
+      "action": "approve",
+      "id": "L007",
+      "version": 62
+    },
+    {
+      "at": "2026-11-14T05:21:54.888Z",
+      "action": "approve",
+      "id": "L008",
+      "version": 63
+    },
+    {
+      "at": "2026-11-14T05:22:10.842Z",
+      "action": "approve",
+      "id": "L009",
+      "version": 64
+    },
+    {
+      "at": "2026-11-18T12:43:56.465Z",
+      "action": "propose",
+      "id": "L035",
+      "version": 65
+    },
+    {
+      "at": "2026-11-18T12:43:56.465Z",
+      "action": "propose",
+      "id": "L036",
+      "version": 66
+    },
+    {
+      "at": "2026-11-18T12:46:39.032Z",
+      "action": "propose",
+      "id": "L037",
+      "version": 67
+    },
+    {
+      "at": "2026-11-18T12:46:39.032Z",
+      "action": "propose",
+      "id": "L038",
+      "version": 68
+    },
+    {
+      "at": "2026-11-20T13:59:55.052Z",
+      "action": "edit",
+      "id": "L018",
+      "note": "+1 evidence",
+      "version": 69
+    },
+    {
+      "at": "2026-11-20T13:59:55.053Z",
+      "action": "edit",
+      "id": "L020",
+      "note": "+1 evidence",
+      "version": 70
+    },
+    {
+      "at": "2026-11-23T14:38:57.335Z",
+      "action": "edit",
+      "id": "L008",
+      "note": "+1 evidence",
+      "version": 71
+    },
+    {
+      "at": "2026-11-23T14:40:42.353Z",
+      "action": "propose",
+      "id": "L039",
+      "version": 72
+    },
+    {
+      "at": "2026-11-23T14:40:42.354Z",
+      "action": "edit",
+      "id": "L020",
+      "note": "+1 evidence",
+      "version": 73
+    },
+    {
+      "at": "2026-11-23T14:44:33.326Z",
+      "action": "propose",
+      "id": "L040",
+      "version": 74
+    },
+    {
+      "at": "2026-11-23T14:46:39.378Z",
+      "action": "propose",
+      "id": "L041",
+      "version": 75
+    },
+    {
+      "at": "2026-11-23T14:46:39.379Z",
+      "action": "edit",
+      "id": "L020",
+      "note": "+1 evidence",
+      "version": 76
+    },
+    {
+      "at": "2026-11-23T14:46:39.379Z",
+      "action": "propose",
+      "id": "L042",
+      "version": 77
     }
   ]
 }
