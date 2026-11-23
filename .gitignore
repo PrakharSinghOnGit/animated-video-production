@@ -30,10 +30,16 @@ workspace/SH*
 __pycache__/
 *.pyc
 
-# Audio libraries (manifests stay tracked)
+# Audio libraries and their manifests: local only (track lists, sources and licences are not public)
 assets/**/*.wav
 assets/**/*.mp3
 assets/sfx/_inbox/
+assets/music/index.json
+assets/sfx/manifest.json
+assets/sfx/rejected.json
+
+# Private plans and notes
+90DayPlan.md
 
 # Local fixtures (keep on disk, not in git)
 workspace/_FX*
