@@ -24,6 +24,7 @@ export const scriptActions: Record<string, Action> = {
       modelOpt("writer", "Writer model", "--model"),
       { key: "minutes", label: "Target length (min)", type: "number", min: 3, max: 15, step: 0.5, def: 9, flag: "--minutes" },
       { key: "parts", label: "Only revise parts", help: "e.g. 2,4 = rewrite just those parts with your feedback (numbers as in the clean script); every other part stays exactly as it is, so after approval only their lines are voiced again (Apply script changes). Empty = the whole script", type: "text", flag: "--parts" },
+      { key: "noVidiq", label: "Without vidIQ advice", help: "vidIQ's script advice is free and added automatically when vidIQ is connected (skipped otherwise)", type: "bool", def: false, flag: "--no-vidiq" },
     ],
     build: (ws, o) => [B("write", "--video", ws, ...args(o, "script.write"))],
   },

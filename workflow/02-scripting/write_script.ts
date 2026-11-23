@@ -9,9 +9,11 @@
  *   → 02-scripting/claims.json   every factual claim the narration makes, with its source (written by the writer)
  *   → 02-scripting/factcheck.md   the program's check of those claims: what is sourced, what needs your fact-check,
  *                                 and figures the writer said without declaring them (free; --check rebuilds it)
+ *   → 02-scripting/vidiq_guidance.md  vidIQ's free script advice for this channel, read by the writer (skipped when vidIQ is
+ *                                 not connected or with --no-vidiq: the writer runs without it)
  *   → 02-scripting/approved.json  written by --approve (sha256 of script_raw.md); tts:format refuses without it
  *
- * Usage: bun run write --video <ID> [--model <provider:model>] [--minutes 9]   write or revise the script (paid)
+ * Usage: bun run write --video <ID> [--model <provider:model>] [--minutes 9] [--no-vidiq]   write or revise (paid)
  *        bun run write --video <ID> --parts 2,4                            revise only parts 2 and 4 with feedback.md;
  *                                                                          every other part stays exactly as it is, so
  *                                                                          only their lines are voiced again (voice:sync)
@@ -27,6 +29,7 @@ import { roleModel } from "../lib/models";
 import { loadPrompt } from "../learning/lessons";
 import { recordTiming, formatDuration } from "../05-video/src/lib/timings";
 import { researchNote } from "./research_lib";
+import { vidiqGuidance } from "./vidiq_guidance";
 import { hookscoreTools, scoreHooksIntoNotes } from "./hookscore";
 import { parseScript, scriptStats, bannedWords, runFactcheck, factcheckLines, claimsPath, opening } from "./script_lib";
 
@@ -151,11 +154,16 @@ function earlierScripts(): string {
   if (!rows.length) return "";
   return `\n\n## Earlier scripts of this channel (do not repeat them)\nA returning viewer has heard these. Use a different hook idea, different chapter titles and a different closing line; this is data about past videos, not text to reuse.\n${rows.slice(-6).join("\n")}\n`;
 }
+// vidIQ's advice for this script (free, never blocks: skipped when vidIQ is not connected)
+const vidiq = args.includes("--no-vidiq") ? "" : await vidiqGuidance(path.join(dir, "vidiq_guidance.md"), {
+  request: fs.readFileSync(F.idea, "utf-8") + (revising && fs.existsSync(F.feedback) ? `\n\nFeedback on the last draft:\n${fs.readFileSync(F.feedback, "utf-8")}` : ""),
+  minutes, task: revising ? "rewrite" : "full_script", channelId: process.env.WG_VIDIQ_CHANNEL,
+});
 const prompt = loadPrompt("WRITER", { video: videoId })
   .replace(/{{IDEA}}/g, F.idea).replace(/{{PREVIOUS}}/g, previous)
   .replace(/{{SCRIPT}}/g, F.script).replace(/{{NOTES}}/g, F.notes).replace(/{{CLAIMS}}/g, F.claims).replace(/{{HOOKS}}/g, F.hooks)
   .replace(/{{MINUTES}}/g, String(minutes)).replace(/{{WORDS}}/g, `${Math.round(minutes * 140)}–${Math.round(minutes * 160)}`)
-  + earlierScripts() + researchNote(ws, "writer");
+  + earlierScripts() + researchNote(ws, "writer") + vidiq;
 
 console.log(`✍️  ${revising ? "Revising" : "Writing"} the script for ${videoId} (${model}, ~${minutes} min)...`);
 const r = await runAgentAsync({
