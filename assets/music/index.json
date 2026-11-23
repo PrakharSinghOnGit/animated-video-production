@@ -13,6 +13,19 @@
       "source": "own",
       "license": "own",
       "added": "2026-11-03"
+    },
+    {
+      "file": "assets/music/gta6-soundtrack.mp3",
+      "title": "gta 6",
+      "mood": [
+        "uplifting"
+      ],
+      "bpm": 125,
+      "energy": 0.9,
+      "duration": 30,
+      "source": "own",
+      "license": "own",
+      "added": "2026-11-21"
     }
   ]
 }
