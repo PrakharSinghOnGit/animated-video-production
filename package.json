@@ -75,6 +75,10 @@
     "thumbs": "bun run workflow/07-publish/thumbs.ts",
     "thumbs:render": "bun run workflow/07-publish/thumbs.ts --render-only",
     "thumbs:review": "bun run workflow/07-publish/review.ts",
+    "vidiq:login": "bun run workflow/lib/vidiq.ts login",
+    "vidiq:status": "bun run workflow/lib/vidiq.ts status",
+    "vidiq:logout": "bun run workflow/lib/vidiq.ts logout",
+    "vidiq": "bun run workflow/07-publish/vidiq.ts",
     "publish:export": "bun run workflow/07-publish/export.ts",
     "shorts:write": "bun run workflow/08-shorts/write.ts",
     "shorts": "bun run workflow/08-shorts/run.ts",
@@ -92,6 +96,7 @@
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p workflow/dashboard/web"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@remotion/bundler": "4.0.539",
     "@remotion/cli": "4.0.539",
     "@remotion/google-fonts": "4.0.539",
